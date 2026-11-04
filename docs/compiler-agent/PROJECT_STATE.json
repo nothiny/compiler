@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-04T10:28:24.083809+00:00",
+  "updated_at": "2026-11-04T10:28:24.390977+00:00",
   "facts": [
     {
       "id": "F001",
@@ -597,6 +597,13 @@
       "id": "D002",
       "decision": "amend task T009: dependencies",
       "evidence": "Review finding 1 (HIGH dependency, review-001 REQUEST_CHANGES): T009's persistent reductions loop chunks inside one program over runtime bounds (e.g. amax_kernel 'for off in range(0, N, BLOCK_N)' plus tl.max), consuming T008's loop lowering; T008 now precedes T009. Acceptance, tests and scope unchanged: T009 remains the single task validating the 146 pat.persistent_reduce operators (it owns both loop and reduction lowering).",
+      "alternatives": "add a second task answering to the same work (the engine refuses duplicate ids) or raise a design issue and replan",
+      "consequences": "semantic contract changes require review; record-only corrections preserve approval"
+    },
+    {
+      "id": "D003",
+      "decision": "amend task T010: dependencies",
+      "evidence": "Review finding 1 (HIGH dependency, review-001 REQUEST_CHANGES): T010's K-loop accumulator chaining through the acc parameter consumes loop lowering (runtime K-loops); T008 now precedes T010. Scope and acceptance unchanged: the IME slice keeps its full contract (INT8 8x16x8 smt.vmadot / FP16 8x8x8 smt.vfwmadot execution with counted instructions, tails, verifier and allocator constraints) and still precedes matrix breadth (T014 depends on T010), per COMPILER_ARCHITECTURE.md validation route step 3.",
       "alternatives": "add a second task answering to the same work (the engine refuses duplicate ids) or raise a design issue and replan",
       "consequences": "semantic contract changes require review; record-only corrections preserve approval"
     }
@@ -1338,7 +1345,8 @@
         "a100c/tests/test_ime_evidence.py"
       ],
       "dependencies": [
-        "T007"
+        "T007",
+        "T008"
       ],
       "interfaces": [],
       "acceptance": [
@@ -6577,6 +6585,18 @@
       "phase": "PLANNING",
       "event": "task-amend",
       "detail": "T009 changed dependencies (Review finding 1 (HIGH dependency, review-001 REQUEST_CHANGES): T009's persistent reductions loop chunks inside one program over runtime bounds (e.g. amax_kernel 'for off in range(0, N, BLOCK_N)' plus tl.max), consuming T008's loop lowering; T008 now precedes T009. Acceptance, tests and scope unchanged: T009 remains the single task validating the 146 pat.persistent_reduce operators (it owns both loop and reduction lowering).)"
+    },
+    {
+      "at": "2026-11-04T10:28:24.359400+00:00",
+      "phase": "PLANNING",
+      "event": "decision",
+      "detail": "D003 amend task T010: dependencies"
+    },
+    {
+      "at": "2026-11-04T10:28:24.390951+00:00",
+      "phase": "PLANNING",
+      "event": "task-amend",
+      "detail": "T010 changed dependencies (Review finding 1 (HIGH dependency, review-001 REQUEST_CHANGES): T010's K-loop accumulator chaining through the acc parameter consumes loop lowering (runtime K-loops); T008 now precedes T010. Scope and acceptance unchanged: the IME slice keeps its full contract (INT8 8x16x8 smt.vmadot / FP16 8x8x8 smt.vfwmadot execution with counted instructions, tails, verifier and allocator constraints) and still precedes matrix breadth (T014 depends on T010), per COMPILER_ARCHITECTURE.md validation route step 3.)"
     }
   ]
 }
