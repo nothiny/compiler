@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-04T08:49:03.915774+00:00",
+  "updated_at": "2026-11-04T08:49:04.120733+00:00",
   "facts": [
     {
       "id": "F001",
@@ -172,6 +172,15 @@
       "statement": "Execution-model policy for this compiler: parallelize one operator across native workers and vectorize within each worker; work may be repartitioned from the source grid when semantics permit; a persistent worker pool receives native work ranges and threads/workspaces are reused across calls; cross-worker dependencies use explicit stages, synchronization and merges; coverage, tails, ownership, visibility and repeated execution must be validated at 1/2/4/8 workers, and representative multi-worker cases must distribute useful work.",
       "source": "chip.md#3-execution-model (POLICY, lines 63-70)",
       "confidence": "FACT",
+      "status": "active",
+      "category": "execution_model",
+      "origin": "input"
+    },
+    {
+      "id": "F019",
+      "statement": "Measured scheduling model under the declared QEMU endpoint: a persistent pthread pool executes work ranges with distinct guest tids at 1/2/4/8 threads (full 32771-item coverage, one pool initialization, warmup run included) - the scheduling unit is the OS-scheduled Linux thread; a worker count of one is the single-thread serial configuration. QEMU guest threads are not physical A100 cores (assumption A001).",
+      "source": "probe: TOOLCHAIN_PROBES.json threads rows (persistent_pool_two_stages, qemu-functional, passed=true at 1/2/4/8); docs/compiler-agent/ENVIRONMENT.md Multi-worker execution/observation",
+      "confidence": "RUNTIME_PROBE",
       "status": "active",
       "category": "execution_model",
       "origin": "input"
@@ -586,6 +595,12 @@
       "phase": "CHIP_ANALYSIS",
       "event": "fact",
       "detail": "F018 [execution_model/FACT/input] chip.md#3-execution-model (POLICY, lines 63-70)"
+    },
+    {
+      "at": "2026-11-04T08:49:04.120685+00:00",
+      "phase": "CHIP_ANALYSIS",
+      "event": "fact",
+      "detail": "F019 [execution_model/RUNTIME_PROBE/input] probe: TOOLCHAIN_PROBES.json threads rows (persistent_pool_two_stages, qemu-functional, passed=true at 1/2/4/8); docs/compiler-agent/ENVIRONMENT.md Multi-worker execution/observation"
     }
   ]
 }
