@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-04T08:50:34.000234+00:00",
+  "updated_at": "2026-11-04T08:50:34.199456+00:00",
   "facts": [
     {
       "id": "F001",
@@ -397,6 +397,15 @@
       "statement": "Codegen boundary policy: the compiler generates the complete single-operator native execution program - program-level assembly owning entry/argument binding, worker range loops, computation stages, constants and workspace descriptions - consumed by the declared assembler and linker plus precompiled C/C++ runtime and system libraries (static or dynamic); per-operator C wrappers are not required; Python may compile and perform external preparation/comparison, but running ./operator_exec must neither start, embed nor call Python; replacing this compiler's lowering with a generated high-level translation unit is not allowed; programs are cached by every bound source, target, option, grid/launch and argument-layout dependency.",
       "source": "chip.md#2 (compiler target boundary, POLICY lines 43-60); AGENTS.md Design and implementation (caching policy)",
       "confidence": "FACT",
+      "status": "active",
+      "category": "toolchain",
+      "origin": "input"
+    },
+    {
+      "id": "F044",
+      "statement": "Toolchain absences: the SpacemiT LLVM package (llvm-spacemit-f6ded0be) is present but unusable on this host - llc/opt/llvm-mc/llvm-as/llvm-dis/ld.lld all fail with GLIBC_2.36/GLIBC_2.38 not found and it contains no clang - and it is NOT on the declared build path (.env declares the GCC/binutils cross toolchain); no tool outside the declared assembler/linker/sysroot/runtime path may appear in code generation, and the reference integration options (spine-triton CPUDriver/SMT API pipeline TTIR->Linalg->LLVM IR->llc, OpenBLAS/SLEEF math libraries, ONNXRuntime EP) are vendor-stack references, not components this compiler may call for its lowering.",
+      "source": "probe: fact F012 (docs/compiler-agent/ENVIRONMENT.md SpacemiT LLVM); chip.md#2/#5; reference-stack docs: docs/compiler-agent/target-material/sources/f97e5fa486885796bd4c24b204159f6c959cfe87015e5516c87d78ed9fc201d7/triton.md.search.txt:35-63, docs/compiler-agent/target-material/sources/22375bca9186501ada02cc4bd89cac6820aad719ffaddf373aa277c839fc67fb/math_library.md.search.txt:29-38",
+      "confidence": "RUNTIME_PROBE",
       "status": "active",
       "category": "toolchain",
       "origin": "input"
@@ -961,6 +970,12 @@
       "phase": "CHIP_ANALYSIS",
       "event": "fact",
       "detail": "F043 [toolchain/FACT/input] chip.md#2 (compiler target boundary, POLICY lines 43-60); AGENTS.md Design and implementation (caching policy)"
+    },
+    {
+      "at": "2026-11-04T08:50:34.199412+00:00",
+      "phase": "CHIP_ANALYSIS",
+      "event": "fact",
+      "detail": "F044 [toolchain/RUNTIME_PROBE/input] probe: fact F012 (docs/compiler-agent/ENVIRONMENT.md SpacemiT LLVM); chip.md#2/#5; reference-stack docs: docs/compiler-agent/target-material/sources/f97e5fa486885796bd4c24b204159f6c959cfe87015e5516c87d78ed9fc201d7/triton.md.search.txt:35-63, docs/compiler-agent/target-material/sources/22375bca9186501ada02cc4bd89cac6820aad719ffaddf373aa277c839fc67fb/math_library.md.search.txt:29-38"
     }
   ]
 }
