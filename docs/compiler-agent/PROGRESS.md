@@ -1,6 +1,6 @@
 # Progress
 
-Phase: **CHIP_ANALYSIS** · project: `compiler-a100-experiment-001`
+Phase: **WORKLOAD_ANALYSIS** · project: `compiler-a100-experiment-001`
 
 ## Task board
 
@@ -13,7 +13,6 @@ Phase: **CHIP_ANALYSIS** · project: `compiler-a100-experiment-001`
 
 | When | Phase | Event | Detail |
 |---|---|---|---|
-| 2026-11-04T08:49:03.480905+00:00 | CHIP_ANALYSIS | fact | F016 [execution_model/FACT/input] docs/compiler-agent/target-material/sources/432da714bd719f3506e3fb28b39f1f35fa1a8f54702382d66e010ec92acb30f6/root_overview.md.search.txt:12-14; docs/compiler-agent/target-material/sources/83ddde6d173d633a2b89bad966f7ec23ae7ab4699185cf85989521a79c03d066/concept.md.search.txt:11-22 (4.1.1); docs/compiler-agent/target-material/sources/9564d4ba5ed9a64d71c0c7e5bf0c8f7d74ed717fd0aa71265328f8c1eaea8c91/K3_architecture_preview.pdf.search.txt:181-183 |
 | 2026-11-04T08:49:03.714242+00:00 | CHIP_ANALYSIS | fact | F017 [execution_model/FACT/input] docs/compiler-agent/target-material/sources/9564d4ba5ed9a64d71c0c7e5bf0c8f7d74ed717fd0aa71265328f8c1eaea8c91/K3_architecture_preview.pdf.search.txt:680-685,717-745 (3.2/3.2.2) |
 | 2026-11-04T08:49:03.915732+00:00 | CHIP_ANALYSIS | fact | F018 [execution_model/FACT/input] chip.md#3-execution-model (POLICY, lines 63-70) |
 | 2026-11-04T08:49:04.120685+00:00 | CHIP_ANALYSIS | fact | F019 [execution_model/RUNTIME_PROBE/input] probe: TOOLCHAIN_PROBES.json threads rows (persistent_pool_two_stages, qemu-functional, passed=true at 1/2/4/8); docs/compiler-agent/ENVIRONMENT.md Multi-worker execution/observation |
@@ -65,3 +64,4 @@ Phase: **CHIP_ANALYSIS** · project: `compiler-a100-experiment-001`
 | 2026-11-04T08:57:43.687791+00:00 | CHIP_ANALYSIS | complete-task | T002 worker report WTI002: Chip analysis for the A100 target completed. Read chip.md in full and all 146 paths its ## Target pack declares (verified to resolve inside the project root; 25 markdown docs + 27 search.txt incl. both PDF extractions read, 2 PDFs and 94 figures verified valid and consumed through their parent documents). Recorded 41 provenance-labelled ChipFacts (F016-F056: execution_model 5, memory 6, isa 12, registers 3, toolchain 3, abi 2, runtime 4, constraints 6; 26 anchored in the declared pack, 11 RUNTIME_PROBE with commands, 4 policy/chip.md-sourced) and 6 assumptions with validation methods (A003-A008) through the engine fact/assume commands. Wrote CHIP_ANALYSIS.md covering all 8 G1 categories property-by-property, including explicit negative facts (absent Zvvm instructions, no Zvvmtls, no mixed FP16/BF16 formats, vm mask unused for matrix instructions, LMUL=1-only IME legality, the pinned QEMU BF16 IME format-control gap kept unverified, MCPM CSR not userspace-accessible, no Hypervisor in RVA23*, other-chip exclusions, unusable SpacemiT LLVM), the knowledge-profile declaration (present: k3-a100), and three reported (not averaged) documentation framing differences (IME lambda figure-caption vs tables; X100 L2 brief vs manual; Preview vs production A100 cluster composition) - none affecting codegen. Correctness_only: no performance anchors, timings or speedups recorded (the 60 TOPS INT4-sparse headline is recorded only as a qualified specification, explicitly not a target). CHIP_ANALYSIS.md exists at the task's declared output path docs/compiler-agent/CHIP_ANALYSIS.md and as an identical copy at the project root, which is where the engine's G1 check reads it (WORKFLOW_ROOT_ARTIFACTS convention).
 acceptance[0]: `set -a; . ./.env; set +a; timeout 120 python3 -m compiler_agent --root . --json gates --diagnostics` -> exit 0
 acceptance[1]: `timeout 60 python3 -c "import json; d=json.load(open('docs/compiler-agent/PROJECT_STATE.json')); chip=[f for f in d['f |
+| 2026-11-04T08:58:03.176693+00:00 | WORKLOAD_ANALYSIS | transition | CHIP_ANALYSIS -> WORKLOAD_ANALYSIS Chip analysis T002 DONE, G1 satisfied via CHIP_ANALYSIS.md with sourced facts. |

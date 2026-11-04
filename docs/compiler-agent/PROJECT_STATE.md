@@ -1,10 +1,10 @@
 # Project state
 
 - project: `compiler-a100-experiment-001`
-- phase: **CHIP_ANALYSIS**
+- phase: **WORKLOAD_ANALYSIS**
 - acceptance scope: `correctness_only`
 - schema: v1
-- updated: 2026-11-04T08:57:43.687838+00:00
+- updated: 2026-11-04T08:58:03.176732+00:00
 
 ## Inputs
 
