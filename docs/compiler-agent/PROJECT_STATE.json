@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-04T10:28:24.390977+00:00",
+  "updated_at": "2026-11-04T10:28:24.692055+00:00",
   "facts": [
     {
       "id": "F001",
@@ -604,6 +604,13 @@
       "id": "D003",
       "decision": "amend task T010: dependencies",
       "evidence": "Review finding 1 (HIGH dependency, review-001 REQUEST_CHANGES): T010's K-loop accumulator chaining through the acc parameter consumes loop lowering (runtime K-loops); T008 now precedes T010. Scope and acceptance unchanged: the IME slice keeps its full contract (INT8 8x16x8 smt.vmadot / FP16 8x8x8 smt.vfwmadot execution with counted instructions, tails, verifier and allocator constraints) and still precedes matrix breadth (T014 depends on T010), per COMPILER_ARCHITECTURE.md validation route step 3.",
+      "alternatives": "add a second task answering to the same work (the engine refuses duplicate ids) or raise a design issue and replan",
+      "consequences": "semantic contract changes require review; record-only corrections preserve approval"
+    },
+    {
+      "id": "D004",
+      "decision": "amend task T011: dependencies",
+      "evidence": "Review finding 1 (HIGH dependency, review-001 REQUEST_CHANGES): T011's memory forms lower through runtime-bound loops (grouped_gemm's 'for g in range(group_size)' and 'for _ in tl.range(loop_count)', block-pointer advance loops), consuming T008's loop lowering; T008 now precedes T011. Acceptance, tests and scope unchanged.",
       "alternatives": "add a second task answering to the same work (the engine refuses duplicate ids) or raise a design issue and replan",
       "consequences": "semantic contract changes require review; record-only corrections preserve approval"
     }
@@ -1427,7 +1434,8 @@
         "a100c/tests/test_atomics.py"
       ],
       "dependencies": [
-        "T007"
+        "T007",
+        "T008"
       ],
       "interfaces": [],
       "acceptance": [
@@ -6597,6 +6605,18 @@
       "phase": "PLANNING",
       "event": "task-amend",
       "detail": "T010 changed dependencies (Review finding 1 (HIGH dependency, review-001 REQUEST_CHANGES): T010's K-loop accumulator chaining through the acc parameter consumes loop lowering (runtime K-loops); T008 now precedes T010. Scope and acceptance unchanged: the IME slice keeps its full contract (INT8 8x16x8 smt.vmadot / FP16 8x8x8 smt.vfwmadot execution with counted instructions, tails, verifier and allocator constraints) and still precedes matrix breadth (T014 depends on T010), per COMPILER_ARCHITECTURE.md validation route step 3.)"
+    },
+    {
+      "at": "2026-11-04T10:28:24.660073+00:00",
+      "phase": "PLANNING",
+      "event": "decision",
+      "detail": "D004 amend task T011: dependencies"
+    },
+    {
+      "at": "2026-11-04T10:28:24.692031+00:00",
+      "phase": "PLANNING",
+      "event": "task-amend",
+      "detail": "T011 changed dependencies (Review finding 1 (HIGH dependency, review-001 REQUEST_CHANGES): T011's memory forms lower through runtime-bound loops (grouped_gemm's 'for g in range(group_size)' and 'for _ in tl.range(loop_count)', block-pointer advance loops), consuming T008's loop lowering; T008 now precedes T011. Acceptance, tests and scope unchanged.)"
     }
   ]
 }
