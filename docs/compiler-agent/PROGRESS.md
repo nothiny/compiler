@@ -13,7 +13,6 @@ Phase: **CHIP_ANALYSIS** · project: `compiler-a100-experiment-001`
 
 | When | Phase | Event | Detail |
 |---|---|---|---|
-| 2026-11-04T08:29:06.078634+00:00 | ENVIRONMENT_ANALYSIS | fact | F011 [isa/RUNTIME_PROBE/input] probe: mcpm_control field of fresh matrix_probe runs; recorded csr row (returncode -4) in docs/compiler-agent/TOOLCHAIN_PROBES.json |
 | 2026-11-04T08:29:06.278345+00:00 | ENVIRONMENT_ANALYSIS | fact | F012 [toolchain/RUNTIME_PROBE/input] probe: timeout 20 /home/i_yinzida/.local/opt/a100/llvm-spacemit-f6ded0be/bin/llc --version -> GLIBC_2.38 not found; same error for opt, llvm-mc, llvm-as, llvm-dis, ld.lld; docs/compiler-agent/ENVIRONMENT.md SpacemiT LLVM |
 | 2026-11-04T08:29:18.177551+00:00 | ENVIRONMENT_ANALYSIS | fact | F013 [runtime/RUNTIME_PROBE/input] probe: timeout 420 a100_support/run-reference.sh a100_support/build/reference_probe.py -> masked vector-add comparison: PASS; versions match docs/compiler-agent/REFERENCE_ENVIRONMENT.json |
 | 2026-11-04T08:29:18.373100+00:00 | ENVIRONMENT_ANALYSIS | fact | F014 [environment/RUNTIME_PROBE/input] probe: python3 --version; python3 -m compiler_agent --root . --json status; python3 -c import opslib.device, a100_support.native_device, a100_support.native_io, a100_support.reference_device; docs/compiler-agent/ENVIRONMENT.md Host Python driver |
@@ -66,3 +65,4 @@ acceptance[2]: `python3 -c "import json; d=json.load(open('docs/ |
 | 2026-11-04T08:50:50.676131+00:00 | CHIP_ANALYSIS | fact | F049 [runtime/RUNTIME_PROBE/input] probe: fact F013 (docs/compiler-agent/ENVIRONMENT.md x86 Triton CPU reference environment); chip.md#5 (POLICY) |
 | 2026-11-04T08:50:50.894795+00:00 | CHIP_ANALYSIS | fact | F050 [runtime/FACT/input] chip.md#6 (validation hierarchy, POLICY lines 96-102) and chip.md:14-15 (declarations) |
 | 2026-11-04T08:51:10.485955+00:00 | CHIP_ANALYSIS | fact | F051 [constraints/FACT/input] docs/compiler-agent/target-material/sources/bd69e01a6280ae5ab4493ea82b0e819fb34f093da43c264fc3be3c6291a8c6c8/ime_extension.md.search.txt:398-407 (2.6.1),529-538 (4.2),677-681 (5.1.5),1397-1434 (6.1.3-6.1.6) |
+| 2026-11-04T08:51:10.723953+00:00 | CHIP_ANALYSIS | fact | F052 [constraints/FACT/input] chip.md#4 (input and numeric contract, POLICY lines 72-78); ops/README.md (declared subset); AGENTS.md Scope and state |
