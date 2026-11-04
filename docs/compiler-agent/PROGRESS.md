@@ -34,8 +34,6 @@ Phase: **PLANNING** · project: `compiler-a100-experiment-001`
 
 | When | Phase | Event | Detail |
 |---|---|---|---|
-| 2026-11-04T08:59:40.782578+00:00 | WORKLOAD_ANALYSIS | task-delegate | WTI003 task=T003 attempt=1 profile=general-purpose |
-| 2026-11-04T09:08:21.205118+00:00 | WORKLOAD_ANALYSIS | operator-glob | suite/dev/*.py,suite/perf/*.py (500 operator file(s)) (from ops/README.md (corpus layout: suite/dev + suite/perf are the operators, harness/ is not); glob as prescribed by ops/harness/compiler_api/AGENT_GUIDE.md section 1) |
 | 2026-11-04T09:08:31.310528+00:00 | WORKLOAD_ANALYSIS | ingest-ops | 500 operators, 1068 features |
 | 2026-11-04T09:08:38.536562+00:00 | WORKLOAD_ANALYSIS | group-order | suite/dev, suite/perf (from ops/harness/compiler_api/run_cases.py (GROUP_ORDER = ("suite/dev", "suite/perf") — the two input directories in the order the corpus declares them; confirmed by `run_cases.py --dry-run --group-order`: suite/dev operators=400 cases=2192, suite/perf operators=100 cases=542)) |
 | 2026-11-04T09:08:43.615579+00:00 | WORKLOAD_ANALYSIS | case-totals | suite/dev=2192, suite/perf=542 (from ops corpus enumeration: cd ops && python3 harness/compiler_api/run_cases.py --manifest suite/manifest.json --dry-run --group-order (suite/dev cases=2192, suite/perf cases=542, TOTAL cases=2734); cross-checked with ops/suite/manifest.json cases_total=2734 and docs/compiler-agent/A100_CORPUS_CASES.json.manifest (2734 rows: suite/dev 2192, suite/perf 542)) |
@@ -86,3 +84,5 @@ acceptance[1]: `cd ops && python3 harness/compiler_api/run_cases.py --dry-run --
 | 2026-11-04T10:18:07.330337+00:00 | PLANNING | task-delegate | WTI005 task=T023 attempt=1 profile=general-purpose |
 | 2026-11-04T10:28:23.736152+00:00 | PLANNING | decision | D001 amend task T006: goal |
 | 2026-11-04T10:28:23.767496+00:00 | PLANNING | task-amend | T006 changed goal (Review finding 5 (LOW, coverage, review-001 REQUEST_CHANGES): T006's elementwise-core scope must name the P0 tensor-creation constructs tl.arange (466 operator files), tl.zeros (147) and tl.full (56) and the tensor-creation forms explicitly; every elementwise kernel and the T007 vertical slice compute offsets and initial values with them (e.g. gemm_smallk computes all offsets with tl.arange). Naming-only scope change: no acceptance, test, dependency or coverage change.) |
+| 2026-11-04T10:28:24.051721+00:00 | PLANNING | decision | D002 amend task T009: dependencies |
+| 2026-11-04T10:28:24.083787+00:00 | PLANNING | task-amend | T009 changed dependencies (Review finding 1 (HIGH dependency, review-001 REQUEST_CHANGES): T009's persistent reductions loop chunks inside one program over runtime bounds (e.g. amax_kernel 'for off in range(0, N, BLOCK_N)' plus tl.max), consuming T008's loop lowering; T008 now precedes T009. Acceptance, tests and scope unchanged: T009 remains the single task validating the 146 pat.persistent_reduce operators (it owns both loop and reduction lowering).) |

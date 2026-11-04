@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-04T10:28:23.767519+00:00",
+  "updated_at": "2026-11-04T10:28:24.083809+00:00",
   "facts": [
     {
       "id": "F001",
@@ -590,6 +590,13 @@
       "id": "D001",
       "decision": "amend task T006: goal",
       "evidence": "Review finding 5 (LOW, coverage, review-001 REQUEST_CHANGES): T006's elementwise-core scope must name the P0 tensor-creation constructs tl.arange (466 operator files), tl.zeros (147) and tl.full (56) and the tensor-creation forms explicitly; every elementwise kernel and the T007 vertical slice compute offsets and initial values with them (e.g. gemm_smallk computes all offsets with tl.arange). Naming-only scope change: no acceptance, test, dependency or coverage change.",
+      "alternatives": "add a second task answering to the same work (the engine refuses duplicate ids) or raise a design issue and replan",
+      "consequences": "semantic contract changes require review; record-only corrections preserve approval"
+    },
+    {
+      "id": "D002",
+      "decision": "amend task T009: dependencies",
+      "evidence": "Review finding 1 (HIGH dependency, review-001 REQUEST_CHANGES): T009's persistent reductions loop chunks inside one program over runtime bounds (e.g. amax_kernel 'for off in range(0, N, BLOCK_N)' plus tl.max), consuming T008's loop lowering; T008 now precedes T009. Acceptance, tests and scope unchanged: T009 remains the single task validating the 146 pat.persistent_reduce operators (it owns both loop and reduction lowering).",
       "alternatives": "add a second task answering to the same work (the engine refuses duplicate ids) or raise a design issue and replan",
       "consequences": "semantic contract changes require review; record-only corrections preserve approval"
     }
@@ -1251,7 +1258,8 @@
         "a100c/tests/test_stage_plan.py"
       ],
       "dependencies": [
-        "T007"
+        "T007",
+        "T008"
       ],
       "interfaces": [],
       "acceptance": [
@@ -6557,6 +6565,18 @@
       "phase": "PLANNING",
       "event": "task-amend",
       "detail": "T006 changed goal (Review finding 5 (LOW, coverage, review-001 REQUEST_CHANGES): T006's elementwise-core scope must name the P0 tensor-creation constructs tl.arange (466 operator files), tl.zeros (147) and tl.full (56) and the tensor-creation forms explicitly; every elementwise kernel and the T007 vertical slice compute offsets and initial values with them (e.g. gemm_smallk computes all offsets with tl.arange). Naming-only scope change: no acceptance, test, dependency or coverage change.)"
+    },
+    {
+      "at": "2026-11-04T10:28:24.051721+00:00",
+      "phase": "PLANNING",
+      "event": "decision",
+      "detail": "D002 amend task T009: dependencies"
+    },
+    {
+      "at": "2026-11-04T10:28:24.083787+00:00",
+      "phase": "PLANNING",
+      "event": "task-amend",
+      "detail": "T009 changed dependencies (Review finding 1 (HIGH dependency, review-001 REQUEST_CHANGES): T009's persistent reductions loop chunks inside one program over runtime bounds (e.g. amax_kernel 'for off in range(0, N, BLOCK_N)' plus tl.max), consuming T008's loop lowering; T008 now precedes T009. Acceptance, tests and scope unchanged: T009 remains the single task validating the 146 pat.persistent_reduce operators (it owns both loop and reduction lowering).)"
     }
   ]
 }
