@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-04T08:49:51.226604+00:00",
+  "updated_at": "2026-11-04T08:50:10.976166+00:00",
   "facts": [
     {
       "id": "F001",
@@ -307,6 +307,15 @@
       "statement": "IME illegal conditions (refusal/trap contract): LMUL != 1 in any IME instruction raises an illegal instruction exception (all other LMUL encodings reserved); when MUL_C=2 the destination vd must be even-numbered (vd and vd+1 form the group) and the destination group must not overlap vs1 or vs2; sliding-window instructions additionally require vs1 even-numbered; sparse instructions use v0/v1 as recovery masks with imm2 segment select; scale instructions use v0/v1 as scale parameter registers with imm3 group select; for smt.vfwmadot* the floating-point input format must match the MCPM.BF16 setting, else illegal.",
       "source": "docs/compiler-agent/target-material/sources/bd69e01a6280ae5ab4493ea82b0e819fb34f093da43c264fc3be3c6291a8c6c8/ime_extension.md.search.txt:104-129 (1.5),329-352 (2.3),398-435 (2.6),670-675 (5.1.4),1424-1429 (6.1.5)",
       "confidence": "FACT",
+      "status": "active",
+      "category": "isa",
+      "origin": "input"
+    },
+    {
+      "id": "F034",
+      "statement": "Measured IME availability under the pinned QEMU endpoint (jdsk-qemu 10.0.2, -cpu max,vlen=1024,elen=64,vext_spec=v1.0): int8, int4 and fp16 matrix probes are EXECUTED_AND_COMPARED_PASS with counted dynamic executions (smt.vmadot for int8/int4, smt.vfwmadot for fp16, one execution each at fixed pc); the BF16 matrix probe FAILS (exit 1, passed=false) while its executed smt.vfwmadot selects the MCPM float16 operand format - the pinned emulator's BF16 IME format selection has NOT passed and remains unverified; FP16 or ordinary vector success cannot prove BF16 IME execution and BF16 cases must be preserved with the gap recorded separately. The MCPM control CSR is not accessible from userspace (recorded csr probe returncode -4, zero matrix executions; fresh probes report default-no-userspace-access).",
+      "source": "probe: docs/compiler-agent/TOOLCHAIN_PROBES.json matrix rows int8/int4/fp16 EXECUTED_AND_COMPARED_PASS and bf16 UNSUPPORTED_OR_FAILED (returncode 1, operand_format MCPM-selected-float16) and csr row (returncode -4); fresh 2026-11-04 re-runs in docs/compiler-agent/ENVIRONMENT.md (facts F009/F010/F011)",
+      "confidence": "RUNTIME_PROBE",
       "status": "active",
       "category": "isa",
       "origin": "input"
@@ -811,6 +820,12 @@
       "phase": "CHIP_ANALYSIS",
       "event": "fact",
       "detail": "F033 [isa/FACT/input] docs/compiler-agent/target-material/sources/bd69e01a6280ae5ab4493ea82b0e819fb34f093da43c264fc3be3c6291a8c6c8/ime_extension.md.search.txt:104-129 (1.5),329-352 (2.3),398-435 (2.6),670-675 (5.1.4),1424-1429 (6.1.5)"
+    },
+    {
+      "at": "2026-11-04T08:50:10.976119+00:00",
+      "phase": "CHIP_ANALYSIS",
+      "event": "fact",
+      "detail": "F034 [isa/RUNTIME_PROBE/input] probe: docs/compiler-agent/TOOLCHAIN_PROBES.json matrix rows int8/int4/fp16 EXECUTED_AND_COMPARED_PASS and bf16 UNSUPPORTED_OR_FAILED (returncode 1, operand_format MCPM-selected-float16) and csr row (returncode -4); fresh 2026-11-04 re-runs in docs/compiler-agent/ENVIRONMENT.md (facts F009/F010/F011)"
     }
   ]
 }
