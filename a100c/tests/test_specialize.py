@@ -309,7 +309,7 @@ tl.store(y_ptr + tl.arange(0, BLOCK), w)
         check("runtime-condition-not-folded-refused", False, "lowered")
     except FrontendError as exc:
         check("runtime-condition-not-folded-refused",
-              "runtime 'if'" in str(exc) and exc.line == 12,
+              "block-tensor condition" in str(exc) and exc.line == 12,
               f"line {exc.line}")
 
 
@@ -372,15 +372,20 @@ def check_real_corpus_folding():
         case = module.make_case(shape=(17,), dtype=dtype)
         spec = specialize.specialize(src, case)
         lowering = lower_tir.Lowering(src, spec)
-        refused_at_loop = False
+        # T008 lowers the loop; the fp64 branch's explicit conversions are
+        # the next boundary (a later task's path), so the lowering either
+        # completes or refuses at the cast -- after the dispatch folded and
+        # the zeros was emitted
+        stopped_at_boundary = False
         try:
             lowering.lower()
         except FrontendError as exc:
-            refused_at_loop = "loops are not lowered" in str(exc)
+            stopped_at_boundary = "tl.cast" in str(exc) or \
+                "conversion" in str(exc)
         f64 = spec.fold.float64_comparisons()
         zeros = [st for st in lowering.module.functions[0].body.statements
                  if isinstance(st, tir.Op) and st.op == "zeros"]
-        ok = refused_at_loop and len(f64) == 1
+        ok = stopped_at_boundary and len(f64) == 1
         ok &= f64[0].result is (want_branch == "body")
         ok &= len(zeros) == 1 and zeros[0].results[0].type == want_zeros
         ok &= any(b.taken == want_branch for b in spec.fold.branches)

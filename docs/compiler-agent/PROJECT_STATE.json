@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-04T13:47:40.518408+00:00",
+  "updated_at": "2026-11-04T15:24:22.844641+00:00",
   "facts": [
     {
       "id": "F001",
@@ -1242,14 +1242,14 @@
         "backend-path-v1"
       ],
       "tags": [],
-      "status": "RUNNING",
+      "status": "DONE",
       "assignee": "coder",
       "attempts": 1,
-      "evidence": "",
+      "evidence": "worker report WTI009: Control flow, loop forms and grid generality implemented and validated. (1) TIR/lowering: runtime if/else with explicit join parameters (a one-path re-bind becomes a fresh block parameter, never a lexical restore), counted loops (range/tl.range with step; every pragma parameter classified ignorable-with-reason and recorded), tl.static_range compile-time unrolling, while loops with a carried condition, multi-axis program_id decomposition (axis-k divisor = product of extents 0..k-1), tl.num_programs from the runtime grid extents, persistent grid-stride while patterns and if_pid branches. The lowering builds the MIR CFG with block parameters as joins (scalar.py control-flow core), flattens ptradd chains into whole-tree addresses, opens the vector chunk region at the first block-level statement (source regions nest inside it, so block values carried across a source loop stay chunk-local), emits per-block vsetvli regions, and the allocator now prevents mixed-LMUL source/destination group overlap (a probe-found illegal-instruction form, asserted post-allocation). Fixed two pre-existing frontend bugs the control-flow path exposed: comparison operand-order inversion for literal-on-the-right compares (flag > 0 folded to 0 > flag) and RuntimeValue == folding to False instead of NOT_CONSTEXPR (if pid == 0 silently dropped the arm). (2) a100c/frontend/gridmodel.py: the provenance-tracking case-layer interpreter extracts every corpus grid form (multi-axis tuples, triton.cdiv products, lambda-meta with autotune configs folded as identity-tier constants, shape-derived locals, view extents via tracked array creation and a two-pass binding of opaque arrays, scalar-argument ties, min/max as MinMax nodes realized natively by a compare/mask/select sequence, np.ceil(a/b)), proves every leaf tied to a bundle-visible quantity (origin ties first, payload-shape value ties as a self-check-guarded fallback), and self-checks modeled == declared per compiling case. plan/gr",
       "last_error": "",
       "failure_kind": "",
       "start_revision": "6164201ad8cd2ab580e5e1f2c33b5fec08a5c2dd",
-      "end_revision": "",
+      "end_revision": "00f06253d1ba65aca3ea60dbd87547a80cabe89b",
       "completed_seq": 0,
       "debug_required": false,
       "debug_request_id": "",
@@ -1321,7 +1321,7 @@
         "backend-path-v1"
       ],
       "tags": [],
-      "status": "BLOCKED",
+      "status": "READY",
       "assignee": "",
       "attempts": 0,
       "evidence": "",
@@ -1404,7 +1404,7 @@
       "tags": [
         "ime-slice"
       ],
-      "status": "BLOCKED",
+      "status": "READY",
       "assignee": "",
       "attempts": 0,
       "evidence": "",
@@ -1483,7 +1483,7 @@
         "backend-path-v1"
       ],
       "tags": [],
-      "status": "BLOCKED",
+      "status": "READY",
       "assignee": "",
       "attempts": 0,
       "evidence": "",
@@ -6839,6 +6839,24 @@
       "phase": "IMPLEMENTATION",
       "event": "task-delegate",
       "detail": "WTI009 task=T008 attempt=1 profile=general-purpose"
+    },
+    {
+      "at": "2026-11-04T15:24:22.817404+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "task-report-out-of-contract",
+      "detail": "T008: a100c/ir/tir.py, a100c/cache/680272d7cdb643977eba8c2fed7748c7c43278717cedf94aabb59aab43b6653f/artifact.json, a100c/cache/c13aab3008ab6e0004ed939c2014518389f3f037ee8b549f338d410159e0103b/program.S, a100c/frontend/specialize.py, a100c/cache/680272d7cdb643977eba8c2fed7748c7c43278717cedf94aabb59aab43b6653f/stage.mir.allocated.txt"
+    },
+    {
+      "at": "2026-11-04T15:24:22.822676+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "task-report",
+      "detail": "WTI009 COMPLETED attempt=1 [changes outside the declared paths: a100c/ir/tir.py, a100c/cache/680272d7cdb643977eba8c2fed7748c7c43278717cedf94aabb59aab43b6653f/artifact.json, a100c/cache/c13aab3008ab6e0004ed939c2014518389f3f037ee8b549f338d410159e0103b/program.S, a100c/frontend/specialize.py, a100c/cache/680272d7cdb643977eba8c2fed7748c7c43278717cedf94aabb59aab43b6653f/stage.mir.allocated.txt]"
+    },
+    {
+      "at": "2026-11-04T15:24:22.844628+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "complete-task",
+      "detail": "T008 worker report WTI009: Control flow, loop forms and grid generality implemented and validated. (1) TIR/lowering: runtime if/else with explicit join parameters (a one-path re-bind becomes a fresh block parameter, never a lexical restore), counted loops (range/tl.range with step; every pragma parameter classified ignorable-with-reason and recorded), tl.static_range compile-time unrolling, while loops with a carried condition, multi-axis program_id decomposition (axis-k divisor = product of extents 0..k-1), tl.num_programs from the runtime grid extents, persistent grid-stride while patterns and if_pid branches. The lowering builds the MIR CFG with block parameters as joins (scalar.py control-flow core), flattens ptradd chains into whole-tree addresses, opens the vector chunk region at the first block-level statement (source regions nest inside it, so block values carried across a source loop stay chunk-local), emits per-block vsetvli regions, and the allocator now prevents mixed-LMUL source/destination group overlap (a probe-found illegal-instruction form, asserted post-allocation). Fixed two pre-existing frontend bugs the control-flow path exposed: comparison operand-order inversion for literal-on-the-right compares (flag > 0 folded to 0 > flag) and RuntimeValue == folding to False instead of NOT_CONSTEXPR (if pid == 0 silently dropped the arm). (2) a100c/frontend/gridmodel.py: the provenance-tracking case-layer interpreter extracts every corpus grid form (multi-axis tuples, triton.cdiv products, lambda-meta with autotune configs folded as identity-tier constants, shape-derived locals, view extents via tracked array creation and a two-pass binding of opaque arrays, scalar-argument ties, min/max as MinMax nodes realized natively by a compare/mask/select sequence, np.ceil(a/b)), proves every leaf tied to a bundle-visible quantity (origin ties first, payload-shape value ties as a self-check-guarded fallback), and self-checks modeled == declared per compiling case. plan/gr"
     }
   ]
 }

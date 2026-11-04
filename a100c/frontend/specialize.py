@@ -332,6 +332,12 @@ class ConstexprEnv:
                 right = self._eval(comparator, path)
                 if right is NOT_CONSTEXPR:
                     return NOT_CONSTEXPR
+                # a runtime value must never fold a comparison: object
+                # identity would silently answer == and != (probe-found on
+                # 'if pid == 0:', which folded False and dropped the arm)
+                if isinstance(left, RuntimeValue) or \
+                        isinstance(right, RuntimeValue):
+                    return NOT_CONSTEXPR
                 result = self._compare(op, left, right)
                 # the folded comparison is still evaluated and recorded
                 self.fold.record_comparison(node, left, right, result)

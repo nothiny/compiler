@@ -1,9 +1,15 @@
-"""AST -> TIR lowering for the elementwise core (task T006).
+"""AST -> TIR lowering for the elementwise core (task T006) plus the
+structured control flow and grid-generality forms (task T008).
 
 Lowered today: masked load with ``other`` / store, arithmetic, comparison,
-logical/bitwise ops, ``where``, constants, ``program_id``, and the
-tensor-creation forms ``tl.arange`` (start/end define the block index
-space), ``tl.zeros``, ``tl.full``, ``tl.zeros_like``.
+logical/bitwise ops, ``where``, constants, ``program_id``,
+``num_programs``, and the tensor-creation forms ``tl.arange`` (start/end
+define the block index space), ``tl.zeros``, ``tl.full``,
+``tl.zeros_like``; and the control-flow forms -- runtime ``if``/``else``
+with explicit join parameters for carried values, ``for`` over
+``range()``/``tl.range(...)`` (step; the pragma parameters classified
+ignorable-with-reason by the declared surface), ``tl.static_range``
+compile-time unrolling, ``while`` loops with a carried condition.
 
 Everything is typed per the pinned Triton 3.8 semantics
 (``a100c/frontend/types.py``); the implicit casts the pinned semantics
@@ -17,7 +23,14 @@ conditions take only the live branch (dead dtype-dispatch branches -- the
 16 ``tl.float64`` branches no declared case dtype exercises -- disappear
 while the comparison itself is evaluated and recorded in the fold record).
 
-Anything else -- control flow, subscripts, reductions, casts, math -- is
+Region semantics: a source variable re-bound inside a region becomes a
+*new* value at the join (never a lexical restore of its earlier binding),
+and a name defined on one path only (or only inside a loop body) does not
+survive the region -- the closed-region diagnostic names the construct.
+Early ``return``, ``break``/``continue`` and ``for``/``while`` ``else``
+are refused with located diagnostics.
+
+Anything else -- subscripts, reductions, casts, math -- is
 refused with a located diagnostic naming the construct (never silently
 compiled); later tasks in the DAG implement those.
 """
@@ -64,6 +77,7 @@ _REQUIRED_PARAMS = {
     "tl.store": ("pointer", "value"),
     "tl.arange": ("start", "end"),
     "tl.program_id": (),
+    "tl.num_programs": (),
     "tl.where": ("condition", "x", "y"),
     "tl.zeros": ("shape", "dtype"),
     "tl.full": ("shape", "value", "dtype"),
@@ -94,6 +108,9 @@ class Lowering:
         self.fn = tir.Function(source.kernel_name, [], loc)
         self.module.functions.append(self.fn)
         self._block = self.fn.body
+        self._block_stack: List[tir.Block] = [self.fn.body]
+        #: names whose definition is closed inside a region (diagnostics)
+        self._closed_names: Dict[str, str] = {}
         self.symbols: Dict[str, Union[tir.Value, ConstVal]] = {}
         self._bind_params()
 
@@ -242,20 +259,23 @@ class Lowering:
                                         "body" if cond else "orelse")
                 self._lower_stmts(taken)
             else:
-                raise self._err(
-                    st, "if",
-                    "runtime 'if' is control flow and is not lowered by the "
-                    "elementwise core (only compile-time-constant conditions "
-                    "fold)")
+                self._lower_runtime_if(st)
         elif isinstance(st, ast.Pass):
             pass
-        elif isinstance(st, (ast.For, ast.AsyncFor, ast.While)):
-            raise self._err(
-                st, type(st).__name__.lower(),
-                "loops are not lowered by the elementwise core")
+        elif isinstance(st, (ast.For, ast.AsyncFor)):
+            self._lower_for(st)
+        elif isinstance(st, ast.While):
+            self._lower_while(st)
         elif isinstance(st, ast.Return):
             raise self._err(st, "return",
-                            "return is not lowered by the elementwise core")
+                            "early return is not lowered by the control-flow "
+                            "core (a region terminator is not in this path; "
+                            "guarded stores and constexpr dispatch cover the "
+                            "corpus forms)")
+        elif isinstance(st, (ast.Break, ast.Continue)):
+            raise self._err(st, type(st).__name__.lower(),
+                            "break/continue are not in the structured "
+                            "control-flow core")
         else:
             raise self._err(
                 st, type(st).__name__,
@@ -266,14 +286,516 @@ class Lowering:
         if isinstance(value, ConstVal):
             self.env.values[name] = value.value
         else:
+            # the source name becomes a scope alias of the value, which is
+            # what the TIR verifier's region joins resolve (name-based)
+            value.add_alias(name)
             self.env.values[name] = _runtime_symbol(name, value)
 
     def _read_name(self, node: ast.AST, st: ast.AST):
         assert isinstance(node, ast.Name)
         if node.id not in self.symbols:
+            closed = self._closed_names.get(node.id)
+            if closed:
+                raise self._err(
+                    st, node.id,
+                    f"name '{node.id}' was defined inside {closed} and does "
+                    "not survive the region (a value defined in a region is "
+                    "visible after it only through an explicit join/carried "
+                    "entry)")
             raise self._err(st, node.id,
                             f"name '{node.id}' is not defined")
         return self.symbols[node.id]
+
+    # ------------------------------------------------------------------ regions
+    # Structured control flow (T008): regions lower into nested TIR blocks
+    # with explicit join parameters.  A name re-bound inside a region becomes
+    # a NEW value at the join (never a lexical restore of an earlier
+    # binding); a name defined on one path only and used after the region is
+    # rejected (the closed-region diagnostic names the construct).
+    def _push_block(self, block: tir.Block) -> None:
+        self._block_stack.append(block)
+        self._block = block
+
+    def _pop_block(self) -> None:
+        self._block_stack.pop()
+        self._block = self._block_stack[-1]
+
+    def _region_snapshot(self) -> tuple:
+        return (dict(self.symbols), dict(self.env.values))
+
+    def _region_restore(self, snap: tuple) -> None:
+        symbols, env_values = snap
+        self.symbols = dict(symbols)
+        self.env.values = dict(env_values)
+
+    def _materialize_in(self, block: tir.Block, value, loc):
+        """Materialize a ConstVal as a const op appended to ``block``."""
+        if isinstance(value, tir.Value):
+            return value
+        saved = self._block
+        self._block = block
+        try:
+            return self._materialize(value, loc)
+        finally:
+            self._block = saved
+
+    @staticmethod
+    def _region_desc(st: ast.stmt) -> str:
+        return f"the {type(st).__name__.lower()} at line " \
+               f"{getattr(st, 'lineno', 0)}"
+
+    def _check_no_jump(self, st: ast.stmt) -> None:
+        if isinstance(st, (ast.Break, ast.Continue)):
+            raise self._err(st, type(st).__name__.lower(),
+                            "break/continue are not in the structured "
+                            "control-flow core")
+
+    def _assigned_names(self, stmts) -> set:
+        """Every name a statement list assigns, regions included -- the
+        conservative pre-pass that marks carried candidates runtime before
+        a loop body is lowered (a carried value recomputes each iteration;
+        folding it against its initial value would be wrong)."""
+        out: set = set()
+
+        def visit(st):
+            if isinstance(st, ast.Assign):
+                for t in st.targets:
+                    _collect(t, out)
+            elif isinstance(st, (ast.AnnAssign, ast.AugAssign)):
+                _collect(st.target, out)
+            elif isinstance(st, ast.If):
+                for s in st.body + (st.orelse or []):
+                    visit(s)
+            elif isinstance(st, (ast.For, ast.While)):
+                _collect(st.target, out) if isinstance(st, ast.For) else None
+                for s in st.body + (st.orelse or []):
+                    visit(s)
+
+        def _collect(t, out):
+            if isinstance(t, ast.Name):
+                out.add(t.id)
+            elif isinstance(t, (ast.Tuple, ast.List)):
+                for e in t.elts:
+                    _collect(e, out)
+
+        for st in stmts:
+            visit(st)
+        return out
+
+    def _mark_region_runtime(self, assigned: set) -> None:
+        """Names assigned in a region that currently hold constexpr values
+        become runtime in the folding env (their value is re-derived inside
+        the region; folding against the outer value would be wrong)."""
+        from a100c.frontend.specialize import RuntimeValue
+        for name in assigned:
+            v = self.symbols.get(name)
+            if isinstance(v, ConstVal):
+                ty = None
+                try:
+                    if isinstance(_py_scalar(v.value), (int, float, bool)):
+                        ty = ftypes.literal_type(v.value)
+                except ftypes.TypeRuleError:
+                    ty = None
+                self.env.values[name] = RuntimeValue(name, ty, ())
+
+    # -- runtime if ---------------------------------------------------------------
+    def _lower_runtime_if(self, st: ast.If) -> None:
+        loc = self._loc(st)
+        cond_v = self._lower_expr(st.test)
+        if isinstance(cond_v, ConstVal):
+            # the arms re-bound names since the first fold attempt: re-fold
+            taken = st.body if cond_v.value else (st.orelse or [])
+            self.fold.record_branch(st, bool(cond_v.value),
+                                    "body" if cond_v.value else "orelse")
+            self._lower_stmts(taken)
+            return
+        if not cond_v.type.is_bool():
+            cond_v = self._emit_convert(cond_v, tir.INT1, loc)
+        if cond_v.shape != ():
+            raise self._err(
+                st, "if",
+                "a block-tensor condition cannot branch (Triton branches on "
+                "scalars; use tl.where for per-element selection)")
+        node = tir.If(cond_v, loc)
+        snap = self._region_snapshot()
+
+        self._push_block(node.then)
+        self._lower_stmts(st.body)
+        then_syms = dict(self.symbols)
+        self._pop_block()
+
+        self._push_block(node.els)
+        self._lower_stmts(st.orelse)
+        else_syms = dict(self.symbols)
+        self._pop_block()
+
+        self._region_restore(snap)
+        # joins: names an arm actually re-binds (a name bound on one path
+        # only stays closed).  ConstVal sides materialize inside their arm;
+        # equal constexpr bindings stay constexpr.
+        outer = snap[0]
+        join_names = []
+        for name in sorted(set(then_syms) | set(else_syms)):
+            t, e = then_syms.get(name), else_syms.get(name)
+            o = outer.get(name)
+            if t is None or e is None:
+                self._closed_names.setdefault(name, self._region_desc(st))
+                continue
+            if t is o and e is o:
+                continue            # not re-bound by either arm
+            if isinstance(t, ConstVal) and isinstance(e, ConstVal) \
+                    and _const_eq(t.value, e.value):
+                self._bind(name, t)
+                continue
+            t_v = self._materialize_in(node.then, t, loc)
+            e_v = self._materialize_in(node.els, e, loc)
+            if t_v.type != e_v.type:
+                raise self._err(
+                    st, "if",
+                    f"the arms bind '{name}' with different types "
+                    f"({t_v.type!r} vs {e_v.type!r}); branch unification "
+                    "is not in this path")
+            if tir.value_shape(t_v.shape) != tir.value_shape(e_v.shape):
+                raise self._err(
+                    st, "if",
+                    f"the arms bind '{name}' with different extent values "
+                    f"({list(t_v.shape)} vs {list(e_v.shape)})")
+            join_names.append(name)
+        node.join_names = tuple(join_names)
+        joins = []
+        for name in join_names:
+            side = then_syms[name]
+            jv = tir.Value(side.type, side.shape, loc, name=name)
+            jv.add_alias(name)
+            joins.append(jv)
+        node.join_results = tuple(joins)
+        self._block.statements.append(node)
+        # the join results bind after the construct (fresh values: a
+        # re-bound source variable never merges with its earlier binding)
+        for name, value in zip(join_names, joins):
+            self._bind(name, value)
+
+    # -- for ---------------------------------------------------------------------
+    def _for_form(self, st: ast.For):
+        """Classify the iterator: (form, arg-exprs, pragma-kwargs) or None."""
+        it = st.iter
+        if not isinstance(it, ast.Call):
+            return None
+        func = it.func
+        if isinstance(func, ast.Name) and func.id == "range":
+            return "range", list(it.args), {}
+        if isinstance(func, ast.Attribute) and isinstance(func.value, ast.Name) \
+                and func.value.id == "tl" and not it.keywords:
+            if func.attr in ("range", "static_range"):
+                return f"tl.{func.attr}", list(it.args), {}
+        if isinstance(func, ast.Attribute) and isinstance(func.value, ast.Name) \
+                and func.value.id == "tl" and func.attr == "range":
+            # tl.range with pragma keyword arguments
+            return "tl.range", list(it.args), \
+                {kw.arg: kw.value for kw in it.keywords}
+        return None
+
+    def _lower_for(self, st: ast.For) -> None:
+        if isinstance(st, ast.AsyncFor):
+            raise self._err(st, "asyncfor",
+                            "async for is not a Triton construct")
+        if st.orelse:
+            raise self._err(st, "for.else",
+                            "for/else is not in the structured control-flow "
+                            "core")
+        if not isinstance(st.target, ast.Name):
+            raise self._err(st, "for",
+                            "the loop target must be a plain name")
+        form = self._for_form(st)
+        if form is None:
+            raise self._err(
+                st, "for",
+                "the iterator is not range()/tl.range()/tl.static_range() "
+                "(iterating a value is not in the control-flow core)")
+        kind, args, pragma_kwargs = form
+        if kind == "tl.static_range":
+            self._check_construct("tl.static_range", st.iter)
+            bound, _ = self._bind_call_args("tl.static_range", st.iter)
+            args = [bound.get(p) for p in ("arg1", "arg2", "step")
+                    if p in bound]
+            self._lower_static_range(st, args)
+            return
+        if kind == "tl.range":
+            self._check_construct("tl.range", st.iter)
+            bound, _ = self._bind_call_args("tl.range", st.iter)
+            args = [bound.get(p) for p in ("arg1", "arg2", "step")
+                    if p in bound]
+            # the pragma parameters (num_stages, loop_unroll_factor,
+            # disallow_acc_multi_buffer, flatten, warp_specialize,
+            # disable_licm) are classified ignorable-with-reason by the
+            # declared surface and recorded by _bind_call_args -- the
+            # classification is countable in the fold record
+        self._lower_counted_for(st, args, kind)
+
+    def _lower_static_range(self, st: ast.For, args) -> None:
+        """tl.static_range: compile-time unrolling (bounds are constexpr)."""
+        if not 1 <= len(args) <= 3:
+            raise self._err(st, "tl.static_range",
+                            "static_range takes 1-3 bounds")
+        vals = []
+        for a in args:
+            v = py_scalar(self.env.evaluate(a, self.source.path))
+            if v is NOT_CONSTEXPR or isinstance(v, bool) \
+                    or not isinstance(v, int):
+                raise self._err(
+                    st, "tl.static_range",
+                    "static_range bounds must be compile-time integers "
+                    "(a runtime bound needs tl.range)")
+            vals.append(v)
+        start = vals[0] if len(vals) > 1 else 0
+        stop = vals[1] if len(vals) > 1 else vals[0]
+        step = vals[2] if len(vals) > 2 else 1
+        if step == 0:
+            raise self._err(st, "tl.static_range", "step cannot be zero")
+        name = st.target.id
+        k = start
+        while (step > 0 and k < stop) or (step < 0 and k > stop):
+            self._bind(name, ConstVal(k))
+            for s in st.body:
+                self._check_no_jump(s)
+                self._lower_stmt(s)
+            k += step
+        # the induction name after the loop: the last visited value, or the
+        # start when the body never ran (unrolling is straight-line, so
+        # every other name the body bound simply stays bound)
+        self._bind(name, ConstVal(k - step))
+
+    def _lower_counted_for(self, st: ast.For, args, kind: str) -> None:
+        """range()/tl.range(): the counted Loop form with carried values."""
+        loc = self._loc(st)
+        if not 1 <= len(args) <= 3:
+            raise self._err(st, kind,
+                            "the range takes 1-3 bounds (start, stop, step)")
+        if len(args) == 1:
+            lower_expr, upper_expr, step_expr = None, args[0], None
+        elif len(args) == 2:
+            lower_expr, upper_expr, step_expr = args[0], args[1], None
+        else:
+            lower_expr, upper_expr, step_expr = args
+
+        def bound_value(expr, what):
+            if expr is None:
+                return None
+            v = self._lower_expr(expr)
+            if isinstance(v, ConstVal):
+                if isinstance(v.value, bool) or not isinstance(v.value, int):
+                    raise self._err(st, kind,
+                                    f"loop {what} must be an integer")
+                return v
+            if not v.type.is_int():
+                raise self._err(st, kind,
+                                f"loop {what} must have integer type, got "
+                                f"{v.type!r}")
+            if v.shape != ():
+                raise self._err(st, kind,
+                                f"loop {what} must be scalar (rank 0)")
+            return v
+
+        lower_v = bound_value(lower_expr, "lower bound")
+        upper_v = bound_value(upper_expr, "upper bound")
+        step_v = bound_value(step_expr, "step")
+        step_const = step_v.value if isinstance(step_v, ConstVal) else 1
+        if step_v is not None and isinstance(step_v, ConstVal) \
+                and step_v.value <= 0:
+            raise self._err(
+                st, kind,
+                f"step {step_v.value} is not positive; a descending range "
+                "is not in the control-flow core")
+        if isinstance(upper_v, ConstVal) and isinstance(lower_v, ConstVal) \
+                and step_const > 0 and upper_v.value <= lower_v.value:
+            # zero-trip loop: carried names keep their values; the body
+            # never runs (straight-line skip, recorded in the fold)
+            self.fold.record_branch(st, False, "orelse")
+            return
+
+        # the index type: i64 if any runtime bound is i64, else i32
+        idx_ty = tir.INT32
+        for v in (lower_v, upper_v, step_v):
+            if isinstance(v, tir.Value) and v.type.width == 64:
+                idx_ty = tir.INT64
+
+        def as_index(v):
+            if v is None:
+                return None
+            if isinstance(v, ConstVal):
+                return self._emit(tir.Op.const(v.value, idx_ty, loc), "lb")
+            if v.type != idx_ty:
+                return self._emit_convert(v, idx_ty, loc)
+            return v
+
+        lower_i = as_index(lower_v)
+        if lower_i is None:
+            lower_i = self._emit(tir.Op.const(0, idx_ty, loc), "lb")
+        upper_i = as_index(upper_v)
+        step_i = as_index(step_v)
+        if step_i is None:
+            step_i = self._emit(tir.Op.const(1, idx_ty, loc), "st")
+
+        name = st.target.id
+        snap = self._region_snapshot()
+        # carried candidates: names the body assigns that are visible
+        # before the loop; their initial values materialize in the
+        # enclosing block (the preheader) and the body sees the init value
+        # -- uses of it inside the body denote the current iteration's
+        # value (the loop-carried entry), never a re-materialized constant
+        assigned = self._assigned_names(st.body)
+        preheader_inits: Dict[str, tir.Value] = {}
+        for cname in sorted(assigned):
+            if cname == name or cname not in self.symbols:
+                continue
+            v = self.symbols[cname]
+            if isinstance(v, ConstVal):
+                v = self._materialize_in(self._block, v, loc)
+            preheader_inits[cname] = v
+        node = tir.Loop(lower_i, upper_i, step_i, loc)
+        self._push_block(node.body)
+        self.symbols = dict(self.symbols)
+        self.env.values = dict(self.env.values)
+        self._bind(name, lower_i)
+        for cname, init in preheader_inits.items():
+            self._bind(cname, init)
+        self._mark_region_runtime(assigned - {name})
+        for s in st.body:
+            self._check_no_jump(s)
+            self._lower_stmt(s)
+        if self.symbols.get(name) is not lower_i:
+            raise self._err(
+                st, "for",
+                f"the loop body rebinds the induction name '{name}'; the "
+                "induction is compiler-owned in the counted form")
+        # the induction increment, appended at the body end (visible in
+        # TIR; uses of the induction inside the body denote the current
+        # iteration's value, the carried entry)
+        inc = self._emit(tir.Op.binop("arith.add", lower_i, step_i, loc),
+                         "inc")
+        self._bind(name, inc)
+        body_syms = dict(self.symbols)
+        self._pop_block()
+        self._region_restore(snap)
+
+        carried = [(name, lower_i)]
+        for cname in sorted(preheader_inits):
+            outer = self.symbols.get(cname)
+            if outer is None or outer is body_syms.get(cname):
+                continue
+            carried.append((cname, preheader_inits[cname]))
+        for cname in sorted(body_syms):
+            if cname in preheader_inits or cname == name:
+                continue
+            if self.symbols.get(cname) is None:
+                self._closed_names.setdefault(cname, self._region_desc(st))
+        node.carried = tuple(carried)
+        self._block.statements.append(node)
+        # the body's final values: materialized inside the body when the
+        # body left them constexpr, then joined
+        finals = []
+        for cname, _ in carried:
+            finals.append(self._materialize_in(node.body, body_syms[cname],
+                                               loc))
+        joins = []
+        for (cname, _), final in zip(carried, finals):
+            jv = tir.Value(final.type, final.shape, loc, name=cname)
+            jv.add_alias(cname)
+            joins.append(jv)
+        node.join_results = tuple(joins)
+        for (cname, _), value in zip(carried, joins):
+            self._bind(cname, value)
+
+    # -- while -------------------------------------------------------------------
+    def _lower_while(self, st: ast.While) -> None:
+        if st.orelse:
+            raise self._err(st, "while.else",
+                            "while/else is not in the structured "
+                            "control-flow core")
+        loc = self._loc(st)
+        cond = self.env.evaluate(st.test, self.source.path)
+        if cond is not NOT_CONSTEXPR:
+            if cond:
+                raise self._err(
+                    st, "while",
+                    "while True never terminates (no break exists in the "
+                    "control-flow core)")
+            self.fold.record_branch(st, False, "orelse")
+            return                      # zero-trip: the body never runs
+        cond_v = self._lower_expr(st.test)
+        if isinstance(cond_v, ConstVal):
+            raise self._err(st, "while", "condition folded after all")
+        if not cond_v.type.is_bool():
+            cond_v = self._emit_convert(cond_v, tir.INT1, loc)
+        if cond_v.shape != ():
+            raise self._err(
+                st, "while",
+                "a block-tensor condition cannot loop (Triton loops on "
+                "scalars)")
+        snap = self._region_snapshot()
+        # carried candidates: names the body assigns that are visible
+        # before the loop (the condition rides first)
+        assigned = self._assigned_names(st.body)
+        preheader_inits: Dict[str, tir.Value] = {}
+        for cname in sorted(assigned):
+            if cname not in self.symbols:
+                continue
+            v = self.symbols[cname]
+            if isinstance(v, ConstVal):
+                v = self._materialize_in(self._block, v, loc)
+            preheader_inits[cname] = v
+        node = tir.Loop(None, None, None, loc, cond=cond_v)
+        cond_name = self._fresh_name("%while.cond")
+        cond_v.add_alias(cond_name)      # the carried condition entry
+        self._push_block(node.body)
+        self.symbols = dict(self.symbols)
+        self.env.values = dict(self.env.values)
+        self._bind(cond_name, cond_v)
+        for cname, init in preheader_inits.items():
+            self._bind(cname, init)
+        self._mark_region_runtime(assigned)
+        for s in st.body:
+            self._check_no_jump(s)
+            self._lower_stmt(s)
+        # re-evaluate the condition over the body's final state; bound to
+        # the carried cond name (the back edge carries it to the head)
+        cond2 = self._lower_expr(st.test)
+        if isinstance(cond2, ConstVal):
+            cond2 = self._materialize_in(node.body, cond2, loc)
+        if not cond2.type.is_bool():
+            cond2 = self._emit_convert(cond2, tir.INT1, loc)
+        self._bind(cond_name, cond2)
+        body_syms = dict(self.symbols)
+        self._pop_block()
+        self._region_restore(snap)
+
+        carried = [(cond_name, cond_v)]
+        for cname in sorted(preheader_inits):
+            outer = self.symbols.get(cname)
+            if outer is None or outer is body_syms.get(cname):
+                continue
+            carried.append((cname, preheader_inits[cname]))
+        for cname in sorted(body_syms):
+            if cname in preheader_inits or cname == cond_name:
+                continue
+            if self.symbols.get(cname) is None:
+                self._closed_names.setdefault(cname, self._region_desc(st))
+        node.carried = tuple(carried)
+        self._block.statements.append(node)
+        finals = []
+        for cname, _ in carried:
+            finals.append(self._materialize_in(node.body, body_syms[cname],
+                                               loc))
+        joins = []
+        for (cname, _), final in zip(carried, finals):
+            jv = tir.Value(final.type, final.shape, loc, name=cname)
+            jv.add_alias(cname)
+            joins.append(jv)
+        node.join_results = tuple(joins)
+        for (cname, _), value in zip(carried, joins):
+            if cname == cond_name:
+                continue            # internal: not visible after the loop
+            self._bind(cname, value)
 
     # ------------------------------------------------------------------ exprs
     def _lower_expr(self, node: ast.expr) -> Union[tir.Value, ConstVal]:
@@ -478,7 +1000,7 @@ class Lowering:
         lhs = self._lower_expr(node.left)
         rhs = self._lower_expr(node.comparators[0])
         loc = self._loc(node)
-        l, r, t = self._binary_operands(lhs, rhs, loc)
+        l, r, t = self._binary_operands(lhs, rhs, loc, preserve_order=True)
         pred = {ast.Lt: "cmp.lt", ast.LtE: "cmp.le", ast.Gt: "cmp.gt",
                 ast.GtE: "cmp.ge", ast.Eq: "cmp.eq",
                 ast.NotEq: "cmp.ne"}.get(type(node.ops[0]))
@@ -514,12 +1036,17 @@ class Lowering:
 
     # -- the pinned unification ------------------------------------------------
     def _binary_operands(self, lhs, rhs, loc,
-                         div_or_mod: bool = False) -> Tuple[tir.Value,
+                         div_or_mod: bool = False,
+                         preserve_order: bool = False) -> Tuple[tir.Value,
                                                             tir.Value,
                                                             tir.Type]:
         """Pinned binary_op_type_checking_impl: literals become constants of
         the computation type, tensor operands get explicit converts, shapes
-        unify with explicit broadcast ops."""
+        unify with explicit broadcast ops.
+
+        ``preserve_order`` keeps the source operand order (a comparison's
+        predicate is not commutative: ``flag > 0`` must compare flag
+        against the literal, never the literal against flag)."""
         node = loc_node(loc)
         l_lit = isinstance(lhs, ConstVal)
         r_lit = isinstance(rhs, ConstVal)
@@ -562,6 +1089,8 @@ class Lowering:
                 raise self._err(node, "binary op", exc.message)
             lit_v = self._emit(tir.Op.const(lit_value, comp, loc), "lit")
             ten_v = self._convert_if_needed(ten, comp, loc)
+            if preserve_order and not l_lit:
+                return self._broadcast_pair(ten_v, lit_v, loc)
             return self._broadcast_pair(lit_v, ten_v, loc)
         # both runtime values
         if lhs.type.is_pointer() or rhs.type.is_pointer():
@@ -877,6 +1406,15 @@ class Lowering:
                             f"{axis}")
         return self._emit(tir.Op.program_id(axis, loc), "pid")
 
+    def _lower_tl_num_programs(self, args, node, loc) -> tir.Value:
+        axis = self._constexpr_int(args.get("axis"), node, "tl.num_programs",
+                                   "axis")
+        if axis not in (0, 1, 2):
+            raise self._err(node, "tl.num_programs",
+                            f"num_programs axis must be 0, 1, or 2 but got "
+                            f"{axis}")
+        return self._emit(tir.Op.num_programs(axis, loc), "np")
+
     def _lower_tl_where(self, args, node, loc) -> tir.Value:
         cond = self._lower_expr(args["condition"])
         x = self._lower_expr(args["x"])
@@ -1016,6 +1554,7 @@ _CONSTRUCT_HANDLERS = {
     "tl.store": Lowering._lower_tl_store,
     "tl.arange": Lowering._lower_tl_arange,
     "tl.program_id": Lowering._lower_tl_program_id,
+    "tl.num_programs": Lowering._lower_tl_num_programs,
     "tl.where": Lowering._lower_tl_where,
     "tl.zeros": Lowering._lower_tl_zeros,
     "tl.full": Lowering._lower_tl_full,
@@ -1074,6 +1613,15 @@ def _const_value(value, ty: tir.Type):
     if ty.is_float() and isinstance(value, bool):
         return float(value)
     return value
+
+
+def _const_eq(a, b) -> bool:
+    """Constexpr equality for join folding (numeric == across int/float)."""
+    if isinstance(a, bool) != isinstance(b, bool):
+        return False
+    if isinstance(a, (int, float)) and isinstance(b, (int, float)):
+        return type(a) is type(b) and a == b
+    return a == b and type(a) is type(b)
 
 
 def _exceeds(shape: tir.Shape, target: tir.Shape) -> bool:

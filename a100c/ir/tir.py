@@ -290,9 +290,17 @@ def unify_shapes(a: Shape, b: Shape) -> Optional[Shape]:
 
 
 class Value:
-    """An SSA value: type, shape, producing op and source location."""
+    """An SSA value: type, shape, producing op and source location.
 
-    __slots__ = ("vid", "name", "type", "shape", "loc", "producer")
+    ``name`` is the dump/primary name; ``aliases`` carries every *source
+    name* the value is currently bound to.  The verifier's lexical scopes
+    define the value under ``name`` and every alias, which is what makes
+    region joins name-based (a source variable re-bound on one path of a
+    branch joins under its source name at the region close) while dumps
+    stay unambiguous.
+    """
+
+    __slots__ = ("vid", "name", "aliases", "type", "shape", "loc", "producer")
 
     _next = 0
 
@@ -301,10 +309,18 @@ class Value:
         Value._next += 1
         self.vid = Value._next
         self.name = name or f"v{self.vid}"
+        self.aliases: Tuple[str, ...] = ()
         self.type = type
         self.shape = shape
         self.loc = loc
         self.producer = producer
+
+    def scope_names(self) -> Tuple[str, ...]:
+        return (self.name,) + self.aliases
+
+    def add_alias(self, name: str) -> None:
+        if name and name != self.name and name not in self.aliases:
+            self.aliases = self.aliases + (name,)
 
     @property
     def rank(self) -> int:
@@ -402,6 +418,11 @@ class Op:
     @staticmethod
     def program_id(axis: int, loc: Optional[SrcLoc] = None) -> "Op":
         return Op("program_id", (), loc, INT32, (), attrs={"axis": axis})
+
+    @staticmethod
+    def num_programs(axis: int, loc: Optional[SrcLoc] = None) -> "Op":
+        """The runtime grid extent of ``axis`` (launch geometry is runtime)."""
+        return Op("num_programs", (), loc, INT32, (), attrs={"axis": axis})
 
     @staticmethod
     def arange(start: int, end: int, loc: Optional[SrcLoc] = None) -> "Op":
@@ -547,13 +568,27 @@ class Loop:
     ``carried``: tuple of (name, initial Value).  The body must redefine
     every carried name; the value visible after the loop is the join of the
     body's definitions (loop-carried join).
+
+    Two forms (one construct, the ``cond`` field selects):
+
+    * counted range form: ``lower``/``upper``/``step`` all present, the body
+      executes while the induction value (``carried[0]``'s name) is below
+      ``upper``; the frontend appends the induction increment inside the
+      body so the carried-join invariant covers it like any other carried
+      name;
+    * while form: ``cond`` present and the three bounds ``None``; ``cond``
+      names the *initial* condition value, and the body must redefine the
+      cond's name (it is carried) by re-evaluating the condition over the
+      current carried state each iteration.
     """
 
     def __init__(self, lower: Optional[Value], upper: Optional[Value],
-                 step: Optional[Value], loc: Optional[SrcLoc] = None):
+                 step: Optional[Value], loc: Optional[SrcLoc] = None,
+                 cond: Optional[Value] = None):
         self.lower = lower
         self.upper = upper
         self.step = step
+        self.cond = cond
         self.loc = loc
         self.body = Block()
         self.carried: Tuple[Tuple[str, Value], ...] = ()
@@ -939,6 +974,14 @@ def _type_rule_errors(op: Op, errors: list) -> None:
         if op.results[0].type != INT32 or op.results[0].shape != ():
             return err("'program_id' must produce an i32 zero-dimensional "
                        "value")
+    elif op_name == "num_programs":
+        if not op.results:
+            return err("'num_programs' must produce a value")
+        if op.attrs.get("axis") not in (0, 1, 2):
+            return err("'num_programs' axis must be 0, 1 or 2")
+        if op.results[0].type != INT32 or op.results[0].shape != ():
+            return err("'num_programs' must produce an i32 zero-dimensional "
+                       "value (the runtime grid extent)")
     elif op_name == "arange":
         if not op.results:
             return err("'arange' must produce a value")
@@ -989,6 +1032,11 @@ def _verify_block(block: Block, scope: _Scope, errors: list,
             if not stmt.cond.type.is_bool():
                 errors.append(TirError(Invariant.TYPE_CONTRADICTION, stmt.loc,
                                        "'if' condition must be i1"))
+            if stmt.cond.shape != ():
+                errors.append(TirError(
+                    Invariant.TYPE_CONTRADICTION, stmt.loc,
+                    "'if' condition must be scalar (rank 0); a block "
+                    "condition is not a legal Triton branch"))
             then_scope = scope.copy()
             else_scope = scope.copy()
             _verify_block(stmt.then, then_scope, errors,
@@ -996,7 +1044,8 @@ def _verify_block(block: Block, scope: _Scope, errors: list,
             _verify_block(stmt.els, else_scope, errors,
                           region=f"{region} / else-arm")
             results = []
-            for name in stmt.join_names:
+            provided = tuple(stmt.join_results)
+            for i, name in enumerate(stmt.join_names):
                 t = then_scope.values.get(name)
                 e = else_scope.values.get(name)
                 if t is None or e is None:
@@ -1017,9 +1066,25 @@ def _verify_block(block: Block, scope: _Scope, errors: list,
                         f"join '{name}' has different extent values in the "
                         "arms"))
                     continue
-                jv = Value(t.type, t.shape, stmt.loc, name=name)
+                if i < len(provided):
+                    jv = provided[i]
+                    if jv.type != t.type or \
+                            value_shape(jv.shape) != value_shape(t.shape):
+                        errors.append(TirError(
+                            Invariant.TYPE_CONTRADICTION, stmt.loc,
+                            f"join '{name}' result does not match the arms' "
+                            f"binding ({jv.type!r} vs {t.type!r})"))
+                        continue
+                else:
+                    jv = Value(t.type, t.shape, stmt.loc, name=name)
+                jv.add_alias(name)
                 results.append(jv)
                 scope.define(name, jv)
+            if provided and len(provided) != len(results):
+                errors.append(TirError(
+                    Invariant.MALFORMED, stmt.loc,
+                    f"the if at {stmt.loc} carries {len(provided)} join "
+                    f"result(s) for {len(stmt.join_names)} join name(s)"))
             stmt.join_results = tuple(results)
             exported = {jv.vid for jv in results}
             for arm_scope in (then_scope, else_scope):
@@ -1032,15 +1097,53 @@ def _verify_block(block: Block, scope: _Scope, errors: list,
                         scope.closed.setdefault(
                             v.vid, f"if-arm at {stmt.loc}")
         elif isinstance(stmt, Loop):
-            for what, bound in (("'loop' lower bound", stmt.lower),
-                                ("'loop' upper bound", stmt.upper),
-                                ("'loop' step", stmt.step)):
-                if bound is not None:
+            if stmt.cond is not None:
+                # while form: cond is the initial condition value; the body
+                # re-evaluates it each iteration by redefining its name
+                _check_use(stmt.cond, "'while' condition", stmt.loc, scope,
+                           errors)
+                if not stmt.cond.type.is_bool():
+                    errors.append(TirError(
+                        Invariant.TYPE_CONTRADICTION, stmt.loc,
+                        "'while' condition must be i1"))
+                if stmt.cond.shape != ():
+                    errors.append(TirError(
+                        Invariant.TYPE_CONTRADICTION, stmt.loc,
+                        "'while' condition must be scalar (rank 0); a block "
+                        "condition is not a legal Triton loop condition"))
+                if any(b is not None for b in (stmt.lower, stmt.upper,
+                                               stmt.step)):
+                    errors.append(TirError(
+                        Invariant.MALFORMED, stmt.loc,
+                        "a while-form loop carries a condition and no "
+                        "lower/upper/step bounds"))
+                if not (set(stmt.cond.scope_names())
+                        & {n for n, _ in stmt.carried}):
+                    errors.append(TirError(
+                        Invariant.CARRIED_WITHOUT_JOIN, stmt.loc,
+                        f"while-loop at {stmt.loc} does not carry its "
+                        f"condition '{stmt.cond.name}'; the body could never "
+                        "update the tested value (infinite loop form)"))
+            else:
+                for what, bound in (("'loop' lower bound", stmt.lower),
+                                    ("'loop' upper bound", stmt.upper),
+                                    ("'loop' step", stmt.step)):
+                    if bound is None:
+                        errors.append(TirError(
+                            Invariant.MALFORMED, stmt.loc,
+                            f"{what} is required by the counted range form "
+                            "(only the while form omits bounds)"))
+                        continue
                     _check_use(bound, what, stmt.loc, scope, errors)
                     if not bound.type.is_index():
                         errors.append(TirError(
                             Invariant.TYPE_CONTRADICTION, stmt.loc,
                             f"{what} must be i32/i64"))
+                    if bound.shape != ():
+                        errors.append(TirError(
+                            Invariant.TYPE_CONTRADICTION, stmt.loc,
+                            f"{what} must be scalar (rank 0); loop bounds "
+                            "are per-program scalars"))
             body_scope = scope.copy()
             for name, init in stmt.carried:
                 _check_use(init, f"'loop' carried initial value '{name}'",
@@ -1049,7 +1152,8 @@ def _verify_block(block: Block, scope: _Scope, errors: list,
             _verify_block(stmt.body, body_scope, errors,
                           region=f"{region} / loop-body")
             results = []
-            for name, init in stmt.carried:
+            provided = tuple(stmt.join_results)
+            for i, (name, init) in enumerate(stmt.carried):
                 final = body_scope.values.get(name)
                 if final is None or final.vid == init.vid:
                     errors.append(TirError(
@@ -1064,9 +1168,26 @@ def _verify_block(block: Block, scope: _Scope, errors: list,
                         f"loop-carried '{name}' changes type/shape in the "
                         "body"))
                     continue
-                jv = Value(final.type, final.shape, stmt.loc, name=name)
+                if i < len(provided):
+                    jv = provided[i]
+                    if jv.type != final.type or \
+                            value_shape(jv.shape) != value_shape(final.shape):
+                        errors.append(TirError(
+                            Invariant.TYPE_CONTRADICTION, stmt.loc,
+                            f"loop-carried '{name}' result does not match "
+                            f"the body's binding ({jv.type!r} vs "
+                            f"{final.type!r})"))
+                        continue
+                else:
+                    jv = Value(final.type, final.shape, stmt.loc, name=name)
+                jv.add_alias(name)
                 results.append(jv)
                 scope.define(name, jv)
+            if provided and len(provided) != len(results):
+                errors.append(TirError(
+                    Invariant.MALFORMED, stmt.loc,
+                    f"the loop at {stmt.loc} carries {len(provided)} join "
+                    f"result(s) for {len(stmt.carried)} carried name(s)"))
             stmt.join_results = tuple(results)
             exported = {jv.vid for jv in results}
             for name, v in body_scope.values.items():
@@ -1088,7 +1209,8 @@ def _verify_block(block: Block, scope: _Scope, errors: list,
                     _require_real(stmt.operands[1], "store value operand",
                                   stmt, errors)
             for r in stmt.results:
-                scope.define(r.name, r)
+                for key in r.scope_names():
+                    scope.define(key, r)
         else:
             errors.append(TirError(Invariant.MALFORMED, None,
                                    f"unknown statement {stmt!r}"))

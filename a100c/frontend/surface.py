@@ -626,6 +626,9 @@ IMPLEMENTED_CONSTRUCTS = {
     "tl.where",
     "tl.zeros", "tl.full", "tl.zeros_like",
     "tl.multiple_of", "tl.max_contiguous",   # accepted no-op hints
+    # control flow and grid generality (T008): the loop forms and the
+    # runtime grid-extent read
+    "tl.range", "tl.static_range", "tl.num_programs",
     # dtype constants (no parameters): parse, compare, create
     "tl.float32", "tl.int64", "tl.int32", "tl.bfloat16", "tl.float16",
     "tl.float64", "tl.uint32", "tl.int1", "tl.uint64", "tl.int16", "tl.int8",

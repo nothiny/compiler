@@ -219,6 +219,16 @@ def _interference(fn: mir.MFunction) -> Tuple[Dict[int, Set[int]], Dict[int, Set
                 touch(r)
                 for rid in after:
                     edge(r.rid, rid)
+                # mixed-LMUL vector ops (the widening address form: an m1
+                # source feeding an m2 destination; an m2 index feeding an
+                # m1 load result): the destination group must not overlap
+                # ANY source group, even a dying one -- the hardware reads
+                # the whole source group while writing the destination
+                # group (a probe-found illegal-instruction form)
+                for o in op.operands:
+                    if o.is_vector() and r.is_vector() \
+                            and r.type.lmul != o.type.lmul:
+                        edge(r.rid, o.rid)
             for o in op.operands:
                 touch(o)
             if op.opcode == "callbarrier":
@@ -504,11 +514,44 @@ def _allocate_function(module: mir.MModule, fn: mir.MFunction,
         alloc.spilled[victim.rid] = slot
 
 
+def _check_group_overlap(fn: mir.MFunction, alloc: "Allocation") -> None:
+    """Post-allocation invariant: in a mixed-LMUL vector op the destination
+    group must not overlap any source group (a hardware illegal-instruction
+    form the allocator prevents by construction and asserts here)."""
+    def indices(reg: mir.VReg) -> Set[int]:
+        name = alloc.assignment.get(reg.rid)
+        if name is None or not name.startswith("v"):
+            return set()
+        base = int(name[1:])
+        span = alloc.shapes.get(reg.rid, ("vec", 1))[1]
+        return set(range(base, base + span))
+
+    for b in fn.blocks:
+        for op in b.ops:
+            for r in op.results:
+                if not r.is_vector():
+                    continue
+                dst = indices(r)
+                for o in op.operands:
+                    if not o.is_vector() or o.type.lmul == r.type.lmul:
+                        continue
+                    overlap = dst & indices(o)
+                    if overlap:
+                        raise AllocationError(
+                            op.loc,
+                            f"allocation gives '{r.name}' ({alloc.assignment.get(r.rid)}) "
+                            f"a destination group overlapping source "
+                            f"'{o.name}' ({alloc.assignment.get(o.rid)}) in "
+                            f"'{op.opcode}' -- a mixed-LMUL overlap the "
+                            "hardware rejects (illegal instruction)")
+
+
 def allocate(module: mir.MModule, target: TargetModel) -> Allocation:
     """Allocate every function in the module; returns the Allocation."""
     alloc = Allocation()
     for fn in module.functions:
         _allocate_function(module, fn, target, alloc)
+        _check_group_overlap(fn, alloc)
     vec_indices: Set[int] = set()
     for rid, name in alloc.assignment.items():
         if name.startswith("v"):

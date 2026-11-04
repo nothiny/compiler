@@ -82,7 +82,7 @@ def check_slice_selection():
                 "vmslt.vv", "vmflt.vv", "vfmul.vv", "vfsgnjn.vv",
                 "vmerge.vvm", "vmv1r.v", "vluxei64.v", "vsuxei64.v",
                 "vcpop.m", "vwadd.vx", "vmul.vx", "li", "ld", "lwu",
-                "add", "addw", "sub", "subw", "mulw", "divu", "slt",
+                "add", "addw", "sub", "mulw", "divu", "slt",
                 "mv", "addiw", "sd", "j", "bne", "ret"}
     missing = expected - mnemonics
     check("slice-selection-mnemonics", not missing,

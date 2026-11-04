@@ -417,11 +417,19 @@ def _dominators(fn: MFunction) -> Dict[str, set]:
 def _defined_before(op: MOp, value: VReg, fn: MFunction, block: Block,
                     dom: Dict[str, set], defs: Dict[int, Tuple[str, int]]) -> bool:
     """Is ``value`` defined before ``op`` (same block earlier, or dominating
-    def, or a block param of a dominating block, or a function param)?"""
+    def, or a block param of a dominating block, or a function param)?
+
+    Block parameters are definitions at their block's entry: a param of a
+    block that dominates the use's block is available there (standard SSA
+    dominance -- the same rule the allocator's liveness applies)."""
     if value.rid in {p.rid for p in fn.params}:
         return True
     if value.rid in {p.rid for p in block.params}:
         return True
+    for other in fn.blocks:
+        if value.rid in {p.rid for p in other.params}:
+            # a param of a non-dominating block is NOT available here
+            return other.name in dom[block.name]
     where = defs.get(value.rid)
     if where is None:
         return False

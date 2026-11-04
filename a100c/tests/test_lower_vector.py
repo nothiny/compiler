@@ -135,7 +135,7 @@ def check_slice_mir():
           str(grid.ties))
     check("grid-self-check-recorded",
           grid.self_check.get("modeled") == grid.self_check.get("declared")
-          and grid.self_check.get("modeled") == 1,
+          and grid.self_check.get("modeled") == [1],
           str(grid.self_check))
     return mir_module
 
@@ -211,19 +211,23 @@ def check_refusals():
     except scalar_mod.ScalarLoweringError:
         check("scalar-stub-refuses", True)
 
-    # control flow in the kernel body is refused (frontend first, but the
-    # vectorizer's own guard fires on a hand-built module)
+    # malformed control flow is refused (T008 lowers well-formed regions;
+    # a hand-built module bypassing the TIR verifier still gets a located
+    # refusal from the lowering itself)
     fn = tir.Function("k", [tir.Value(tir.Type.pointer(tir.FLOAT32), (),
                                      name="p")])
+    fn.body.statements.append(tir.Op.arange(0, 128))
     loop = tir.Loop(None, None, None)
     fn.body.statements.append(loop)
     module = tir.Module("k", "<probe>")
     module.functions.append(fn)
+    from a100c.plan.grid import GridModel, Lit as GLit
+    trivial = GridModel(axes=(GLit(1),), ties={}, ndim=1, path="<probe>")
     try:
         vectorize.SliceLowering(module, part_mod.ExecutionPlan(),
                                 DEFAULT_TARGET,
                                 binding_mod.ArgumentLayout([], [], [], [], "d"),
-                                None).lower()
+                                trivial).lower()
         check("control-flow-refused", False, "no refusal raised")
     except vectorize.VectorizeError as exc:
         check("control-flow-refused", "control flow" in str(exc), str(exc)[:80])
@@ -234,7 +238,7 @@ def check_grid_view_extent_tie():
     lowers to a load of view.shape[axis] from the bundle."""
     from a100c.plan.grid import Bin, Lit, Ref
     model = grid_mod.GridModel(
-        expr=Bin("floordiv", Ref("view_extent", ("out_ptr", 0)), Lit(128)),
+        axes=(Bin("floordiv", Ref("view_extent", ("out_ptr", 0)), Lit(128)),),
         ties={("out_ptr", 0): ("view_extent", "out_ptr", 0)},
         ndim=1, path="<probe>")
     case = load_case()

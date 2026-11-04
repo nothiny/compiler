@@ -49,6 +49,8 @@ def dump_op(op: tir.Op, indent: str = "  ") -> str:
         detail = f" {attrs.get('value')!r}"
     elif name == "program_id":
         detail = f" axis={attrs.get('axis')}"
+    elif name == "num_programs":
+        detail = f" axis={attrs.get('axis')}"
     elif name == "arange":
         detail = f" start={attrs.get('start')}, end={attrs.get('end')}"
     elif name == "full":
@@ -87,12 +89,16 @@ def dump_block(block: tir.Block, out: list, indent: str = "  ") -> None:
                     for n, v in zip(stmt.join_names, stmt.join_results))
                 out.append(f"{indent}join {joined}")
         elif isinstance(stmt, tir.Loop):
-            bounds = ", ".join(b.name for b in
-                               (stmt.lower, stmt.upper, stmt.step)
-                               if b is not None)
             carried = ", ".join(f"{n}={v.name}" for n, v in stmt.carried)
-            out.append(f"{indent}loop ({bounds}) carried({carried})"
-                       f"{_loc(stmt.loc)}")
+            if stmt.cond is not None:
+                out.append(f"{indent}while {stmt.cond.name} "
+                           f"carried({carried}){_loc(stmt.loc)}")
+            else:
+                bounds = ", ".join(b.name for b in
+                                   (stmt.lower, stmt.upper, stmt.step)
+                                   if b is not None)
+                out.append(f"{indent}loop ({bounds}) carried({carried})"
+                           f"{_loc(stmt.loc)}")
             dump_block(stmt.body, out, indent + "  ")
         else:
             out.append(dump_op(stmt, indent))

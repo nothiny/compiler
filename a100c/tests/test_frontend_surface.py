@@ -208,6 +208,7 @@ def _impl_set():
 def _has_implemented_handler(name):
     return name in lower_tir._CONSTRUCT_HANDLERS or \
         name in ("triton.jit", "triton.autotune") or \
+        name in ("tl.range", "tl.static_range") or \
         name.startswith("tl.float") or name.startswith("tl.int") or \
         name.startswith("tl.uint") or name.startswith("tl.bfloat") or \
         name == "tl.tensor"
