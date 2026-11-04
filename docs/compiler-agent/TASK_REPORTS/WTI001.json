@@ -1,0 +1,151 @@
+{
+  "invocation_id": "WTI001",
+  "task_id": "T001",
+  "attempt": 1,
+  "context_sha256": "362a95b8936157cca6eac2320cfdefdd51c65a2407866be74a3c16724c384fb1",
+  "outcome": "COMPLETED",
+  "failure_kind": "implementation",
+  "summary": "Environment analysis for the A100 correctness-only run completed. Probed and classified all 20 capabilities the chip input's build/execution path needs, each with its exact command and output in docs/compiler-agent/ENVIRONMENT.md. Ran three end-to-end smokes under the declared QEMU endpoint (-cpu max,vlen=1024,elen=64,vext_spec=v1.0): a C program via the cross gcc, a raw-syscall assembly program via as+ld (guest exit code 42 preserved), and an RVV check (vlenb=128 plus executed vector instructions) with a vlen=256 control that fails as required. Rebuilt and re-ran the QEMU instruction-count plugin (IME int8 executed and compared PASS, smt.vmadot counted; empty-list control on a non-matrix binary; bf16 probe still fails - known gap), the persistent-pool worker probe at 1/2/4/8 guest threads (distinct tids, full coverage, one pool init), the native transport round trip (pack_case -> run-riscv.sh -> native_bundle -> unpack_outputs: alias/relocation and bfloat16 cases compared PASS) and the x86 Triton CPU reference through run-reference.sh (masked vector-add PASS). Recorded 15 facts (14 RUNTIME_PROBE, 1 EMPIRICAL, all origin=input, all with probe-command provenance) and 2 assumptions in PROJECT_STATE.json. Three items classified present+unusable with attempted commands and errors: BF16 IME format selection, MCPM control CSR from userspace, and the SpacemiT LLVM package (host glibc too old; not on the declared build path). No timing, speedup or performance measurement was recorded or required (correctness_only).",
+  "files_changed": [
+    "docs/compiler-agent/ENVIRONMENT.md",
+    "docs/compiler-agent/PROJECT_STATE.json"
+  ],
+  "artifacts": [
+    "docs/compiler-agent/ENVIRONMENT.md",
+    "docs/compiler-agent/PROJECT_STATE.json",
+    "a100_support/build/ime-int8-counts.json",
+    "a100_support/build/ime-bf16-counts.json",
+    "a100_support/build/smoke-counts.json",
+    "a100_support/build/threads-1.json",
+    "a100_support/build/threads-2.json",
+    "a100_support/build/threads-4.json",
+    "a100_support/build/threads-8.json",
+    "a100_support/build/gates-after.json",
+    "a100_support/build/status-after.json"
+  ],
+  "commands": [
+    {
+      "command": "set -a; . ./.env; set +a; ${A100_CROSS_PREFIX}gcc --version | head -1; ${A100_CROSS_PREFIX}as --version | head -1; ${A100_CROSS_PREFIX}ld --version | head -1; ${A100_CROSS_PREFIX}objdump --version | head -1; $A100_QEMU --version | head -1; python3 --version; $A100_REFERENCE_PYTHON --version",
+      "exit_code": 0,
+      "observed": "riscv64-unknown-linux-gnu-gcc (g56971dcbea2) 14.3.0; GNU assembler (GNU Binutils) 2.43.1.20250119; GNU ld (GNU Binutils) 2.43.1.20250119; GNU objdump (GNU Binutils) 2.43.1.20250119; qemu-riscv64 version 10.0.2; Python 3.10.12 (host driver); Python 3.12.16 (reference venv). Matches TOOLCHAIN_PROBES.json tools and REFERENCE_ENVIRONMENT.json."
+    },
+    {
+      "command": "set -a; . ./.env; set +a; ${A100_CROSS_PREFIX}gcc -O2 -Wall -march=rv64gcv -mabi=lp64d a100_support/build/smoke_c.c -o a100_support/build/smoke_c && ${A100_CROSS_PREFIX}as -march=rv64gcv a100_support/build/smoke_asm.S -o a100_support/build/smoke_asm.o && ${A100_CROSS_PREFIX}ld a100_support/build/smoke_asm.o -o a100_support/build/smoke_asm && ${A100_CROSS_PREFIX}as -march=rv64gcv a100_support/build/smoke_rvv.S -o a100_support/build/smoke_rvv.o && ${A100_CROSS_PREFIX}ld a100_support/build/smoke_rvv.o -o a100_support/build/smoke_rvv",
+      "exit_code": 0,
+      "observed": "Cross cc/as/ld built the C smoke, the raw-syscall assembly smoke and the RVV check binary; objdump -f confirms elf64-littleriscv."
+    },
+    {
+      "command": "set -a; . ./.env; set +a; timeout 60 $A100_QEMU -L $A100_SYSROOT -cpu \"$A100_QEMU_CPU\" ./a100_support/build/smoke_c",
+      "exit_code": 0,
+      "observed": "stdout A100-C-SMOKE-OK, exit 0. End-to-end smoke: declared cross gcc + declared sysroot + declared QEMU endpoint (acceptance[1])."
+    },
+    {
+      "command": "set -a; . ./.env; set +a; timeout 60 $A100_QEMU -L $A100_SYSROOT -cpu \"$A100_QEMU_CPU\" ./a100_support/build/smoke_rvv",
+      "exit_code": 0,
+      "observed": "exit 0: CSR vlenb read as 128 (VLEN=1024 bits) and vsetvli/vmv.v.x/vadd.vv/vmv.x.s executed with lane0==42. Control under -cpu max,vlen=256,elen=64,vext_spec=v1.0 exited 1, so the check observes the CPU model. The as+ld assembly smoke printed A100-ASM-SMOKE-OK and preserved guest exit code 42."
+    },
+    {
+      "command": "set -a; . ./.env; set +a; gcc -O2 -Wall -Wextra -shared -fPIC -pthread -I$A100_PREFIX/jdsk-qemu-10.0.2/include -I$A100_PREFIX/host-runtime-bookworm/include/glib-2.0 -I$A100_PREFIX/host-runtime-bookworm/lib/glib-2.0/include a100_support/probes/instruction_counts.c -o a100_support/build/instruction_counts.so && ${A100_CROSS_PREFIX}gcc -O2 -Wall -Wextra -march=rv64gcv -mabi=lp64d -pthread a100_support/probes/matrix.c a100_support/probes/vector_matrix.S -o a100_support/build/matrix_probe && ${A100_CROSS_PREFIX}gcc -O2 -Wall -Wextra -march=rv64gcv -mabi=lp64d -pthread a100_support/probes/threads.c a100_support/probes/vector_matrix.S -o a100_support/build/threads_probe && ${A100_CROSS_PREFIX}gcc -O2 -Wall -Wextra -march=rv64gcv -mabi=lp64d -I a100_support a100_support/probes/io_fixture.c a100_support/native_bundle.c -o a100_support/build/io_fixture",
+      "exit_code": 0,
+      "observed": "Instruction-observation plugin (host gcc 11.4.0 + jdsk-qemu 10.0.2 plugin headers + host-runtime-bookworm glib), IME matrix probe, persistent-pool threads probe and the native-bundle io fixture all built with the same commands a100_support/probes.py uses."
+    },
+    {
+      "command": "set -a; . ./.env; set +a; timeout 90 $A100_QEMU -L $A100_SYSROOT -cpu \"$A100_QEMU_CPU\" -plugin a100_support/build/instruction_counts.so,out=a100_support/build/ime-int8-counts.json a100_support/build/matrix_probe int8",
+      "exit_code": 0,
+      "observed": "{\"probe\":\"int8\",\"passed\":true,\"vlenb\":128,\"mcpm_control\":\"default-no-userspace-access\"}; counts JSON: smt.vmadot operand_format i8 pc 68508 executions 1. Control: the plugin on a non-matrix binary wrote an empty instruction list. The bf16 variant of the same command exited 1 with {\"probe\":\"bf16\",\"passed\":false} and smt.vfwmadot operand_format MCPM-selected-float16 (known gap, recorded as fact F010)."
+    },
+    {
+      "command": "set -a; . ./.env; set +a; for n in 1 2 4 8; do timeout 120 $A100_QEMU -L $A100_SYSROOT -cpu \"$A100_QEMU_CPU\" a100_support/build/threads_probe $n > a100_support/build/threads-$n.json; done",
+      "exit_code": 0,
+      "observed": "All four configurations passed: distinct guest tids equal the thread count, items sum 32771, one pool initialization per run (JSONs saved; worker units are QEMU guest threads, not physical A100 cores - assumption A001)."
+    },
+    {
+      "command": "set -a; . ./.env; set +a; timeout 300 python3 a100_support/build/transport_probe.py",
+      "exit_code": 0,
+      "observed": "alias: returncode 0 {\"fixture\":\"native-io\",\"passed\":true}, alias comparison PASS (strided views, shared storage, guest pointer relocation); bf16: returncode 0, bf16 comparison PASS (bfloat16 value storage + host-side output decoding)."
+    },
+    {
+      "command": "timeout 420 a100_support/run-reference.sh a100_support/build/reference_probe.py",
+      "exit_code": 0,
+      "observed": "triton 3.8.0 | numpy 2.5.4 | torch 2.15.0+cpu; device x86-triton-cpu-reference, threads 1; masked vector-add comparison: PASS (tail not a multiple of BLOCK)."
+    },
+    {
+      "command": "set -a; . ./.env; set +a; python3 -c \"import opslib.device, a100_support.native_device, a100_support.native_io, a100_support.reference_device, a100_support.probes; print('imports ok')\"",
+      "exit_code": 0,
+      "observed": "imports ok (host python3 3.10.12; numpy 2.2.6 and triton 3.8.0 from user site; no pytest on host python)."
+    },
+    {
+      "command": "timeout 60 docker image inspect a100-qemu-functional:compiler-a100-experiment-001 --format '{{.Id}}'",
+      "exit_code": 0,
+      "observed": "sha256:abe85106d90d6ede14eeebe0d501e5e1b6b81101142f56dc5286463b2db7e49e (declared A100_NO_PYTHON_IMAGE present; docker CLI usable)."
+    },
+    {
+      "command": "timeout 20 /home/i_yinzida/.local/opt/a100/llvm-spacemit-f6ded0be/bin/llc --version 2>&1 | head -3",
+      "exit_code": 0,
+      "observed": "llc: /lib/x86_64-linux-gnu/libc.so.6: version `GLIBC_2.38' not found; version `GLIBC_2.36' not found. Same error for opt, llvm-mc, llvm-as, llvm-dis and ld.lld; the package contains no clang binary. SpacemiT LLVM is present+unusable on this host (host glibc too old) and is not on the declared build path (.env declares the GCC/binutils cross toolchain)."
+    }
+  ],
+  "acceptance": [
+    {
+      "ref": "acceptance[0]",
+      "command": "python3 -c \"import json; d=json.load(open('docs/compiler-agent/PROJECT_STATE.json')); print(len(d['facts']), sorted({f['confidence'] for f in d['facts']}), 'all sourced:', all(f['source'] for f in d['facts']))\"",
+      "exit_code": 0,
+      "observed": "15 ['EMPIRICAL', 'RUNTIME_PROBE'] all sourced: True. docs/compiler-agent/ENVIRONMENT.md classifies all 20 required capabilities with exact commands and outputs: 15 present+usable (cross gcc 14.3.0; as/ld/objdump binutils 2.43.1.20250119; sysroot; QEMU endpoint 10.0.2 with declared CPU model; RVV 1.0 VLEN=1024; native runtime transport; dynamic instruction observation; multi-worker 1/2/4/8; IME int8 with int4/fp16 recorded at prep time; x86 Triton CPU reference env; reference support lib; host Python driver; no-Python docker image), 3 present+unusable each with the attempted command and its error/output (BF16 IME format selection: probe exit 1 passed=false with MCPM-selected-float16 counted; MCPM control CSR: recorded csr probe returncode -4 and mcpm_control default-no-userspace-access; SpacemiT LLVM: GLIBC_2.36/2.38 not found), 2 present (public reference cache, attack broker script). None absent."
+    },
+    {
+      "ref": "acceptance[1]",
+      "command": "set -a; . ./.env; set +a; timeout 60 $A100_QEMU -L $A100_SYSROOT -cpu \"$A100_QEMU_CPU\" ./a100_support/build/smoke_c",
+      "exit_code": 0,
+      "observed": "A100-C-SMOKE-OK, exit 0: a trivial C program built with the declared cross toolchain executed under the declared QEMU endpoint. Two further smokes also succeeded: hand-written assembly via as+ld (A100-ASM-SMOKE-OK, guest exit code 42 preserved) and the RVV check (vlenb=128, vector instructions executed, exit 0)."
+    },
+    {
+      "ref": "acceptance[2]",
+      "command": "python3 -c \"import json; d=json.load(open('docs/compiler-agent/PROJECT_STATE.json')); print([(f['id'],f['confidence']) for f in d['facts']]); print([(a['id'],a['status']) for a in d['assumptions']])\"",
+      "exit_code": 0,
+      "observed": "Facts F001-F015 recorded: 14 RUNTIME_PROBE + 1 EMPIRICAL, every source field names the probe command (full commands and outputs in ENVIRONMENT.md). Assumptions A001 (no physical A100 board; validation: on-board discovery during porting; risk high) and A002 (containerized no-Python candidate round trip not yet exercised; validation: run run-candidate-container.sh with the first generated operator executable; risk low) cover everything not probed. Both unusable claims (SpacemiT LLVM, BF16 IME format selection) carry the attempted command and its error/output; no availability claim exists without one."
+    },
+    {
+      "ref": "acceptance[3]",
+      "command": "set -a; . ./.env; set +a; $A100_QEMU --version | head -1",
+      "exit_code": 0,
+      "observed": "qemu-riscv64 version 10.0.2 at the declared A100_QEMU path. Execution under the declared CPU model max,vlen=1024,elen=64,vext_spec=v1.0 was verified by the three smokes, the IME probes and the 1/2/4/8 threads probes; recorded as facts F005 and F006."
+    },
+    {
+      "ref": "acceptance[4]",
+      "command": "test -s docs/compiler-agent/ENVIRONMENT.md && python3 -c \"import json; d=json.load(open('docs/compiler-agent/PROJECT_STATE.json')); f=[x for x in d['facts'] if x['id']=='F001']; assert f and 'single source of truth' in f[0]['statement']; print('F001 + ENVIRONMENT.md ok')\"",
+      "exit_code": 0,
+      "observed": "F001 + ENVIRONMENT.md ok. Fact F001 records the project .env as the single source of truth for tool paths (with a100_support/env.sh deriving the same prefix); the environment summary is written to docs/compiler-agent/ENVIRONMENT.md (classification table, probe evidence, scope notes, assumptions, fact index)."
+    },
+    {
+      "ref": "acceptance[5]",
+      "command": "grep -A3 'Correctness-only scope notes' docs/compiler-agent/ENVIRONMENT.md | head -8",
+      "exit_code": 0,
+      "observed": "Scope-notes section confirms: no timing, speedup, benchmark rate or performance measurement was recorded or required; .env declares no measurement/profiling tool or benchmark entrypoint; the required correctness observation capabilities (dynamic instruction counts with an empty-list control, multi-worker activity) were verified instead. The threads probe's interval fields were used only as worker-activity observation, with no performance conclusion drawn."
+    }
+  ],
+  "tests": [
+    {
+      "ref": "tests[0]",
+      "command": "set -a; . ./.env; set +a; python3 -m compiler_agent --root . --json gates",
+      "exit_code": 0,
+      "observed": "G0 PASS (after the task's facts were recorded; G1 also reads PASS now that facts are present). Output saved to a100_support/build/gates-after.json."
+    },
+    {
+      "ref": "tests[1]",
+      "command": "set -a; . ./.env; set +a; python3 -m compiler_agent --root . --json status",
+      "exit_code": 0,
+      "observed": "Exit 0; gates G0/G1 PASS, advisories empty, blocked null. The 15 recorded environment facts carry confidence RUNTIME_PROBE (14) or EMPIRICAL (1) with origin=input in docs/compiler-agent/PROJECT_STATE.json; gates --diagnostics reports the 'no blocking unknowns' check ok=true, i.e. no active UNKNOWN-confidence fact exists on the build/run path. Output saved to a100_support/build/status-after.json."
+    }
+  ],
+  "evidence": "docs/compiler-agent/ENVIRONMENT.md is the environment summary: 20 capabilities classified with the exact probe command and output for each, the three end-to-end smokes, the instruction-observation and multi-worker verification with controls, the present+unusable classifications (BF16 IME, MCPM CSR, SpacemiT LLVM) and the scope notes. docs/compiler-agent/PROJECT_STATE.json holds the matching records: facts F001-F015 (14 RUNTIME_PROBE, 1 EMPIRICAL, all origin=input, sources naming the probe commands) and assumptions A001/A002 with validation methods. Probe output JSONs (ime-int8-counts.json, ime-bf16-counts.json, smoke-counts.json, threads-1/2/4/8.json) are under the gitignored a100_support/build/.",
+  "design_issue": {},
+  "debug_request": {},
+  "attack": {},
+  "remaining_work": [
+    "Validate assumption A002 by running a100_support/run-candidate-container.sh end-to-end once the first generated operator executable exists.",
+    "Validate assumption A001 with on-board core/topology/affinity/timing discovery during the A100 porting step; until then draw no topology or timing conclusion from QEMU runs.",
+    "The pinned QEMU BF16 IME format-selection gap (fact F010) stays open: preserve BF16 corpus cases and validate them through the ordinary vector path until an emulator or board path passes; an FP16 run cannot prove BF16."
+  ],
+  "end_revision": "",
+  "at": "2026-11-04T08:33:47.543147+00:00"
+}

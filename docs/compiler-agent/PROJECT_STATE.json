@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-04T08:29:18.570033+00:00",
+  "updated_at": "2026-11-04T08:33:47.604724+00:00",
   "facts": [
     {
       "id": "F001",
@@ -150,7 +150,24 @@
       "origin": "input"
     }
   ],
-  "assumptions": [],
+  "assumptions": [
+    {
+      "id": "A001",
+      "statement": "No physical A100 board is reachable from this environment; all target execution uses the pinned QEMU functional emulator, and QEMU guest threads do not establish physical A100 core identities, topology, affinity, cache behaviour or timing.",
+      "why_needed": "chip.md marks board topology and timing as UNKNOWN and declares board porting as a later step; the environment provides only the emulator endpoint, so board properties cannot be probed here.",
+      "validation_method": "On-board discovery and probes during the porting step; until then no topology, affinity or timing conclusion may be drawn from QEMU runs.",
+      "risk": "high",
+      "status": "open"
+    },
+    {
+      "id": "A002",
+      "statement": "The containerized no-Python execution round trip (a100_support/run-candidate-container.sh running a generated operator_exec inside image a100-qemu-functional:compiler-a100-experiment-001) has not been exercised end-to-end; only image presence and docker CLI usability were probed.",
+      "why_needed": "No compiler-generated operator executable exists yet, so the candidate container path cannot be exercised with a real artifact during environment analysis.",
+      "validation_method": "Run a100_support/run-candidate-container.sh with the first generated operator executable and record the executed result.",
+      "risk": "low",
+      "status": "open"
+    }
+  ],
   "decisions": [],
   "tasks": [
     {
@@ -192,14 +209,14 @@
       "tags": [
         "phase-environment-analysis"
       ],
-      "status": "RUNNING",
+      "status": "DONE",
       "assignee": "planner",
       "attempts": 1,
-      "evidence": "",
+      "evidence": "worker report WTI001: Environment analysis for the A100 correctness-only run completed. Probed and classified all 20 capabilities the chip input's build/execution path needs, each with its exact command and output in docs/compiler-agent/ENVIRONMENT.md. Ran three end-to-end smokes under the declared QEMU endpoint (-cpu max,vlen=1024,elen=64,vext_spec=v1.0): a C program via the cross gcc, a raw-syscall assembly program via as+ld (guest exit code 42 preserved), and an RVV check (vlenb=128 plus executed vector instructions) with a vlen=256 control that fails as required. Rebuilt and re-ran the QEMU instruction-count plugin (IME int8 executed and compared PASS, smt.vmadot counted; empty-list control on a non-matrix binary; bf16 probe still fails - known gap), the persistent-pool worker probe at 1/2/4/8 guest threads (distinct tids, full coverage, one pool init), the native transport round trip (pack_case -> run-riscv.sh -> native_bundle -> unpack_outputs: alias/relocation and bfloat16 cases compared PASS) and the x86 Triton CPU reference through run-reference.sh (masked vector-add PASS). Recorded 15 facts (14 RUNTIME_PROBE, 1 EMPIRICAL, all origin=input, all with probe-command provenance) and 2 assumptions in PROJECT_STATE.json. Three items classified present+unusable with attempted commands and errors: BF16 IME format selection, MCPM control CSR from userspace, and the SpacemiT LLVM package (host glibc too old; not on the declared build path). No timing, speedup or performance measurement was recorded or required (correctness_only).\nacceptance[0]: `python3 -c \"import json; d=json.load(open('docs/compiler-agent/PROJECT_STATE.json')); print(len(d['facts']), sorted({f['confidence'] for f in d['facts']}), 'all sourced:', all(f['source'] for f in d['facts']))\"` -> exit 0\nacceptance[1]: `set -a; . ./.env; set +a; timeout 60 $A100_QEMU -L $A100_SYSROOT -cpu \"$A100_QEMU_CPU\" ./a100_support/build/smoke_c` -> exit 0\nacceptance[2]: `python3 -c \"import json; d=json.load(open('docs/",
       "last_error": "",
       "failure_kind": "",
       "start_revision": "c1855ecdb9284528e145b25fea96f03724486c46",
-      "end_revision": "",
+      "end_revision": "b44ab888ba93492bbdfd0fa14c8a56b2acedebcf",
       "completed_seq": 0,
       "debug_required": false,
       "debug_request_id": "",
@@ -387,6 +404,30 @@
       "phase": "ENVIRONMENT_ANALYSIS",
       "event": "fact",
       "detail": "F015 [environment/RUNTIME_PROBE/input] probe: ls -d $A100_PUBLIC_REFERENCE_CACHE; ls -la $COMPILER_WORKFLOW_ATTACK_BROKER; docker image inspect a100-qemu-functional:compiler-a100-experiment-001 --format {{.Id}}; docs/compiler-agent/ENVIRONMENT.md Auxiliary declared paths"
+    },
+    {
+      "at": "2026-11-04T08:29:27.484029+00:00",
+      "phase": "ENVIRONMENT_ANALYSIS",
+      "event": "assumption",
+      "detail": "A001 No physical A100 board is reachable from this environment; all target execution uses the pinned QEMU functional emulator, and QEMU guest threads do not establish physical A100 core identities, topology, affinity, cache behaviour or timing."
+    },
+    {
+      "at": "2026-11-04T08:29:27.635952+00:00",
+      "phase": "ENVIRONMENT_ANALYSIS",
+      "event": "assumption",
+      "detail": "A002 The containerized no-Python execution round trip (a100_support/run-candidate-container.sh running a generated operator_exec inside image a100-qemu-functional:compiler-a100-experiment-001) has not been exercised end-to-end; only image presence and docker CLI usability were probed."
+    },
+    {
+      "at": "2026-11-04T08:33:47.600001+00:00",
+      "phase": "ENVIRONMENT_ANALYSIS",
+      "event": "task-report",
+      "detail": "WTI001 COMPLETED attempt=1 [declared outputs do not exist: Fact/Assumption records in docs/compiler-agent/PROJECT_STATE.json]"
+    },
+    {
+      "at": "2026-11-04T08:33:47.604710+00:00",
+      "phase": "ENVIRONMENT_ANALYSIS",
+      "event": "complete-task",
+      "detail": "T001 worker report WTI001: Environment analysis for the A100 correctness-only run completed. Probed and classified all 20 capabilities the chip input's build/execution path needs, each with its exact command and output in docs/compiler-agent/ENVIRONMENT.md. Ran three end-to-end smokes under the declared QEMU endpoint (-cpu max,vlen=1024,elen=64,vext_spec=v1.0): a C program via the cross gcc, a raw-syscall assembly program via as+ld (guest exit code 42 preserved), and an RVV check (vlenb=128 plus executed vector instructions) with a vlen=256 control that fails as required. Rebuilt and re-ran the QEMU instruction-count plugin (IME int8 executed and compared PASS, smt.vmadot counted; empty-list control on a non-matrix binary; bf16 probe still fails - known gap), the persistent-pool worker probe at 1/2/4/8 guest threads (distinct tids, full coverage, one pool init), the native transport round trip (pack_case -> run-riscv.sh -> native_bundle -> unpack_outputs: alias/relocation and bfloat16 cases compared PASS) and the x86 Triton CPU reference through run-reference.sh (masked vector-add PASS). Recorded 15 facts (14 RUNTIME_PROBE, 1 EMPIRICAL, all origin=input, all with probe-command provenance) and 2 assumptions in PROJECT_STATE.json. Three items classified present+unusable with attempted commands and errors: BF16 IME format selection, MCPM control CSR from userspace, and the SpacemiT LLVM package (host glibc too old; not on the declared build path). No timing, speedup or performance measurement was recorded or required (correctness_only).\nacceptance[0]: `python3 -c \"import json; d=json.load(open('docs/compiler-agent/PROJECT_STATE.json')); print(len(d['facts']), sorted({f['confidence'] for f in d['facts']}), 'all sourced:', all(f['source'] for f in d['facts']))\"` -> exit 0\nacceptance[1]: `set -a; . ./.env; set +a; timeout 60 $A100_QEMU -L $A100_SYSROOT -cpu \"$A100_QEMU_CPU\" ./a100_support/build/smoke_c` -> exit 0\nacceptance[2]: `python3 -c \"import json; d=json.load(open('docs/"
     }
   ]
 }

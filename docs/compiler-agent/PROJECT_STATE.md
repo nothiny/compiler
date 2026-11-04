@@ -4,7 +4,7 @@
 - phase: **ENVIRONMENT_ANALYSIS**
 - acceptance scope: `correctness_only`
 - schema: v1
-- updated: 2026-11-04T08:29:18.570033+00:00
+- updated: 2026-11-04T08:33:47.604724+00:00
 
 ## Inputs
 
@@ -30,7 +30,7 @@
 ## Counts
 
 - facts: 15
-- assumptions: 0
+- assumptions: 2
 - decisions: 0
 - tasks: 1
 - design issues: 0

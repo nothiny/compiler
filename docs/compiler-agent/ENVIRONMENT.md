@@ -340,5 +340,28 @@ sha256:abe85106d90d6ede14eeebe0d501e5e1b6b81101142f56dc5286463b2db7e49e
 ## Recorded facts
 
 The Facts/Assumptions for this analysis are recorded in
-`docs/compiler-agent/PROJECT_STATE.json` (IDs F001…, A001…). Each fact's source
-names the probe command recorded above.
+`docs/compiler-agent/PROJECT_STATE.json`. Each fact's source names the probe
+command recorded above.
+
+| ID | Statement (abridged) | Confidence |
+|---|---|---|
+| F001 | `.env` is the single source of truth for tool paths; no measurement stack declared | EMPIRICAL |
+| F002 | Cross gcc 14.3.0 present + usable (C smoke built and run) | RUNTIME_PROBE |
+| F003 | Cross as/ld/objdump binutils 2.43.1.20250119 present + usable (asm smoke) | RUNTIME_PROBE |
+| F004 | Sysroot present + usable (libc + lp64d loader, dynamic smoke) | RUNTIME_PROBE |
+| F005 | QEMU endpoint 10.0.2 with declared CPU model present + usable (3 smokes) | RUNTIME_PROBE |
+| F006 | RVV 1.0 VLEN=1024 under declared CPU model (vlenb=128, control fails) | RUNTIME_PROBE |
+| F007 | Native runtime transport round trip PASS (alias/relocation, bf16) | RUNTIME_PROBE |
+| F008 | Dynamic instruction observation plugin usable (counts + empty control) | RUNTIME_PROBE |
+| F009 | IME int8 executed and compared PASS (int4/fp16 recorded at prep time) | RUNTIME_PROBE |
+| F010 | BF16 IME format selection gap: probe fails, remains unverified | RUNTIME_PROBE |
+| F011 | MCPM control CSR not userspace-accessible under pinned QEMU | RUNTIME_PROBE |
+| F012 | SpacemiT LLVM present + unusable (host glibc; not on declared build path) | RUNTIME_PROBE |
+| F013 | x86 Triton CPU reference environment usable (masked vector-add PASS) | RUNTIME_PROBE |
+| F014 | Host Python driver 3.10.12 usable (engine + harness + transport imports) | RUNTIME_PROBE |
+| F015 | Auxiliary declared paths present (cache, broker, no-Python image) | RUNTIME_PROBE |
+
+| ID | Assumption | Risk |
+|---|---|---|
+| A001 | No physical A100 board reachable; QEMU guest threads are not board topology/timing | high |
+| A002 | Containerized no-Python candidate round trip not yet exercised with a real artifact | low |
