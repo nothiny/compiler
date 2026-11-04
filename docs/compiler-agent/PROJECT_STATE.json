@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-04T10:18:07.330344+00:00",
+  "updated_at": "2026-11-04T10:28:23.767519+00:00",
   "facts": [
     {
       "id": "F001",
@@ -585,7 +585,15 @@
       "status": "open"
     }
   ],
-  "decisions": [],
+  "decisions": [
+    {
+      "id": "D001",
+      "decision": "amend task T006: goal",
+      "evidence": "Review finding 5 (LOW, coverage, review-001 REQUEST_CHANGES): T006's elementwise-core scope must name the P0 tensor-creation constructs tl.arange (466 operator files), tl.zeros (147) and tl.full (56) and the tensor-creation forms explicitly; every elementwise kernel and the T007 vertical slice compute offsets and initial values with them (e.g. gemm_smallk computes all offsets with tl.arange). Naming-only scope change: no acceptance, test, dependency or coverage change.",
+      "alternatives": "add a second task answering to the same work (the engine refuses duplicate ids) or raise a design issue and replan",
+      "consequences": "semantic contract changes require review; record-only corrections preserve approval"
+    }
+  ],
   "tasks": [
     {
       "id": "T001",
@@ -960,7 +968,7 @@
     },
     {
       "id": "T006",
-      "goal": "Frontend core: declared surface, specialization, type/shape wellformedness and AST-to-TIR lowering for the elementwise core. Implement a100c/frontend/: source.py (operator module and case-layer loading by AST; single @triton.jit invariant; refusal with source locations for contract violations); surface.py (the recorded 107-construct/280-parameter surface as data; every parameter classified implemented / ignorable-with-recorded-reason / refused); specialize.py (meta-tier specialization identity: source path + kernel name + pointer device dtypes from pointer_dtypes + scalar specialization classes honoring do_not_specialize and do_not_specialize_on_alignment + all constexprs including the deterministically chosen autotune config; constexpr folding of tl.constexpr conditions, dtype predicates and dead dispatch branches such as the 16 float64 branches); types.py (literal typing, promotion/unification, result types, value conversion distinct from bitcast, zero-dim values, per pinned Triton 3.8 semantics); shapes.py (rank/extent inference with broadcast extents distinguished from real extents; disagreement is a diagnostic); lower_tir.py (AST -> TIR for the elementwise core: masked load with other / store, arithmetic, comparison, logical, where, constants, program_id). Implement a100c/ir/tir.py (TIR data structures per the declared property list) with a structural verifier, and a100c/ir/dump.py (textual dump with source attribution). Shapes, grid values and scalar values stay runtime-symbolic (never baked).",
+      "goal": "Frontend core: declared surface, specialization, type/shape wellformedness and AST-to-TIR lowering for the elementwise core. Implement a100c/frontend/: source.py (operator module and case-layer loading by AST; single @triton.jit invariant; refusal with source locations for contract violations); surface.py (the recorded 107-construct/280-parameter surface as data; every parameter classified implemented / ignorable-with-recorded-reason / refused); specialize.py (meta-tier specialization identity: source path + kernel name + pointer device dtypes from pointer_dtypes + scalar specialization classes honoring do_not_specialize and do_not_specialize_on_alignment + all constexprs including the deterministically chosen autotune config; constexpr folding of tl.constexpr conditions, dtype predicates and dead dispatch branches such as the 16 float64 branches); types.py (literal typing, promotion/unification, result types, value conversion distinct from bitcast, zero-dim values, per pinned Triton 3.8 semantics); shapes.py (rank/extent inference with broadcast extents distinguished from real extents; disagreement is a diagnostic); lower_tir.py (AST -> TIR for the elementwise core: masked load with other / store, arithmetic, comparison, logical, where, constants, program_id, and the tensor-creation forms tl.arange (466 operator files; start/end define the block index space), tl.zeros (147; shape, dtype), tl.full (56; shape, value, dtype) and tl.zeros_like). Implement a100c/ir/tir.py (TIR data structures per the declared property list) with a structural verifier, and a100c/ir/dump.py (textual dump with source attribution). Shapes, grid values and scalar values stay runtime-symbolic (never baked).",
       "kind": "coding",
       "gate": "G4",
       "capability": "coding",
@@ -6537,6 +6545,18 @@
       "phase": "PLANNING",
       "event": "task-delegate",
       "detail": "WTI005 task=T023 attempt=1 profile=general-purpose"
+    },
+    {
+      "at": "2026-11-04T10:28:23.736152+00:00",
+      "phase": "PLANNING",
+      "event": "decision",
+      "detail": "D001 amend task T006: goal"
+    },
+    {
+      "at": "2026-11-04T10:28:23.767496+00:00",
+      "phase": "PLANNING",
+      "event": "task-amend",
+      "detail": "T006 changed goal (Review finding 5 (LOW, coverage, review-001 REQUEST_CHANGES): T006's elementwise-core scope must name the P0 tensor-creation constructs tl.arange (466 operator files), tl.zeros (147) and tl.full (56) and the tensor-creation forms explicitly; every elementwise kernel and the T007 vertical slice compute offsets and initial values with them (e.g. gemm_smallk computes all offsets with tl.arange). Naming-only scope change: no acceptance, test, dependency or coverage change.)"
     }
   ]
 }
