@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-04T08:50:11.397327+00:00",
+  "updated_at": "2026-11-04T08:50:11.598429+00:00",
   "facts": [
     {
       "id": "F001",
@@ -333,6 +333,15 @@
       "id": "F036",
       "statement": "FP8 and headline compute specifications (Preview 2026-01-29; not probed, not a performance target under correctness_only): A100 integrates customized FP8 (E4M3 and E5M2) vector conversion instructions and FP8 operands are converted to BF16 before computation; headline K3 AI compute: INT4 30 dense / 60 sparse TOPS with block scaling, INT8 15 dense / 30 sparse, BF16/FP16 7.5 (IEEE FP16 and bfloat16 formats), FP8 7.5. The development corpus excludes fp8, so FP8 is not on the current input path.",
       "source": "docs/compiler-agent/target-material/sources/9564d4ba5ed9a64d71c0c7e5bf0c8f7d74ed717fd0aa71265328f8c1eaea8c91/K3_architecture_preview.pdf.search.txt:158-165 (Table 1),970-985 (FP8 conversion instructions); corpus exclusion: ops/README.md (declared subset: no fp8)",
+      "confidence": "FACT",
+      "status": "active",
+      "category": "isa",
+      "origin": "input"
+    },
+    {
+      "id": "F037",
+      "statement": "Input corpus dtype surface that binds the ISA families on the input path: 500 operators / 2734 cases with dtypes bfloat16, bool, float16, float32, int16, int32, int64, int8 only; the declared subset is forward-only inference: no gradient kernels, no fp8, no input_precision=/allow_tf32= (fp32 tl.dot is IEEE, pinned by TRITON_F32_DEFAULT=ieee in the runner); bf16 is the primary perf-lane dtype. Consequently the applicable IME families for the input path are INT8 8x16x8 and FP16/BF16 8x8x8 (the BF16 family currently blocked by the emulator gap), with int4/sparse/scale families available on hardware but not exercised by corpus dtypes.",
+      "source": "docs/compiler-agent/CORPUS_LOCK.json (500 operators, 2734 cases, dtypes bfloat16/bool/float16/float32/int16/int32/int64/int8); ops/README.md (declared subset); chip.md#4 (input and numeric contract)",
       "confidence": "FACT",
       "status": "active",
       "category": "isa",
@@ -856,6 +865,12 @@
       "phase": "CHIP_ANALYSIS",
       "event": "fact",
       "detail": "F036 [isa/FACT/input] docs/compiler-agent/target-material/sources/9564d4ba5ed9a64d71c0c7e5bf0c8f7d74ed717fd0aa71265328f8c1eaea8c91/K3_architecture_preview.pdf.search.txt:158-165 (Table 1),970-985 (FP8 conversion instructions); corpus exclusion: ops/README.md (declared subset: no fp8)"
+    },
+    {
+      "at": "2026-11-04T08:50:11.598382+00:00",
+      "phase": "CHIP_ANALYSIS",
+      "event": "fact",
+      "detail": "F037 [isa/FACT/input] docs/compiler-agent/CORPUS_LOCK.json (500 operators, 2734 cases, dtypes bfloat16/bool/float16/float32/int16/int32/int64/int8); ops/README.md (declared subset); chip.md#4 (input and numeric contract)"
     }
   ]
 }
