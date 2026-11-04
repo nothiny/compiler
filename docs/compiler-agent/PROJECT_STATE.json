@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-04T20:59:42.599677+00:00",
+  "updated_at": "2026-11-04T21:00:07.479981+00:00",
   "facts": [
     {
       "id": "F001",
@@ -1558,13 +1558,13 @@
         "backend-path-v1"
       ],
       "tags": [],
-      "status": "READY",
-      "assignee": "",
-      "attempts": 0,
+      "status": "RUNNING",
+      "assignee": "coder",
+      "attempts": 1,
       "evidence": "",
       "last_error": "",
       "failure_kind": "",
-      "start_revision": "",
+      "start_revision": "95e1cffd47f16bc83a3131bfc47e4d00241a86bb",
       "end_revision": "",
       "completed_seq": 0,
       "debug_required": false,
@@ -1574,7 +1574,7 @@
       "debug_pending_failures": 0,
       "worker_debug_request": {},
       "coding_failures": 0,
-      "started_at": "",
+      "started_at": "2026-11-04T21:00:07.477089+00:00",
       "deferrals": 0,
       "debug_verified_patterns": [],
       "replan_baseline": {},
@@ -6947,6 +6947,12 @@
       "phase": "IMPLEMENTATION",
       "event": "complete-task",
       "detail": "T011 worker report WTI012: Memory access breadth and atomics implemented through the real compilation path and executed under the declared QEMU endpoint. (1) Block pointers: tl.make_block_ptr/tl.advance desugar in the frontend into the whole-tree ptradd address form with the boundary_check mask and padding 'other' (1-D and flattened 2-D forms, extent-1 axes folded, loop-carried advance through derived term names); leaky_relu_kernel_strided and diag_scale_kernel execute and compare PASS at 1/2/4/8 threads on all declared shapes. (2) Atomics: TIR atomic_rmw/atomic_cas ops (mask + DECLARED no-access default, sem/scope, signedness) with verifier rules; the lowering emits AMO families (amoadd/amoswap/amomax[u]/amomin[u]/amoand/amoor/amoxor .w/.d with the aq/rl ordered-form bits) and the lr/sc pair (CAS retry loops, the fp32 synthesis for float pointees -- the target has no float AMO); the declared ATOMIC_ORDERING table maps every sem x scope (scope=sys brackets with fence iorw,iorw); a masked block atomic runs a per-lane loop whose disabled-lane addresses redirect to a private workspace slot (no access at the disabled position -- the guard-region witness proves it load-bearing); tl.debug_barrier lowers to an intra-program fence (not the pool-desyncing stage barrier). atomic_bitmap (all eight ops), count_nonzero (i64 cross-program accumulation), bincount (masked block atomic) and scatter_atomic (fp32 synthesis) execute and compare PASS at 1/2/4/8 threads. (3) Hints: tl.multiple_of/tl.max_contiguous record TIR hint ops; the wide-access proof (structural arange+scalars, or max_contiguous>=vl) selects the unit-stride vle/vse form -- an indirect access keeps the indexed form (both asserted on selection mnemonics); cache_modifier/eviction_policy classified ignorable-with-reason, volatile carried on the load. (4) tl.gather (single-chunk register vrgather; multi-chunk refuses located), tl.interleave (a standalone program-level lowering executed at 1/2/4/8 with ragged tails), pointer_"
+    },
+    {
+      "at": "2026-11-04T21:00:07.479971+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "start-task",
+      "detail": "T012 agent=coder"
     }
   ]
 }
