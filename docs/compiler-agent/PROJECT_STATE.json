@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-04T17:30:47.831661+00:00",
+  "updated_at": "2026-11-04T17:31:16.957151+00:00",
   "facts": [
     {
       "id": "F001",
@@ -1404,13 +1404,13 @@
       "tags": [
         "ime-slice"
       ],
-      "status": "READY",
-      "assignee": "",
-      "attempts": 0,
+      "status": "RUNNING",
+      "assignee": "coder",
+      "attempts": 1,
       "evidence": "",
       "last_error": "",
       "failure_kind": "",
-      "start_revision": "",
+      "start_revision": "674e4cb5305ea804f96b0ca38e018abacd9c9cff",
       "end_revision": "",
       "completed_seq": 0,
       "debug_required": false,
@@ -1420,7 +1420,7 @@
       "debug_pending_failures": 0,
       "worker_debug_request": {},
       "coding_failures": 0,
-      "started_at": "",
+      "started_at": "2026-11-04T17:31:16.953902+00:00",
       "deferrals": 0,
       "debug_verified_patterns": [],
       "replan_baseline": {},
@@ -6887,6 +6887,12 @@
       "phase": "IMPLEMENTATION",
       "event": "complete-task",
       "detail": "T009 worker report WTI010: Reductions, scans and cross-worker merge semantics implemented through the real compilation path. (1) a100c/plan/stages.py: the reduction operation table as data (13 constructs, per-op-and-dtype identities derived from the lattice of the type's own signedness -- a signed min reduces from INT_MAX, an unsigned min from all-ones, fp max from -inf; declared tie-breaks, empty-extent results, merge rules), the two-phase cross-worker split plan (single-program grids: worker-strided chunk ranges, partials to owned workspace slots, one a100rt_stage_barrier per worker per call, merge owner worker 0 combining under the source's own semantics), loop-carried reduction recognition (accumulate + arg-select pair forms), workspace ownership (disjoint per-worker regions, violating plans rejected), and the SplitKFeed model for the dot lane. (2) TIR: reduce/scan/sort/topk/histogram ops carrying kind, axes, keep_dims, identity and tie-break, with verifier rules (wrong identity, out-of-range axis, wrong result shape, non-index index-form each rejected; identities checked against the plan table). (3) Frontend: tl.sum/max/min/argmax/argmin (return_indices, tie_break_left), xor_sum, reduce_or, cumsum, cumprod, sort, topk, histogram lower to those ops (pinned promotions: int<32 -> 32-bit, bf16 -> fp32 for max/min forms); tl.softmax refuses with a located diagnostic naming its exp dependency; tl.cast folds the identity cast and emits convert otherwise; multi-result (value,index) tuple unpacking; runtime tuple pack/unpack. (4) Backend: vred (vredsum/max/maxu/min/minu/xor/or/vfredusum/vfredmax/vfredmin), vmv.x.s (vextract), vmand.mm, vfdiv.vv, vfcvt.f.x.v and the fp vx forms as repertoire rows; MIR opcodes + type rules + region consistency. (5) Lowering: intra-program RVV reductions per chunk (vred against the identity splat, index forms via match-masking and an index vred), chunk-merge accumulators riding the chunk loop back edge (sum/min/max/xor/or/product and (value,ind"
+    },
+    {
+      "at": "2026-11-04T17:31:16.957141+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "start-task",
+      "detail": "T010 agent=coder"
     }
   ]
 }
