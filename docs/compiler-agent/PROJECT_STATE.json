@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-04T09:08:38.536611+00:00",
+  "updated_at": "2026-11-04T09:08:43.615618+00:00",
   "facts": [
     {
       "id": "F001",
@@ -2967,7 +2967,12 @@
       "suite/dev",
       "suite/perf"
     ],
-    "group_source": "ops/harness/compiler_api/run_cases.py (GROUP_ORDER = (\"suite/dev\", \"suite/perf\") \u2014 the two input directories in the order the corpus declares them; confirmed by `run_cases.py --dry-run --group-order`: suite/dev operators=400 cases=2192, suite/perf operators=100 cases=542)"
+    "group_source": "ops/harness/compiler_api/run_cases.py (GROUP_ORDER = (\"suite/dev\", \"suite/perf\") \u2014 the two input directories in the order the corpus declares them; confirmed by `run_cases.py --dry-run --group-order`: suite/dev operators=400 cases=2192, suite/perf operators=100 cases=542)",
+    "case_totals": {
+      "suite/dev": 2192,
+      "suite/perf": 542
+    },
+    "case_source": "ops corpus enumeration: cd ops && python3 harness/compiler_api/run_cases.py --manifest suite/manifest.json --dry-run --group-order (suite/dev cases=2192, suite/perf cases=542, TOTAL cases=2734); cross-checked with ops/suite/manifest.json cases_total=2734 and docs/compiler-agent/A100_CORPUS_CASES.json.manifest (2734 rows: suite/dev 2192, suite/perf 542)"
   },
   "regression": {},
   "regression_runs": {},
@@ -3539,6 +3544,12 @@
       "phase": "WORKLOAD_ANALYSIS",
       "event": "group-order",
       "detail": "suite/dev, suite/perf (from ops/harness/compiler_api/run_cases.py (GROUP_ORDER = (\"suite/dev\", \"suite/perf\") \u2014 the two input directories in the order the corpus declares them; confirmed by `run_cases.py --dry-run --group-order`: suite/dev operators=400 cases=2192, suite/perf operators=100 cases=542))"
+    },
+    {
+      "at": "2026-11-04T09:08:43.615579+00:00",
+      "phase": "WORKLOAD_ANALYSIS",
+      "event": "case-totals",
+      "detail": "suite/dev=2192, suite/perf=542 (from ops corpus enumeration: cd ops && python3 harness/compiler_api/run_cases.py --manifest suite/manifest.json --dry-run --group-order (suite/dev cases=2192, suite/perf cases=542, TOTAL cases=2734); cross-checked with ops/suite/manifest.json cases_total=2734 and docs/compiler-agent/A100_CORPUS_CASES.json.manifest (2734 rows: suite/dev 2192, suite/perf 542))"
     }
   ]
 }
