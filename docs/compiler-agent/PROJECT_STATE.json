@@ -6,13 +6,13 @@
     "ops": "ops",
     "target_scope": "k3-a100"
   },
-  "phase": "ENVIRONMENT_ANALYSIS",
+  "phase": "CHIP_ANALYSIS",
   "acceptance_scope": "correctness_only",
   "return_phase": "",
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-04T08:33:47.604724+00:00",
+  "updated_at": "2026-11-04T08:35:01.822699+00:00",
   "facts": [
     {
       "id": "F001",
@@ -428,6 +428,12 @@
       "phase": "ENVIRONMENT_ANALYSIS",
       "event": "complete-task",
       "detail": "T001 worker report WTI001: Environment analysis for the A100 correctness-only run completed. Probed and classified all 20 capabilities the chip input's build/execution path needs, each with its exact command and output in docs/compiler-agent/ENVIRONMENT.md. Ran three end-to-end smokes under the declared QEMU endpoint (-cpu max,vlen=1024,elen=64,vext_spec=v1.0): a C program via the cross gcc, a raw-syscall assembly program via as+ld (guest exit code 42 preserved), and an RVV check (vlenb=128 plus executed vector instructions) with a vlen=256 control that fails as required. Rebuilt and re-ran the QEMU instruction-count plugin (IME int8 executed and compared PASS, smt.vmadot counted; empty-list control on a non-matrix binary; bf16 probe still fails - known gap), the persistent-pool worker probe at 1/2/4/8 guest threads (distinct tids, full coverage, one pool init), the native transport round trip (pack_case -> run-riscv.sh -> native_bundle -> unpack_outputs: alias/relocation and bfloat16 cases compared PASS) and the x86 Triton CPU reference through run-reference.sh (masked vector-add PASS). Recorded 15 facts (14 RUNTIME_PROBE, 1 EMPIRICAL, all origin=input, all with probe-command provenance) and 2 assumptions in PROJECT_STATE.json. Three items classified present+unusable with attempted commands and errors: BF16 IME format selection, MCPM control CSR from userspace, and the SpacemiT LLVM package (host glibc too old; not on the declared build path). No timing, speedup or performance measurement was recorded or required (correctness_only).\nacceptance[0]: `python3 -c \"import json; d=json.load(open('docs/compiler-agent/PROJECT_STATE.json')); print(len(d['facts']), sorted({f['confidence'] for f in d['facts']}), 'all sourced:', all(f['source'] for f in d['facts']))\"` -> exit 0\nacceptance[1]: `set -a; . ./.env; set +a; timeout 60 $A100_QEMU -L $A100_SYSROOT -cpu \"$A100_QEMU_CPU\" ./a100_support/build/smoke_c` -> exit 0\nacceptance[2]: `python3 -c \"import json; d=json.load(open('docs/"
+    },
+    {
+      "at": "2026-11-04T08:35:01.822654+00:00",
+      "phase": "CHIP_ANALYSIS",
+      "event": "transition",
+      "detail": "ENVIRONMENT_ANALYSIS -> CHIP_ANALYSIS Environment analysis task T001 DONE, G0 PASS; advancing to chip analysis."
     }
   ]
 }

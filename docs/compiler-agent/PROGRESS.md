@@ -1,6 +1,6 @@
 # Progress
 
-Phase: **ENVIRONMENT_ANALYSIS** · project: `compiler-a100-experiment-001`
+Phase: **CHIP_ANALYSIS** · project: `compiler-a100-experiment-001`
 
 ## Task board
 
@@ -40,3 +40,4 @@ Phase: **ENVIRONMENT_ANALYSIS** · project: `compiler-a100-experiment-001`
 acceptance[0]: `python3 -c "import json; d=json.load(open('docs/compiler-agent/PROJECT_STATE.json')); print(len(d['facts']), sorted({f['confidence'] for f in d['facts']}), 'all sourced:', all(f['source'] for f in d['facts']))"` -> exit 0
 acceptance[1]: `set -a; . ./.env; set +a; timeout 60 $A100_QEMU -L $A100_SYSROOT -cpu "$A100_QEMU_CPU" ./a100_support/build/smoke_c` -> exit 0
 acceptance[2]: `python3 -c "import json; d=json.load(open('docs/ |
+| 2026-11-04T08:35:01.822654+00:00 | CHIP_ANALYSIS | transition | ENVIRONMENT_ANALYSIS -> CHIP_ANALYSIS Environment analysis task T001 DONE, G0 PASS; advancing to chip analysis. |
