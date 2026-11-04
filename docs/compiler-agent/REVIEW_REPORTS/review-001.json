@@ -1,0 +1,45 @@
+{
+  "target": "architecture",
+  "decision": "REQUEST_CHANGES",
+  "evidence": "Audited the review bundle (docs/compiler-agent/review-input-latest.prompt.md), the submitted DAG and facts in docs/compiler-agent/PROJECT_STATE.json, ARCHITECTURE_CONSTRAINTS.json (root, schema 1, 42 modules/10 stages/6 passes/4 behaviour/24 checks, contract 'valid', 132 pending paths expected for a plan that implements nothing), and the corpus in ops/. Verified the load-bearing target claims against the archived sources and recorded probes: IME operand contract, tile families 8x16x8 INT8->INT32 and 8x8x8 FP16->FP32, LMUL=1-only, MUL_C=2 even-vd/no-overlap, vm not a matrix mask, MCPM.BF16 scope (ime_extension.md.search.txt secs 1.4-1.5, 2.1.2, 2.3, 2.5, 2.6.1 backing F030/F031/F032/F033/F040/F041/F051); BF16 IME gap and MCPM CSR inaccessibility (F010/F011/F034); 8-worker limit, shared IME/L2/scratchpad (F053/F022); pthread pool probe at 1/2/4/8 (F019); assembler accepting smt. mnemonics (F042); bundle format with relocation and bf16 storage, no reference fallback (F046/F047); instruction-count plugin (F008/F048). Scope discipline holds: no optimization capability/purpose/tag or G9 anywhere in T005-T022; the six basic passes are ordinary coding/input work (T015, ARCHITECTURE_CONSTRAINTS passes optional:false, full sweep T018 'basic passes on'); the runner enumerates the full corpus manifest via the corpus harness with per-case declared comparison policies and witnesses against tolerance widening and name dispatch; resource evidence (T020/T022, EXECUTION_RESOURCES.json from F053/F017/F022/F025) binds instruction counts and overlapping worker intervals to run/case/artifact. The 107-construct surface is covered by the declared-surface table plus the T016 coverage matrix. The defects are confined to the G5 breadth tasks' dependency ordering: consumers of loop lowering and memory forms are declared as siblings of their producers, and two acceptances claim the same 146-operator family that needs both tasks' constructs.",
+  "findings": [
+    {
+      "severity": "high",
+      "area": "dependency",
+      "evidence": "Task DAG in docs/compiler-agent/PROJECT_STATE.json: T009 deps [T007], T010 deps [T007], T011 deps [T007]; T008 is the sole declared owner of loop lowering (T008 scope: 'Implement in TIR and lowering: ... tl.range ...; while loops; ... persistent grid-stride loops'; T007's slice is elementwise-only with scalar.py 'as minimal stubs refusing what they do not implement yet'). Yet T009's scope requires 'persistent reductions looping chunks inside one program' with acceptance over pat.persistent_reduce 146, and corpus operators of that family combine a runtime-bound loop with a T009-owned reduction (ops/suite/dev/amax_kernel.py: 'for off in range(0, N, BLOCK_N)' with runtime N plus tl.max(_all, axis=1); ops/suite/dev/any_kernel_dim.py and frobenius_norm_persistent_two_phase_kernel.py same shape). T011's acceptance 2 names the pointer-table operator grouped_gemm_kernel, which contains 'for g in range(group_size)', 'for _ in tl.range(loop_count)' and 'for kk in range(0, tl.cdiv(gk, BLOCK_K))' (ops/suite/dev/grouped_gemm_kernel.py) - all runtime loops. T010's scope includes 'K-loop accumulator chaining through the acc parameter' (a loop-free dot case exists, ops/suite/dev/gemm_smallk_kernel_5ee47e3f.py, but T010's own K-loop chaining text points at looping cases). None of T009/T010/T011 can reach T008 transitively (all depend only on T007 -> T005/T006), so the engine may dispatch them before loop lowering exists.",
+      "required_change": "Re-submit the DAG with loop lowering sequenced before its consumers: add edges T009<-T008 and T011<-T008; for T010 either add T008 or explicitly bind the IME slice to loop-free dot cases (gemm_smallk form) in the task contract."
+    },
+    {
+      "severity": "high",
+      "area": "acceptance",
+      "evidence": "T008 acceptance 1 ('persistent loops 146 ... execute and compare PASS including multi-worker executions') and T009 acceptance 1 ('pat.persistent_reduce 146 ... execute and compare PASS') claim the same operator family: docs/compiler-agent/OPERATOR_INVENTORY.md line 310 records pat.persistent_reduce (146) with examples amax_kernel.py, any_kernel_dim.py, argmax_kernel_inner.py..., and the per-operator tag rows show flow.loop/flow.dynamic_range combined with red.axis/red.maxmin. Those 146 operators need T008's loop lowering AND T009's reduction lowering, but T008 and T009 are declared independent siblings (both deps [T007]): whichever completes first fails its acceptance through no fault of its own, so no dispatch order satisfies the plan as written.",
+      "required_change": "Re-scope the two acceptances: sequence T009 after T008 (or merge the work) and validate the persistent family exactly once, in the task that owns both constructs (T009 already lists pat.persistent_reduce 146); T008's acceptance should validate loop mechanics over its non-reduction families (flow.while 15, flow.if 160, flow.tl_range 25, flow.static_range 21, if_pid 11)."
+    },
+    {
+      "severity": "high",
+      "area": "dependency",
+      "evidence": "T014 deps [T008, T009, T010, T012], consumes [ime-lowering-v1, control-flow-v1, reductions-v1, layout-ops-v1]; T011 (memory-forms-v1) is absent and not transitively reachable (T008/T009/T010/T012 all depend only on T007). But T014's scope and acceptance 1 require 'attention families (11 operators incl. flash_varlen with block pointers)' and 'grouped GEMM with pointer tables' - both T011 deliverables (T011: make_block_ptr/advance/load/store with boundary_check and padding_option; pointer_table_relocations consumption, 'the pointer-table operator (grouped_gemm_kernel)'). Verified in the corpus: ops/suite/dev/flash_varlen_fwd_kernel.py builds gQ/gK/gV/gO via tl.make_block_ptr and loads through them; ops/suite/dev/grouped_gemm_kernel.py loads group_a_ptrs/group_b_ptrs/group_c_ptrs and casts with .to(tl.pointer_type(...)) plus make_block_ptr and boundary_check loads. T014 becomes READY as soon as T008/T009/T010/T012 complete and can be dispatched while T011 is still pending, making acceptance 1 unsatisfiable; flash_varlen also needs T011's unsigned/int64 logic for its inlined philox arithmetic.",
+      "required_change": "Add T011 to T014's deps and memory-forms-v1 to its consumes."
+    },
+    {
+      "severity": "medium",
+      "area": "contract",
+      "evidence": "The machine-readable contract (ARCHITECTURE_CONSTRAINTS.json modules) assigns 'control flow to MIR branches' to a100c/lower/scalar.py, and the a100c-lowering-backend conflict group holds T010/T011/T014; but T008, whose scope is 'Implement in TIR and lowering: if/else ...; tl.range ...; while loops', declares outputs only [a100c/frontend/gridmodel.py, a100c/tests/test_control_flow.py, a100c/tests/test_grid_model.py] and conflicts a100c-ir-frontend. The loop-lowering code T008 must write has no declared output path and sits in a conflict group T008 does not belong to, so parallel dispatch with the lowering-backend tasks can collide.",
+      "required_change": "Declare T008's lowering output path(s) (a100c/lower/scalar.py or wherever loop lowering lands) and its conflict membership in the task submission."
+    },
+    {
+      "severity": "low",
+      "area": "coverage",
+      "evidence": "T006's elementwise-core construct list ('masked load with other / store, arithmetic, comparison, logical, where, constants, program_id') omits tl.arange (466 operator files), tl.zeros (147) and tl.full (56) - P0 constructs every elementwise kernel and the T007 vertical slice need (e.g. ops/suite/dev/gemm_smallk_kernel_5ee47e3f.py computes all offsets with tl.arange). The surface-table plus T016 coverage mechanism covers them, but no task text names their implementation.",
+      "required_change": "Name tl.arange/tl.zeros/tl.full and the tensor-creation forms explicitly in T006's elementwise-core scope."
+    }
+  ],
+  "required_changes": [
+    "Add dependency edges so loop lowering precedes its consumers: T009<-T008, T011<-T008, and T010<-T008 (or explicitly restrict T010's IME slice cases to loop-free dot kernels in its contract).",
+    "Re-scope T008/T009 acceptances so the 146 persistent-reduce operators are validated exactly once, in the task owning both loop and reduction lowering (T009); T008 validates loop mechanics on its non-reduction families.",
+    "Add T011 to T014's dependencies (memory-forms-v1: block pointers for flash_varlen/attention, pointer tables for grouped GEMM).",
+    "Declare T008's lowering output paths and conflict-group membership for the loop-lowering code.",
+    "Name the P0 tensor-creation constructs (tl.arange/tl.zeros/tl.full) in T006's elementwise-core scope."
+  ],
+  "at": "2026-11-04T10:16:48.729696+00:00"
+}
