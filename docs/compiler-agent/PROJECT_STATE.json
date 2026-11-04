@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-04T09:20:27.997418+00:00",
+  "updated_at": "2026-11-04T09:24:04.888910+00:00",
   "facts": [
     {
       "id": "F001",
@@ -787,6 +787,83 @@
       "worker_debug_request": {},
       "coding_failures": 0,
       "started_at": "2026-11-04T08:59:40.226174+00:00",
+      "deferrals": 0,
+      "debug_verified_patterns": [],
+      "replan_baseline": {},
+      "origin": "manager",
+      "parent_task": "",
+      "optimization_stage": "",
+      "bundle_passes": [],
+      "shared_analysis": [],
+      "rollback_boundary": "",
+      "fastpath_fallback": "",
+      "profile_artifact": "",
+      "profile_sha256": "",
+      "profile_revision": "",
+      "bundle_evidence": []
+    },
+    {
+      "id": "T004",
+      "goal": "Compiler architecture and implementation plan for the A100 correctness-only run, derived from the recorded facts (chip F-facts, environment probes), the workload feature matrix and api-spec (107 constructs), and the injected A100 target knowledge (A100-NATIVE-OPERATOR; timing anchors not required under correctness_only). Deliverables: (1) docs/compiler-agent/COMPILER_ARCHITECTURE.md \u2014 a concise architecture choosing frontend, IR levels, backend boundary, native runtime boundary, register-allocation responsibility, work distribution and execution-model mapping, with explicit producer/consumer interfaces per stage, per-stage dump/observability for first-incorrect-stage localisation, RVV tail handling, applicable IME matrix lowering (tile/layout, accumulation type, register grouping, overlap restrictions, implicit control state from cited specification), 1/2/4/8-worker partitioning, workspace ownership, stage visibility and merge semantics, cache identity covering every bound source/target/option/grid/launch/argument-layout dependency, and the A100_COMPILER_FACTORY integration through a100_support/native_device.py; (2) docs/compiler-agent/ARCHITECTURE_CONSTRAINTS.json \u2014 schema_version 1, test_command, modules (responsibility-owned paths), stages (each with module and tests), ir_levels (each with representation_id, properties, passes including the basic optimizations CSE, DCE, constant folding/propagation, copy propagation, strength reduction, LICM, and verification/round-trip tests), behaviour properties with witness commands including the no-operator-name-dispatch witness (a build with an operator-name branch injected must fail the witness), and validation_checks \u2014 valid under `architecture-check --declaration-only`; (3) EXECUTION_MODEL.json recorded via the execution-model command citing recorded facts (work unit, workers default and max, distribution mechanism, partition policies, synchronization, safety, serial fallback); (4) EXECUTION_RESOURCES.json derived from facts (allowed_units, minimum_workers >= 2, instruction_patterns including a supported IME matrix-compute mnemonic, evidence citing active input facts, shared_resources groups citing active facts); (5) the implementation task DAG submitted through task-submit \u2014 concrete tasks with capability (coding unless truly review/debug/integration), purpose input, gate, dependencies from actual consumption, interfaces, acceptance and tests, covering at least: a small-operator end-to-end vertical slice (tagged vertical-slice, gate G4) through parse, semantic representation, lowering, assembly generation, assemble/link, QEMU execution and independent comparison including its one-worker and multi-worker paths; a matrix/IME slice with real IME instruction execution before matrix breadth; the declared api-spec surface implementation with the frontend coverage matrix (FRONTEND_COVERAGE.json, every construct implemented with evidence and covered parameters or declared-unsupported with a refusal witness); the basic optimizations as ordinary coding/input tasks with legality and result checks (never capability/purpose/tag optimization, never G9); the compile/run/full-scan driver in the compiler's own tools/ calling the same pipeline and the a100_support/native_device.py compile_case protocol with A100_COMPILER_FACTORY wiring; regression manifest preparation (regression-prepare) and executed comparison (regression-record); parallel evidence (1 vs multi-worker runtime measurement of one compiled artifact with worker split recorded) and resource-evidence representative cases (resource_evidence=true manifest rows bound to run, case and artifact with executed instruction counts and overlapping worker intervals); repeated-call and synchronization checks. Planning declares; it does not implement: no compiler modules are created. No benchmark, timing, speedup or performance task is scheduled beyond the required multi-worker/specialized-instruction execution evidence.",
+      "kind": "general",
+      "gate": "G3",
+      "capability": "planning",
+      "purpose": "input",
+      "attempt_limit": 0,
+      "inputs": [
+        "chip.md",
+        "docs/compiler-agent/CHIP_ANALYSIS.md",
+        "docs/compiler-agent/ENVIRONMENT.md",
+        "docs/compiler-agent/OPERATOR_INVENTORY.md",
+        "docs/compiler-agent/PROJECT_STATE.json (facts, workload, api-spec, group order, case totals)",
+        "a100_support/native_device.py",
+        "ops/ (corpus entry document and harness contract as recorded in the workload analysis)"
+      ],
+      "outputs": [
+        "docs/compiler-agent/COMPILER_ARCHITECTURE.md",
+        "docs/compiler-agent/ARCHITECTURE_CONSTRAINTS.json",
+        "docs/compiler-agent/EXECUTION_MODEL.json",
+        "docs/compiler-agent/EXECUTION_RESOURCES.json",
+        "Implementation task DAG submitted via task-submit in docs/compiler-agent/PROJECT_STATE.json"
+      ],
+      "dependencies": [],
+      "interfaces": [],
+      "acceptance": [
+        "COMPILER_ARCHITECTURE.md derives every target decision from recorded Facts (cited by id), covers frontend/IR levels/backend/runtime/allocation boundaries with producer/consumer interfaces, per-stage observability, RVV tails, applicable IME matrix lowering from cited specification, 1/2/4/8-worker partitioning with workspace ownership and merge semantics, program cache identity, and the a100_support integration route; no target value is invented.",
+        "ARCHITECTURE_CONSTRAINTS.json validates under `python3 -m compiler_agent --root . architecture-check --declaration-only` with zero errors; its ir_levels declare the basic optimization passes (CSE, DCE, constant folding/propagation, copy propagation, strength reduction, LICM) in the normal pipeline; its behaviour properties include a witness that fails when an operator-name branch is injected.",
+        "EXECUTION_MODEL.json is recorded via the execution-model command with work unit, workers_default, workers_max >= 2, mechanism, partition policies, synchronization, safety, fallback, and evidence citing recorded fact ids.",
+        "EXECUTION_RESOURCES.json exists, derived from facts: allowed_units (resource identities from sourced facts), minimum_workers between 2 and the allowed count, instruction_patterns containing at least one supported IME matrix-compute mnemonic, an evidence list citing active input facts, and shared_resources groups each citing active input facts.",
+        "The implementation DAG is submitted through task-submit and every task declares capability, purpose input (or advisory for optional diagnostics), gate, goal, acceptance and tests; dependencies reflect actual consumption with no dangling references or cycles; the vertical-slice task is tagged vertical-slice with gate G4; no task uses capability/purpose/tag optimization or gate G9; no task narrows the corpus, edits kernels/references/tolerances, or adds operator-name dispatch.",
+        "The DAG covers: vertical slice, matrix/IME slice, api-spec surface with frontend coverage matrix, basic optimizations as coding/input work, the driver and A100_COMPILER_FACTORY integration, regression prepare/record, parallel evidence and resource-evidence representative cases, and repeated-call/synchronization checks.",
+        "Planning created no compiler implementation modules; only declarations and engine state were written."
+      ],
+      "tests": [
+        "PYTHONPATH from .env loaded, python3 -m compiler_agent --root . architecture-check --declaration-only reports zero errors",
+        "python3 -m compiler_agent --root . --json status shows the submitted implementation tasks with their gates/dependencies, and execution-model and execution-resources artifacts recorded"
+      ],
+      "conflicts": [],
+      "provides": [],
+      "consumes": [],
+      "tags": [
+        "phase-compiler-planning"
+      ],
+      "status": "RUNNING",
+      "assignee": "planner",
+      "attempts": 1,
+      "evidence": "",
+      "last_error": "",
+      "failure_kind": "",
+      "start_revision": "bc7c46f065c2b02ca1ebdbb96561de97abb8e717",
+      "end_revision": "",
+      "completed_seq": 0,
+      "debug_required": false,
+      "debug_request_id": "",
+      "debug_pending_revision": "",
+      "debug_pending_attempts": -1,
+      "debug_pending_failures": 0,
+      "worker_debug_request": {},
+      "coding_failures": 0,
+      "started_at": "2026-11-04T09:24:04.884496+00:00",
       "deferrals": 0,
       "debug_verified_patterns": [],
       "replan_baseline": {},
@@ -4031,6 +4108,17 @@
         }
       ],
       "optimization": false
+    },
+    "2bc10ff8861a452bf81266f587fa33e9498e1f353a661ad4078470595ff46404": {
+      "run_id": "",
+      "digest": "85d72f04037ed22e46b957ceb3dc50d37abd4eae0209229b7a3255db8a96f135",
+      "assignments": [
+        {
+          "task_id": "T004",
+          "cases": []
+        }
+      ],
+      "optimization": false
     }
   },
   "validation": {},
@@ -4602,6 +4690,24 @@
       "phase": "PLANNING",
       "event": "transition",
       "detail": "WORKLOAD_ANALYSIS -> PLANNING Workload analysis T003 DONE, G2 PASS with 500 operators / 2734 cases recorded."
+    },
+    {
+      "at": "2026-11-04T09:24:01.328744+00:00",
+      "phase": "PLANNING",
+      "event": "task",
+      "detail": "T004 Compiler architecture and implementation plan for the A100 correctness-only run, derived from the recorded facts (chip F-facts, environment probes), the workload feature matrix and api-spec (107 constructs), and the injected A100 target knowledge (A100-NATIVE-OPERATOR; timing anchors not required under correctness_only). Deliverables: (1) docs/compiler-agent/COMPILER_ARCHITECTURE.md \u2014 a concise architecture choosing frontend, IR levels, backend boundary, native runtime boundary, register-allocation responsibility, work distribution and execution-model mapping, with explicit producer/consumer interfaces per stage, per-stage dump/observability for first-incorrect-stage localisation, RVV tail handling, applicable IME matrix lowering (tile/layout, accumulation type, register grouping, overlap restrictions, implicit control state from cited specification), 1/2/4/8-worker partitioning, workspace ownership, stage visibility and merge semantics, cache identity covering every bound source/target/option/grid/launch/argument-layout dependency, and the A100_COMPILER_FACTORY integration through a100_support/native_device.py; (2) docs/compiler-agent/ARCHITECTURE_CONSTRAINTS.json \u2014 schema_version 1, test_command, modules (responsibility-owned paths), stages (each with module and tests), ir_levels (each with representation_id, properties, passes including the basic optimizations CSE, DCE, constant folding/propagation, copy propagation, strength reduction, LICM, and verification/round-trip tests), behaviour properties with witness commands including the no-operator-name-dispatch witness (a build with an operator-name branch injected must fail the witness), and validation_checks \u2014 valid under `architecture-check --declaration-only`; (3) EXECUTION_MODEL.json recorded via the execution-model command citing recorded facts (work unit, workers default and max, distribution mechanism, partition policies, synchronization, safety, serial fallback); (4) EXECUTION_RESOURCES.json derived from facts (allowed_units, minimum_workers >= 2, instruction_patterns including a supported IME matrix-compute mnemonic, evidence citing active input facts, shared_resources groups citing active facts); (5) the implementation task DAG submitted through task-submit \u2014 concrete tasks with capability (coding unless truly review/debug/integration), purpose input, gate, dependencies from actual consumption, interfaces, acceptance and tests, covering at least: a small-operator end-to-end vertical slice (tagged vertical-slice, gate G4) through parse, semantic representation, lowering, assembly generation, assemble/link, QEMU execution and independent comparison including its one-worker and multi-worker paths; a matrix/IME slice with real IME instruction execution before matrix breadth; the declared api-spec surface implementation with the frontend coverage matrix (FRONTEND_COVERAGE.json, every construct implemented with evidence and covered parameters or declared-unsupported with a refusal witness); the basic optimizations as ordinary coding/input tasks with legality and result checks (never capability/purpose/tag optimization, never G9); the compile/run/full-scan driver in the compiler's own tools/ calling the same pipeline and the a100_support/native_device.py compile_case protocol with A100_COMPILER_FACTORY wiring; regression manifest preparation (regression-prepare) and executed comparison (regression-record); parallel evidence (1 vs multi-worker runtime measurement of one compiled artifact with worker split recorded) and resource-evidence representative cases (resource_evidence=true manifest rows bound to run, case and artifact with executed instruction counts and overlapping worker intervals); repeated-call and synchronization checks. Planning declares; it does not implement: no compiler modules are created. No benchmark, timing, speedup or performance task is scheduled beyond the required multi-worker/specialized-instruction execution evidence."
+    },
+    {
+      "at": "2026-11-04T09:24:01.328802+00:00",
+      "phase": "PLANNING",
+      "event": "task-submission",
+      "detail": "004-planning"
+    },
+    {
+      "at": "2026-11-04T09:24:04.888893+00:00",
+      "phase": "PLANNING",
+      "event": "start-task",
+      "detail": "T004 agent=planner"
     }
   ]
 }
