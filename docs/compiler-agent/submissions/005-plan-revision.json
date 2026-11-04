@@ -1,0 +1,36 @@
+{
+  "submission_id": "005-plan-revision-round1",
+  "tasks": [
+    {
+      "task_id": "T023",
+      "goal": "Revise the implementation DAG per the recorded architecture review REQUEST_CHANGES findings (review-input-latest, contract_digest 6f5bb56b3faa9d3e2667a7531074dd15dc097ccc1546c4f7b343ba98ca3f31a4), amending only the affected task contracts through task-amend (never re-creating task ids): (1) HIGH dependency: add edges so loop lowering precedes its consumers — T009 depends on T008, T011 depends on T008, and for T010 either add the T008 dependency or explicitly bind the IME slice's scope and acceptance to loop-free dot cases (the gemm_smallk form) so no loop lowering is consumed; (2) HIGH acceptance overlap: T008 and T009 both claim the 146 pat.persistent_reduce operators — re-scope so the persistent family is validated exactly once in the task that owns both constructs (T009, which already lists pat.persistent_reduce 146) and T008's acceptance validates loop mechanics over its non-reduction families (flow.while 15, flow.if 160, flow.tl_range 25, flow.static_range 21, if_pid 11) with loop-bearing non-reduction operators; (3) HIGH dependency: add T011 to T014's dependencies and memory-forms-v1 to its consumes (attention families with block pointers and grouped GEMM pointer tables are T011 deliverables); (4) MEDIUM contract: declare T008's lowering output path(s) (a100c/lower/scalar.py or wherever loop lowering lands per the architecture contract) in its outputs and add T008 to the a100c-lowering-backend conflict group so parallel dispatch cannot collide; (5) LOW coverage: name tl.arange (466 files), tl.zeros (147), tl.full (56) and the tensor-creation forms explicitly in T006's elementwise-core scope. Do not change the architecture documents or ARCHITECTURE_CONSTRAINTS.json (the reviewer verified them sound); do not weaken any acceptance, remove any corpus coverage, or alter scope. Every amended task must still declare acceptance and tests; the revised DAG must have no dangling dependencies or cycles and no two tasks claiming validation of the same operator family.",
+      "capability": "planning",
+      "purpose": "input",
+      "gate": "G3",
+      "tags": ["plan-revision"],
+      "inputs": [
+        "docs/compiler-agent/PROJECT_STATE.json (tasks T005-T022)",
+        "docs/compiler-agent/review-input-latest.prompt.md",
+        "docs/compiler-agent/REVIEW_REPORTS/ (latest REQUEST_CHANGES findings)",
+        "docs/compiler-agent/OPERATOR_INVENTORY.md",
+        "docs/compiler-agent/ARCHITECTURE_CONSTRAINTS.json"
+      ],
+      "outputs": [
+        "Amended task contracts for T006, T008, T009, T010 (as chosen), T011, T014 in docs/compiler-agent/PROJECT_STATE.json"
+      ],
+      "acceptance": [
+        "T009 and T011 declare T008 in their dependencies; T010 either depends on T008 or its contract binds the IME slice to loop-free dot cases (gemm_smallk form) with acceptance matching that binding.",
+        "Exactly one task validates the 146 pat.persistent_reduce operators (T009); T008's acceptance validates loop mechanics over its non-reduction families (flow.while, flow.if, flow.tl_range, flow.static_range, if_pid) and no operator family is claimed for validation by two sibling tasks.",
+        "T014 declares T011 in dependencies and memory-forms-v1 in consumes.",
+        "T008 declares its lowering output path(s) in outputs and belongs to the a100c-lowering-backend conflict group.",
+        "T006's scope names tl.arange, tl.zeros, tl.full and the tensor-creation forms explicitly.",
+        "No acceptance was weakened, no corpus coverage removed, no scope narrowed; ARCHITECTURE_CONSTRAINTS.json and the architecture documents are unchanged; amendments used task-amend (no duplicate task ids created).",
+        "The revised DAG is acyclic with no dangling dependency references; every amended task still declares acceptance and tests."
+      ],
+      "tests": [
+        "PYTHONPATH from .env loaded, python3 -m compiler_agent --root . --json tasks shows the amended dependencies/consumes/conflicts/outputs for T006, T008, T009, T010, T011, T014 and no duplicate task ids",
+        "python3 -m compiler_agent --root . architecture-check --declaration-only still reports zero errors"
+      ]
+    }
+  ]
+}
