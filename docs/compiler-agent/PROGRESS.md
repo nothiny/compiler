@@ -14,8 +14,6 @@ Phase: **WORKLOAD_ANALYSIS** · project: `compiler-a100-experiment-001`
 
 | When | Phase | Event | Detail |
 |---|---|---|---|
-| 2026-11-04T08:49:22.337503+00:00 | CHIP_ANALYSIS | fact | F021 [memory/FACT/input] docs/compiler-agent/target-material/sources/4f7d0d5c4e77c7a0647e946a698656682ead8a9ae7fbc9fae6a83da37e625c6e/06_address_map.md.search.txt:15-17,55-62,167-177,200; docs/compiler-agent/target-material/sources/555a9e44f2b4ac508251fc459abd2f3356e21469e346a430295c0223af9c2007/09_memory_storage.md.search.txt:9-13 (9.1 On-Chip Memory) |
-| 2026-11-04T08:49:22.547217+00:00 | CHIP_ANALYSIS | fact | F022 [memory/FACT/input] docs/compiler-agent/target-material/sources/ff2340c355516e190769949abbfe57d2121efbe72326b5fc65b166f6cd55d90d/08_cpu.md.search.txt:54-59 (8.2.2); docs/compiler-agent/target-material/sources/69a7cd5b8836085506f53f1b02ad8aa624790eb23ca573ca584e226ee1246358/k3_ds.md.search.txt:147-153 |
 | 2026-11-04T08:49:22.750994+00:00 | CHIP_ANALYSIS | fact | F023 [memory/FACT/input] docs/compiler-agent/target-material/sources/9564d4ba5ed9a64d71c0c7e5bf0c8f7d74ed717fd0aa71265328f8c1eaea8c91/K3_architecture_preview.pdf.search.txt:727-731 (3.2.1),1261-1267 (5.2.2) |
 | 2026-11-04T08:49:22.953117+00:00 | CHIP_ANALYSIS | fact | F024 [memory/FACT/input] docs/compiler-agent/target-material/sources/9564d4ba5ed9a64d71c0c7e5bf0c8f7d74ed717fd0aa71265328f8c1eaea8c91/K3_architecture_preview.pdf.search.txt:666-672 (3.2 dataflow axes); docs/compiler-agent/target-material/sources/e3c328de09ccec8594134bfa2d29c635b7cc78578dde2cfe28de169983b9ecb7/dma.md.search.txt:7-42 (16.1.1-16.1.2) |
 | 2026-11-04T08:49:23.151028+00:00 | CHIP_ANALYSIS | fact | F025 [memory/RUNTIME_PROBE/input] probe: timeout 300 python3 a100_support/build/transport_probe.py -> alias comparison PASS, bf16 comparison PASS; docs/compiler-agent/ENVIRONMENT.md Native runtime transport (fact F007) |
@@ -66,3 +64,5 @@ acceptance[1]: `timeout 60 python3 -c "import json; d=json.load(open('docs/compi
 | 2026-11-04T08:59:34.430966+00:00 | WORKLOAD_ANALYSIS | task-submission | 003-workload-analysis |
 | 2026-11-04T08:59:40.229279+00:00 | WORKLOAD_ANALYSIS | start-task | T003 agent=planner |
 | 2026-11-04T08:59:40.782578+00:00 | WORKLOAD_ANALYSIS | task-delegate | WTI003 task=T003 attempt=1 profile=general-purpose |
+| 2026-11-04T09:08:21.205118+00:00 | WORKLOAD_ANALYSIS | operator-glob | suite/dev/*.py,suite/perf/*.py (500 operator file(s)) (from ops/README.md (corpus layout: suite/dev + suite/perf are the operators, harness/ is not); glob as prescribed by ops/harness/compiler_api/AGENT_GUIDE.md section 1) |
+| 2026-11-04T09:08:31.310528+00:00 | WORKLOAD_ANALYSIS | ingest-ops | 500 operators, 1068 features |
