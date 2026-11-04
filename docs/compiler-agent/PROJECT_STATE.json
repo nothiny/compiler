@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-04T08:35:01.822699+00:00",
+  "updated_at": "2026-11-04T08:35:35.126050+00:00",
   "facts": [
     {
       "id": "F001",
@@ -240,6 +240,78 @@
       "profile_sha256": "",
       "profile_revision": "",
       "bundle_evidence": []
+    },
+    {
+      "id": "T002",
+      "goal": "Chip analysis for the A100 target: read chip.md in full plus every path its `## Target pack` section declares (they must resolve inside the project), split the target description into provenance-labelled ChipFacts covering execution model (unit of parallel work, execution resources, scheduling unit, distribution mechanism, synchronization, observable concurrency incl. worker-count semantics), memory (address spaces, visibility rule, synchronization primitives, access constraints, host/accelerator allocation and transfer model), isa (instruction repertoire including explicitly absent operations: RVV vector support, IME matrix support, tails, BF16/FP16 format-control gap), registers/resource budget, toolchain and build path, runtime/launch model, numeric behaviour (rounding, special values, integer semantics), and constraints; record every statement as a Fact with a non-empty source anchor (document anchor inside the declared material, RUNTIME_PROBE/EMPIRICAL for measured facts naming the command), record Assumptions with validation methods for anything the material does not state, keep conditional design guidance out of Facts, and write CHIP_ANALYSIS.md. Correctness_only scope: no performance anchors (achievable rates, launch floor, noise) are required; retain sourced instruction/resource constraints and functional probes. Identify the knowledge profile line (or record its absence as the skill directs).",
+      "kind": "general",
+      "gate": "G1",
+      "capability": "planning",
+      "purpose": "input",
+      "attempt_limit": 0,
+      "inputs": [
+        "chip.md",
+        "docs/compiler-agent/TARGET_SUMMARY.md",
+        "docs/compiler-agent/target-material/",
+        "docs/compiler-agent/ENVIRONMENT.md",
+        "docs/compiler-agent/TOOLCHAIN_PROBES.json"
+      ],
+      "outputs": [
+        "docs/compiler-agent/CHIP_ANALYSIS.md",
+        "Fact/Assumption records in docs/compiler-agent/PROJECT_STATE.json"
+      ],
+      "dependencies": [],
+      "interfaces": [],
+      "acceptance": [
+        "CHIP_ANALYSIS.md exists and covers every category the input compilation path needs: execution_model, memory, isa, registers, toolchain/abi, runtime/launch, numeric behaviour, constraints \u2014 each property from the TGT-* question lists either answered from the material, measured with a recorded command, or recorded as an Assumption with a validation method; nothing silently defaulted.",
+        "Every recorded Fact has a non-empty source; facts extracted from the declared target pack cite the document anchor inside that material; measured facts name the command and conditions; conditional experience is not recorded as a Fact.",
+        "Every path the `## Target pack` section of chip.md declares was read and resolves inside the project root.",
+        "Negative facts are recorded explicitly (absent instructions, absent linker capabilities, the pinned emulator's BF16 IME format-control gap kept unverified, RVV tail behaviour, absent hardware features).",
+        "The knowledge profile declaration is present or its absence is recorded in CHIP_ANALYSIS.md as the skill directs.",
+        "No active UNKNOWN-confidence fact blocks the plan; contradictions affecting codegen are reported rather than averaged.",
+        "No performance anchor, timing or speedup is recorded or required (correctness_only scope)."
+      ],
+      "tests": [
+        "PYTHONPATH from .env loaded, python3 -m compiler_agent --root . --json gates shows the G1 'chip categories address their properties' advisory check satisfied via CHIP_ANALYSIS.md with sourced facts",
+        "python3 -m compiler_agent --root . --json status shows chip facts with confidence FACT/RUNTIME_PROBE/EMPIRICAL and non-empty sources, and no active blocking UNKNOWN"
+      ],
+      "conflicts": [],
+      "provides": [],
+      "consumes": [],
+      "tags": [
+        "phase-chip-analysis"
+      ],
+      "status": "RUNNING",
+      "assignee": "planner",
+      "attempts": 1,
+      "evidence": "",
+      "last_error": "",
+      "failure_kind": "",
+      "start_revision": "8711f7f876cd193d576bfe0831049bc624a8f766",
+      "end_revision": "",
+      "completed_seq": 0,
+      "debug_required": false,
+      "debug_request_id": "",
+      "debug_pending_revision": "",
+      "debug_pending_attempts": -1,
+      "debug_pending_failures": 0,
+      "worker_debug_request": {},
+      "coding_failures": 0,
+      "started_at": "2026-11-04T08:35:35.122030+00:00",
+      "deferrals": 0,
+      "debug_verified_patterns": [],
+      "replan_baseline": {},
+      "origin": "manager",
+      "parent_task": "",
+      "optimization_stage": "",
+      "bundle_passes": [],
+      "shared_analysis": [],
+      "rollback_boundary": "",
+      "fastpath_fallback": "",
+      "profile_artifact": "",
+      "profile_sha256": "",
+      "profile_revision": "",
+      "bundle_evidence": []
     }
   ],
   "design_issues": [],
@@ -267,6 +339,17 @@
       "assignments": [
         {
           "task_id": "T001",
+          "cases": []
+        }
+      ],
+      "optimization": false
+    },
+    "d3a9ffb4f0e0c97d211e2496172fb22fc2cf794ef406815ae2f30760a93c8e76": {
+      "run_id": "",
+      "digest": "29beab25ff6f38f015c47755850593609fe8ec82d105f5d92e6e47565f19e2d3",
+      "assignments": [
+        {
+          "task_id": "T002",
           "cases": []
         }
       ],
@@ -434,6 +517,24 @@
       "phase": "CHIP_ANALYSIS",
       "event": "transition",
       "detail": "ENVIRONMENT_ANALYSIS -> CHIP_ANALYSIS Environment analysis task T001 DONE, G0 PASS; advancing to chip analysis."
+    },
+    {
+      "at": "2026-11-04T08:35:32.375850+00:00",
+      "phase": "CHIP_ANALYSIS",
+      "event": "task",
+      "detail": "T002 Chip analysis for the A100 target: read chip.md in full plus every path its `## Target pack` section declares (they must resolve inside the project), split the target description into provenance-labelled ChipFacts covering execution model (unit of parallel work, execution resources, scheduling unit, distribution mechanism, synchronization, observable concurrency incl. worker-count semantics), memory (address spaces, visibility rule, synchronization primitives, access constraints, host/accelerator allocation and transfer model), isa (instruction repertoire including explicitly absent operations: RVV vector support, IME matrix support, tails, BF16/FP16 format-control gap), registers/resource budget, toolchain and build path, runtime/launch model, numeric behaviour (rounding, special values, integer semantics), and constraints; record every statement as a Fact with a non-empty source anchor (document anchor inside the declared material, RUNTIME_PROBE/EMPIRICAL for measured facts naming the command), record Assumptions with validation methods for anything the material does not state, keep conditional design guidance out of Facts, and write CHIP_ANALYSIS.md. Correctness_only scope: no performance anchors (achievable rates, launch floor, noise) are required; retain sourced instruction/resource constraints and functional probes. Identify the knowledge profile line (or record its absence as the skill directs)."
+    },
+    {
+      "at": "2026-11-04T08:35:32.375908+00:00",
+      "phase": "CHIP_ANALYSIS",
+      "event": "task-submission",
+      "detail": "002-chip-analysis"
+    },
+    {
+      "at": "2026-11-04T08:35:35.125997+00:00",
+      "phase": "CHIP_ANALYSIS",
+      "event": "start-task",
+      "detail": "T002 agent=planner"
     }
   ]
 }
