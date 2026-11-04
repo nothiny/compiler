@@ -14,7 +14,6 @@ Phase: **WORKLOAD_ANALYSIS** · project: `compiler-a100-experiment-001`
 
 | When | Phase | Event | Detail |
 |---|---|---|---|
-| 2026-11-04T08:49:22.750994+00:00 | CHIP_ANALYSIS | fact | F023 [memory/FACT/input] docs/compiler-agent/target-material/sources/9564d4ba5ed9a64d71c0c7e5bf0c8f7d74ed717fd0aa71265328f8c1eaea8c91/K3_architecture_preview.pdf.search.txt:727-731 (3.2.1),1261-1267 (5.2.2) |
 | 2026-11-04T08:49:22.953117+00:00 | CHIP_ANALYSIS | fact | F024 [memory/FACT/input] docs/compiler-agent/target-material/sources/9564d4ba5ed9a64d71c0c7e5bf0c8f7d74ed717fd0aa71265328f8c1eaea8c91/K3_architecture_preview.pdf.search.txt:666-672 (3.2 dataflow axes); docs/compiler-agent/target-material/sources/e3c328de09ccec8594134bfa2d29c635b7cc78578dde2cfe28de169983b9ecb7/dma.md.search.txt:7-42 (16.1.1-16.1.2) |
 | 2026-11-04T08:49:23.151028+00:00 | CHIP_ANALYSIS | fact | F025 [memory/RUNTIME_PROBE/input] probe: timeout 300 python3 a100_support/build/transport_probe.py -> alias comparison PASS, bf16 comparison PASS; docs/compiler-agent/ENVIRONMENT.md Native runtime transport (fact F007) |
 | 2026-11-04T08:49:23.354724+00:00 | CHIP_ANALYSIS | fact | F026 [memory/RUNTIME_PROBE/input] probe: smoke_rvv under -cpu max,vlen=1024,elen=64,vext_spec=v1.0 (fact F006, docs/compiler-agent/ENVIRONMENT.md smoke 3); docs/compiler-agent/target-material/sources/bd69e01a6280ae5ab4493ea82b0e819fb34f093da43c264fc3be3c6291a8c6c8/ime_extension.md.search.txt:441-451 (2.7.1) |
@@ -66,3 +65,4 @@ acceptance[1]: `timeout 60 python3 -c "import json; d=json.load(open('docs/compi
 | 2026-11-04T08:59:40.782578+00:00 | WORKLOAD_ANALYSIS | task-delegate | WTI003 task=T003 attempt=1 profile=general-purpose |
 | 2026-11-04T09:08:21.205118+00:00 | WORKLOAD_ANALYSIS | operator-glob | suite/dev/*.py,suite/perf/*.py (500 operator file(s)) (from ops/README.md (corpus layout: suite/dev + suite/perf are the operators, harness/ is not); glob as prescribed by ops/harness/compiler_api/AGENT_GUIDE.md section 1) |
 | 2026-11-04T09:08:31.310528+00:00 | WORKLOAD_ANALYSIS | ingest-ops | 500 operators, 1068 features |
+| 2026-11-04T09:08:38.536562+00:00 | WORKLOAD_ANALYSIS | group-order | suite/dev, suite/perf (from ops/harness/compiler_api/run_cases.py (GROUP_ORDER = ("suite/dev", "suite/perf") — the two input directories in the order the corpus declares them; confirmed by `run_cases.py --dry-run --group-order`: suite/dev operators=400 cases=2192, suite/perf operators=100 cases=542)) |

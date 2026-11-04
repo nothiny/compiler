@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-04T09:08:31.310573+00:00",
+  "updated_at": "2026-11-04T09:08:38.536611+00:00",
   "facts": [
     {
       "id": "F001",
@@ -2962,7 +2962,12 @@
       "yg.astype": 1,
       "z.reshape": 1
     },
-    "operator_glob": "suite/dev/*.py,suite/perf/*.py"
+    "operator_glob": "suite/dev/*.py,suite/perf/*.py",
+    "group_order": [
+      "suite/dev",
+      "suite/perf"
+    ],
+    "group_source": "ops/harness/compiler_api/run_cases.py (GROUP_ORDER = (\"suite/dev\", \"suite/perf\") \u2014 the two input directories in the order the corpus declares them; confirmed by `run_cases.py --dry-run --group-order`: suite/dev operators=400 cases=2192, suite/perf operators=100 cases=542)"
   },
   "regression": {},
   "regression_runs": {},
@@ -3528,6 +3533,12 @@
       "phase": "WORKLOAD_ANALYSIS",
       "event": "ingest-ops",
       "detail": "500 operators, 1068 features"
+    },
+    {
+      "at": "2026-11-04T09:08:38.536562+00:00",
+      "phase": "WORKLOAD_ANALYSIS",
+      "event": "group-order",
+      "detail": "suite/dev, suite/perf (from ops/harness/compiler_api/run_cases.py (GROUP_ORDER = (\"suite/dev\", \"suite/perf\") \u2014 the two input directories in the order the corpus declares them; confirmed by `run_cases.py --dry-run --group-order`: suite/dev operators=400 cases=2192, suite/perf operators=100 cases=542))"
     }
   ]
 }
