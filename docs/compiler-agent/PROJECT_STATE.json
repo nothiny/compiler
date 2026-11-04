@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-04T08:49:50.820514+00:00",
+  "updated_at": "2026-11-04T08:49:51.024886+00:00",
   "facts": [
     {
       "id": "F001",
@@ -288,6 +288,15 @@
       "id": "F031",
       "statement": "IME operand and data-layout contract: vs1 holds tile A (row-major), vs2 holds tile B (column-major); B^T in the semantics C <- C + A x B^T is a geometric layout statement and does NOT require a software transpose of B; vd holds both the initial accumulator and the result with an implementation-defined result layout; Int4 inputs use packed nibble storage (element 2n in bits [3:0], 2n+1 in bits [7:4] of byte n); EEW=8/16 use standard linear vector element ordering; integer signedness variants (none/u/us/su) select signed/unsigned interpretation of A and B with the accumulator always signed.",
       "source": "docs/compiler-agent/target-material/sources/bd69e01a6280ae5ab4493ea82b0e819fb34f093da43c264fc3be3c6291a8c6c8/ime_extension.md.search.txt:67-86 (1.4),144-155 (1.5),437-479 (2.7),529-538 (4.2)",
+      "confidence": "FACT",
+      "status": "active",
+      "category": "isa",
+      "origin": "input"
+    },
+    {
+      "id": "F032",
+      "statement": "Negative ISA facts - absent operations in the SpacemiT matrix extension: community Zvvm instructions vmmacc, vwmmacc, vfmmacc, vfqwmmacc and vf8wmmacc are NOT supported (functional equivalents: vqwmmacc->smt.vmadot* Int8, v8wmmacc->smt.vmadot* Int4, vfwmmacc->smt.vfwmadot, vfwimmacc->smt.vmadot.hp* Int8+scale, vfqwimmacc->smt.vmadot.hp* Int4+scale; vf8wimmacc e5m2 scale not supported); the Zvvmtls dedicated matrix load/store extension is NOT implemented (similar functionality via smt.vpack); mixed FP16/BF16 input formats within one instruction are NOT defined; the standard RVV vm mask bit is NOT used as a mask control for matrix multiplication instructions (no vector-mask semantics defined for this instruction class); Zvvm vtype.lambda / vtype.altfmt_A/B / vtype.altfmt CSR fields are not implemented (A100 uses MCPM instead).",
+      "source": "docs/compiler-agent/target-material/sources/bd69e01a6280ae5ab4493ea82b0e819fb34f093da43c264fc3be3c6291a8c6c8/ime_extension.md.search.txt:329-346 (2.3),489-513 (Ch.3 differences table),1397-1404 (6.1.3)",
       "confidence": "FACT",
       "status": "active",
       "category": "isa",
@@ -781,6 +790,12 @@
       "phase": "CHIP_ANALYSIS",
       "event": "fact",
       "detail": "F031 [isa/FACT/input] docs/compiler-agent/target-material/sources/bd69e01a6280ae5ab4493ea82b0e819fb34f093da43c264fc3be3c6291a8c6c8/ime_extension.md.search.txt:67-86 (1.4),144-155 (1.5),437-479 (2.7),529-538 (4.2)"
+    },
+    {
+      "at": "2026-11-04T08:49:51.024837+00:00",
+      "phase": "CHIP_ANALYSIS",
+      "event": "fact",
+      "detail": "F032 [isa/FACT/input] docs/compiler-agent/target-material/sources/bd69e01a6280ae5ab4493ea82b0e819fb34f093da43c264fc3be3c6291a8c6c8/ime_extension.md.search.txt:329-346 (2.3),489-513 (Ch.3 differences table),1397-1404 (6.1.3)"
     }
   ]
 }
