@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-04T08:50:11.598429+00:00",
+  "updated_at": "2026-11-04T08:50:11.801622+00:00",
   "facts": [
     {
       "id": "F001",
@@ -342,6 +342,15 @@
       "id": "F037",
       "statement": "Input corpus dtype surface that binds the ISA families on the input path: 500 operators / 2734 cases with dtypes bfloat16, bool, float16, float32, int16, int32, int64, int8 only; the declared subset is forward-only inference: no gradient kernels, no fp8, no input_precision=/allow_tf32= (fp32 tl.dot is IEEE, pinned by TRITON_F32_DEFAULT=ieee in the runner); bf16 is the primary perf-lane dtype. Consequently the applicable IME families for the input path are INT8 8x16x8 and FP16/BF16 8x8x8 (the BF16 family currently blocked by the emulator gap), with int4/sparse/scale families available on hardware but not exercised by corpus dtypes.",
       "source": "docs/compiler-agent/CORPUS_LOCK.json (500 operators, 2734 cases, dtypes bfloat16/bool/float16/float32/int16/int32/int64/int8); ops/README.md (declared subset); chip.md#4 (input and numeric contract)",
+      "confidence": "FACT",
+      "status": "active",
+      "category": "isa",
+      "origin": "input"
+    },
+    {
+      "id": "F038",
+      "statement": "Other-chip and cross-generation exclusions: the K1 chip (4 X60 + 4 A60 cores, A60 VLEN=256, native matrix tile 4x8x4, 0.5 TOPS/core INT8, cpufp measurements ~511 GOPS IME / ~66 GFLOPS fp16 vfma per A60 core) is a different generation and its figures and tile shapes do NOT extend to A100; the X100 core in the same K3 SoC has RVV 1.0 VLEN=256 (not 1024) and 4MB L2 per cluster - generated computation targets A100 cores only, never X100 or RT24. chip.md states that other-chip examples, earlier matrix proposals and performance chapters do not expand this project's requirements.",
+      "source": "docs/compiler-agent/target-material/sources/462bf27aed1712f9ca43fee5cb6302de444e4e1c66f513a08be5a8bd62b445a1/instruction.md.search.txt:26-33 (K1/A60); docs/compiler-agent/target-material/sources/83ddde6d173d633a2b89bad966f7ec23ae7ab4699185cf85989521a79c03d066/concept.md.search.txt:26-56 (K1 figures); docs/compiler-agent/target-material/sources/ff2340c355516e190769949abbfe57d2121efbe72326b5fc65b166f6cd55d90d/08_cpu.md.search.txt:22 (X100 VLEN=256); chip.md:114-116 (pack scope note)",
       "confidence": "FACT",
       "status": "active",
       "category": "isa",
@@ -871,6 +880,12 @@
       "phase": "CHIP_ANALYSIS",
       "event": "fact",
       "detail": "F037 [isa/FACT/input] docs/compiler-agent/CORPUS_LOCK.json (500 operators, 2734 cases, dtypes bfloat16/bool/float16/float32/int16/int32/int64/int8); ops/README.md (declared subset); chip.md#4 (input and numeric contract)"
+    },
+    {
+      "at": "2026-11-04T08:50:11.801579+00:00",
+      "phase": "CHIP_ANALYSIS",
+      "event": "fact",
+      "detail": "F038 [isa/FACT/input] docs/compiler-agent/target-material/sources/462bf27aed1712f9ca43fee5cb6302de444e4e1c66f513a08be5a8bd62b445a1/instruction.md.search.txt:26-33 (K1/A60); docs/compiler-agent/target-material/sources/83ddde6d173d633a2b89bad966f7ec23ae7ab4699185cf85989521a79c03d066/concept.md.search.txt:26-56 (K1 figures); docs/compiler-agent/target-material/sources/ff2340c355516e190769949abbfe57d2121efbe72326b5fc65b166f6cd55d90d/08_cpu.md.search.txt:22 (X100 VLEN=256); chip.md:114-116 (pack scope note)"
     }
   ]
 }
