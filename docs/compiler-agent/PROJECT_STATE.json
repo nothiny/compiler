@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-04T10:28:24.692055+00:00",
+  "updated_at": "2026-11-04T10:28:25.013568+00:00",
   "facts": [
     {
       "id": "F001",
@@ -613,6 +613,13 @@
       "evidence": "Review finding 1 (HIGH dependency, review-001 REQUEST_CHANGES): T011's memory forms lower through runtime-bound loops (grouped_gemm's 'for g in range(group_size)' and 'for _ in tl.range(loop_count)', block-pointer advance loops), consuming T008's loop lowering; T008 now precedes T011. Acceptance, tests and scope unchanged.",
       "alternatives": "add a second task answering to the same work (the engine refuses duplicate ids) or raise a design issue and replan",
       "consequences": "semantic contract changes require review; record-only corrections preserve approval"
+    },
+    {
+      "id": "D005",
+      "decision": "amend task T008: acceptance, outputs",
+      "evidence": "Review findings 2 and 4 (HIGH acceptance overlap, MEDIUM contract, review-001 REQUEST_CHANGES): the 146 pat.persistent_reduce operators are validated exactly once, in T009 (which owns both loop and reduction lowering and now depends on T008); T008's acceptance re-scopes to loop mechanics over its non-reduction families (flow.while 15, flow.if 160, flow.tl_range 25, flow.static_range 21, if_pid 11) with loop-bearing non-reduction operators. T008's loop lowering lands in a100c/lower/scalar.py (control flow to MIR branches per ARCHITECTURE_CONSTRAINTS.json), so that path is now declared in outputs. No acceptance weakened and no coverage removed: the persistent family's execute-and-compare validation moved to T009, which already claimed it; T008's grid-model, carried-value and multi-axis acceptance criteria are unchanged.",
+      "alternatives": "add a second task answering to the same work (the engine refuses duplicate ids) or raise a design issue and replan",
+      "consequences": "semantic contract changes require review; record-only corrections preserve approval"
     }
   ],
   "tasks": [
@@ -1189,6 +1196,7 @@
         "a100c/frontend/"
       ],
       "outputs": [
+        "a100c/lower/scalar.py",
         "a100c/frontend/gridmodel.py",
         "a100c/tests/test_control_flow.py",
         "a100c/tests/test_grid_model.py"
@@ -1198,7 +1206,7 @@
       ],
       "interfaces": [],
       "acceptance": [
-        "Control-flow operator families (flow.while 15 operators, flow.if 160, flow.tl_range 25, flow.static_range 21, persistent loops 146, if_pid 11) compile and their cases execute and compare PASS including multi-worker executions.",
+        "Loop mechanics are validated over the non-reduction control-flow families (flow.while 15 operators, flow.if 160, flow.tl_range 25, flow.static_range 21, if_pid 11): their loop-bearing non-reduction operators compile and their cases execute and compare PASS including multi-worker executions; the 146 pat.persistent_reduce operators are validated exactly once, in T009 (which owns both loop and reduction lowering and depends on this task), not here.",
         "The grid model reproduces the concrete grid of every corpus operator at compile time via the provenance self-check, or refuses with a located diagnostic naming the untraceable input; the extraction/refusal census is recorded (no silent baking).",
         "A carried-value re-bind case (a variable assigned on only one path of a branch, and a variable re-assigned twice in a loop) executes correctly at 1 and 4 workers; the lexical name-restore implementation is rejected by the TIR verifier test (carried value without join).",
         "Multi-axis grids decompose program_id per axis correctly and tl.num_programs reads the runtime extents (verified on an operator reading num_programs)."
@@ -6617,6 +6625,18 @@
       "phase": "PLANNING",
       "event": "task-amend",
       "detail": "T011 changed dependencies (Review finding 1 (HIGH dependency, review-001 REQUEST_CHANGES): T011's memory forms lower through runtime-bound loops (grouped_gemm's 'for g in range(group_size)' and 'for _ in tl.range(loop_count)', block-pointer advance loops), consuming T008's loop lowering; T008 now precedes T011. Acceptance, tests and scope unchanged.)"
+    },
+    {
+      "at": "2026-11-04T10:28:24.979111+00:00",
+      "phase": "PLANNING",
+      "event": "decision",
+      "detail": "D005 amend task T008: acceptance, outputs"
+    },
+    {
+      "at": "2026-11-04T10:28:25.013537+00:00",
+      "phase": "PLANNING",
+      "event": "task-amend",
+      "detail": "T008 changed acceptance, outputs (Review findings 2 and 4 (HIGH acceptance overlap, MEDIUM contract, review-001 REQUEST_CHANGES): the 146 pat.persistent_reduce operators are validated exactly once, in T009 (which owns both loop and reduction lowering and now depends on T008); T008's acceptance re-scopes to loop mechanics over its non-reduction families (flow.while 15, flow.if 160, flow.tl_range 25, flow.static_range 21, if_pid 11) with loop-bearing non-reduction operators. T008's loop lowering lands in a100c/lower/scalar.py (control flow to MIR branches per ARCHITECTURE_CONSTRAINTS.json), so that path is now declared in outputs. No acceptance weakened and no coverage removed: the persistent family's execute-and-compare validation moved to T009, which already claimed it; T008's grid-model, carried-value and multi-axis acceptance criteria are unchanged.)"
     }
   ]
 }
