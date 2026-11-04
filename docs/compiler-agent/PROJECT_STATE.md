@@ -4,7 +4,7 @@
 - phase: **CHIP_ANALYSIS**
 - acceptance scope: `correctness_only`
 - schema: v1
-- updated: 2026-11-04T08:50:33.391539+00:00
+- updated: 2026-11-04T08:50:33.595216+00:00
 
 ## Inputs
 
@@ -29,7 +29,7 @@
 
 ## Counts
 
-- facts: 40
+- facts: 41
 - assumptions: 2
 - decisions: 0
 - tasks: 2

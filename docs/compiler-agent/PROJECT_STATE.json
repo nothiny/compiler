@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-04T08:50:33.391539+00:00",
+  "updated_at": "2026-11-04T08:50:33.595216+00:00",
   "facts": [
     {
       "id": "F001",
@@ -369,6 +369,15 @@
       "id": "F040",
       "statement": "IME register budget and granularity: input matrices A and B each occupy a single vector register (LMUL=1 only; every other LMUL encoding reserved and illegal in IME instructions); the accumulator tile occupies MUL_C registers - MUL_C=2 for the integer and fp16/bf16-fp32 families (vd even-numbered, vd+vd+1 group) and MUL_C=1 for the block-scaled families (any vd); the destination group must not overlap vs1/vs2; MUL_C is fixed per Profile, not a dynamically configurable parameter; sparse paths additionally consume v0/v1 (recovery masks) and scale paths v0/v1 (scale parameters), so those paths have 30 generally usable vector registers.",
       "source": "docs/compiler-agent/target-material/sources/bd69e01a6280ae5ab4493ea82b0e819fb34f093da43c264fc3be3c6291a8c6c8/ime_extension.md.search.txt:104-129 (1.5),254-269 (2.1.2 tables),319-369 (2.2-2.4),398-435 (2.6)",
+      "confidence": "FACT",
+      "status": "active",
+      "category": "registers",
+      "origin": "input"
+    },
+    {
+      "id": "F041",
+      "statement": "Register-budget failure modes: exceeding IME legality (LMUL!=1, odd vd where MUL_C=2, destination/source overlap, format inconsistent with MCPM.BF16, non-even vs1 in sliding-window) raises an illegal instruction exception at execution - these are hardware traps the compiler must prevent by construction (check before emission); by contrast, exceeding the 32x128B vector register budget has no architectural spill mechanism - spill/split decisions are compiler-owned, and the Preview notes heavy LMUL=4/8 use is prone to vector-register spills (with VLEN=1024, LMUL=1 already gives 1024-bit compute width, reducing spill likelihood).",
+      "source": "docs/compiler-agent/target-material/sources/bd69e01a6280ae5ab4493ea82b0e819fb34f093da43c264fc3be3c6291a8c6c8/ime_extension.md.search.txt:110-113,670-675,1424-1429 (illegal conditions); docs/compiler-agent/target-material/sources/9564d4ba5ed9a64d71c0c7e5bf0c8f7d74ed717fd0aa71265328f8c1eaea8c91/K3_architecture_preview.pdf.search.txt:1275-1285 (5.2.2 spill note)",
       "confidence": "FACT",
       "status": "active",
       "category": "registers",
@@ -916,6 +925,12 @@
       "phase": "CHIP_ANALYSIS",
       "event": "fact",
       "detail": "F040 [registers/FACT/input] docs/compiler-agent/target-material/sources/bd69e01a6280ae5ab4493ea82b0e819fb34f093da43c264fc3be3c6291a8c6c8/ime_extension.md.search.txt:104-129 (1.5),254-269 (2.1.2 tables),319-369 (2.2-2.4),398-435 (2.6)"
+    },
+    {
+      "at": "2026-11-04T08:50:33.595171+00:00",
+      "phase": "CHIP_ANALYSIS",
+      "event": "fact",
+      "detail": "F041 [registers/FACT/input] docs/compiler-agent/target-material/sources/bd69e01a6280ae5ab4493ea82b0e819fb34f093da43c264fc3be3c6291a8c6c8/ime_extension.md.search.txt:110-113,670-675,1424-1429 (illegal conditions); docs/compiler-agent/target-material/sources/9564d4ba5ed9a64d71c0c7e5bf0c8f7d74ed717fd0aa71265328f8c1eaea8c91/K3_architecture_preview.pdf.search.txt:1275-1285 (5.2.2 spill note)"
     }
   ]
 }
