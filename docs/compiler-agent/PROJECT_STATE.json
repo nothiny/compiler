@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-04T08:50:50.676180+00:00",
+  "updated_at": "2026-11-04T08:50:50.894845+00:00",
   "facts": [
     {
       "id": "F001",
@@ -451,6 +451,15 @@
       "statement": "Reference execution service: the compiled x86 Triton CPU environment (python 3.12.16, triton 3.8.0, numpy 2.5.4, torch 2.15.0+cpu, single reference thread, TRITON_DEFAULT_BACKEND=cpu, TRITON_F32_DEFAULT=ieee) is the question-validation service with independent references; it never substitutes for candidate target execution, and its full current reference report is docs/compiler-agent/A100_REFERENCE_AUDIT.json.",
       "source": "probe: fact F013 (docs/compiler-agent/ENVIRONMENT.md x86 Triton CPU reference environment); chip.md#5 (POLICY)",
       "confidence": "RUNTIME_PROBE",
+      "status": "active",
+      "category": "runtime",
+      "origin": "input"
+    },
+    {
+      "id": "F050",
+      "statement": "Validation hierarchy and required execution evidence: first validate the prepared execution environment, then compile, execute and compare actual generated operators over the complete input set; environment probes and x86 reference audits do not certify the compiler; chip.md declares 'Required execution evidence: resources' - representative multi-worker cases must distribute useful work and applicable matrix cases must execute real IME instructions, with source-bound multi-worker and matrix instruction evidence retained in the prepared current regression; timing or speedup evidence is NOT required to finish (correctness_only).",
+      "source": "chip.md#6 (validation hierarchy, POLICY lines 96-102) and chip.md:14-15 (declarations)",
+      "confidence": "FACT",
       "status": "active",
       "category": "runtime",
       "origin": "input"
@@ -1051,6 +1060,12 @@
       "phase": "CHIP_ANALYSIS",
       "event": "fact",
       "detail": "F049 [runtime/RUNTIME_PROBE/input] probe: fact F013 (docs/compiler-agent/ENVIRONMENT.md x86 Triton CPU reference environment); chip.md#5 (POLICY)"
+    },
+    {
+      "at": "2026-11-04T08:50:50.894795+00:00",
+      "phase": "CHIP_ANALYSIS",
+      "event": "fact",
+      "detail": "F050 [runtime/FACT/input] chip.md#6 (validation hierarchy, POLICY lines 96-102) and chip.md:14-15 (declarations)"
     }
   ]
 }
