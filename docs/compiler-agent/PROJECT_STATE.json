@@ -12,8 +12,18 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-04T08:13:49.934665+00:00",
-  "facts": [],
+  "updated_at": "2026-11-04T08:28:09.643411+00:00",
+  "facts": [
+    {
+      "id": "F001",
+      "statement": "The project .env at the repository root is the single source of truth for installed tool paths (A100_PREFIX, A100_TOOLCHAIN, A100_SYSROOT, A100_CROSS_PREFIX, A100_QEMU, A100_QEMU_CPU, A100_REFERENCE_PYTHON, PYTHONPATH, A100_PUBLIC_REFERENCE_CACHE, A100_NO_PYTHON_IMAGE, COMPILER_WORKFLOW_ATTACK_BROKER); a100_support/env.sh derives the same prefix and run-riscv.sh / run-reference.sh source it. .env declares no measurement/profiling tool and no benchmark entrypoint; none is required under correctness_only.",
+      "source": "read ./.env and a100_support/env.sh on 2026-11-04; every declared path resolved by the probes recorded in docs/compiler-agent/ENVIRONMENT.md",
+      "confidence": "EMPIRICAL",
+      "status": "active",
+      "category": "environment",
+      "origin": "operator"
+    }
+  ],
   "assumptions": [],
   "decisions": [],
   "tasks": [
@@ -94,7 +104,7 @@
   "contract_remaps": [],
   "gates": {
     "G0": "PASS",
-    "G1": "FAIL",
+    "G1": "PASS",
     "G2": "FAIL",
     "G3": "FAIL",
     "G4": "FAIL",
@@ -161,6 +171,12 @@
       "phase": "ENVIRONMENT_ANALYSIS",
       "event": "task-delegate",
       "detail": "WTI001 task=T001 attempt=1 profile=general-purpose"
+    },
+    {
+      "at": "2026-11-04T08:28:09.643365+00:00",
+      "phase": "ENVIRONMENT_ANALYSIS",
+      "event": "fact",
+      "detail": "F001 [environment/EMPIRICAL/operator] read ./.env and a100_support/env.sh on 2026-11-04; every declared path resolved by the probes recorded in docs/compiler-agent/ENVIRONMENT.md"
     }
   ]
 }

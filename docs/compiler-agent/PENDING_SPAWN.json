@@ -1,0 +1,13 @@
+{
+  "channel": "task",
+  "ref": "WTI001",
+  "role": "planner",
+  "agent_call": {
+    "subagent_type": "general-purpose",
+    "description": "T001 Environment analysis for the A100 correctness-only compiler run: discover and verify, wit\u2026",
+    "run_in_background": false,
+    "prompt": "You are a fresh task worker for T001 (attempt 1). Your entire context is two files in this repository:\n  - `docs/compiler-agent/TASK_INPUTS/WTI001.system.md` \u2014 how to work: your role contract, the procedure and the output contract.\n  - `docs/compiler-agent/TASK_INPUTS/WTI001.prompt.md` \u2014 what to do: the task contract, the acceptance refs, the facts and the allowed paths.\nRead both before anything else. Nothing else is known to you, and nothing else is needed; no conversation content applies.\n\nWhen you are done, file your own result with the engine:\n  `python3 -m compiler_agent --root . task-report --file <report>.json`\n\nThe report must echo invocation_id `WTI001`, task_id `T001`, attempt 1 and context_sha256 `362a95b8936157cca6eac2320cfdefdd51c65a2407866be74a3c16724c384fb1` verbatim; its shape is in the output contract. Do not run git commands -- that one engine command is the only workflow state you touch.\n\nThen reply with ONE line and nothing more:\n  `WTI001 <COMPLETED|FAILED|DESIGN_ISSUE|EXTERNAL_BLOCKER> + at most 200 characters`"
+  },
+  "written_at": "2026-11-04T16:13:49",
+  "consumed_at": "2026-11-04T16:14:00"
+}

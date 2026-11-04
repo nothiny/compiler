@@ -4,7 +4,7 @@
 - phase: **ENVIRONMENT_ANALYSIS**
 - acceptance scope: `correctness_only`
 - schema: v1
-- updated: 2026-11-04T08:13:49.934665+00:00
+- updated: 2026-11-04T08:28:09.643411+00:00
 
 ## Inputs
 
@@ -17,7 +17,7 @@
 | Gate | Title | Status |
 |---|---|---|
 | G0 | Environment Ready | PASS |
-| G1 | Chip Facts Ready | FAIL |
+| G1 | Chip Facts Ready | PASS |
 | G2 | Workload Inventory Ready | FAIL |
 | G3 | Architecture Reviewed | FAIL |
 | G4 | First Vertical Slice | FAIL |
@@ -29,7 +29,7 @@
 
 ## Counts
 
-- facts: 0
+- facts: 1
 - assumptions: 0
 - decisions: 0
 - tasks: 1

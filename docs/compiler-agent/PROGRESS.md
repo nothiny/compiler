@@ -18,3 +18,4 @@ Phase: **ENVIRONMENT_ANALYSIS** · project: `compiler-a100-experiment-001`
 | 2026-11-04T08:13:44.442295+00:00 | ENVIRONMENT_ANALYSIS | task-submission | 001-environment-analysis |
 | 2026-11-04T08:13:49.563874+00:00 | ENVIRONMENT_ANALYSIS | start-task | T001 agent=planner |
 | 2026-11-04T08:13:49.934658+00:00 | ENVIRONMENT_ANALYSIS | task-delegate | WTI001 task=T001 attempt=1 profile=general-purpose |
+| 2026-11-04T08:28:09.643365+00:00 | ENVIRONMENT_ANALYSIS | fact | F001 [environment/EMPIRICAL/operator] read ./.env and a100_support/env.sh on 2026-11-04; every declared path resolved by the probes recorded in docs/compiler-agent/ENVIRONMENT.md |
