@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-04T08:50:50.034614+00:00",
+  "updated_at": "2026-11-04T08:50:50.251252+00:00",
   "facts": [
     {
       "id": "F001",
@@ -426,6 +426,15 @@
       "confidence": "RUNTIME_PROBE",
       "status": "active",
       "category": "abi",
+      "origin": "input"
+    },
+    {
+      "id": "F047",
+      "statement": "Native runtime transport contract (probed): a100_support/native_io.pack_case + a100_support/run-riscv.sh + a100_support/native_bundle.c (io_fixture) + unpack_outputs complete the host->QEMU->host round trip; a100_support.native_device.make_device refuses until A100_COMPILER_FACTORY is set, so there is no reference fallback for candidate execution - the compiler must integrate with this transport (set A100_COMPILER_FACTORY=module:factory in .env once implemented).",
+      "source": "probe: fact F007 (docs/compiler-agent/ENVIRONMENT.md Native runtime transport); AGENTS.md Execution and evidence",
+      "confidence": "RUNTIME_PROBE",
+      "status": "active",
+      "category": "runtime",
       "origin": "input"
     }
   ],
@@ -1006,6 +1015,12 @@
       "phase": "CHIP_ANALYSIS",
       "event": "fact",
       "detail": "F046 [abi/RUNTIME_PROBE/input] probe: facts F003 (asm smoke, exit code 42 preserved) and F007 (transport round trip); chip.md#2-3 (POLICY)"
+    },
+    {
+      "at": "2026-11-04T08:50:50.251208+00:00",
+      "phase": "CHIP_ANALYSIS",
+      "event": "fact",
+      "detail": "F047 [runtime/RUNTIME_PROBE/input] probe: fact F007 (docs/compiler-agent/ENVIRONMENT.md Native runtime transport); AGENTS.md Execution and evidence"
     }
   ]
 }
