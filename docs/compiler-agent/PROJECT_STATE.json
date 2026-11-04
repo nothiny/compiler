@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-04T08:29:05.686323+00:00",
+  "updated_at": "2026-11-04T08:29:05.882701+00:00",
   "facts": [
     {
       "id": "F001",
@@ -90,6 +90,15 @@
       "id": "F009",
       "statement": "A100 IME matrix instructions execute and compare correctly under the declared QEMU endpoint for int8 (fresh 2026-11-04 run: probe int8 passed=true, vlenb=128, one smt.vmadot execution counted); the recorded prep-time probes in docs/compiler-agent/TOOLCHAIN_PROBES.json additionally show int4 and fp16 as EXECUTED_AND_COMPARED_PASS with counted smt.vmadot / smt.vfwmadot executions.",
       "source": "probe: timeout 90 $A100_QEMU -L $A100_SYSROOT -cpu \"$A100_QEMU_CPU\" -plugin instruction_counts.so,out=ime-int8-counts.json matrix_probe int8 -> exit 0; recorded evidence docs/compiler-agent/TOOLCHAIN_PROBES.json matrix rows",
+      "confidence": "RUNTIME_PROBE",
+      "status": "active",
+      "category": "isa",
+      "origin": "input"
+    },
+    {
+      "id": "F010",
+      "statement": "The pinned QEMU emulator BF16 IME format selection has not passed and remains unverified: the bf16 matrix probe fails (fresh 2026-11-04 run exit 1, probe bf16 passed=false) while the executed smt.vfwmadot selects the MCPM float16 operand format; FP16 or ordinary vector success cannot prove BF16 IME execution. BF16 cases must be preserved and this instruction-path gap recorded separately.",
+      "source": "probe: timeout 90 $A100_QEMU ... matrix_probe bf16 -> exit 1, ime-bf16-counts.json shows operand_format MCPM-selected-float16; recorded docs/compiler-agent/TOOLCHAIN_PROBES.json bf16 row UNSUPPORTED_OR_FAILED",
       "confidence": "RUNTIME_PROBE",
       "status": "active",
       "category": "isa",
@@ -297,6 +306,12 @@
       "phase": "ENVIRONMENT_ANALYSIS",
       "event": "fact",
       "detail": "F009 [isa/RUNTIME_PROBE/input] probe: timeout 90 $A100_QEMU -L $A100_SYSROOT -cpu \"$A100_QEMU_CPU\" -plugin instruction_counts.so,out=ime-int8-counts.json matrix_probe int8 -> exit 0; recorded evidence docs/compiler-agent/TOOLCHAIN_PROBES.json matrix rows"
+    },
+    {
+      "at": "2026-11-04T08:29:05.882658+00:00",
+      "phase": "ENVIRONMENT_ANALYSIS",
+      "event": "fact",
+      "detail": "F010 [isa/RUNTIME_PROBE/input] probe: timeout 90 $A100_QEMU ... matrix_probe bf16 -> exit 1, ime-bf16-counts.json shows operand_format MCPM-selected-float16; recorded docs/compiler-agent/TOOLCHAIN_PROBES.json bf16 row UNSUPPORTED_OR_FAILED"
     }
   ]
 }
