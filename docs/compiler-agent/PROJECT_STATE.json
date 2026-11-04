@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-04T08:51:10.935886+00:00",
+  "updated_at": "2026-11-04T08:51:11.158386+00:00",
   "facts": [
     {
       "id": "F001",
@@ -486,6 +486,15 @@
       "id": "F053",
       "statement": "Resource constraints and declared limits: at most 8 A100 compute workers are supported (1/2/4/8 configurable; chip.md requires representative multi-worker cases to distribute useful work); the IME-2.0 tensor engine is shared by two compute cores, so eight workers are NOT eight independent matrix throughputs and thread count is not matrix-engine count; the 1.5MB scratchpad and 1MB L2 are per-cluster shared budgets (never assume the whole scratchpad is privately available to every worker); the advertised 60 TOPS is the INT4 sparse headline (INT4 30 dense, INT8 15 dense, BF16/FP16 7.5) - a documented specification qualifier, explicitly NOT a measured target for this correctness-only project (no performance anchors recorded).",
       "source": "chip.md#3 (POLICY); docs/compiler-agent/target-material/sources/ff2340c355516e190769949abbfe57d2121efbe72326b5fc65b166f6cd55d90d/08_cpu.md.search.txt:52-59; docs/compiler-agent/target-material/sources/9564d4ba5ed9a64d71c0c7e5bf0c8f7d74ed717fd0aa71265328f8c1eaea8c91/K3_architecture_preview.pdf.search.txt:739-745,158-165",
+      "confidence": "FACT",
+      "status": "active",
+      "category": "constraints",
+      "origin": "input"
+    },
+    {
+      "id": "F054",
+      "statement": "Board-level synchronization primitives (documented, userspace-inaccessible under QEMU): hardware spinlock with up to 32 lock units at 0xCAC9_1C00, APB access, read-to-lock/write-0-to-unlock semantics, predictable acquisition under 200 cycles, polling or interrupt modes; ACLINT provides hart-local software/timer interrupts and APLIC up to 1023 external MSI interrupts; under the pinned QEMU endpoint the generated code's cross-worker synchronization is the native runtime's pthread/atomic primitives, not these MMIO devices.",
+      "source": "docs/compiler-agent/target-material/sources/18ed67a57de04224793b95fab0299ba71445f1fc27dd3d0511528fd284cd232e/spinlock.md.search.txt:9-24,38-48,90-97 (16.7); docs/compiler-agent/target-material/sources/5d4c71fd428bb11411778b0628324cc794916d3241046f45f6c192022c80af57/07_interrupts.md.search.txt:9-19 (7. ACLINT/APLIC); address: 06_address_map.md.search.txt:62",
       "confidence": "FACT",
       "status": "active",
       "category": "constraints",
@@ -1111,6 +1120,12 @@
       "phase": "CHIP_ANALYSIS",
       "event": "fact",
       "detail": "F053 [constraints/FACT/input] chip.md#3 (POLICY); docs/compiler-agent/target-material/sources/ff2340c355516e190769949abbfe57d2121efbe72326b5fc65b166f6cd55d90d/08_cpu.md.search.txt:52-59; docs/compiler-agent/target-material/sources/9564d4ba5ed9a64d71c0c7e5bf0c8f7d74ed717fd0aa71265328f8c1eaea8c91/K3_architecture_preview.pdf.search.txt:739-745,158-165"
+    },
+    {
+      "at": "2026-11-04T08:51:11.158350+00:00",
+      "phase": "CHIP_ANALYSIS",
+      "event": "fact",
+      "detail": "F054 [constraints/FACT/input] docs/compiler-agent/target-material/sources/18ed67a57de04224793b95fab0299ba71445f1fc27dd3d0511528fd284cd232e/spinlock.md.search.txt:9-24,38-48,90-97 (16.7); docs/compiler-agent/target-material/sources/5d4c71fd428bb11411778b0628324cc794916d3241046f45f6c192022c80af57/07_interrupts.md.search.txt:9-19 (7. ACLINT/APLIC); address: 06_address_map.md.search.txt:62"
     }
   ]
 }
