@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-04T08:29:06.278388+00:00",
+  "updated_at": "2026-11-04T08:29:18.177595+00:00",
   "facts": [
     {
       "id": "F001",
@@ -120,6 +120,15 @@
       "confidence": "RUNTIME_PROBE",
       "status": "active",
       "category": "toolchain",
+      "origin": "input"
+    },
+    {
+      "id": "F013",
+      "statement": "The compiled x86 Triton CPU reference environment is present and usable: /home/i_yinzida/.local/opt/a100/venvs/triton-cpu/bin/python (3.12.16) with triton 3.8.0, numpy 2.5.4 and torch 2.15.0+cpu executed a masked vector-add Triton kernel (tail not a multiple of BLOCK) through a100_support/run-reference.sh and compared PASS (fresh 2026-11-04). It is the question-validation service only and never substitutes for candidate target execution.",
+      "source": "probe: timeout 420 a100_support/run-reference.sh a100_support/build/reference_probe.py -> masked vector-add comparison: PASS; versions match docs/compiler-agent/REFERENCE_ENVIRONMENT.json",
+      "confidence": "RUNTIME_PROBE",
+      "status": "active",
+      "category": "runtime",
       "origin": "input"
     }
   ],
@@ -342,6 +351,12 @@
       "phase": "ENVIRONMENT_ANALYSIS",
       "event": "fact",
       "detail": "F012 [toolchain/RUNTIME_PROBE/input] probe: timeout 20 /home/i_yinzida/.local/opt/a100/llvm-spacemit-f6ded0be/bin/llc --version -> GLIBC_2.38 not found; same error for opt, llvm-mc, llvm-as, llvm-dis, ld.lld; docs/compiler-agent/ENVIRONMENT.md SpacemiT LLVM"
+    },
+    {
+      "at": "2026-11-04T08:29:18.177551+00:00",
+      "phase": "ENVIRONMENT_ANALYSIS",
+      "event": "fact",
+      "detail": "F013 [runtime/RUNTIME_PROBE/input] probe: timeout 420 a100_support/run-reference.sh a100_support/build/reference_probe.py -> masked vector-add comparison: PASS; versions match docs/compiler-agent/REFERENCE_ENVIRONMENT.json"
     }
   ]
 }
