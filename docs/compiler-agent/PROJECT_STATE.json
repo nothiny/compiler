@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-04T08:49:22.337546+00:00",
+  "updated_at": "2026-11-04T08:49:22.547261+00:00",
   "facts": [
     {
       "id": "F001",
@@ -198,6 +198,15 @@
       "id": "F021",
       "statement": "Board address spaces (K3 main CPU domain map): RISCV TCM 64MB at 0x0000_0000; DDR DRAM 64GB at 0x1_0000_0000; 128KB boot-ROM; 512KB SRAM shared by Main CPU and Real CPU domains; hardware Spinlock (32 units, 1KB window) at 0xCAC9_1C00; Mailbox0-6; AIDMA_0-7, DMA350_0-1 and HSDMA controllers. RCPU domain additionally maps its own SRAM view.",
       "source": "docs/compiler-agent/target-material/sources/4f7d0d5c4e77c7a0647e946a698656682ead8a9ae7fbc9fae6a83da37e625c6e/06_address_map.md.search.txt:15-17,55-62,167-177,200; docs/compiler-agent/target-material/sources/555a9e44f2b4ac508251fc459abd2f3356e21469e346a430295c0223af9c2007/09_memory_storage.md.search.txt:9-13 (9.1 On-Chip Memory)",
+      "confidence": "FACT",
+      "status": "active",
+      "category": "memory",
+      "origin": "input"
+    },
+    {
+      "id": "F022",
+      "statement": "A100 per-cluster memory hierarchy: 32KB L1 I-cache and 32KB L1 D-cache per core; 1MB L2 cache per cluster; 1.5MB scratchpad per cluster; L1 D-cache supports MESI and L2 supports MOESI coherence. The L2 and the 1.5MB scratchpad are cluster-shared resources, not per-thread private capacity.",
+      "source": "docs/compiler-agent/target-material/sources/ff2340c355516e190769949abbfe57d2121efbe72326b5fc65b166f6cd55d90d/08_cpu.md.search.txt:54-59 (8.2.2); docs/compiler-agent/target-material/sources/69a7cd5b8836085506f53f1b02ad8aa624790eb23ca573ca584e226ee1246358/k3_ds.md.search.txt:147-153",
       "confidence": "FACT",
       "status": "active",
       "category": "memory",
@@ -631,6 +640,12 @@
       "phase": "CHIP_ANALYSIS",
       "event": "fact",
       "detail": "F021 [memory/FACT/input] docs/compiler-agent/target-material/sources/4f7d0d5c4e77c7a0647e946a698656682ead8a9ae7fbc9fae6a83da37e625c6e/06_address_map.md.search.txt:15-17,55-62,167-177,200; docs/compiler-agent/target-material/sources/555a9e44f2b4ac508251fc459abd2f3356e21469e346a430295c0223af9c2007/09_memory_storage.md.search.txt:9-13 (9.1 On-Chip Memory)"
+    },
+    {
+      "at": "2026-11-04T08:49:22.547217+00:00",
+      "phase": "CHIP_ANALYSIS",
+      "event": "fact",
+      "detail": "F022 [memory/FACT/input] docs/compiler-agent/target-material/sources/ff2340c355516e190769949abbfe57d2121efbe72326b5fc65b166f6cd55d90d/08_cpu.md.search.txt:54-59 (8.2.2); docs/compiler-agent/target-material/sources/69a7cd5b8836085506f53f1b02ad8aa624790eb23ca573ca584e226ee1246358/k3_ds.md.search.txt:147-153"
     }
   ]
 }
