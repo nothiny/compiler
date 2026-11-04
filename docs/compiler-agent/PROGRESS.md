@@ -19,3 +19,4 @@ Phase: **ENVIRONMENT_ANALYSIS** · project: `compiler-a100-experiment-001`
 | 2026-11-04T08:13:49.563874+00:00 | ENVIRONMENT_ANALYSIS | start-task | T001 agent=planner |
 | 2026-11-04T08:13:49.934658+00:00 | ENVIRONMENT_ANALYSIS | task-delegate | WTI001 task=T001 attempt=1 profile=general-purpose |
 | 2026-11-04T08:28:09.643365+00:00 | ENVIRONMENT_ANALYSIS | fact | F001 [environment/EMPIRICAL/operator] read ./.env and a100_support/env.sh on 2026-11-04; every declared path resolved by the probes recorded in docs/compiler-agent/ENVIRONMENT.md |
+| 2026-11-04T08:28:50.636394+00:00 | ENVIRONMENT_ANALYSIS | fact | F002 [toolchain/RUNTIME_PROBE/input] probe: set -a; . ./.env; set +a; ${A100_CROSS_PREFIX}gcc --version; build and run recorded in docs/compiler-agent/ENVIRONMENT.md End-to-end smoke 1 |

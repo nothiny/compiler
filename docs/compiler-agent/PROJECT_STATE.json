@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-04T08:28:09.643411+00:00",
+  "updated_at": "2026-11-04T08:28:50.636445+00:00",
   "facts": [
     {
       "id": "F001",
@@ -21,7 +21,16 @@
       "confidence": "EMPIRICAL",
       "status": "active",
       "category": "environment",
-      "origin": "operator"
+      "origin": "input"
+    },
+    {
+      "id": "F002",
+      "statement": "RISC-V cross compiler /home/i_yinzida/.local/opt/a100/toolchain-1.1.2/bin/riscv64-unknown-linux-gnu-gcc is present and usable: version riscv64-unknown-linux-gnu-gcc (g56971dcbea2) 14.3.0; it built a trivial C program (-O2 -march=rv64gcv -mabi=lp64d) that executed under the declared QEMU endpoint with the expected output A100-C-SMOKE-OK and exit 0.",
+      "source": "probe: set -a; . ./.env; set +a; ${A100_CROSS_PREFIX}gcc --version; build and run recorded in docs/compiler-agent/ENVIRONMENT.md End-to-end smoke 1",
+      "confidence": "RUNTIME_PROBE",
+      "status": "active",
+      "category": "toolchain",
+      "origin": "input"
     }
   ],
   "assumptions": [],
@@ -177,6 +186,12 @@
       "phase": "ENVIRONMENT_ANALYSIS",
       "event": "fact",
       "detail": "F001 [environment/EMPIRICAL/operator] read ./.env and a100_support/env.sh on 2026-11-04; every declared path resolved by the probes recorded in docs/compiler-agent/ENVIRONMENT.md"
+    },
+    {
+      "at": "2026-11-04T08:28:50.636394+00:00",
+      "phase": "ENVIRONMENT_ANALYSIS",
+      "event": "fact",
+      "detail": "F002 [toolchain/RUNTIME_PROBE/input] probe: set -a; . ./.env; set +a; ${A100_CROSS_PREFIX}gcc --version; build and run recorded in docs/compiler-agent/ENVIRONMENT.md End-to-end smoke 1"
     }
   ]
 }
