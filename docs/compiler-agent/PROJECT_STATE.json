@@ -6,13 +6,13 @@
     "ops": "ops",
     "target_scope": "k3-a100"
   },
-  "phase": "PLANNING",
+  "phase": "PLAN_REVIEW",
   "acceptance_scope": "correctness_only",
   "return_phase": "",
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-04T09:59:08.137432+00:00",
+  "updated_at": "2026-11-04T09:59:46.953970+00:00",
   "facts": [
     {
       "id": "F001",
@@ -6353,6 +6353,12 @@
       "phase": "PLANNING",
       "event": "complete-task",
       "detail": "T004 worker report WTI004: Compiler architecture and implementation plan for the A100 correctness-only run, derived from the 56 recorded facts, the workload feature matrix and the 107-construct api-spec. (1) docs/compiler-agent/COMPILER_ARCHITECTURE.md (mirrored at the project root where the engine reads it): two verified IRs (TIR tir/v1 carrying width/signedness, conversion-vs-bitcast, mask defaults, broadcast extents, reduction/dot contracts, runtime-symbolic launch geometry; MIR mir/v1 carrying vsetvli regions, masked memory ops, IME tile ops with the sourced operand contract, worker partition and stage structure) plus the emitted program-level assembly artifact; frontend with the declared-surface table, meta-tier specialization identity (shapes/grid/values runtime, never baked) and a provenance-tracked case-layer grid model emitted as a native runtime grid evaluation; the six basic optimization passes as normal pipeline work; execution planning with 1/2/4/8-worker partitioning, stage barriers, merge semantics and workspace ownership; RVV masked-tail handling; IME lowering for INT8 8x16x8 (smt.vmadot) and FP16 8x8x8 (smt.vfwmadot, FP32 accumulation) with register grouping constraints and the BF16 emulator gap handled by the vector FP32 path; repertoire-as-data backend with legalisation, one generic selection matcher, interference-based allocation over the 32x128B vector file; precompiled native C runtime (pool, barriers, a100-native-io/v1 bundle reader, --repeats with input restore); driver with artifact cache identity covering every bound dependency and the A100_COMPILER_FACTORY=a100c.factory:make_compiler integration through a100_support/native_device.py; per-stage dumps for first-incorrect-stage localisation. (2) ARCHITECTURE_CONSTRAINTS.json (root + docs mirror): schema_version 1, test_command 'python3 {test}', 43 responsibility-owned modules, 10 stages with tests, 2 IR levels with the six basic passes declared, cfg/register_allocation symbol contracts, 4 behaviou"
+    },
+    {
+      "at": "2026-11-04T09:59:46.953907+00:00",
+      "phase": "PLAN_REVIEW",
+      "event": "transition",
+      "detail": "PLANNING -> PLAN_REVIEW Planning T004 DONE: architecture, constraints contract, execution model/resources and 18-task DAG submitted."
     }
   ]
 }
