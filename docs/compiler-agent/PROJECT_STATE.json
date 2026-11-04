@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-04T23:52:34.355573+00:00",
+  "updated_at": "2026-11-04T23:53:09.426154+00:00",
   "facts": [
     {
       "id": "F001",
@@ -1631,13 +1631,13 @@
         "layout-ops-v1"
       ],
       "tags": [],
-      "status": "READY",
-      "assignee": "",
-      "attempts": 0,
+      "status": "RUNNING",
+      "assignee": "coder",
+      "attempts": 1,
       "evidence": "",
       "last_error": "",
       "failure_kind": "",
-      "start_revision": "",
+      "start_revision": "65e6cb5df9688da3d72f4b9bec28a18a0cdb6d23",
       "end_revision": "",
       "completed_seq": 0,
       "debug_required": false,
@@ -1647,7 +1647,7 @@
       "debug_pending_failures": 0,
       "worker_debug_request": {},
       "coding_failures": 0,
-      "started_at": "",
+      "started_at": "2026-11-04T23:53:09.422423+00:00",
       "deferrals": 0,
       "debug_verified_patterns": [],
       "replan_baseline": {},
@@ -6983,6 +6983,12 @@
       "phase": "IMPLEMENTATION",
       "event": "complete-task",
       "detail": "T012 worker report WTI013: Layout, shape and dtype-conversion breadth implemented through the real compilation path and executed under the pinned QEMU endpoint. (1) Frontend: all 17 layout constructs (reshape/view/ravel/squeeze/unsqueeze/expand_dims as the flat-identity reshape forms with the covered-axes broadcast-flag rule, trans/permute/.T, join, split, cat as the pinned join+permute+reshape desugar, broadcast_to/broadcast/tl.broadcast, flip, swizzle2d as the pinned arithmetic index transform, to_tensor, the [:, None] subscript) plus distinct convert/bitcast TIR ops with verifier rules; tl.full with a runtime value lowers through the splat broadcast; value-level dtype introspection folds (x.dtype on runtime values). (2) Lowering: the multi-pass layout lane -- the region segments into extent-homogeneous passes and layout staging points; every pass is its own chunk loop at its own SEW/vl (multi-arange kernels supported); layout data movement runs through dedicated staging loops over the private workspace with compiled index maps (permute/flip/join/split/broadcast); cross-pass values stage through workspace regions (32-bit-minimum lanes: e8/e16 data with e64 indexed forms segfault the pinned QEMU, probed; sub-32 ints stage zext-widened, 16-bit floats as their exact fp32 widening, booleans as 0/1 lanes reloaded as masks); registers do not survive a pass loop (constants re-emit; scalars ride per-pass liveouts; workspace bases reload). (3) Conversion matrix: vfcvt.f.x[u].v and vfcvt.rtz.x[u].f.v (same width), vfwcvt (fp16->fp32 widening, probed), vfncvt (fp32->fp16 RTNE and rtz; f32->i16/u16 RTZ), int widen (sext/zext) and narrowing (the register-view vrgather), bf16<->fp32 via the exact zext+shift widening and the transport's own RTNE bit rounding (bit-identical to the host staging), int->fp16 through fp32 under the declared policy; vmovv as the bit-level register-view move with the probed no-overlap and byte-covering region rules; the allocator gains destination/source ov"
+    },
+    {
+      "at": "2026-11-04T23:53:09.426144+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "start-task",
+      "detail": "T013 agent=coder"
     }
   ]
 }
