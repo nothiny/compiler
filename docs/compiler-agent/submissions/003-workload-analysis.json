@@ -1,0 +1,37 @@
+{
+  "submission_id": "003-workload-analysis",
+  "tasks": [
+    {
+      "task_id": "T003",
+      "goal": "Workload analysis of the ops/ corpus: read the corpus's own entry document (its AGENTS.md/README.md at the corpus root) and follow its declared reading order; declare the operator set from the corpus's own layout document with `operator-set --glob ... --source ...` (never a hand-invented glob), run `ingest-ops`, record the corpus's declared tier order with `group-order` (citing the corpus file that declares it) together with per-tier operator counts, and record per-tier case totals with `record-case-totals` from the corpus's own enumeration commands (never hand-copied from a document); record the source language's declared surface with `api-spec` from the specification the corpus pins (every construct with its parameters, per-construct corpus_calls from the corpus's own API inventory or scanner tokens, out_of_scope reasons for constructs the target cannot support — if the corpus declares a subset of the language, that subset is the surface, construct by construct and parameter by parameter); build the feature matrix (indexing/shapes, memory access and masking, broadcasting, reductions and scans, dot/matrix multiply, atomics, control flow, dtype conversions and casts, layout transformations, special math functions, launch/runtime contract incl. grid/arguments/outputs/comparison policy) including the parallel shape of the corpus (which axes are independent work, communication, barriers/atomics needed); extract the shape x dtype matrix per operator with the total (operator, shape, dtype) case count using the corpus's machine-readable index rather than re-deriving from source; rank features P0/P1/P2 with example operators and occurrence counts; record explicit gaps for anything the corpus requires outside the language subset; write OPERATOR_INVENTORY.md. Do not shrink the case set or relax comparisons.",
+      "capability": "planning",
+      "purpose": "input",
+      "gate": "G2",
+      "tags": ["phase-workload-analysis"],
+      "inputs": [
+        "ops/",
+        "docs/compiler-agent/CASE_INVENTORY.json",
+        "docs/compiler-agent/A100_CORPUS_CASES.json.manifest",
+        "docs/compiler-agent/A100_CORPUS_DERIVATION.json"
+      ],
+      "outputs": [
+        "docs/compiler-agent/OPERATOR_INVENTORY.md",
+        "Workload record, operator set, group order, case totals and api-spec in docs/compiler-agent/PROJECT_STATE.json"
+      ],
+      "acceptance": [
+        "The operator set is declared with operator-set from the corpus's own layout document (source cited), and ingest-ops ran against exactly those files; the harness and non-input files are not counted as operators.",
+        "The corpus tier structure is recorded with group-order citing the corpus file that declares it, with per-tier operator counts; a tier with zero executed cases would be visible as a harness defect, not coverage.",
+        "Per-tier case totals are recorded with record-case-totals from the corpus's own enumeration commands run in the project (numbers derive from commands, not documents).",
+        "The declared surface is recorded with api-spec from the specification the corpus pins: every construct with its parameters, per-construct corpus_calls, and out_of_scope reasons where applicable; a corpus-declared subset is recorded as that subset construct by construct and parameter by parameter.",
+        "Every operator directory is represented by at least one inspected operator; the smallest, the largest, and one per directory cluster were read end to end.",
+        "The shape x dtype matrix records every operator's declared shapes and dtypes (read from the corpus's own declaration or machine-readable index, never assumed), and states the total (operator, shape, dtype) case count.",
+        "The feature matrix covers at least indexing/shapes, memory access and masking, broadcasting, reductions and scans, dot/matrix multiply, atomics, control flow, dtype conversions and casts, layout transformations, special math functions, and the launch/runtime contract; the parallel shape (independent axes, communication, synchronization) is recorded; every feature has example operators, occurrence counts and a P0/P1/P2 priority; features outside the language subset are explicit gaps.",
+        "OPERATOR_INVENTORY.md exists summarizing corpus size, feature frequency, per-operator feature tags and the shape x dtype matrix."
+      ],
+      "tests": [
+        "PYTHONPATH from .env loaded, python3 -m compiler_agent --root . --json gates shows G2 PASS (corpus tier structure recorded, declared support set is a corpus-tier prefix, workload recorded)",
+        "python3 -m compiler_agent --root . --json status shows the workload record with observed feature tokens and counts, the recorded group order, and the recorded per-tier case totals"
+      ]
+    }
+  ]
+}
