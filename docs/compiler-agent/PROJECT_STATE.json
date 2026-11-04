@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-04T08:35:35.611174+00:00",
+  "updated_at": "2026-11-04T08:49:03.480952+00:00",
   "facts": [
     {
       "id": "F001",
@@ -147,6 +147,15 @@
       "confidence": "RUNTIME_PROBE",
       "status": "active",
       "category": "environment",
+      "origin": "input"
+    },
+    {
+      "id": "F016",
+      "statement": "K3 SoC integrates 8 X100 general-purpose cores and 8 A100 AI cores (2 A100 clusters, 60 TOPS aggregate AI compute) using RISC-V homogeneous fusion: scalar (standard ISA), vector (RVV 1.0) and matrix (IME extension) compute share one RISC-V programming model, and standard Linux threads drive AI computation without a heterogeneous scheduler or driver management.",
+      "source": "docs/compiler-agent/target-material/sources/432da714bd719f3506e3fb28b39f1f35fa1a8f54702382d66e010ec92acb30f6/root_overview.md.search.txt:12-14; docs/compiler-agent/target-material/sources/83ddde6d173d633a2b89bad966f7ec23ae7ab4699185cf85989521a79c03d066/concept.md.search.txt:11-22 (4.1.1); docs/compiler-agent/target-material/sources/9564d4ba5ed9a64d71c0c7e5bf0c8f7d74ed717fd0aa71265328f8c1eaea8c91/K3_architecture_preview.pdf.search.txt:181-183",
+      "confidence": "FACT",
+      "status": "active",
+      "category": "execution_model",
       "origin": "input"
     }
   ],
@@ -541,6 +550,12 @@
       "phase": "CHIP_ANALYSIS",
       "event": "task-delegate",
       "detail": "WTI002 task=T002 attempt=1 profile=general-purpose"
+    },
+    {
+      "at": "2026-11-04T08:49:03.480905+00:00",
+      "phase": "CHIP_ANALYSIS",
+      "event": "fact",
+      "detail": "F016 [execution_model/FACT/input] docs/compiler-agent/target-material/sources/432da714bd719f3506e3fb28b39f1f35fa1a8f54702382d66e010ec92acb30f6/root_overview.md.search.txt:12-14; docs/compiler-agent/target-material/sources/83ddde6d173d633a2b89bad966f7ec23ae7ab4699185cf85989521a79c03d066/concept.md.search.txt:11-22 (4.1.1); docs/compiler-agent/target-material/sources/9564d4ba5ed9a64d71c0c7e5bf0c8f7d74ed717fd0aa71265328f8c1eaea8c91/K3_architecture_preview.pdf.search.txt:181-183"
     }
   ]
 }
