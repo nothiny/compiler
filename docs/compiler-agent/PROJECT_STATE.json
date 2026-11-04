@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-04T09:10:29.346135+00:00",
+  "updated_at": "2026-11-04T09:20:04.006758+00:00",
   "facts": [
     {
       "id": "F001",
@@ -770,14 +770,14 @@
       "tags": [
         "phase-workload-analysis"
       ],
-      "status": "RUNNING",
+      "status": "DONE",
       "assignee": "planner",
       "attempts": 1,
-      "evidence": "",
+      "evidence": "worker report WTI003: Workload analysis of ops/ recorded. Followed the corpus's declared reading order (ops/AGENTS.md -> AGENT_GUIDE.md -> SUBSET.md -> API_INVENTORY.md -> SUITE_V3.md/COVERAGE_MATRIX.md). Declared the operator set from the corpus layout (suite/dev/*.py,suite/perf/*.py, 500 files of 542 py; harness excluded); ran ingest-ops (500 operators, 1068 observed tokens, operator_scope=declared). Recorded the corpus tier order (suite/dev -> suite/perf, source ops/harness/compiler_api/run_cases.py GROUP_ORDER) and per-tier case totals from the corpus's own enumeration command (dev 2192, perf 542, total 2734; cross-checked against suite/manifest.json cases_total and A100_CORPUS_CASES.json.manifest, 2734 rows). Recorded the api-spec from the specification the corpus pins: 107 constructs / 280 parameters, corpus_calls from the corpus's own API inventory (ops/docs/API_INVENTORY.md), parameter surfaces from the pinned Triton 3.8.0 signatures, tl.swizzle2d declared with 0 calls, out_of_scope reasons on tl.dot (subset-stripped input_precision/allow_tf32) and tl.float64 (no fp64 cases, dead dispatch). Wrote docs/compiler-agent/OPERATOR_INVENTORY.md: corpus size, 75-tag feature matrix in the required categories with counts/examples/P0-P1-P2, parallel shape, launch/runtime contract, dtype tolerance policy, per-operator shape x dtype matrix (500 rows, total 2734 cases) and the exclusion/gap record. G2 PASS.\nacceptance[0]: `python3 -m compiler_agent --root . operator-set --glob 'suite/dev/*.py,suite/perf/*.py' --source 'ops/README.md (corpus layout...; glob as prescribed by ops/harness/compiler_api/AGENT_GUIDE.md section 1)' && python3 -m compiler_agent --root . ingest-ops && python3 -m compiler_agent --root . operator-set` -> exit 0\nacceptance[1]: `cd ops && python3 harness/compiler_api/run_cases.py --dry-run --group-order && python3 -m compiler_agent --root . group-order --group suite/dev --group suite/perf --source 'ops/harness/compiler_api/run_cases.py (GROUP_ORDER = (",
       "last_error": "",
       "failure_kind": "",
       "start_revision": "5f74da30ebebcbb163bbaebd10fb18312b3c8902",
-      "end_revision": "",
+      "end_revision": "e2470e7f48d5f73e67086ef8f96c51dd2dfe7ec9",
       "completed_seq": 0,
       "debug_required": false,
       "debug_request_id": "",
@@ -4578,6 +4578,24 @@
       "phase": "WORKLOAD_ANALYSIS",
       "event": "api-spec",
       "detail": "107 declared construct(s), 280 parameter(s) (from ops/docs/SUBSET.md (declared LLM-inference subset, suite-v3) with ops/docs/API_INVENTORY.md (the shipped 500-operator suite own AST inventory: construct list + per-construct operator-file counts); parameter surfaces read from the pinned Triton 3.8.0 triton.language/triton.runtime signatures (A100_REFERENCE_PYTHON triton.__version__==3.8.0); tl.dot parameter surface restricted by SUBSET.md principle 2 Triton 3.8.0 / ops suite-v3 declared subset)"
+    },
+    {
+      "at": "2026-11-04T09:20:03.989058+00:00",
+      "phase": "WORKLOAD_ANALYSIS",
+      "event": "task-report-out-of-contract",
+      "detail": "T003: OPERATOR_INVENTORY.md"
+    },
+    {
+      "at": "2026-11-04T09:20:03.998784+00:00",
+      "phase": "WORKLOAD_ANALYSIS",
+      "event": "task-report",
+      "detail": "WTI003 COMPLETED attempt=1 [declared outputs do not exist: Workload record, operator set, group order, case totals and api-spec in docs/compiler-agent/PROJECT_STATE.json; changes outside the declared paths: OPERATOR_INVENTORY.md]"
+    },
+    {
+      "at": "2026-11-04T09:20:04.006694+00:00",
+      "phase": "WORKLOAD_ANALYSIS",
+      "event": "complete-task",
+      "detail": "T003 worker report WTI003: Workload analysis of ops/ recorded. Followed the corpus's declared reading order (ops/AGENTS.md -> AGENT_GUIDE.md -> SUBSET.md -> API_INVENTORY.md -> SUITE_V3.md/COVERAGE_MATRIX.md). Declared the operator set from the corpus layout (suite/dev/*.py,suite/perf/*.py, 500 files of 542 py; harness excluded); ran ingest-ops (500 operators, 1068 observed tokens, operator_scope=declared). Recorded the corpus tier order (suite/dev -> suite/perf, source ops/harness/compiler_api/run_cases.py GROUP_ORDER) and per-tier case totals from the corpus's own enumeration command (dev 2192, perf 542, total 2734; cross-checked against suite/manifest.json cases_total and A100_CORPUS_CASES.json.manifest, 2734 rows). Recorded the api-spec from the specification the corpus pins: 107 constructs / 280 parameters, corpus_calls from the corpus's own API inventory (ops/docs/API_INVENTORY.md), parameter surfaces from the pinned Triton 3.8.0 signatures, tl.swizzle2d declared with 0 calls, out_of_scope reasons on tl.dot (subset-stripped input_precision/allow_tf32) and tl.float64 (no fp64 cases, dead dispatch). Wrote docs/compiler-agent/OPERATOR_INVENTORY.md: corpus size, 75-tag feature matrix in the required categories with counts/examples/P0-P1-P2, parallel shape, launch/runtime contract, dtype tolerance policy, per-operator shape x dtype matrix (500 rows, total 2734 cases) and the exclusion/gap record. G2 PASS.\nacceptance[0]: `python3 -m compiler_agent --root . operator-set --glob 'suite/dev/*.py,suite/perf/*.py' --source 'ops/README.md (corpus layout...; glob as prescribed by ops/harness/compiler_api/AGENT_GUIDE.md section 1)' && python3 -m compiler_agent --root . ingest-ops && python3 -m compiler_agent --root . operator-set` -> exit 0\nacceptance[1]: `cd ops && python3 harness/compiler_api/run_cases.py --dry-run --group-order && python3 -m compiler_agent --root . group-order --group suite/dev --group suite/perf --source 'ops/harness/compiler_api/run_cases.py (GROUP_ORDER = ("
     }
   ]
 }

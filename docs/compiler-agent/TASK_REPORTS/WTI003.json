@@ -1,0 +1,152 @@
+{
+  "invocation_id": "WTI003",
+  "task_id": "T003",
+  "attempt": 1,
+  "context_sha256": "763fea0be21d4d65792186bfea550dbb7805331e78a592f131233020f73017c3",
+  "outcome": "COMPLETED",
+  "failure_kind": "implementation",
+  "summary": "Workload analysis of ops/ recorded. Followed the corpus's declared reading order (ops/AGENTS.md -> AGENT_GUIDE.md -> SUBSET.md -> API_INVENTORY.md -> SUITE_V3.md/COVERAGE_MATRIX.md). Declared the operator set from the corpus layout (suite/dev/*.py,suite/perf/*.py, 500 files of 542 py; harness excluded); ran ingest-ops (500 operators, 1068 observed tokens, operator_scope=declared). Recorded the corpus tier order (suite/dev -> suite/perf, source ops/harness/compiler_api/run_cases.py GROUP_ORDER) and per-tier case totals from the corpus's own enumeration command (dev 2192, perf 542, total 2734; cross-checked against suite/manifest.json cases_total and A100_CORPUS_CASES.json.manifest, 2734 rows). Recorded the api-spec from the specification the corpus pins: 107 constructs / 280 parameters, corpus_calls from the corpus's own API inventory (ops/docs/API_INVENTORY.md), parameter surfaces from the pinned Triton 3.8.0 signatures, tl.swizzle2d declared with 0 calls, out_of_scope reasons on tl.dot (subset-stripped input_precision/allow_tf32) and tl.float64 (no fp64 cases, dead dispatch). Wrote docs/compiler-agent/OPERATOR_INVENTORY.md: corpus size, 75-tag feature matrix in the required categories with counts/examples/P0-P1-P2, parallel shape, launch/runtime contract, dtype tolerance policy, per-operator shape x dtype matrix (500 rows, total 2734 cases) and the exclusion/gap record. G2 PASS.",
+  "files_changed": [
+    "docs/compiler-agent/OPERATOR_INVENTORY.md",
+    "docs/compiler-agent/PROJECT_STATE.json",
+    "OPERATOR_INVENTORY.md"
+  ],
+  "artifacts": [
+    "docs/compiler-agent/OPERATOR_INVENTORY.md",
+    "docs/compiler-agent/PROJECT_STATE.json",
+    "ops/suite/manifest.json",
+    "ops/docs/API_INVENTORY.md",
+    "ops/docs/SUBSET.md",
+    "ops/docs/SUITE_V3.md",
+    "docs/compiler-agent/A100_CORPUS_CASES.json.manifest",
+    "docs/compiler-agent/CASE_INVENTORY.json",
+    "docs/compiler-agent/A100_CORPUS_DERIVATION.json"
+  ],
+  "commands": [
+    {
+      "command": "set -a; . ./.env; set +a; python3 -m compiler_agent --root . operator-set --glob 'suite/dev/*.py,suite/perf/*.py' --source 'ops/README.md (corpus layout: suite/dev + suite/perf are the operators, harness/ is not); glob as prescribed by ops/harness/compiler_api/AGENT_GUIDE.md section 1'",
+      "exit_code": 0,
+      "observed": "{\"operator_glob\": \"suite/dev/*.py,suite/perf/*.py\", \"operators\": 500}"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; python3 -m compiler_agent --root . ingest-ops",
+      "exit_code": 0,
+      "observed": "operator_files=500, total_py_files=542, operator_scope=declared, 1068 observed feature tokens (top: tl.constexpr 1595, tl.load 1331, tl.arange 1052, tl.float32 883, tl.store 791, tl.where 732, tl.program_id 592, triton.jit 500, tl.dot 305)"
+    },
+    {
+      "command": "cd ops && python3 harness/compiler_api/run_cases.py --dry-run --group-order",
+      "exit_code": 0,
+      "observed": "suite/dev operators=400 cases=2192; suite/perf operators=100 cases=542; TOTAL cases=2734"
+    },
+    {
+      "command": "cd ops && python3 harness/compiler_api/run_cases.py --manifest suite/manifest.json --dry-run --identities",
+      "exit_code": 0,
+      "observed": "manifest operators=500 cases=2734, TOTAL cases=2734; identity census: dtype 1318 / triton 1882 / meta 2116 (the target model; SUITE_V3 records 2161 meta identities)"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; python3 -m compiler_agent --root . group-order --group suite/dev --group suite/perf --source 'ops/harness/compiler_api/run_cases.py (GROUP_ORDER = (\"suite/dev\", \"suite/perf\") - the two input directories in the order the corpus declares them; confirmed by run_cases.py --dry-run --group-order: suite/dev operators=400 cases=2192, suite/perf operators=100 cases=542)'",
+      "exit_code": 0,
+      "observed": "workload.group_order = ['suite/dev', 'suite/perf'] with group_source citing run_cases.py"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; python3 -m compiler_agent --root . record-case-totals --json '{\"suite/dev\": 2192, \"suite/perf\": 542}' --source 'ops corpus enumeration: cd ops && python3 harness/compiler_api/run_cases.py --manifest suite/manifest.json --dry-run --group-order (suite/dev cases=2192, suite/perf cases=542, TOTAL cases=2734); cross-checked with ops/suite/manifest.json cases_total=2734 and docs/compiler-agent/A100_CORPUS_CASES.json.manifest (2734 rows: suite/dev 2192, suite/perf 542)'",
+      "exit_code": 0,
+      "observed": "workload.case_totals = {'suite/dev': 2192, 'suite/perf': 542} with case_source citing the enumeration command"
+    },
+    {
+      "command": "python3 /tmp/w003_build_apispec.py && set -a; . ./.env; set +a; python3 -m compiler_agent --root . api-spec --file /tmp/w003_apispec.json --source 'ops/docs/SUBSET.md (declared LLM-inference subset, suite-v3) with ops/docs/API_INVENTORY.md (the shipped 500-operator suite own AST inventory: construct list + per-construct operator-file counts); parameter surfaces read from the pinned Triton 3.8.0 triton.language/triton.runtime signatures (A100_REFERENCE_PYTHON triton.__version__==3.8.0); tl.dot parameter surface restricted by SUBSET.md principle 2' --version 'Triton 3.8.0 / ops suite-v3 declared subset'",
+      "exit_code": 0,
+      "observed": "api_spec: 107 constructs, 280 parameters (P0=11, P1=28, P2=68); corpus_calls per construct from API_INVENTORY.md; out_of_scope on tl.dot and tl.float64; tl.swizzle2d corpus_calls=0"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; python3 -m compiler_agent --root . --json gates",
+      "exit_code": 0,
+      "observed": "G2=PASS; G0/G1 PASS, G3-G9 FAIL (later phases, not this task)"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; python3 -m compiler_agent --root . --json status",
+      "exit_code": 0,
+      "observed": "phase=WORKLOAD_ANALYSIS, gates G2=PASS, tasks {T001 DONE, T002 DONE, T003 RUNNING}"
+    },
+    {
+      "command": "python3 -c \"import json; m=json.load(open('ops/suite/manifest.json')); ops=m['operators']; assert all(o['cases']==len(o['shape_list'])*len(o['dtype_names']) for o in ops); print(sum(o['cases'] for o in ops), sum(len(o['shape_list'])*len(o['dtype_names']) for o in ops), len(ops))\"",
+      "exit_code": 0,
+      "observed": "2734 2734 500: every operator's cases == |shape_list| x |dtype_names|; total (operator, shape, dtype) cases = 2734 over 500 operators"
+    }
+  ],
+  "acceptance": [
+    {
+      "ref": "acceptance[0]",
+      "command": "python3 -m compiler_agent --root . operator-set --glob 'suite/dev/*.py,suite/perf/*.py' --source 'ops/README.md (corpus layout...; glob as prescribed by ops/harness/compiler_api/AGENT_GUIDE.md section 1)' && python3 -m compiler_agent --root . ingest-ops && python3 -m compiler_agent --root . operator-set",
+      "exit_code": 0,
+      "observed": "Operator set declared from the corpus's own layout documents: ops/README.md declares suite/dev + suite/perf as the two operator directories and harness/ as the runner (not operators); AGENT_GUIDE.md section 1 prescribes exactly this glob for the workflow. ingest-ops scanned 500 operator files of 542 total .py under ops/ with operator_scope=declared; the 42 harness files are not counted as operators. No-flag operator-set confirms {operator_glob, operators: 500}."
+    },
+    {
+      "ref": "acceptance[1]",
+      "command": "cd ops && python3 harness/compiler_api/run_cases.py --dry-run --group-order && python3 -m compiler_agent --root . group-order --group suite/dev --group suite/perf --source 'ops/harness/compiler_api/run_cases.py (GROUP_ORDER = (\"suite/dev\", \"suite/perf\") ...)'",
+      "exit_code": 0,
+      "observed": "Tier structure recorded from the corpus file that declares it: run_cases.py line 120 GROUP_ORDER = (\"suite/dev\", \"suite/perf\") with the comment 'the two input directories, in the order the corpus declares them'. Per-tier operator counts from the enumeration command: suite/dev 400, suite/perf 100. workload.group_order = ['suite/dev', 'suite/perf'], group_source cites run_cases.py. The OPERATOR literal's group field is provenance only (AGENT_GUIDE 1.1); input grouping is the directory."
+    },
+    {
+      "ref": "acceptance[2]",
+      "command": "cd ops && python3 harness/compiler_api/run_cases.py --manifest suite/manifest.json --dry-run --group-order && python3 -m compiler_agent --root . record-case-totals --json '{\"suite/dev\": 2192, \"suite/perf\": 542}' --source 'ops corpus enumeration: ...'",
+      "exit_code": 0,
+      "observed": "Numbers derive from commands run in the project, not from documents: the corpus enumeration prints suite/dev cases=2192, suite/perf cases=542, TOTAL 2734 (exit 0); --dry-run --identities confirms manifest operators=500 cases=2734. Cross-checked against ops/suite/manifest.json (cases_total 2734; per-operator cases sum 2192+542) and docs/compiler-agent/A100_CORPUS_CASES.json.manifest (2734 rows: suite/dev 2192, suite/perf 542). workload.case_totals recorded with case_source naming the enumeration command."
+    },
+    {
+      "ref": "acceptance[3]",
+      "command": "python3 -m compiler_agent --root . api-spec --file /tmp/w003_apispec.json --source 'ops/docs/SUBSET.md ... ops/docs/API_INVENTORY.md ... Triton 3.8.0 signatures' --version 'Triton 3.8.0 / ops suite-v3 declared subset'",
+      "exit_code": 0,
+      "observed": "Declared surface recorded from the specification the corpus pins (ops/docs/SUBSET.md declares the suite-v3 subset; ops/docs/API_INVENTORY.md is the shipped suite's own generated inventory; parameters read from the pinned Triton 3.8.0 triton.language/triton.runtime signatures via A100_REFERENCE_PYTHON, triton.__version__==3.8.0). 107 constructs x 280 parameters, construct by construct and parameter by parameter (internal _semantic/_generator plumbing excluded); per-construct corpus_calls from the inventory's operator-file counts; out_of_scope recorded for tl.dot (input_precision=/allow_tf32= stripped by SUBSET.md principle 2, fp32 dot IEEE, TRITON_F32_DEFAULT=ieee; max_num_imprecise_acc is fp8-only) and tl.float64 (no fp64 tensor case; 16 occurrences are dead constexpr dtype-dispatch for the declared case dtypes); tl.swizzle2d declared in the subset with corpus_calls=0 (no shipped operator calls it); the SUBSET.md section 6 exclusions (fp8, tf32, backward, libdevice, float64 cases, dot_scaled/fp4/int4, inline_asm, TMA, tl.tanh/tl.pow/tl.bool, tl.fdiv) are documented as the refusal boundary in OPERATOR_INVENTORY.md section 3."
+    },
+    {
+      "ref": "acceptance[4]",
+      "command": "wc -l ops/suite/dev/*.py ops/suite/perf/*.py | sort -n | head -8; wc -l ops/suite/dev/*.py ops/suite/perf/*.py | sort -rn | head -4",
+      "exit_code": 0,
+      "observed": "Both operator directories and all 9 corpus families are represented by end-to-end reads (kernel + case layer). Smallest: suite/dev/any_kernel_2.py (55 lines, masked load + bool reduce to scalar). Largest: suite/dev/fht_kernel_256_4row_native.py (746 lines, reshape/permute/split/join butterfly pipeline, 4-row ILP). Per-family representatives read end to end: elementwise_reduce any_kernel_2/geglu_tanh_triton/alpha_dropout_inplace, matmul matmul_k32_splitn4_paired_kernel + grouped_gemm_kernel (pointer tables), norm fused_layernorm_triton (autotune), attention flash_decode (online softmax), linear_attention fused_recurrent_hgrn_fwd_kernel (varlen, loop-carried state), select_scan_index argmax_kernel_inner (return_indices tie-break, dtype predicates), softmax_xent log_softmax_linear, conv_pool deconv3d_leaky_pool (nested dynamic loops, atomic max), quant quant_transpose_kernel (autotune, int8) + position_quantize (quantized_interval comparator). Also inspected: atomic_bitmap (all 6 atomic ops + debug_barrier), diag_scale_kernel (make_block_ptr/advance/boundary_check), ranked_distribution_semantic (tl.sort/topk), blocked_jacobi_rank_kernel (while loop)."
+    },
+    {
+      "ref": "acceptance[5]",
+      "command": "python3 -c \"import json; m=json.load(open('ops/suite/manifest.json')); ops=m['operators']; assert all(o['cases']==len(o['shape_list'])*len(o['dtype_names']) for o in ops); print(sum(o['cases'] for o in ops), len(ops))\"",
+      "exit_code": 0,
+      "observed": "OPERATOR_INVENTORY.md section 5 records every operator's declared shapes and dtypes read from the corpus's machine-readable index (suite/manifest.json shape_list x dtype_names per operator; a 500-row per-operator matrix), never assumed: verified cases == |shape_list| x |dtype_names| for all 500 operators. Total (operator, shape, dtype) case count stated: 2734, matching the enumeration command, manifest cases_total and A100_CORPUS_CASES.json.manifest. Dtype distribution: float32 465 ops/957 cases, float16 413/850, bfloat16 412/849, int32 18/37, int64 13/26, bool 4/8, int8 2/5, int16 1/2."
+    },
+    {
+      "ref": "acceptance[6]",
+      "command": "python3 /tmp/w003_gen_inventory.py && grep -c '^| ' docs/compiler-agent/OPERATOR_INVENTORY.md",
+      "exit_code": 0,
+      "observed": "OPERATOR_INVENTORY.md section 4 covers every required category plus the elementwise backbone: indexing/shapes, memory access and masking, broadcasting, reductions and scans, dot/matrix multiply, atomics, control flow, dtype conversions and casts, layout transformations, special math functions, launch/runtime contract. All 75 of the corpus's own semantic tags are mapped (verified by assertion in the generator); every feature has an operator count, P0/P1/P2 priority (P0 >= 200 ops: 16 tags; P1 20-199: 29; P2 < 20: 30) and example operators. Parallel shape recorded: SPMD program unit, program_id partitioning, 484/500 operators need no cross-program communication, 16 atomic operators are the only cross-program communication, debug_barrier (7 ops) is intra-program, persistent reductions (146 ops), num_programs (22 ops). Launch/runtime contract recorded: grid static/callable, pointer/scalar/constexpr parameters, outputs, per-dtype comparison policy (fp32 1e-3, fp16 1e-2, bf16 2e-2, int/bool exact array_equal, quantized_interval), launch_meta num_warps/num_stages, pointer_dtypes bf16 duality, pointer tables. Features outside the language subset: none required (the subset is closed over the kept operators, SUBSET.md principle 3); the exclusion table and the fp64-dead-branch and swizzle2d notes are the explicit gap record."
+    },
+    {
+      "ref": "acceptance[7]",
+      "command": "wc -l docs/compiler-agent/OPERATOR_INVENTORY.md && grep -n '^## ' docs/compiler-agent/OPERATOR_INVENTORY.md",
+      "exit_code": 0,
+      "observed": "docs/compiler-agent/OPERATOR_INVENTORY.md exists (1046 lines): section 1 corpus size (500 operators/2734 cases/2161 identities, families, provenance), section 2 tier structure and case totals, section 3 declared surface (107 constructs with corpus_calls and parameters) and exclusions, section 4 feature frequency (75 tags with counts, priorities, examples) + parallel shape + launch/runtime contract, section 5 shape x dtype matrix (dtype distribution, shape characteristics, 500-row per-operator table with shapes, dtypes, cases and feature tags), section 6 gaps/notes, section 7 reproduction commands."
+    }
+  ],
+  "tests": [
+    {
+      "ref": "tests[0]",
+      "command": "set -a; . ./.env; set +a; timeout 120 python3 -m compiler_agent --root . --json gates",
+      "exit_code": 0,
+      "observed": "G2 = PASS. Backed by the three named checks, verified directly: 'corpus tier structure recorded: suite/dev, suite/perf' (diagnostic_gate), 'declared support set is a corpus-tier prefix' (no narrowed supported_groups declared; the full corpus is the input), 'workload recorded' (fresh evaluation with the stored G2 flag bypassed). G0/G1 PASS; G3-G9 FAIL as expected for later phases."
+    },
+    {
+      "ref": "tests[1]",
+      "command": "set -a; . ./.env; set +a; timeout 120 python3 -m compiler_agent --root . --json status",
+      "exit_code": 0,
+      "observed": "Status exit 0: phase WORKLOAD_ANALYSIS, gates G2 PASS, tasks {T001 DONE, T002 DONE, T003 RUNNING}. The installed engine's status JSON surfaces phase/gates/tasks and does not inline the workload record; the record it is computed from (docs/compiler-agent/PROJECT_STATE.json, read by the same command's engine state) was dumped and contains all three required contents: observed feature tokens with counts (1068 tokens; tl.constexpr 1595, tl.load 1331, tl.arange 1052, tl.float32 883, tl.store 791, tl.where 732, tl.program_id 592, triton.jit 500, tl.dot 305), the recorded group order (['suite/dev', 'suite/perf'], source run_cases.py GROUP_ORDER) and the recorded per-tier case totals ({'suite/dev': 2192, 'suite/perf': 542}, source the corpus enumeration command)."
+    }
+  ],
+  "evidence": "docs/compiler-agent/OPERATOR_INVENTORY.md (full workload analysis: corpus size, 107-construct/280-parameter declared surface, 75-tag feature matrix with P0/P1/P2, parallel shape, launch/runtime contract, 500-operator shape x dtype matrix totaling 2734 cases) plus the PROJECT_STATE.json workload record (operator_glob + 500 operator files scanned of 542 with operator_scope=declared, observed_sample with 1068 tokens and counts, group_order ['suite/dev','suite/perf'] citing ops/harness/compiler_api/run_cases.py GROUP_ORDER, case_totals {'suite/dev': 2192, 'suite/perf': 542} citing the run_cases.py --dry-run --group-order enumeration, api_spec 107 constructs/280 parameters citing ops/docs/SUBSET.md + ops/docs/API_INVENTORY.md + pinned Triton 3.8.0). Gate G2 PASS (tests[0] command). Case totals triple-checked: enumeration command 2734 = manifest cases_total 2734 = A100_CORPUS_CASES.json.manifest 2734 rows = per-operator shape_list x dtype_names sum 2734.",
+  "design_issue": {},
+  "debug_request": {},
+  "attack": {},
+  "remaining_work": [
+    "Frontend coverage (G5) must be recorded against the 107-construct api-spec once the frontend exists; tl.swizzle2d (corpus_calls=0) and the tl.dot stripped parameters are the declared refusal edges to carry into that matrix.",
+    "Planning should treat suite/dev as the prefix tier of the declared order and budget for the 16 atomic operators and the 11 autotune operators as first-class work.",
+    "The corpus docs' stale AGENT_GUIDE count (2893, the v2 number) vs the actual 2734 is documented in OPERATOR_INVENTORY.md section 6; use command-derived numbers only."
+  ],
+  "end_revision": "",
+  "at": "2026-11-04T09:20:03.938750+00:00"
+}
