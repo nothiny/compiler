@@ -582,9 +582,10 @@ def check_if_pid(workdir, compiler):
 def check_var_len_copy_corpus(compiler):
     """A real corpus operator with a runtime-bound loop over a loaded
     length: all its float32 cases (both shapes) execute and compare PASS
-    at 1/2/4/8 threads on one artifact per identity.  (Its fp16/bf16
-    cases need SEW!=32 element widths -- a later task's path -- and are
-    refused with a located diagnostic, not silently miscompiled.)"""
+    at 1/2/4/8 threads on one artifact per identity.  (T012 implements
+    the SEW-16 element path, so the fp16 cases of the same operator now
+    execute too -- inside the declared fp32-lane single-rounding policy;
+    the executed fp16 comparison evidence lives in test_conversions.py.)"""
     path = ROOT / "ops" / "suite" / "dev" / "var_len_copy.py"
     module = _load(path)
     bad = []
@@ -596,13 +597,18 @@ def check_var_len_copy_corpus(compiler):
                 bad.append(f"threads={threads} shape={shape}: {detail}")
     check("corpus-var-len-copy-flow-loop-executes-at-1-2-4-8", not bad,
           "; ".join(bad[:3]))
-    # the located-refusal boundary for the fp16 cases of the same operator
+    # the fp16 cases of the same operator execute through the T012 path
     from a100c.driver import PipelineError
     try:
-        compiler.compile_case(module.make_case(shape=(3,), dtype="float16"))
-        check("var-len-copy-fp16-refused-located", False, "no refusal")
+        for threads in (1, 2, 4, 8):
+            ok, detail = _run_case(compiler, module, threads, shape=(3,),
+                                   dtype="float16")
+            if not ok:
+                bad.append(f"fp16 threads={threads}: {detail}")
+        check("var-len-copy-fp16-executes-located", not bad,
+              "; ".join(bad[:2]))
     except PipelineError as exc:
-        check("var-len-copy-fp16-refused-located",
+        check("var-len-copy-fp16-executes-located",
               "width 16" in str(exc) or "SEW" in str(exc), str(exc)[:90])
 
 

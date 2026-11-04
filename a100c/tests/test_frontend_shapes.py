@@ -126,14 +126,35 @@ tl.store(y_ptr + a, c)
 
 
 def check_subscript_refused():
+    """T012: the ``[:, None]`` expand_dims subscript lowers (a reshape);
+    an integer index still refuses (the pinned __getitem__ refuses it)."""
     try:
-        lower("""
+        mod, _, _ = lower("""
 rows = tl.arange(0, BLOCK)[:, None]
 """, {"x_ptr": np.zeros(8, np.float32), "y_ptr": np.zeros(8, np.float32),
       "n": 3}, {"BLOCK": 8})
-        check("subscript-not-in-core-refused", False, "lowered")
+        rows = [v for fn in mod.functions for v in ()]
+        ok = True
+        for fn in mod.functions:
+            for st in fn.body.statements:
+                if isinstance(st, __import__("a100c.ir.tir",
+                                             fromlist=["tir"]).Op) \
+                        and st.op == "reshape":
+                    want = __import__("a100c.ir.tir",
+                                      fromlist=["tir"]).real_shape([8, 1])
+                    ok &= st.results[0].shape == want
+        check("subscript-none-lowers-to-reshape", ok,
+              "the [:, None] subscript expands the axis")
     except FrontendError as exc:
-        check("subscript-not-in-core-refused",
+        check("subscript-none-lowers-to-reshape", False, f"line {exc.line}")
+    try:
+        lower("""
+rows = tl.arange(0, BLOCK)[0]
+""", {"x_ptr": np.zeros(8, np.float32), "y_ptr": np.zeros(8, np.float32),
+      "n": 3}, {"BLOCK": 8})
+        check("subscript-index-not-in-core-refused", False, "lowered")
+    except FrontendError as exc:
+        check("subscript-index-not-in-core-refused",
               "subscript" in str(exc) and exc.line == 11, f"line {exc.line}")
 
 

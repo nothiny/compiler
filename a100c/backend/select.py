@@ -57,6 +57,8 @@ def _features(op: mir.MOp) -> Dict[str, object]:
         features["fp"] = bool(ops and ops[0].type.kind == "float")
     elif op.opcode == "vunary":
         features["op"] = op.attrs["op"]
+    elif op.opcode in ("vfwcvt", "vfncvt"):
+        features["op"] = op.attrs["op"]
     elif op.opcode == "vred":
         features["kind"] = op.attrs["kind"]
         features["fp"] = bool(ops and ops[0].type.kind == "float")

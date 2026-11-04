@@ -151,7 +151,7 @@ def check_slice_mir():
     # the strided worker loop and the native grid evaluation
     check("worker-loop-and-grid-present",
           "prog_head" in text and "prog_next" in text
-          and "sdivu" in text and "chunk_head" in text)
+          and "sdivu" in text and "chunk1_head" in text)
     # the grid tie reads the bundle scalar n_elements
     check("grid-tied-to-scalar",
           grid.ties and list(grid.ties.values()) == [("scalar", "n_elements")],
@@ -189,7 +189,10 @@ def check_refusals():
                                       DEFAULT_TARGET, layout,
                                       grid or grid_mod.extract_grid(src, case))
 
-    # fp16 pointers: element width 16 is outside the slice (located refusal)
+    # fp16 pointers: T012 implements the SEW-16 element path (loads and
+    # stores at e16, fp32 compute lanes under the declared single-rounding
+    # policy) -- the slice lowers and MIR-verifies (the executed fp16
+    # comparison lives in test_conversions.py)
     src = source.load_operator(str(SLICE))
     spec16 = specialize.specialize(src, dict(case, args={
         **case["args"],
@@ -197,15 +200,20 @@ def check_refusals():
         "out_ptr": case["args"]["out_ptr"].astype("float16")},
         pointer_dtypes={"x_ptr": "float16", "out_ptr": "float16"}))
     try:
-        lower_with(src, spec16, dict(case, args={
+        m16 = lower_with(src, spec16, dict(case, args={
             **case["args"],
             "x_ptr": case["args"]["x_ptr"].astype("float16"),
             "out_ptr": case["args"]["out_ptr"].astype("float16")},
             pointer_dtypes={"x_ptr": "float16", "out_ptr": "float16"}))
-        check("fp16-element-refused", False, "no refusal raised")
+        from a100c.ir import mir as mir_mod
+        errs = mir_mod.verify_module(m16)
+        sews = {op.attrs["sew"] for fn in m16.functions
+                for b in fn.blocks for op in b.ops
+                if op.opcode == "vsetvli"}
+        check("fp16-element-lowers-and-verifies", not errs and 16 in sews,
+              f"errs={errs[:1]} sews={sorted(sews)}")
     except vectorize.VectorizeError as exc:
-        check("fp16-element-refused", "width 16" in str(exc)
-              or "SEW" in str(exc), str(exc)[:90])
+        check("fp16-element-lowers-and-verifies", False, str(exc)[:90])
 
     # a grid the model cannot tie to a bundle-visible quantity is refused
     import pathlib

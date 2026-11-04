@@ -179,6 +179,9 @@ VEC_OPS = {
     "vwaddx0", "vwiden", "vloadix", "vstoreix",
     "vred", "vextract", "vmand",
     "vrgather", "vslidedn", "vunit_load", "vunit_store",
+    # T012: the conversion matrix's widening/narrowing converts and the
+    # bit-level reinterpretation move
+    "vfwcvt", "vfncvt", "vmovv",
 }
 
 #: atomic op codes (T011, lower/scalar.py): the RVWMO-ordered forms.
@@ -211,13 +214,25 @@ SBIN_OPS = {"sadd", "ssub", "smul", "sdiv", "sdivu", "sand", "sor", "sxor",
 
 #: vector binary op codes
 VBIN_OPS = {"add", "sub", "mul", "and", "or", "xor", "fadd", "fsub",
-            "fmul", "fdiv", "srl", "sra", "sll"}
+            "fmul", "fdiv", "srl", "sra", "sll",
+            # T012: the layout lane's index maps and tl.swizzle2d
+            "sdiv", "udiv", "srem", "urem"}
 
 #: vector x scalar op codes
 VBINX_OPS = {"add", "mul"}
 
 #: vector unary op codes
-VUNARY_OPS = {"fneg", "not", "fcvt"}
+VUNARY_OPS = {"fneg", "not", "fcvt", "fcvt.xf", "fcvt.fxu", "fcvt.xuf"}
+
+#: widening value-convert kinds (T012): ff = f16->f32, fx = i16->f32,
+#: fxu = u16->f32 (the destination doubles SEW and LMUL, same element
+#: count at the shared avl)
+VFWCVT_OPS = {"ff", "fx", "fxu"}
+
+#: narrowing value-convert kinds (T012): ff = f32->f16 (RTNE), ffrtz =
+#: f32->f16 (RTZ, the fp_downcast_rounding='rtz' form), xf = f32 -> i16
+#: (RTZ, the pinned fptosi semantics), xuf = f32 -> u16 (RTZ)
+VFNCVT_OPS = {"ff", "ffrtz", "xf", "xuf"}
 
 #: comparison predicates (vector and scalar)
 CMP_PREDS = {"lt", "le", "gt", "ge", "eq", "ne"}
@@ -540,8 +555,12 @@ def _type_check(op: MOp, errors: List[MirError]) -> None:
     elif code == "vid":
         if ops or len(res) != 1:
             return err("'vid' takes no operands and one result")
-        if res[0].type != VectorType(32, 1, "int"):
-            return err("'vid' produces vi32m1")
+        t = res[0].type
+        if not isinstance(t, VectorType) or t.sew not in (8, 16, 32, 64) \
+                or t.kind not in ("int", "uint") \
+                or t.lmul not in (1, 2, 4, 8):
+            return err("'vid' produces a lane-id vector at the region's "
+                       "SEW/LMUL (integer kind -- T012)")
     elif code == "vsetvli":
         if len(ops) != 1 or not S(0) or ops[0].type.width != 32:
             return err("'vsetvli' takes one i32 AVL operand")
@@ -609,9 +628,13 @@ def _type_check(op: MOp, errors: List[MirError]) -> None:
     elif code == "vunary":
         if len(ops) != 1 or len(res) != 1 or not V(0) or not res[0].is_vector():
             return err("'vunary' takes one vector and produces one vector")
-        if op.attrs.get("op") == "fcvt":
+        fcvt_op = op.attrs.get("op")
+        if fcvt_op in ("fcvt", "fcvt.xf", "fcvt.fxu", "fcvt.xuf"):
             # int <-> float at the same SEW/LMUL: the element kind changes
-            # by value conversion, the shape does not
+            # by value conversion, the shape does not.  The rounding forms
+            # (T012): fcvt = f.x[u].v (int <- float only via the rtz forms),
+            # fcvt.xf/xuf = rtz (the pinned fptosi/fptoui truncation),
+            # fcvt.fxu = f.xu.v (unsigned int <- float)
             a, r = V(0), res[0].type
             if (a.sew, a.lmul) != (r.sew, r.lmul):
                 return err("'vunary' fcvt preserves SEW and LMUL")
@@ -619,6 +642,14 @@ def _type_check(op: MOp, errors: List[MirError]) -> None:
             if not kinds <= {"int", "uint", "float"} or a.kind == r.kind:
                 return err("'vunary' fcvt converts between integer and "
                            "float element kinds")
+            if fcvt_op == "fcvt" and a.kind == "float":
+                return err("'vunary' fcvt converts int -> float (the "
+                           "float -> int forms are fcvt.xf/fcvt.xuf, the "
+                           "rtz truncation semantics)")
+            if fcvt_op in ("fcvt.xf", "fcvt.xuf") and r.kind == "float":
+                return err("'vunary' rtz forms convert float -> integer")
+            if fcvt_op == "fcvt.fxu" and a.kind != "int":
+                return err("'vunary' fcvt.fxu converts int -> uint float")
             return
         if ops[0].type != res[0].type:
             return err("'vunary' must preserve the vector type")
@@ -673,8 +704,11 @@ def _type_check(op: MOp, errors: List[MirError]) -> None:
             return err("'vwiden' is vector to vector")
         if op.attrs.get("mode") not in ("sext", "zext"):
             return err("'vwiden' mode must be sext/zext")
-        if r != VectorType(a.sew * 2, a.lmul * 2, "int"):
-            return err(f"'vwiden' result must double SEW and LMUL, got {r!r}")
+        if (r.sew, r.lmul) != (a.sew * 2, a.lmul * 2) \
+                or r.kind not in ("int", "uint"):
+            return err(f"'vwiden' result must double SEW and LMUL (int or "
+                       f"uint kind -- the zext routes produce uint), got "
+                       f"{r!r}")
     elif code == "vwaddx0":
         if len(ops) != 1 or len(res) != 1:
             return err("'vwaddx0' takes one operand and one result")
@@ -683,8 +717,62 @@ def _type_check(op: MOp, errors: List[MirError]) -> None:
             return err("'vwaddx0' is vector to vector")
         if op.attrs.get("mode") not in ("sext", "zext"):
             return err("'vwaddx0' mode must be sext/zext")
-        if r != VectorType(a.sew * 2, a.lmul * 2, "int"):
-            return err(f"'vwaddx0' result must double SEW and LMUL, got {r!r}")
+        if (r.sew, r.lmul) != (a.sew * 2, a.lmul * 2) \
+                or r.kind not in ("int", "uint"):
+            return err(f"'vwaddx0' result must double SEW and LMUL (int or "
+                       f"uint kind), got {r!r}")
+    elif code == "vfwcvt":
+        # T012: the widening value convert (f16->f32, i16->f32, u16->f32):
+        # the destination doubles SEW and LMUL (the same element count at
+        # the shared avl -- the vwiden convention)
+        if len(ops) != 1 or len(res) != 1:
+            return err("'vfwcvt' takes one operand and one result")
+        a, r = V(0), res[0].type
+        if not a or not res[0].is_vector():
+            return err("'vfwcvt' is vector to vector")
+        if op.attrs.get("op") not in VFWCVT_OPS:
+            return err(f"'vfwcvt' op {op.attrs.get('op')!r} unknown")
+        if r != VectorType(a.sew * 2, a.lmul * 2, "float"):
+            return err(f"'vfwcvt' result must double SEW and LMUL to a "
+                       f"float kind, got {r!r}")
+        if op.attrs["op"] == "ff" and a.kind != "float":
+            return err("'vfwcvt' ff converts float -> float")
+        if op.attrs["op"] == "fx" and a.kind != "int":
+            return err("'vfwcvt' fx converts int -> float")
+        if op.attrs["op"] == "fxu" and a.kind != "uint":
+            return err("'vfwcvt' fxu converts uint -> float")
+    elif code == "vfncvt":
+        # T012: the narrowing value convert (f32->f16 RTNE, f32->i16 RTZ,
+        # f32->u16 RTZ): the destination halves SEW at the same LMUL (the
+        # same element count at the shared avl)
+        if len(ops) != 1 or len(res) != 1:
+            return err("'vfncvt' takes one operand and one result")
+        a, r = V(0), res[0].type
+        if not a or not res[0].is_vector():
+            return err("'vfncvt' is vector to vector")
+        if op.attrs.get("op") not in VFNCVT_OPS:
+            return err(f"'vfncvt' op {op.attrs.get('op')!r} unknown")
+        if a.sew % 2 or r.sew != a.sew // 2 or r.lmul > a.lmul:
+            return err(f"'vfncvt' result must halve SEW (at an LMUL that "
+                       f"fits the shared avl's lanes) with the "
+                       f"{op.attrs['op']} kind, got {r!r}")
+        if op.attrs["op"].startswith("ff") and a.kind != "float":
+            return err("'vfncvt' ff converts float -> float")
+        if op.attrs["op"] in ("xf", "xuf") and a.kind != "float":
+            return err("'vfncvt' xf/xuf convert float -> integer")
+    elif code == "vmovv":
+        # T012: the bit-level reinterpretation/retyping move (vmv.v.v):
+        # the element view (SEW/kind) may change and the group may narrow
+        # (the copy is avl-capped: the destination group must cover the
+        # active lanes, which the region discipline guarantees)
+        if len(ops) != 1 or len(res) != 1:
+            return err("'vmovv' takes one operand and one result")
+        a, r = V(0), res[0].type
+        if not a or not res[0].is_vector():
+            return err("'vmovv' is vector to vector")
+        if a.sew != r.sew and a.lmul < r.lmul:
+            return err("'vmovv' may narrow the group or retype the "
+                       "elements, not widen beyond the source group")
     elif code == "vrgather":
         if len(ops) != 2 or len(res) != 1:
             return err("'vrgather' takes a source and an index vector")
@@ -888,6 +976,40 @@ def _region_and_v0(op: MOp, region, errors: List[MirError]) -> Optional[tuple]:
                 Invariant.VSETVLI_REGION_INCONSISTENCY, op.loc,
                 f"widening source {src!r} does not match region "
                 f"e{sew}m{lmul}"))
+        return region
+    if op.opcode == "vfwcvt":
+        # the widening value convert: source at the region, destination
+        # doubles (the vwiden convention)
+        src = op.operands[0].type
+        if (src.sew, src.lmul) != (sew, lmul):
+            errors.append(MirError(
+                Invariant.VSETVLI_REGION_INCONSISTENCY, op.loc,
+                f"widening source {src!r} does not match region "
+                f"e{sew}m{lmul}"))
+        return region
+    if op.opcode == "vfncvt":
+        # the narrowing value convert: destination at the region, source
+        # at double the width (its register group covers the shared avl)
+        dst = op.results[0].type
+        if (dst.sew, dst.lmul) != (sew, lmul):
+            errors.append(MirError(
+                Invariant.VSETVLI_REGION_INCONSISTENCY, op.loc,
+                f"narrowing destination {dst!r} does not match region "
+                f"e{sew}m{lmul}"))
+        return region
+    if op.opcode == "vmovv":
+        # the register-view move: the region matches the narrower group
+        # (the copy is avl-capped; an overlapping vd/vs pair from a wider
+        # region is illegal on this target -- the lowering copies at the
+        # narrower view)
+        src_t = op.operands[0].type
+        dst_t = op.results[0].type
+        if (src_t.sew, src_t.lmul) != (sew, lmul) and \
+                (dst_t.sew, dst_t.lmul) != (sew, lmul):
+            errors.append(MirError(
+                Invariant.VSETVLI_REGION_INCONSISTENCY, op.loc,
+                f"move {src_t!r} -> {dst_t!r} matches neither side of the "
+                f"region e{sew}m{lmul}"))
         return region
 
     def check_v0() -> None:

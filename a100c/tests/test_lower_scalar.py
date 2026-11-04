@@ -354,57 +354,52 @@ def check_bool_class(workdir, compiler):
 # ---------------------------------------------------------------------------
 
 def check_refusals_located(workdir, compiler):
-    """Vector division and remainder refuse located (no vector div row in
-    the slice); the pow2 fold declines a runtime (non-constexpr) divisor
-    (the legality guard), and scalar widening beyond 32->64 refuses."""
+    """T012 implements vector division/remainder (the layout lane's index
+    maps and tl.swizzle2d need them; vdiv/vrem/vdivu probed under the
+    pinned QEMU), so the runtime (non-constexpr) divisor now EXECUTES
+    CORRECTLY through vrem (the pinned srem semantics) instead of
+    refusing; the pow2 fold still applies to the provable forms."""
     bad = []
     cases = []
-    # runtime divisor: the fold cannot prove the power of two
+    # runtime divisor: executes through the vector remainder row
     cases.append((
         "x_ptr, out_ptr, n, k, BLOCK: tl.constexpr",
-        """\\
+        """\
     i = tl.arange(0, BLOCK)
     x = tl.load(x_ptr + i)
     tl.store(out_ptr + i, (x % k).to(tl.int32))""",
-        ("remainder", "srem", "division")))
-    refusal_layer = ('def ref(args, meta):\n'
-                     '    return {"out_ptr": args["x_ptr"]}\n'
-                     '\n'
-                     'def _make_case(shape=SHAPES[0], dtype="int32", seed=0):\n'
-                     '    n = int(shape[0])\n'
-                     '    rng = np.random.default_rng(seed)\n'
-                     '    x = rng.integers(-100, 100, n).astype(np.int32)\n'
-                     '    args = {"x_ptr": x, "out_ptr": np.zeros(n, np.int32),\n'
-                     '            "n": n, "k": 3}\n'
-                     '    meta = {"BLOCK": 128}\n'
-                     '    grid = ((n + 127) // 128,)\n'
-                     '    return {"args": args, "meta": meta, "grid": grid,\n'
-                     '            "kernel": refuse_kernel, "outputs": ("out_ptr",),\n'
-                     '            "expected": ref(args, meta),\n'
-                     '            "comparison": {"out_ptr": {"comparator": "array_equal",\n'
-                     '                                       "exact": True}}}\n'
-                     '\n'
-                     'def make_case(shape=None, dtype=None, seed=None):\n'
-                     '    return _make_case(shape=shape or SHAPES[0],\n'
-                     '                      dtype=dtype or "int32", seed=seed or 0)\n')
-    for params, body, needles in cases:
+        ('def ref(args, meta):\n'
+         '    import numpy as np\n'
+         '    x = np.asarray(args["x_ptr"])\n'
+         '    return {"out_ptr": np.fmod(x, 3).astype(np.int32)}\n'
+         '\n'
+         'def _make_case(shape=(128,), dtype="int32", seed=0):\n'
+         '    n = int(shape[0])\n'
+         '    rng = np.random.default_rng(seed)\n'
+         '    x = rng.integers(-100, 100, n).astype(np.int32)\n'
+         '    args = {"x_ptr": x, "out_ptr": np.zeros(n, np.int32),\n'
+         '            "n": n, "k": 3}\n'
+         '    meta = {"BLOCK": 128}\n'
+         '    grid = ((n + 127) // 128,)\n'
+         '    return {"args": args, "meta": meta, "grid": grid,\n'
+         '            "kernel": refuse_kernel, "outputs": ("out_ptr",),\n'
+         '            "expected": ref(args, meta),\n'
+         '            "comparison": {"out_ptr": {"comparator": "array_equal",\n'
+         '                                       "exact": True}}}\n'
+         '\n'
+         'def make_case(shape=None, dtype=None, seed=None):\n'
+         '    return _make_case(shape=shape or (128,),\n'
+         '                      dtype=dtype or "int32", seed=seed or 0)\n')))
+    for params, body, case_layer in cases:
         path = _operator_file(workdir, "refuse", params, body,
-                              refusal_layer)
+                              case_layer)
         module = _load(path)
-        try:
-            compiler.compile_case(module.make_case())
-            bad.append("compiled (expected a located refusal)")
-        except PipelineError as exc:
-            if not any(nd in str(exc) for nd in needles):
-                bad.append(str(exc)[:100])
-        except Exception as exc:               # noqa: BLE001
-            # a located frontend refusal that surfaces before the driver
-            # wraps it is still a located refusal
-            if "remainder" not in str(exc) and "srem" not in str(exc) \
-                    and "division" not in str(exc):
-                bad.append(f"wrong error type {type(exc).__name__}: "
-                           f"{str(exc)[:80]}")
-    check("scalar-core-refusals-located", not bad, "; ".join(bad[:2]))
+        for threads in (1, 4):
+            ok, detail = _run_case(compiler, module, threads)
+            if not ok:
+                bad.append(f"t={threads}: {detail}")
+    check("runtime-divisor-remainder-executes-exact", not bad,
+          "; ".join(bad[:2]))
 
 
 def main() -> int:

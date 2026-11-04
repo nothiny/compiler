@@ -148,7 +148,10 @@ def _vector_rows() -> List[InstructionEntry]:
     # fp=True in the features and select the vf* rows below)
     for op, m in (("add", "vadd"), ("sub", "vsub"), ("mul", "vmul"),
                   ("and", "vand"), ("or", "vor"), ("xor", "vxor"),
-                  ("srl", "vsrl"), ("sra", "vsra"), ("sll", "vsll")):
+                  ("srl", "vsrl"), ("sra", "vsra"), ("sll", "vsll"),
+                  # T012: the layout lane's index maps / tl.swizzle2d
+                  ("sdiv", "vdiv"), ("udiv", "vdivu"),
+                  ("srem", "vrem"), ("urem", "vremu")):
         rows.append(_E(m + ".vv", "vbin", (("op", op), ("fp", False)),
                        f"{m}.vv {{vd}}, {{vs2}}, {{vs1}}",
                        evidence="RVV 1.0 (F006/F026)"))
@@ -176,6 +179,59 @@ def _vector_rows() -> List[InstructionEntry]:
     rows.append(_E("vfcvt.f.x.v", "vunary", (("op", "fcvt"),),
                    "vfcvt.f.x.v {vd}, {vs2}",
                    notes="signed integer to float at the same SEW",
+                   evidence="RVV 1.0 (F006)"))
+    # T012: the conversion matrix's same-width and widening/narrowing forms
+    # (each probed under the pinned QEMU endpoint: vfcvt.x.f.v,
+    # vfcvt.rtz.x.f.v, vfcvt.f.xu.v, vfcvt.rtz.xu.f.v, vfwcvt.f.f.v,
+    # vfwcvt.f.x.v, vfncvt.f.f.w, vfncvt.x.f.w all executed, exit 42)
+    rows.append(_E("vfcvt.rtz.x.f.v", "vunary", (("op", "fcvt.xf"),),
+                   "vfcvt.rtz.x.f.v {vd}, {vs2}",
+                   notes="float to signed int truncating toward zero (the "
+                         "pinned fptosi semantics)",
+                   evidence="probed under the pinned QEMU (exit 42)"))
+    rows.append(_E("vfcvt.f.xu.v", "vunary", (("op", "fcvt.fxu"),),
+                   "vfcvt.f.xu.v {vd}, {vs2}",
+                   notes="unsigned integer to float at the same SEW",
+                   evidence="probed under the pinned QEMU (exit 42)"))
+    rows.append(_E("vfcvt.rtz.xu.f.v", "vunary", (("op", "fcvt.xuf"),),
+                   "vfcvt.rtz.xu.f.v {vd}, {vs2}",
+                   notes="float to unsigned int truncating toward zero",
+                   evidence="probed under the pinned QEMU (exit 42)"))
+    rows.append(_E("vfwcvt.f.f.v", "vfwcvt", (("op", "ff"),),
+                   "vfwcvt.f.f.v {vd}, {vs2}",
+                   notes="f16 -> f32 widening (exact)",
+                   evidence="probed under the pinned QEMU (exit 42)"))
+    rows.append(_E("vfwcvt.f.x.v", "vfwcvt", (("op", "fx"),),
+                   "vfwcvt.f.x.v {vd}, {vs2}",
+                   notes="i16 -> f32 widening",
+                   evidence="probed under the pinned QEMU (exit 42)"))
+    rows.append(_E("vfwcvt.f.xu.v", "vfwcvt", (("op", "fxu"),),
+                   "vfwcvt.f.xu.v {vd}, {vs2}",
+                   notes="u16 -> f32 widening",
+                   evidence="RVV 1.0 (F006)"))
+    rows.append(_E("vfncvt.f.f.w", "vfncvt", (("op", "ff"),),
+                   "vfncvt.f.f.w {vd}, {vs2}",
+                   notes="f32 -> f16 narrowing (round to nearest even, the "
+                         "pinned default downcast rounding)",
+                   evidence="probed under the pinned QEMU (exit 42)"))
+    rows.append(_E("vfncvt.rtz.f.f.w", "vfncvt", (("op", "ffrtz"),),
+                   "vfncvt.rtz.f.f.w {vd}, {vs2}",
+                   notes="f32 -> f16 narrowing, round toward zero (the "
+                         "fp_downcast_rounding='rtz' form)",
+                   evidence="RVV 1.0 (F006)"))
+    rows.append(_E("vfncvt.rtz.x.f.w", "vfncvt", (("op", "xf"),),
+                   "vfncvt.rtz.x.f.w {vd}, {vs2}",
+                   notes="f32 -> i16 narrowing, truncating toward zero",
+                   evidence="probed under the pinned QEMU (vfncvt.x.f.w "
+                            "family, exit 42)"))
+    rows.append(_E("vfncvt.rtz.xu.f.w", "vfncvt", (("op", "xuf"),),
+                   "vfncvt.rtz.xu.f.w {vd}, {vs2}",
+                   notes="f32 -> u16 narrowing, truncating toward zero",
+                   evidence="RVV 1.0 (F006)"))
+    rows.append(_E("vmv.v.v", "vmovv", (),
+                   "vmv.v.v {vd}, {vs2}",
+                   notes="the bit-level reinterpretation move (the same "
+                         "SEW/LMUL, the element kind changes)",
                    evidence="RVV 1.0 (F006)"))
     # vector reductions: vd[0] = vs1[0] combine vs2's active lanes; only
     # lane 0 of vd is consumed (the merge accumulator convention)

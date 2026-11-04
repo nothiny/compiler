@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-04T21:00:07.984394+00:00",
+  "updated_at": "2026-11-04T23:52:34.355573+00:00",
   "facts": [
     {
       "id": "F001",
@@ -1558,14 +1558,14 @@
         "backend-path-v1"
       ],
       "tags": [],
-      "status": "RUNNING",
+      "status": "DONE",
       "assignee": "coder",
       "attempts": 1,
-      "evidence": "",
+      "evidence": "worker report WTI013: Layout, shape and dtype-conversion breadth implemented through the real compilation path and executed under the pinned QEMU endpoint. (1) Frontend: all 17 layout constructs (reshape/view/ravel/squeeze/unsqueeze/expand_dims as the flat-identity reshape forms with the covered-axes broadcast-flag rule, trans/permute/.T, join, split, cat as the pinned join+permute+reshape desugar, broadcast_to/broadcast/tl.broadcast, flip, swizzle2d as the pinned arithmetic index transform, to_tensor, the [:, None] subscript) plus distinct convert/bitcast TIR ops with verifier rules; tl.full with a runtime value lowers through the splat broadcast; value-level dtype introspection folds (x.dtype on runtime values). (2) Lowering: the multi-pass layout lane -- the region segments into extent-homogeneous passes and layout staging points; every pass is its own chunk loop at its own SEW/vl (multi-arange kernels supported); layout data movement runs through dedicated staging loops over the private workspace with compiled index maps (permute/flip/join/split/broadcast); cross-pass values stage through workspace regions (32-bit-minimum lanes: e8/e16 data with e64 indexed forms segfault the pinned QEMU, probed; sub-32 ints stage zext-widened, 16-bit floats as their exact fp32 widening, booleans as 0/1 lanes reloaded as masks); registers do not survive a pass loop (constants re-emit; scalars ride per-pass liveouts; workspace bases reload). (3) Conversion matrix: vfcvt.f.x[u].v and vfcvt.rtz.x[u].f.v (same width), vfwcvt (fp16->fp32 widening, probed), vfncvt (fp32->fp16 RTNE and rtz; f32->i16/u16 RTZ), int widen (sext/zext) and narrowing (the register-view vrgather), bf16<->fp32 via the exact zext+shift widening and the transport's own RTNE bit rounding (bit-identical to the host staging), int->fp16 through fp32 under the declared policy; vmovv as the bit-level register-view move with the probed no-overlap and byte-covering region rules; the allocator gains destination/source ov",
       "last_error": "",
       "failure_kind": "",
       "start_revision": "95e1cffd47f16bc83a3131bfc47e4d00241a86bb",
-      "end_revision": "",
+      "end_revision": "f88ceea75df46e2037f76f8a148c29f449e782a0",
       "completed_seq": 0,
       "debug_required": false,
       "debug_request_id": "",
@@ -1631,7 +1631,7 @@
         "layout-ops-v1"
       ],
       "tags": [],
-      "status": "BLOCKED",
+      "status": "READY",
       "assignee": "",
       "attempts": 0,
       "evidence": "",
@@ -1711,7 +1711,7 @@
         "memory-forms-v1"
       ],
       "tags": [],
-      "status": "BLOCKED",
+      "status": "READY",
       "assignee": "",
       "attempts": 0,
       "evidence": "",
@@ -6959,6 +6959,30 @@
       "phase": "IMPLEMENTATION",
       "event": "task-delegate",
       "detail": "WTI013 task=T012 attempt=1 profile=general-purpose"
+    },
+    {
+      "at": "2026-11-04T23:50:35.559955+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "task-record-warning",
+      "detail": "supplement unparseable report; invocation remains open"
+    },
+    {
+      "at": "2026-11-04T23:52:34.326634+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "task-report-out-of-contract",
+      "detail": "T012: a100c/cache/5836240a4e1aa6f2d2d1e38e91f07cd0cd3ebb0ff6a6a7bcaea2f10614639a3a/stage.plan.txt, a100c/frontend/lower_tir.py, a100c/cache/5836240a4e1aa6f2d2d1e38e91f07cd0cd3ebb0ff6a6a7bcaea2f10614639a3a/stage.tir.txt, a100c/cache/f745613a253d90d1b000ca58b2213b7acd043c6a9ff9ef224990fdaec4f30cf1/stage.selection.txt, a100c/cache/33511744dff5739e9230370c4832dd6e8e5f028f3ab375717783f9a70dc5454a/stage.selection.txt"
+    },
+    {
+      "at": "2026-11-04T23:52:34.332422+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "task-report",
+      "detail": "WTI013 COMPLETED attempt=1 [changes outside the declared paths: a100c/cache/5836240a4e1aa6f2d2d1e38e91f07cd0cd3ebb0ff6a6a7bcaea2f10614639a3a/stage.plan.txt, a100c/frontend/lower_tir.py, a100c/cache/5836240a4e1aa6f2d2d1e38e91f07cd0cd3ebb0ff6a6a7bcaea2f10614639a3a/stage.tir.txt, a100c/cache/f745613a253d90d1b000ca58b2213b7acd043c6a9ff9ef224990fdaec4f30cf1/stage.selection.txt, a100c/cache/33511744dff5739e9230370c4832dd6e8e5f028f3ab375717783f9a70dc5454a/stage.selection.txt]"
+    },
+    {
+      "at": "2026-11-04T23:52:34.355560+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "complete-task",
+      "detail": "T012 worker report WTI013: Layout, shape and dtype-conversion breadth implemented through the real compilation path and executed under the pinned QEMU endpoint. (1) Frontend: all 17 layout constructs (reshape/view/ravel/squeeze/unsqueeze/expand_dims as the flat-identity reshape forms with the covered-axes broadcast-flag rule, trans/permute/.T, join, split, cat as the pinned join+permute+reshape desugar, broadcast_to/broadcast/tl.broadcast, flip, swizzle2d as the pinned arithmetic index transform, to_tensor, the [:, None] subscript) plus distinct convert/bitcast TIR ops with verifier rules; tl.full with a runtime value lowers through the splat broadcast; value-level dtype introspection folds (x.dtype on runtime values). (2) Lowering: the multi-pass layout lane -- the region segments into extent-homogeneous passes and layout staging points; every pass is its own chunk loop at its own SEW/vl (multi-arange kernels supported); layout data movement runs through dedicated staging loops over the private workspace with compiled index maps (permute/flip/join/split/broadcast); cross-pass values stage through workspace regions (32-bit-minimum lanes: e8/e16 data with e64 indexed forms segfault the pinned QEMU, probed; sub-32 ints stage zext-widened, 16-bit floats as their exact fp32 widening, booleans as 0/1 lanes reloaded as masks); registers do not survive a pass loop (constants re-emit; scalars ride per-pass liveouts; workspace bases reload). (3) Conversion matrix: vfcvt.f.x[u].v and vfcvt.rtz.x[u].f.v (same width), vfwcvt (fp16->fp32 widening, probed), vfncvt (fp32->fp16 RTNE and rtz; f32->i16/u16 RTZ), int widen (sext/zext) and narrowing (the register-view vrgather), bf16<->fp32 via the exact zext+shift widening and the transport's own RTNE bit rounding (bit-identical to the host staging), int->fp16 through fp32 under the declared policy; vmovv as the bit-level register-view move with the probed no-overlap and byte-covering region rules; the allocator gains destination/source ov"
     }
   ]
 }

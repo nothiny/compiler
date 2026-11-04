@@ -46,7 +46,7 @@ __all__ = [
     "SrcLoc", "Type", "Shape", "Extent", "Sym", "Value", "Op", "Block",
     "If", "Loop", "Function", "Module", "MaskedDefault", "TirError",
     "Invariant", "verify_module", "verify", "unify_shapes", "value_shape",
-    "is_real", "real_shape",
+    "is_real", "real_shape", "flat_extent", "LAYOUT_OPS",
 ]
 
 # ---------------------------------------------------------------------------
@@ -281,6 +281,82 @@ def unify_shapes(a: Shape, b: Shape) -> Optional[Shape]:
             out.append(Extent(ea.value, ea.broadcast and True))
         else:
             return None
+    return tuple(out)
+
+
+def flat_extent(shape: Shape) -> Optional[int]:
+    """The flat element count of a compile-time shape (None when any extent
+    is runtime-symbolic -- layout blocks must be compile-time shaped)."""
+    total = 1
+    for e in shape:
+        if isinstance(e.value, Sym) or isinstance(e.value, bool) \
+                or not isinstance(e.value, int):
+            return None
+        total *= e.value
+    return total
+
+
+#: layout data-movement ops (the T012 lane): they relate distinct flat index
+#: spaces (or permute one) and lower through the multi-pass staging model.
+#: ``reshape`` is *metadata* (flat-identity) and ``broadcast`` is a layout op
+#: only for block operands with a non-equal target shape.
+LAYOUT_OPS = {"permute", "flip", "join", "split", "interleave"}
+
+
+def _reshape_covering(src: Shape, extents) -> Shape:
+    """The covered-axes rule: each result axis covers a contiguous
+    multiplicative run of source axes; a splitting or inserted axis is
+    REAL (the conservative flag).  Raises ValueError when the extents do
+    not tile."""
+    src_vals = [e.value for e in src]
+    total_src, total_dst = 1, 1
+    for v in src_vals:
+        total_src *= v
+    for v in extents:
+        total_dst *= v
+    if total_src != total_dst:
+        raise ValueError(
+            f"element counts differ ({total_src} vs {total_dst})")
+    si = 0
+    rem = src_vals[0] if src_vals else None
+    out = []
+    for de in extents:
+        if de == 1:
+            if rem == 1 and si < len(src_vals):
+                out.append(Extent(1, src[si].broadcast))
+                si += 1
+                rem = src_vals[si] if si < len(src_vals) else None
+            else:
+                out.append(Extent(1, False))
+            continue
+        need = de
+        flags = []
+        aligned = True
+        while need > 1:
+            if rem is None:
+                raise ValueError(
+                    f"the axes do not tile (ran out of source extent at "
+                    f"extent {de})")
+            if rem <= need and need % rem == 0:
+                flags.append(src[si].broadcast)
+                need //= rem
+                si += 1
+                rem = src_vals[si] if si < len(src_vals) else None
+            elif rem % need == 0:
+                rem //= need
+                need = 1
+                aligned = False
+            else:
+                raise ValueError(
+                    f"the axes do not tile (extent {de} vs remaining "
+                    f"source extent {rem})")
+        out.append(Extent(de, aligned and all(flags)))
+    if rem is not None and rem != 1:
+        raise ValueError(f"source extent {rem} is left uncovered")
+    for v in src_vals[si:]:
+        if v != 1:
+            raise ValueError(
+                f"source axes {src_vals[si:]} are left uncovered")
     return tuple(out)
 
 
@@ -663,6 +739,58 @@ class Op:
         shape = list(a.shape)
         shape[-1] = Extent(last.value * 2, last.broadcast)
         return Op("interleave", (a, b), loc, a.type, tuple(shape))
+
+    # -- T012: layout, shape and dtype-conversion breadth -------------------
+
+    @staticmethod
+    def reshape(value: Value, shape: Shape, loc: Optional[SrcLoc] = None,
+                can_reorder: bool = False) -> "Op":
+        """Re-partition the axes without touching the flat element order
+        (``tl.reshape`` with ``can_reorder=False``; ``can_reorder=True``
+        (``tl.view``) permits any permutation and the identity is the
+        realized choice -- the classification is carried for the count).
+
+        The op is *metadata on the data path*: the result's lanes are the
+        source's lanes (the lowering's register/workspace identity).
+        """
+        return Op("reshape", (value,), loc, value.type, shape,
+                  attrs={"from_shape": value.shape,
+                         "can_reorder": bool(can_reorder)})
+
+    @staticmethod
+    def permute(value: Value, dims: Sequence[int],
+                loc: Optional[SrcLoc] = None) -> "Op":
+        """Axis permutation (``tl.trans`` / ``tl.permute``): result axis j
+        is source axis ``dims[j]``.  The flat element order changes; the
+        lowering realizes it through the staging map."""
+        shape = tuple(value.shape[d] for d in dims)
+        return Op("permute", (value,), loc, value.type, shape,
+                  attrs={"dims": tuple(int(d) for d in dims)})
+
+    @staticmethod
+    def join(a: Value, b: Value,
+             loc: Optional[SrcLoc] = None) -> "Op":
+        """Append a minor extent-2 axis (``tl.join``): ``r[..., 0] = a``,
+        ``r[..., 1] = b`` (the operands are pre-unified by the frontend,
+        exactly the pinned ``broadcast_impl_value`` first step)."""
+        shape = tuple(a.shape) + (Extent(2, False),)
+        return Op("join", (a, b), loc, a.type, shape,
+                  attrs={"from_shape": a.shape})
+
+    @staticmethod
+    def split(value: Value, loc: Optional[SrcLoc] = None) -> "Op":
+        """Split the last extent-2 axis into two values (``tl.split``):
+        ``lhs[..., i] = value[..., i]``."""
+        shape = tuple(value.shape[:-1])
+        return Op("split", (value,), loc, value.type, shape, results=2)
+
+    @staticmethod
+    def flip(value: Value, dim: int,
+             loc: Optional[SrcLoc] = None) -> "Op":
+        """Reverse one axis (``tl.flip``; the pinned surface requires a
+        power-of-two extent there)."""
+        return Op("flip", (value,), loc, value.type, value.shape,
+                  attrs={"dim": int(dim)})
 
     @staticmethod
     def reduce(value: Value, kind: str, axes: Sequence[int],
@@ -1464,6 +1592,100 @@ def _type_rule_errors(op: Op, errors: list) -> None:
                 value_shape(_topk_shape(v.shape, dim, k)):
             return err("'topk' result shape must replace dim's extent "
                        "with k")
+    elif op_name == "reshape":
+        v = ops[0]
+        if len(ops) != 1 or len(op.results) != 1:
+            return err("'reshape' takes one operand and produces one value")
+        src, dst = v.shape, op.results[0].shape
+        if op.results[0].type != v.type:
+            return err("'reshape' must preserve the element type")
+        ns, nd = flat_extent(src), flat_extent(dst)
+        if ns is None or nd is None:
+            return err("'reshape' requires compile-time extents (a symbolic "
+                       "axis is not re-partitionable)")
+        if ns != nd:
+            return err(f"'reshape' cannot change the element count: "
+                       f"{list(src)} ({ns}) -> {list(dst)} ({nd})")
+        # the covered-axes rule (the frontend's _reshape_flags, restated):
+        # each result axis covers a contiguous multiplicative run; an axis
+        # that splits a source axis or is inserted at extent 1 is REAL
+        try:
+            want = _reshape_covering(src, [e.value for e in dst])
+        except ValueError as exc:
+            return err(f"'reshape' covering failed: {exc}")
+        if tuple(dst) != want:
+            return err(f"'reshape' result flags {list(dst)} do not match "
+                       f"the covered-axes rule {list(want)}")
+        if not isinstance(op.attrs.get("can_reorder"), bool):
+            return err("'reshape' can_reorder must be a bool")
+    elif op_name == "permute":
+        v = ops[0]
+        if len(ops) != 1 or len(op.results) != 1:
+            return err("'permute' takes one operand and produces one value")
+        dims = op.attrs.get("dims")
+        rank = len(v.shape)
+        if not isinstance(dims, tuple) or len(dims) != rank:
+            return err(f"'permute' dims {dims!r} must permute rank {rank}")
+        if sorted(dims) != list(range(rank)):
+            return err(f"'permute' dims {dims!r} is not a permutation of "
+                       f"0..{rank - 1}")
+        want = tuple(v.shape[d] for d in dims)
+        if op.results[0].shape != want:
+            return err(f"'permute' result shape {list(op.results[0].shape)} "
+                       f"is not the permuted shape {list(want)}")
+        if op.results[0].type != v.type:
+            return err("'permute' must preserve the element type")
+    elif op_name == "join":
+        if len(ops) != 2 or len(op.results) != 1:
+            return err("'join' takes two operands and produces one value")
+        a, b = ops
+        if a.type != b.type:
+            return err(f"'join' operand types differ: {a.type!r} vs "
+                       f"{b.type!r} (the frontend pre-unifies the operands)")
+        if a.shape != b.shape:
+            return err(f"'join' operand shapes differ: {list(a.shape)} vs "
+                       f"{list(b.shape)} (broadcast_impl_value runs first)")
+        want = tuple(a.shape) + (Extent(2, False),)
+        if op.results[0].shape != want:
+            return err(f"'join' result shape {list(op.results[0].shape)} is "
+                       f"not the operands' shape with a minor 2-axis "
+                       f"{list(want)}")
+        if op.results[0].type != a.type:
+            return err("'join' must preserve the element type")
+    elif op_name == "split":
+        if len(ops) != 1 or len(op.results) != 2:
+            return err("'split' takes one operand and produces two values")
+        v = ops[0]
+        if len(v.shape) < 2:
+            return err("'split' requires rank >= 2 (the rank-1 "
+                       "split-to-scalars form is a declared-unsupported "
+                       "frontend refusal)")
+        last = v.shape[-1]
+        if last.value != 2 or last.broadcast:
+            return err(f"'split' requires a real last extent of 2, got "
+                       f"{last!r}")
+        want = tuple(v.shape[:-1])
+        for r in op.results:
+            if r.shape != want:
+                return err(f"'split' result shape {list(r.shape)} is not the "
+                           f"source shape without the last axis "
+                           f"{list(want)}")
+            if r.type != v.type:
+                return err("'split' must preserve the element type")
+    elif op_name == "flip":
+        v = ops[0]
+        if len(ops) != 1 or len(op.results) != 1:
+            return err("'flip' takes one operand and produces one value")
+        dim = op.attrs.get("dim")
+        if not isinstance(dim, int) or isinstance(dim, bool) \
+                or not 0 <= dim < len(v.shape):
+            return err(f"'flip' dim {dim!r} outside the rank {len(v.shape)}")
+        ext = v.shape[dim].value
+        if not isinstance(ext, int) or ext < 1 or (ext & (ext - 1)):
+            return err(f"'flip' requires a power-of-two extent at dim {dim} "
+                       f"(the pinned surface's static_assert), got {ext!r}")
+        if op.results[0].type != v.type or op.results[0].shape != v.shape:
+            return err("'flip' preserves the operand's type and shape")
     elif op_name == "histogram":
         if len(ops) != 1 or len(op.results) != 1:
             return err("'histogram' takes one operand and produces one "

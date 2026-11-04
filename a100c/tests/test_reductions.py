@@ -673,17 +673,24 @@ def check_remaining_boundaries_refuse_located(compiler):
          ("grid", "bundle-visible")),
         # loop_sum: the identity .to(float32) folds, but the int64
         # median family refuses on the element width
+        # T012 widened the conversion matrix, so the int64 element path
+        # now reaches the scalar bool store boundary instead of the
+        # element-width refusal -- both are located refusals naming the
+        # construct that is out of the lane
         ("ops/suite/dev/median_bool_from_counts_kernel.py",
-         {"shape": (17, 3)}, ("width 64", "SEW")),
+         {"shape": (17, 3)},
+         ("width 64", "SEW", "scalar bool stores", "scalar core")),
         # cumsum family: needs tl.cast (a real conversion)
         ("ops/suite/dev/masked_cumsum_vec_kernel.py",
          {"shape": (17, 257), "dtype": "float32"},
          ("cast", "conversion", "conversions",
           "compile-time dtype")),
-        # sort family: needs flip / gather (layout lane)
+        # sort family: T012 implements flip, so the file's refusal boundary
+        # moved past it -- it now refuses on tl.softmax's exp (the
+        # math-ops lane owns that construct)
         ("ops/suite/dev/ranked_distribution_semantic.py",
          {"shape": (16,), "dtype": "float32"},
-         ("flip", "gather", "cast")),
+         ("softmax", "exp", "math-ops", "flip", "gather", "cast")),
     ]
     for rel, kwargs, needles in cases:
         module = _load(ROOT / rel)

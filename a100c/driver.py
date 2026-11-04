@@ -271,6 +271,11 @@ class Compiler:
                                                 layout, grid, options)
         except VectorizeError as exc:
             raise PipelineError(exc.loc, exc.construct, exc.message) from None
+        except vectorize.scalar_mod.ScalarLoweringError as exc:
+            # a located scalar-core refusal surfacing through the vector
+            # path (T012: the widened conversion matrix reaches deeper
+            # before refusing)
+            raise PipelineError(None, "scalar-lowering", str(exc)) from None
         errors = mir.verify_module(mir_module)
         if errors:
             raise PipelineError(None, "mir-verifier", str(errors[0]))

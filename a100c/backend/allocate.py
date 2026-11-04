@@ -242,6 +242,14 @@ def _interference(fn: mir.MFunction) -> Tuple[Dict[int, Set[int]], Dict[int, Set
                 for o in op.operands:
                     for r in op.results:
                         edge(r.rid, o.rid)
+            if op.opcode in ("vfncvt", "vfwcvt", "vmovv"):
+                # T012: the widening/narrowing converts and the register
+                # move read their source group while writing the
+                # destination -- vd overlapping vs2 is an illegal form on
+                # this target (probed: SIGILL)
+                for o in op.operands:
+                    for r in op.results:
+                        edge(r.rid, o.rid)
         for _target, args in b.branch_args().items():
             for a in args:
                 touch(a)
@@ -576,7 +584,10 @@ def _check_group_overlap(fn: mir.MFunction, alloc: "Allocation") -> None:
                     continue
                 dst = indices(r)
                 for o in op.operands:
-                    if not o.is_vector() or o.type.lmul == r.type.lmul:
+                    if not o.is_vector():
+                        continue
+                    if o.type.lmul == r.type.lmul and \
+                            op.opcode not in ("vfncvt", "vfwcvt", "vmovv"):
                         continue
                     overlap = dst & indices(o)
                     if overlap:
@@ -585,7 +596,7 @@ def _check_group_overlap(fn: mir.MFunction, alloc: "Allocation") -> None:
                             f"allocation gives '{r.name}' ({alloc.assignment.get(r.rid)}) "
                             f"a destination group overlapping source "
                             f"'{o.name}' ({alloc.assignment.get(o.rid)}) in "
-                            f"'{op.opcode}' -- a mixed-LMUL overlap the "
+                            f"'{op.opcode}' -- an overlap the "
                             "hardware rejects (illegal instruction)")
 
 

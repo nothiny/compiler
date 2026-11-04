@@ -87,6 +87,12 @@ class LowerOptions:
     #: load-bearing).  Never set by the normal path; recorded in the
     #: artifact identity when set.
     witness_drop_atomic_masks: bool = False
+    #: the declared numeric decision (T012): fp16/bf16 block arithmetic
+    #: runs in FP32 with one rounding back at the element type (fp32
+    #: stays IEEE).  bf16 has no native vector arithmetic on this target;
+    #: fp16 native lanes exist (probed) and the switch selects the
+    #: single-rounding policy.  Recorded in the artifact identity.
+    fp16_bf16_fp32_lanes: bool = True
 
     def identity_part(self) -> str:
         parts = []
@@ -96,6 +102,8 @@ class LowerOptions:
             parts.append("witness-drop-stage-barrier")
         if self.witness_drop_atomic_masks:
             parts.append("witness-drop-atomic-masks")
+        if not self.fp16_bf16_fp32_lanes:
+            parts.append("native-fp16-lanes")
         return ",".join(parts) if parts else "default"
 
 
@@ -227,6 +235,25 @@ class SliceLowering:
         self._views_reg: Optional[mir.VReg] = None
         #: scan accumulators discovered by the pre-scan (workspace scans)
         self._scan_accs: List[dict] = []
+        # -- T012: the multi-pass layout lane --------------------------------
+        #: staged block values (vid -> region record): produced in one pass,
+        #: consumed in a later pass or by a layout staging loop; the private
+        #: workspace holds their bytes
+        self._staged: Dict[int, dict] = {}
+        #: vids whose producing statement must store to the staging region
+        self._stage_out: set = set()
+        #: the region's segments (computed in lower()): scalar groups,
+        #: extent-homogeneous passes and layout staging points
+        self._segments: List[tuple] = []
+        #: region depth: >0 inside an if arm or loop body (staging stores
+        #: are not emitted there -- a cross-pass value must be top-level)
+        self._region_depth: int = 0
+        #: per-pass liveout slots (pass index -> [(vid, slot)])
+        self._pass_liveouts: Dict[int, List[Tuple[int, int]]] = {}
+        #: vids bound inside the currently open pass (loop-local registers)
+        self._pass_bound: set = set()
+        #: layout staging counter (IR-OBSERVABILITY: the countable record)
+        self._layout_stagings: List[dict] = []
 
     # -- helpers ---------------------------------------------------------------
     def _err(self, loc, construct: str, message: str):
@@ -247,21 +274,185 @@ class SliceLowering:
             return ctx_emit_view_load(self, loc, view_index)
         reg = self.value(t)
         if reg is None:
+            rec = getattr(self, "_staged", {}).get(t.vid)
+            if rec is not None:
+                # a staged value: materialize its lanes from the private
+                # workspace at the current pass's chunk position
+                # (lane-aligned: the consumer pass's extent equals the
+                # value's extent -- the verifier's lane-alignment rules)
+                return self._load_staged(t, rec, loc)
+            prod = t.producer
+            if prod is not None and prod.op == "const":
+                # a constant whose register was bound in an earlier pass:
+                # constants are pure -- re-emit at the current position
+                # (registers do not survive a pass loop)
+                creg = scalar_mod.lower_const(self._ctx,
+                                              prod.attrs["value"],
+                                              t.type, loc)
+                self.values[t.vid] = creg
+                if self._names is not None:
+                    for key in t.scope_names():
+                        self._names.define(key, t)
+                return creg
             raise self._err(loc, t.name,
                             f"TIR value '{t.name}' is not lowered before its "
                             "use (use-before-definition in the lowering)")
+        return reg
+
+    def _load_staged(self, t: tir.Value, rec: dict, loc) -> mir.VReg:
+        """Materialize one staged value's lanes at the current position:
+        ``ws[offset + (elem + lane) * esz]`` through the indexed load."""
+        ctx = self._ctx
+        if self._chunk is None:
+            raise self._err(
+                loc, "layout",
+                f"a staged value ('{t.name}') is consumed outside any pass "
+                "(the segmentation and the emission disagree)")
+        vl = self._vl
+        lane_sew = rec["lane_sew"]
+        kind = "float" if rec["type"].is_float() else \
+            ("uint" if rec["type"].is_int_unsigned() else "int")
+        sew_v = lane_sew
+        lmul = max(1, vl * sew_v // self.target.vlen_bits)
+        ity = self._idx_vtype(vl)
+        self._vregion(ctx, ity, loc)
+        vid = ctx.emit(mir.MOp(
+            "vid", [], [ctx.vreg(ity, hint="svid", loc=loc)], loc=loc))
+        idx = ctx.emit(mir.MOp(
+            "vbinx", [vid, self._chunk["elem"]],
+            [ctx.vreg(ity, hint="sidx", loc=loc)],
+            attrs={"op": "add"}, loc=loc))
+        scaled, _ = self._ws_scaled(ctx, idx, rec["esz"], loc, vl)
+        ws = self._workspace_private_reg(ctx, loc)
+        base = ctx.emit(mir.MOp(
+            "sadd", [ws, ctx.const(rec["offset"], mir.I64, loc)],
+            [ctx.vreg(mir.I64, hint="sb", loc=loc)], loc=loc))
+        avl = ctx.const(vl, mir.I32, loc)
+        ctx.emit(mir.MOp(
+            "vsetvli", [avl], [ctx.vreg(mir.I32, hint="slr", loc=loc)],
+            attrs={"sew": sew_v, "lmul": lmul, "policy": "ta,ma"},
+            loc=loc))
+        reg = ctx.emit(mir.MOp(
+            "vloadix", [base, scaled],
+            [ctx.vreg(mir.VectorType(sew_v, lmul, kind), hint="sld",
+                      loc=loc)],
+            attrs={"eew": 64, "sew": sew_v}, loc=loc))
+        if rec.get("mask"):
+            # a boolean block reloads as a mask (the lanes are 0/1)
+            zero = self._splat_const(
+                ctx, 0, mir.VectorType(sew_v, lmul, kind), loc)
+            reg = ctx.emit(mir.MOp(
+                "vcmp", [reg, zero],
+                [ctx.vreg(mir.MaskType(), hint="slm", loc=loc)],
+                attrs={"pred": "ne", "fp": False}, loc=loc))
+        elif rec["type"].is_float() and rec["type"].bitwidth() < lane_sew:
+            # a 16-bit float reloads through the RTNE narrowing (the
+            # exact round trip of the exact widening)
+            reg = self._f32_to_ff(ctx, reg, rec["type"], loc)
+        elif rec["type"].bitwidth() < lane_sew:
+            # a sub-32 integer reloads through the register view (the
+            # low bits of each lane are the value)
+            reg = self._int_narrow(ctx, reg, lane_sew,
+                                   rec["type"].bitwidth(), loc)
+        # restore the pass's data region (the consumer ops expect it)
+        self._restore_region(ctx, loc)
+        self.values[t.vid] = reg
+        if self._names is not None:
+            for key in t.scope_names():
+                self._names.define(key, t)
         return reg
 
     def _bind_result(self, op: tir.Op, reg: mir.VReg) -> None:
         """Record one op result's MIR register AND its scope names (the
         name environment the region joins and loop back edges read)."""
         self.values[op.results[0].vid] = reg
+        if self._chunk is not None:
+            self._pass_bound.add(op.results[0].vid)
         if self._names is not None:
             for key in op.results[0].scope_names():
                 self._names.define(key, op.results[0])
-        if self._names is not None:
-            for key in op.results[0].scope_names():
-                self._names.define(key, op.results[0])
+        # a staged-destined value stores its lanes to the staging region
+        # right here (top level of the current pass's chunk body; a value
+        # defined inside a runtime region cannot cross a pass boundary)
+        if op.results[0].vid in getattr(self, "_stage_out", set()):
+            self._store_staged(op.results[0], reg, op.loc)
+
+    def _store_staged(self, t: tir.Value, reg: mir.VReg, loc) -> None:
+        if self._region_depth > 0:
+            raise self._err(
+                loc, "layout",
+                f"a block value ('{t.name}') defined inside a runtime "
+                "region cannot cross a pass boundary (the layout lane "
+                "stages top-level values only)")
+        if self._chunk is None:
+            raise self._err(
+                loc, "layout",
+                f"a staged value ('{t.name}') is produced outside any "
+                "pass (the segmentation and the emission disagree)")
+        ctx = self._ctx
+        rec = self._staged[t.vid]
+        vl = self._vl
+        ity = self._idx_vtype(vl)
+        self._vregion(ctx, ity, loc)
+        vid = ctx.emit(mir.MOp(
+            "vid", [], [ctx.vreg(ity, hint="tvid", loc=loc)], loc=loc))
+        idx = ctx.emit(mir.MOp(
+            "vbinx", [vid, self._chunk["elem"]],
+            [ctx.vreg(ity, hint="tidx", loc=loc)],
+            attrs={"op": "add"}, loc=loc))
+        scaled, _ = self._ws_scaled(ctx, idx, rec["esz"], loc, vl)
+        ws = self._workspace_private_reg(ctx, loc)
+        base = ctx.emit(mir.MOp(
+            "sadd", [ws, ctx.const(rec["offset"], mir.I64, loc)],
+            [ctx.vreg(mir.I64, hint="tb", loc=loc)], loc=loc))
+        if not reg.is_vector() and not reg.is_mask():
+            raise self._err(
+                loc, "layout",
+                f"a staged value ('{t.name}') lowered to a scalar register "
+                "(the segmentation and the emission disagree)")
+        lane_sew = rec["lane_sew"]
+        lane_lmul = max(1, vl * lane_sew // self.target.vlen_bits)
+        lane_kind = "float" if rec["type"].is_float() else "uint"
+        if reg.is_mask():
+            # a boolean block stages as 0/1 at the lane width
+            i32 = mir.VectorType(lane_sew, lane_lmul, "int")
+            self._vregion(ctx, i32, loc, vl=vl)
+            one = self._splat_const(ctx, 1, i32, loc)
+            zero = self._splat_const(ctx, 0, i32, loc)
+            v0 = ctx.emit(mir.MOp(
+                "vmovmask", [reg],
+                [ctx.vreg(mir.MaskType(), hint="tb0", loc=loc,
+                          fixed_phys="v0")], loc=loc))
+            bytes_reg = ctx.emit(mir.MOp(
+                "vsel", [v0, one, zero],
+                [ctx.vreg(i32, hint="tb1", loc=loc)], loc=loc))
+            ctx.emit0(mir.MOp(
+                "vstoreix", [base, scaled, bytes_reg], [],
+                attrs={"eew": 64, "sew": lane_sew}, loc=loc))
+            self._restore_region(ctx, loc)
+            return
+        store_reg = reg
+        if reg.type.sew < lane_sew:
+            if reg.type.kind == "float":
+                # a 16-bit float stages as its exact fp32 widening
+                store_reg = self._f16_to_f32(ctx, reg, rec["type"], loc)
+            else:
+                # a sub-32 integer stages zext-widened (the low bits
+                # survive the round trip); _int_widen retypes each step
+                # to the lanes-derived class (the register budget)
+                store_reg = self._int_widen(
+                    ctx, reg, reg.type.sew, lane_sew, False, loc)
+        avl = ctx.const(vl, mir.I32, loc)
+        ctx.emit(mir.MOp(
+            "vsetvli", [avl], [ctx.vreg(mir.I32, hint="tsr", loc=loc)],
+            attrs={"sew": store_reg.type.sew,
+                   "lmul": store_reg.type.lmul,
+                   "policy": "ta,ma"}, loc=loc))
+        ctx.emit0(mir.MOp(
+            "vstoreix", [base, scaled, store_reg], [],
+            attrs={"eew": 64, "sew": store_reg.type.sew}, loc=loc))
+        # restore the pass's data region
+        self._restore_region(ctx, loc)
 
     def _tag(self, hint: str) -> str:
         self._tag_count += 1
@@ -275,24 +466,11 @@ class SliceLowering:
                             "the slice compiles exactly one kernel function")
         fn = fns[0]
         statements = list(fn.body.statements)
-        arange_extent, arange_op = self._find_arange(fn.body)
-        sew, _kind = self._element_width(fn.body, arange_extent)
-        self._sew = sew
 
-        # the chunk plan at (SEW, LMUL=1); exact vl per chunk
-        chunks = self.target.chunk_plan(arange_extent, sew, 1)
-        vls = {vl for vl, _ in chunks}
-        if len(vls) != 1:
-            raise self._err(
-                arange_op.loc if arange_op else None, "tl.arange",
-                f"block extent {arange_extent} does not split into uniform "
-                f"vector chunks at SEW {sew} (mixed-chunk tails are not in "
-                "the slice)")
-        vl = vls.pop()
-        self._vl = vl
-        self.plan.chunks = tuple((vl, 1) for _ in range(len(chunks)))
-        self.plan.block_extent = arange_extent
-
+        # the default region (the prescans and the prefix scalars' index
+        # class; refined per pass below)
+        self._sew = 32
+        self._vl = self.target.vlmax(32, 1)
         # the reduction stage plan (T009): the two-phase split eligibility,
         # the partials and their merge rules (a100c/plan/stages.py); the
         # kernel body's (prefix, region, suffix) split follows it
@@ -300,12 +478,76 @@ class SliceLowering:
         self._body_split = self._split_body(statements)
         self._prescan_scans(fn.body)
 
+        # T012: the multi-pass layout lane.  The region's statements are
+        # segmented into extent-homogeneous passes and layout staging
+        # points; every pass is its own chunk loop over its own extent at
+        # its own SEW, and layout data movement runs through dedicated
+        # staging loops over the private workspace.
+        region = self._body_split[1] if self._body_split else []
+        self._segments = self._segment_region(region)
+        self._layout_ws_base = 0
+        self._layout_ws_end = 0
+
+        # per-pass parameters (extent, SEW, vl, chunk count); the legacy
+        # defaults come from the first arange (single-pass kernels keep
+        # exactly today's shape)
+        arange_extent, arange_op = self._find_arange(fn.body)
+        self._pass_params: List[dict] = []
+        max_extent = arange_extent
+        for seg in self._segments:
+            if seg[0] != "pass":
+                self._pass_params.append(None)
+                continue
+            extent, sew = seg[2], seg[3] or 32
+            # the 32-lane cap: every register class stays within m2 (the
+            # allocator's declared budget; the e64 index class at 32 lanes
+            # is m2 -- wider SEWs simply use fewer lanes per chunk)
+            cap = min(self.target.vlmax(sew, 1), 32)
+            if extent <= cap:
+                chunks = self.target.chunk_plan(extent, sew, 1)
+                vls = {vl for vl, _ in chunks}
+                if len(vls) != 1:
+                    raise self._err(
+                        arange_op.loc if arange_op else None, "tl.arange",
+                        f"block extent {extent} does not split into uniform "
+                        f"vector chunks at SEW {sew} (mixed-chunk tails "
+                        "are not in the slice)")
+                vl = vls.pop()
+            else:
+                # the largest power-of-two chunk size at or below the cap
+                # that divides the extent (every iteration full)
+                vl = cap
+                while vl > 1 and extent % vl:
+                    vl //= 2
+                if extent % vl:
+                    raise self._err(
+                        arange_op.loc if arange_op else None, "tl.arange",
+                        f"block extent {extent} does not split into uniform "
+                        f"vector chunks at SEW {sew}")
+                chunks = tuple((vl, 1) for _ in range(extent // vl))
+            self._pass_params.append({"extent": extent, "sew": sew,
+                                      "vl": vl,
+                                      "chunks": chunks})
+            max_extent = max(max_extent, extent)
+        # the default region (the prefix scalars' index class and the
+        # single-pass form): the first pass's, else the arange's
+        if self._pass_params and self._pass_params[0] is not None:
+            first = self._pass_params[0]
+        else:
+            first = {"extent": arange_extent, "sew": 32,
+                     "vl": self.target.vlmax(32, 1), "chunks": ()}
+        self._sew = first["sew"]
+        self._vl = first["vl"]
+        self.plan.chunks = first["chunks"] or ((self._vl, 1),)
+        self.plan.block_extent = max_extent
+        self._default_pass = first
+
         # the workspace requirements: scans materialize the block through
         # the worker-private region; the two-phase partials live in the
         # shared region (stride fixed at the maximum worker count)
         private_bytes = self.plan.workspace_private
         if self._scan_accs:
-            private_bytes = max(private_bytes, arange_extent * 4)
+            private_bytes = max(private_bytes, max_extent * 4)
         # the atomic scratch region (T011): per-lane old values reloaded
         # as the block result, then the 8-byte redirect slot disabled
         # lanes' atomics are redirected to (no access at the disabled
@@ -330,7 +572,22 @@ class SliceLowering:
             isinstance(op, tir.Op) and op.op == "gather"
             for op in self._walk_ops(fn.body))
         if has_gather:
-            private_bytes += arange_extent * 4
+            private_bytes += max_extent * 4
+        # the layout staging regions (T012): one per staged block value,
+        # at its own element size
+        self._layout_ws_base = private_bytes
+        self._analyze_staging()
+        private_bytes = max(private_bytes, self._layout_ws_end)
+        if self._staged and self.stage_plan is not None \
+                and self.stage_plan.eligible:
+            # cross-chunk staging is sequential within one worker: the
+            # worker-strided two-phase split cannot host it (the partial
+            # merge still rides the normal path's chunk back edge)
+            self.stage_plan.eligible = False
+            self.stage_plan.reason = (
+                "layout staging (the T012 multi-pass lane) is sequential "
+                "per worker; the reduction rides the normal per-program "
+                "path")
         # the live-out scalars: chunk-invariant region values the suffix
         # consumes (the trailing store's address arithmetic lowered inside
         # the region) -- stored at the back edge, reloaded at the exit
@@ -396,6 +653,48 @@ class SliceLowering:
             self.plan.workspace_shared = max(
                 self.plan.workspace_shared,
                 self.stage_plan.layout_for(8).total_bytes)
+
+        # T012: per-pass cross-pass scalar liveouts.  A scalar defined
+        # inside one pass's chunk loop and consumed in a later pass (or the
+        # suffix) cannot keep its register: it stores at the defining
+        # pass's back edge and reloads at the exit.  Constants re-emit
+        # instead (pure); staged block values ride the layout regions.
+        self._pass_liveouts = {}
+        suffix = self._body_split[2] if self._body_split else []
+        seg_index = 0
+        for si, seg in enumerate(self._segments):
+            if seg[0] != "pass":
+                continue
+            defined = self._pass_defined_vids(seg[1])
+            later_uses: set = set()
+            for later in self._segments[si + 1:]:
+                if later[0] == "scalar":
+                    continue
+                if later[0] == "layout":
+                    later_uses.update(v.vid for v in later[1].operands
+                                      if v.rank == 0)
+                else:
+                    for st in later[1]:
+                        later_uses.update(v.vid for v in self._region_uses(st)
+                                          if v.rank == 0)
+            for st in suffix:
+                for v in self._region_uses(st):
+                    if v.rank == 0:
+                        later_uses.add(v.vid)
+            cross = set()
+            for vid in defined:
+                if vid in later_uses and vid not in self._staged:
+                    v = self._value_by_vid(vid)
+                    if v.producer is not None and v.producer.op == "const":
+                        continue          # constants re-emit at their uses
+                    cross.add(vid)
+            if cross:
+                self._pass_liveouts[si] = [
+                    (vid, private_bytes + 8 * k)
+                    for k, vid in enumerate(sorted(cross))]
+                private_bytes += 8 * len(cross)
+            seg_index += 1
+        self.plan.workspace_private = private_bytes
 
         module = mir.MModule(self.tir_module.name, self.tir_module.source_path)
         launch = mir.VReg(mir.I64, name="launch")
@@ -555,19 +854,418 @@ class SliceLowering:
                 yield from self._walk_ops(stmt.body)
 
     def _find_arange(self, body: tir.Block) -> Tuple[int, Optional[tir.Op]]:
+        """The reference arange of the kernel (T012: multiple aranges are
+        legal -- each pass owns its own index space; the first is the
+        legacy reference for the single-pass form)."""
         found = None
         for op in self._walk_ops(body):
             if op.op == "arange":
-                if found is not None:
-                    raise self._err(op.loc, "tl.arange",
-                                    "two tl.arange values in one kernel are "
-                                    "not in the slice")
-                found = op
+                if found is None:
+                    found = op
         if found is None:
             raise self._err(None, "tl.arange",
                             "no tl.arange in the kernel body; the vector slice "
                             "lowers the one-block elementwise form")
         return found.attrs["end"] - found.attrs["start"], found
+
+    # -- T012: segmentation (the multi-pass layout lane) -----------------------
+
+    def _flat_extent_of(self, shape: tir.Shape, loc, what: str) -> int:
+        n = tir.flat_extent(shape)
+        if n is None:
+            raise self._err(
+                loc, what,
+                f"a layout block must be compile-time shaped, got "
+                f"{list(shape)} (a runtime-symbolic extent is not "
+                "re-partitionable)")
+        return n
+
+    def _is_layout_op(self, st) -> bool:
+        """A top-level statement that changes the flat index space (or
+        permutes it): the pass closes and the op lowers through staging.
+        Metadata (reshape/realize/identity) and extent-1 splats stay
+        in-pass."""
+        if not isinstance(st, tir.Op):
+            return False
+        if st.op in tir.LAYOUT_OPS:
+            return True
+        if st.op == "broadcast":
+            src = st.operands[0]
+            if src.rank == 0:
+                return False               # the scalar splat (in-pass)
+            n_src = self._flat_extent_of(src.shape, st.loc, "broadcast")
+            if n_src == 1:
+                return False               # a lane-0 splat (in-pass)
+            return True
+        return False
+
+    def _seg_is_scalar(self, st) -> bool:
+        if isinstance(st, tir.Op):
+            return all(getattr(o, "rank", 0) == 0 for o in st.operands) \
+                and all(r.rank == 0 for r in st.results)
+        if isinstance(st, tir.If):
+            return self._seg_is_scalar(st.cond) and \
+                all(self._seg_is_scalar(s) for s in st.then.statements) and \
+                all(self._seg_is_scalar(s) for s in st.els.statements)
+        if isinstance(st, tir.Loop):
+            for b in (st.lower, st.upper, st.step, st.cond):
+                if b is not None and b.rank > 0:
+                    return False
+            if any(init.rank > 0 for _, init in st.carried):
+                return False
+            return all(self._seg_is_scalar(s) for s in st.body.statements)
+        return True
+
+    def _stmt_extent(self, st, loc=None) -> Optional[int]:
+        """The flat block extent of one statement (None when scalar-only);
+        a runtime region must be extent-homogeneous with its pass.  A PURE
+        extent-1 statement (a splat source: tl.full([1], ...), the
+        extent-1 broadcasts) is pass-agnostic -- it joins any pass; a
+        statement with effects (memory, reduction, scan) always
+        constrains."""
+        if isinstance(st, tir.Op):
+            if st.op in ("load", "store", "atomic_rmw", "atomic_cas",
+                         "reduce", "scan", "sort", "topk", "histogram",
+                         "gather"):
+                for v in list(st.results) + list(st.operands):
+                    if v.rank > 0:
+                        return self._flat_extent_of(v.shape, st.loc or loc,
+                                                    st.op)
+                return None
+            # results first (a broadcast's result carries the pass extent,
+            # not its extent-1 source); operands cover the reduce forms
+            for v in list(st.results) + list(st.operands):
+                if v.rank > 0:
+                    n = self._flat_extent_of(v.shape, st.loc or loc,
+                                             st.op)
+                    if n == 1:
+                        continue      # a splat source: pass-agnostic
+                    return n
+            return None
+        if isinstance(st, tir.If):
+            ext = None
+            for s in list(st.then.statements) + list(st.els.statements):
+                e = self._stmt_extent(s, st.loc)
+                if e is not None and ext is not None and e != ext:
+                    raise self._err(
+                        st.loc, "if",
+                        f"a runtime region mixes block extents {ext} and "
+                        f"{e} (the layout lane lowers extent-homogeneous "
+                        "regions)")
+                if e is not None:
+                    ext = e
+            if st.cond.rank > 0:
+                c = self._flat_extent_of(st.cond.shape, st.loc, "if")
+                if ext is not None and c != ext:
+                    raise self._err(
+                        st.loc, "if",
+                        f"a runtime region mixes block extents {ext} and "
+                        f"{c} (the layout lane lowers extent-homogeneous "
+                        "regions)")
+                ext = c
+            return ext
+        if isinstance(st, tir.Loop):
+            ext = None
+            for b in (st.lower, st.upper, st.step, st.cond):
+                if b is not None and b.rank > 0:
+                    c = self._flat_extent_of(b.shape, st.loc, "loop")
+                    if ext is not None and c != ext:
+                        raise self._err(
+                            st.loc, "loop",
+                            f"a runtime region mixes block extents {ext} and "
+                            f"{c} (the layout lane lowers extent-homogeneous "
+                            "regions)")
+                    ext = c
+            for _, init in st.carried:
+                if init.rank > 0:
+                    c = self._flat_extent_of(init.shape, st.loc, "loop")
+                    if ext is not None and c != ext:
+                        raise self._err(
+                            st.loc, "loop",
+                            f"a runtime region mixes block extents {ext} "
+                            f"and {c} (the layout lane lowers "
+                            "extent-homogeneous regions)")
+                    ext = c
+            for s in st.body.statements:
+                e = self._stmt_extent(s, st.loc)
+                if e is not None and ext is not None and e != ext:
+                    raise self._err(
+                        st.loc, "loop",
+                        f"a runtime region mixes block extents {ext} and "
+                        f"{e} (the layout lane lowers extent-homogeneous "
+                        "regions)")
+                if e is not None:
+                    ext = e
+            return ext
+        return None
+
+    def _stmt_sew(self, st) -> Optional[int]:
+        """The data-SEW contribution of one statement: the pointee width of
+        its block memory ops (None when it has none)."""
+        sew = None
+        if isinstance(st, tir.Op):
+            if st.op in ("load", "store"):
+                if st.operands[0].rank > 0:
+                    pointee = st.operands[0].type.pointee
+                    if pointee.is_bool():
+                        raise self._err(
+                            st.loc, st.op,
+                            "i1 pointee widths are not in the slice (a "
+                            "bool backing store is the dtype-surface lane)")
+                    sew = pointee.bitwidth()
+            return sew
+        if isinstance(st, (tir.If, tir.Loop)):
+            blocks = st.then.statements + st.els.statements \
+                if isinstance(st, tir.If) else st.body.statements
+            for s in blocks:
+                w = self._stmt_sew(s)
+                if w is not None and (sew is None or w > sew):
+                    sew = w
+        return sew
+
+    def _segment_region(self, region: list) -> List[tuple]:
+        """Partition the region's statements into segments:
+
+        * ``("scalar", stmts)`` -- straight-line rank-0 statements (emitted
+          between passes, outside any chunk loop);
+        * ``("pass", stmts, extent, sew)`` -- an extent-homogeneous pass
+          (one chunk loop over the extent at the pass's SEW);
+        * ``("layout", op)`` -- a layout data-movement op (the pass closes;
+          the op lowers through its staging loop(s)).
+
+        Mid-pass scalar statements lower inside the pass (today's
+        behavior); scalars between passes lower straight-line.
+        """
+        segs: List[tuple] = []
+        cur: list = []
+        cur_extent = None
+        cur_sew = None
+
+        def close():
+            nonlocal cur, cur_extent, cur_sew
+            if cur:
+                segs.append(("pass", cur, cur_extent, cur_sew))
+                cur, cur_extent, cur_sew = [], None, None
+
+        for st in region:
+            if self._is_layout_op(st):
+                close()
+                segs.append(("layout", st))
+                continue
+            if self._seg_is_scalar(st):
+                if cur:
+                    cur.append(st)     # mid-pass scalar: inside the chunk
+                else:
+                    segs.append(("scalar", [st]))
+                continue
+            extent = self._stmt_extent(st)
+            sew = self._stmt_sew(st)
+            if extent is None and not self._seg_is_scalar(st):
+                # a block statement whose extents are all splat-agnostic
+                # (pure extent-1 sources): it joins the open pass, or
+                # lowers straight-line between passes (a splat register
+                # is loop-invariant)
+                if cur:
+                    cur.append(st)
+                else:
+                    segs.append(("scalar", [st]))
+                continue
+            if cur and extent != cur_extent:
+                close()
+            if cur and sew is not None and cur_sew is not None \
+                    and sew != cur_sew:
+                close()
+            if not cur:
+                cur_extent, cur_sew = extent, sew
+            else:
+                if sew is not None:
+                    cur_sew = sew if cur_sew is None else max(cur_sew, sew)
+            cur.append(st)
+        close()
+        return segs
+
+    def _analyze_staging(self) -> None:
+        """Compute the staged-value set and the workspace layout.
+
+        A value is staged when (a) it is a block operand of a layout op,
+        or (b) it is a block value whose definition segment precedes its
+        first use segment (it crosses a pass boundary; registers do not
+        survive a pass loop).  Layout results are staged by construction.
+        """
+        # (a) layout operands
+        for seg in self._segments:
+            if seg[0] != "layout":
+                continue
+            op = seg[1]
+            for v in op.operands:
+                if v.rank > 0 and v.vid not in self._staged:
+                    self._staged[v.vid] = {"pending": True}
+                    self._stage_out.add(v.vid)
+        # (b) cross-pass block values: definition segment index vs use
+        defined_in: Dict[int, int] = {}
+        seg_index = 0
+        for seg in self._segments:
+            if seg[0] == "scalar":
+                continue
+            if seg[0] == "layout":
+                op = seg[1]
+                for r in op.results:
+                    defined_in[r.vid] = seg_index
+                    self._staged[r.vid] = {"pending": True}
+                seg_index += 1
+                continue
+            for st in seg[1]:
+                for r in getattr(st, "results", ()):
+                    defined_in[r.vid] = seg_index
+                # region joins/loops define values too
+                self._region_defs(st, defined_in, seg_index)
+            seg_index += 1
+        # the uses: walk every statement's operands per segment
+        seg_index = 0
+        for seg in self._segments:
+            if seg[0] == "scalar":
+                continue
+            uses: List[tir.Value] = []
+            if seg[0] == "layout":
+                uses.extend(seg[1].operands)
+            else:
+                for st in seg[1]:
+                    uses.extend(self._region_uses(st))
+            for v in uses:
+                if v.rank == 0 or v.producer is None:
+                    continue
+                d = defined_in.get(v.vid)
+                if d is not None and d < seg_index and \
+                        v.vid not in self._staged:
+                    self._staged[v.vid] = {"pending": True}
+                    self._stage_out.add(v.vid)
+            seg_index += 1
+        # suffix uses (the plan's liveouts are scalars; block values used
+        # by the suffix would cross the last pass -- refuse: the suffix is
+        # scalar-only by construction)
+        # allocate the workspace regions: a deterministic bump per staged
+        # value (correct and simple; the layout regions are the value's
+        # own storage -- no aliasing by construction).  Boolean blocks
+        # stage as 0/1 bytes and reload as masks (a mask register cannot
+        # cross a pass loop; the byte form is the typed carrier).
+        offset = self._layout_ws_base
+        for vid in sorted(self._staged.keys()):
+            v = self._value_by_vid(vid)
+            extent = self._flat_extent_of(v.shape, v.loc, "layout")
+            rec = self._staged[vid]
+            rec["offset"] = offset
+            rec["extent"] = extent
+            rec["type"] = v.type
+            # the staging lane width: the indexed memory forms with an
+            # e64 index SEGFAULT the pinned QEMU when the data element
+            # is narrower than 32 bits (probed: e8/e16 data + e64m2
+            # index at avl 32 crashes; e32 data works -- complex_pack's
+            # fp16 staging already rides the fp32 compute lanes).  Every
+            # staged region therefore uses 32-bit (or wider) lanes:
+            # sub-32 floats stage as their exact fp32 widening (the
+            # RTNE round trip is the identity), sub-32 integers stage
+            # zext-widened (the low bits survive), boolean blocks as
+            # 0/1 lanes.
+            rec["lane_sew"] = max(32, v.type.bitwidth())
+            if v.type.is_bool():
+                rec["esz"] = 4
+                rec["mask"] = True
+            else:
+                rec["esz"] = rec["lane_sew"] // 8
+            offset += extent * rec["esz"]
+        self._layout_ws_end = offset
+
+    def _region_defs(self, st, defined_in: Dict[int, int], seg_index: int,
+                     depth: int = 0) -> None:
+        if isinstance(st, tir.Op):
+            return
+        if isinstance(st, tir.If):
+            for v in st.join_results:
+                defined_in[v.vid] = seg_index
+            for s in list(st.then.statements) + list(st.els.statements):
+                self._region_defs(s, defined_in, seg_index, depth + 1)
+        elif isinstance(st, tir.Loop):
+            for v in st.join_results:
+                defined_in[v.vid] = seg_index
+            for s in st.body.statements:
+                self._region_defs(s, defined_in, seg_index, depth + 1)
+
+    def _region_uses(self, st) -> List[tir.Value]:
+        out: List[tir.Value] = []
+
+        def add(value):
+            # transitive through the ptradd chains the memory ops flatten
+            # at address resolution: a consumer of ``ptr + off`` consumes
+            # off's producers too (the liveout analysis's rule, applied to
+            # the staging analysis)
+            if value is None or value in seen:
+                return
+            seen.add(value)
+            out.append(value)
+            prod = value.producer
+            if prod is not None and prod.op == "ptradd":
+                for operand in prod.operands:
+                    add(operand)
+
+        seen: set = set()
+        if isinstance(st, tir.Op):
+            for v in st.operands:
+                add(v)
+        elif isinstance(st, tir.If):
+            add(st.cond)
+            for s in list(st.then.statements) + list(st.els.statements):
+                out.extend(self._region_uses(s))
+        elif isinstance(st, tir.Loop):
+            for b in (st.lower, st.upper, st.step, st.cond):
+                if b is not None:
+                    add(b)
+            for _, init in st.carried:
+                add(init)
+            for s in st.body.statements:
+                out.extend(self._region_uses(s))
+        return out
+
+    def _value_by_vid(self, vid: int) -> tir.Value:
+        for fn in self.tir_module.functions:
+            found = self._find_value(fn.body, vid)
+            if found is not None:
+                return found
+        raise self._err(None, "layout", f"no TIR value with vid {vid}")
+
+    def _find_value(self, block: tir.Block, vid: int) -> Optional[tir.Value]:
+        for stmt in block.statements:
+            if isinstance(stmt, tir.Op):
+                for r in stmt.results:
+                    if r.vid == vid:
+                        return r
+                for o in stmt.operands:
+                    if o.vid == vid:
+                        return o
+            elif isinstance(stmt, tir.If):
+                for v in (stmt.cond,):
+                    if v.vid == vid:
+                        return v
+                for b in (stmt.then, stmt.els):
+                    r = self._find_value(b, vid)
+                    if r is not None:
+                        return r
+                for v in stmt.join_results:
+                    if v.vid == vid:
+                        return v
+            elif isinstance(stmt, tir.Loop):
+                for b in (stmt.lower, stmt.upper, stmt.step, stmt.cond):
+                    if b is not None and b.vid == vid:
+                        return b
+                for _, init in stmt.carried:
+                    if init.vid == vid:
+                        return init
+                r = self._find_value(stmt.body, vid)
+                if r is not None:
+                    return r
+                for v in stmt.join_results:
+                    if v.vid == vid:
+                        return v
+        return None
 
     def _element_width(self, body: tir.Block, arange_extent) -> Tuple[int, str]:
         """The data SEW: the pointee width every BLOCK memory op must agree
@@ -999,7 +1697,10 @@ class SliceLowering:
                 "vtype": acc["vtype"], "index": False,
                 "source": "scan", "acc": None,
             })
-        self._lower_statements(ctx, region, fn, view_regs)
+        # T012: the region lowers as segments (scalar groups, per-extent
+        # passes, layout staging loops); a single-segment kernel keeps
+        # exactly today's shape
+        self._emit_segments(ctx, fn, view_regs, strided)
 
         # close the region: the back edge (with the merge combines), then
         # the exit block binds the merged values and reloads the live-out
@@ -1484,7 +2185,17 @@ class SliceLowering:
                     "cannot consume it through the scalar live-out path)")
             width = reg.type.width if reg.type.width in (8, 16, 32, 64) \
                 else 64
-            ctx.emit0(mir.MOp("sstore", [ws, reg], [],
+            if -2048 <= slot < 2048:
+                base = ws
+            else:
+                # the 12-bit immediate cannot reach: materialize the
+                # address (the layout staging regions push the slots far
+                # into the workspace)
+                base = ctx.emit(mir.MOp(
+                    "sadd", [ws, ctx.const(slot, mir.I64, loc)],
+                    [ctx.vreg(mir.I64, hint="lsb", loc=loc)], loc=loc))
+                slot = 0
+            ctx.emit0(mir.MOp("sstore", [base, reg], [],
                               attrs={"width": width, "offset": slot},
                               loc=loc))
 
@@ -1505,8 +2216,18 @@ class SliceLowering:
                 continue
             width = reg.type.width if reg.type.width in (8, 16, 32, 64) \
                 else 64
+            if -2048 <= slot < 2048:
+                base = ws
+            else:
+                # the 12-bit immediate cannot reach: materialize the
+                # address (the layout staging regions push the slots far
+                # into the workspace)
+                base = ctx.emit(mir.MOp(
+                    "sadd", [ws, ctx.const(slot, mir.I64, loc)],
+                    [ctx.vreg(mir.I64, hint="lob", loc=loc)], loc=loc))
+                slot = 0
             reloaded = ctx.emit(mir.MOp(
-                "sload", [ws],
+                "sload", [base],
                 [ctx.vreg(mir.ScalarType(width, signed=reg.type.signed,
                                          float=reg.type.float),
                           hint="lo", loc=loc)],
@@ -1604,7 +2325,9 @@ class SliceLowering:
                 merge_inits.append(self._splat_const(ctx, ident,
                                                      frame["vtype"], loc))
 
-        tag = "schunk" if strided else "chunk"
+        # unique per pass: the multi-pass lane opens one chunk loop per
+        # extent-homogeneous pass (the name collision would merge the CFG)
+        tag = self._tag("schunk" if strided else "chunk")
         head = ctx.add_block(f"{tag}_head", [], loc)
         ctx.emit0(mir.MOp("br", [], [],
                           attrs={"target": head.name,
@@ -1679,6 +2402,580 @@ class SliceLowering:
         """The items counter at the current position: the path's entry
         items parameter (the scalar prefix does not modify it)."""
         return self._path_items
+
+    # -- T012: segment emission (the multi-pass layout lane) --------------------
+
+    def _pass_defined_vids(self, stmts) -> set:
+        out: set = set()
+
+        def walk(st):
+            if isinstance(st, tir.Op):
+                out.update(r.vid for r in st.results)
+            elif isinstance(st, tir.If):
+                for s in list(st.then.statements) + \
+                        list(st.els.statements):
+                    walk(s)
+                out.update(v.vid for v in st.join_results)
+            elif isinstance(st, tir.Loop):
+                for s in st.body.statements:
+                    walk(s)
+                out.update(v.vid for v in st.join_results)
+
+        for st in stmts:
+            walk(st)
+        return out
+
+    def _emit_segments(self, ctx: _Ctx, fn: tir.Function,
+                       view_regs: Dict[str, mir.VReg],
+                       strided: Optional[bool]) -> None:
+        """Emit the region's segments in order.  Every pass except the
+        last closes its own chunk loop (chaining pid/items into the next
+        pass); the LAST pass stays open for the caller's close (the
+        existing single-pass shape)."""
+        loc = fn.loc
+        all_merges = list(self._chunk_merges)
+        pass_index = 0
+        n_passes = sum(1 for seg in self._segments if seg[0] == "pass")
+        seen_pass = 0
+        saved_liveouts = self._liveouts
+        for si, seg in enumerate(self._segments):
+            if seg[0] == "scalar":
+                self._lower_statements(ctx, seg[1], fn, view_regs)
+                continue
+            if seg[0] == "layout":
+                if self._chunk is not None:
+                    self._close_pass(ctx, fn, strided)
+                self._lower_layout_segment(ctx, fn, seg[1])
+                continue
+            # a pass: configure its parameters and merges
+            params = self._pass_params[si]
+            if params is None:      # pragma: no cover - segmentation shape
+                raise self._err(None, "layout", "pass without parameters")
+            defined = self._pass_defined_vids(seg[1])
+            self._chunk_merges = [f for f in all_merges
+                                  if f["vid"] in defined]
+            if not self._chunk_merges and seen_pass == 0 and n_passes == 1:
+                self._chunk_merges = all_merges   # the single-pass form
+            seen_pass += 1
+            self._sew = params["sew"]
+            self._vl = params["vl"]
+            # this pass's cross-pass scalar liveouts (store at the back
+            # edge, reload at the exit -- registers do not survive loops)
+            self._liveouts = list(self._pass_liveouts.get(si, []))
+            if seen_pass == n_passes:
+                self._liveouts.extend(saved_liveouts)
+            self._open_pass(ctx, fn, params)
+            self._lower_statements(ctx, seg[1], fn, view_regs)
+            if seen_pass < n_passes:
+                self._close_pass(ctx, fn, strided)
+        self._liveouts = saved_liveouts
+        # no pass at all (scalar-only region): nothing stays open
+        if self._chunk is not None and seen_pass < n_passes:
+            self._close_pass(ctx, fn, strided)
+
+    def _open_pass(self, ctx: _Ctx, fn: tir.Function, params: dict) -> None:
+        """Open one pass's chunk loop at the pass's own extent/SEW (the
+        existing _ensure_chunk, parameterized)."""
+        saved_extent = self.plan.block_extent
+        saved_chunks = self.plan.chunks
+        self.plan.block_extent = params["extent"]
+        self.plan.chunks = params["chunks"]
+        try:
+            self._ensure_chunk(ctx, fn)
+        finally:
+            # plan.chunks/block_extent stay at the pass's values for the
+            # in-pass queries (gather's chunk count); the describe-level
+            # values were recorded in lower()
+            self.plan.block_extent = params["extent"]
+            self.plan.chunks = params["chunks"]
+            _ = saved_extent, saved_chunks
+
+    def _close_pass(self, ctx: _Ctx, fn: tir.Function,
+                    strided: Optional[bool]) -> None:
+        """Close the current pass's chunk loop and chain its exit values
+        into the next segment (pid/items/merges rebind; staged values'
+        registers drop)."""
+        loc = fn.loc
+        self._close_chunk_back_edge(ctx, fn, strided=strided)
+        exit_name = self._chunk["exit"]
+        ctx.switch(ctx.blocks[exit_name])
+        self._bind_chunk_merges(ctx, loc)
+        self._reload_liveouts(ctx, loc)
+        # the next pass's entry items: this pass's accumulated count
+        self._path_items = self._chunk["exit_params_items"]
+        # staged values' registers do not survive the pass loop; constants
+        # re-emit at their next use; the workspace base registers were
+        # defined inside the closed loop and no longer dominate -- the
+        # next pass/staging loop reloads them
+        for vid in self._staged:
+            self.values.pop(vid, None)
+        for vid in list(self._pass_bound):
+            v = self._value_by_vid(vid)
+            if v.producer is not None and v.producer.op == "const":
+                self.values.pop(vid, None)
+        self._ws_private = None
+        self._ws_shared = None
+        self._wid64 = None
+        self._chunk = None
+        self._count_reg = None
+        self._pass_bound = set()
+
+    def _lower_layout_segment(self, ctx: _Ctx, fn: tir.Function,
+                              op: tir.Op) -> None:
+        """Lower one top-level layout op through its staging loop(s): the
+        sources are already staged (their passes stored the bytes); the
+        results become staged values."""
+        loc = op.loc or fn.loc
+        code = op.op
+        if code == "permute":
+            self._stage_permute(ctx, fn, op)
+        elif code == "flip":
+            self._stage_flip(ctx, fn, op)
+        elif code == "join":
+            self._stage_join(ctx, fn, op)
+        elif code == "interleave":
+            self._stage_join(ctx, fn, op)
+        elif code == "split":
+            self._stage_split(ctx, fn, op)
+        elif code == "broadcast":
+            self._stage_broadcast(ctx, fn, op)
+        else:  # pragma: no cover - segmentation shape
+            raise self._err(loc, code, "unknown layout op in a segment")
+        self._layout_stagings.append({
+            "op": code, "loc": str(loc),
+            "results": [r.name for r in op.results],
+        })
+
+    # -- the staging loop -------------------------------------------------------
+
+    def _ws_scaled(self, ctx: _Ctx, idx: mir.VReg, esz: int, loc,
+                   vl: int) -> mir.VReg:
+        """The EEW=64 byte-offset vector of ``idx`` (element counts) times
+        ``esz``, at the lane count ``vl``.  The widening form follows the
+        double-LMUL convention (the vwiden's destination group); an i64
+        index keeps its own LMUL."""
+        if idx.type.sew == 32:
+            lmul = idx.type.lmul * 2
+            avl0 = ctx.const(vl, mir.I32, loc)
+            ctx.emit(mir.MOp(
+                "vsetvli", [avl0],
+                [ctx.vreg(mir.I32, hint="lsw0", loc=loc)],
+                attrs={"sew": idx.type.sew, "lmul": idx.type.lmul,
+                       "policy": "ta,ma"}, loc=loc))
+            wide = ctx.emit(mir.MOp(
+                "vwiden", [idx],
+                [ctx.vreg(mir.VectorType(64, lmul, "int"), hint="lsw",
+                          loc=loc)],
+                attrs={"mode": "sext"}, loc=loc))
+        elif idx.type.sew == 64:
+            lmul = idx.type.lmul
+            wide = idx
+        else:
+            raise self._err(loc, "layout",
+                            f"a {idx.type.sew}-bit staging index is not in "
+                            "the lane (32/64-bit index arithmetic only)")
+        if lmul not in (1, 2, 4, 8):
+            raise self._err(loc, "layout",
+                            f"the index class needs LMUL {lmul} "
+                            "(outside 1..8; a located refusal)")
+        avl = ctx.const(vl, mir.I32, loc)
+        ctx.emit(mir.MOp(
+            "vsetvli", [avl], [ctx.vreg(mir.I32, hint="lswr", loc=loc)],
+            attrs={"sew": 64, "lmul": lmul, "policy": "ta,ma"}, loc=loc))
+        esz_reg = ctx.const(esz, mir.I64, loc)
+        scaled = ctx.emit(mir.MOp(
+            "vbinx", [wide, esz_reg],
+            [ctx.vreg(mir.VectorType(64, lmul, "int"), hint="lss",
+                      loc=loc)],
+            attrs={"op": "mul"}, loc=loc))
+        return scaled, lmul
+
+    def _staging_region(self, ctx: _Ctx, sew: int, vl: int, loc) -> None:
+        avl = ctx.const(vl, mir.I32, loc)
+        ctx.emit(mir.MOp(
+            "vsetvli", [avl], [ctx.vreg(mir.I32, hint="lsr", loc=loc)],
+            attrs={"sew": sew, "lmul": 1, "policy": "ta,ma"}, loc=loc))
+
+    def _vregion(self, ctx: _Ctx, vtype: mir.VectorType, loc,
+                 vl: Optional[int] = None) -> None:
+        """An explicit vsetvli for one vector type (the conversion matrix's
+        region discipline: every emitted convert runs in its own region;
+        the pass region is restored afterwards).  ``vl`` defaults to the
+        pass's lane count; the staging loops pass their own."""
+        avl = ctx.const(vl if vl is not None else self._vl, mir.I32, loc)
+        ctx.emit(mir.MOp(
+            "vsetvli", [avl], [ctx.vreg(mir.I32, hint="cvr", loc=loc)],
+            attrs={"sew": vtype.sew, "lmul": vtype.lmul,
+                   "policy": "ta,ma"}, loc=loc))
+
+    def _vmovv(self, ctx: _Ctx, reg: mir.VReg, vtype: mir.VectorType,
+               loc, vl: Optional[int] = None) -> mir.VReg:
+        """The bit-level register-view move: copies the used lanes (the
+        avl caps the copy), typed as ``vtype`` (the view may retype the
+        elements or narrow the group).  The region is the side whose
+        SEW*LMUL covers the copied bytes: the WIDER-element side (a
+        (32,·)->(8,·) retype must copy whole 32-bit lanes -- an e8-region
+        copy would drop three quarters of the bytes); at equal SEW the
+        narrower LMUL (vmv.v.v forms its groups from the active LMUL,
+        and an overlapping vd/vs pair is illegal on this target --
+        probed: the m2-region copy with vd inside vs's group raises
+        SIGILL)."""
+        if reg.type.sew != vtype.sew:
+            region_ty = reg.type if reg.type.sew > vtype.sew else vtype
+        else:
+            region_ty = vtype if vtype.lmul <= reg.type.lmul else reg.type
+        self._vregion(ctx, region_ty, loc, vl=vl)
+        return ctx.emit(mir.MOp(
+            "vmovv", [reg], [ctx.vreg(vtype, hint="cvm", loc=loc)],
+            loc=loc))
+
+    def _idx_vtype(self, vl: int) -> mir.VectorType:
+        """The i32 index-vector type covering ``vl`` lanes (the staging and
+        staged-load index arithmetic; LMUL follows the lane count)."""
+        lmul = max(1, vl * 32 // self.target.vlen_bits)
+        if lmul not in (1, 2, 4, 8):
+            raise self._err(None, "index",
+                            f"the i32 index class needs LMUL {lmul} at vl "
+                            f"{vl} (outside 1..8)")
+        return mir.VectorType(32, lmul, "int")
+
+    def _lane_index(self, ctx: _Ctx, elem: mir.VReg, vl: int, loc) -> mir.VReg:
+        """``vid + elem`` at the i32 index class with avl=vl: the flat
+        element index of each lane of the current staging iteration."""
+        ity = self._idx_vtype(vl)
+        self._vregion(ctx, ity, loc, vl=vl)
+        vid = ctx.emit(mir.MOp(
+            "vid", [], [ctx.vreg(ity, hint="lvid", loc=loc)], loc=loc))
+        return ctx.emit(mir.MOp(
+            "vbinx", [vid, elem],
+            [ctx.vreg(ity, hint="lidx", loc=loc)],
+            attrs={"op": "add"}, loc=loc))
+
+    def _staging_const(self, ctx: _Ctx, value: int, vl: int, loc) -> mir.VReg:
+        ity = self._idx_vtype(vl)
+        self._vregion(ctx, ity, loc, vl=vl)
+        sty = mir.ScalarType(32, signed=True)
+        kreg = ctx.const(value, sty, loc)
+        return ctx.emit(mir.MOp(
+            "s2v", [kreg], [ctx.vreg(ity, hint="lsc", loc=loc)], loc=loc))
+
+    def _staging_vbin(self, ctx: _Ctx, op: str, a: mir.VReg, b: mir.VReg,
+                      vl: int, loc) -> mir.VReg:
+        ity = self._idx_vtype(vl)
+        self._vregion(ctx, ity, loc, vl=vl)
+        return ctx.emit(mir.MOp(
+            "vbin", [a, b],
+            [ctx.vreg(ity, hint="lsb", loc=loc)],
+            attrs={"op": op}, loc=loc))
+
+    def _emit_staging_loop(self, ctx: _Ctx, fn: tir.Function, result: tir.Value,
+                           sources: List[Tuple[dict, object]],
+                           selector=None) -> None:
+        """One staging loop: for every result flat position k (chunks of
+        vl_r at the result's SEW), load ``sources[i][0]`` (a staged region
+        record) at the flat position computed by ``sources[i][1]`` (a
+        callable over the i32 lane-index vector), select between them when
+        ``selector`` (a callable producing a mask over the lanes) is given,
+        and store the value at k in the result's region.
+
+        The map callables emit their own (32,1) vector arithmetic through
+        the _staging_* helpers; the loop is a dedicated counted chunk loop
+        (sequential within one worker -- the layout lane's contract)."""
+        loc = result.loc or fn.loc
+        rec = self._staged[result.vid]
+        esz_r = rec["esz"]
+        extent = rec["extent"]
+        if extent == 0:
+            raise self._err(loc, "layout", "a zero-extent layout block")
+        # the staging loop's uniform vl: the largest power-of-two vl that
+        # divides the extent, capped at vlmax AND at 32 lanes (every
+        # register class stays within m2 -- the allocator's budget; every
+        # iteration is full -- the loop is mask-free)
+        vl = min(self.target.vlmax(rec["lane_sew"], 1), 32)
+        while vl > 1 and extent % vl:
+            vl //= 2
+        ws = self._workspace_private_reg(ctx, loc)
+        if any(s[0]["type"] != sources[0][0]["type"] for s in sources):
+            raise self._err(loc, "layout",
+                            "a layout op's sources must share the element "
+                            "type (join/split/interleave preserve it)")
+        # the loop's lanes move the staged lane width (16-bit floats
+        # ride their exact fp32 widening; the maps address elements of
+        # esz)
+        lane_sew = sources[0][0]["lane_sew"]
+        lane_kind = "float" if sources[0][0]["type"].is_float() else "uint"
+
+        tag = self._tag("stg")
+        head = ctx.add_block(f"{tag}_head", [], loc)
+        zero = ctx.const(0, mir.I32, loc)
+        ctx.emit0(mir.MOp("br", [], [],
+                          attrs={"target": head.name, "args": [zero]},
+                          loc=loc))
+        elem = mir.VReg(mir.I32, name=f"{tag}.elem")
+        head.params += [elem]
+        ctx.switch(head)
+        extent_c = ctx.const(extent, mir.I32, loc)
+        cont = ctx.emit(mir.MOp(
+            "slt", [elem, extent_c],
+            [ctx.vreg(mir.I64, hint="lgo", loc=loc)], loc=loc))
+        body = ctx.add_block(f"{tag}_body", [elem], loc)
+        exitb = ctx.add_block(f"{tag}_exit", [], loc)
+        ctx.emit0(mir.MOp(
+            "brc", [cont], [],
+            attrs={"true_target": body.name, "true_args": [elem],
+                   "false_target": exitb.name, "false_args": []}, loc=loc))
+        ctx.switch(body)
+
+        # the result's flat lane index
+        idx = self._lane_index(ctx, elem, vl, loc)
+        # the source values
+        vals = []
+        for src_rec, map_fn in sources:
+            sidx = map_fn(ctx, idx, vl, loc)
+            soff, _ = self._ws_scaled(ctx, sidx, src_rec["esz"], loc, vl)
+            base = ctx.emit(mir.MOp(
+                "sadd", [ws, ctx.const(src_rec["offset"], mir.I64, loc)],
+                [ctx.vreg(mir.I64, hint="lsb", loc=loc)], loc=loc))
+            kind = lane_kind
+            sew_s = src_rec["lane_sew"]
+            vtype = mir.VectorType(sew_s, 1, kind)
+            self._vregion(ctx, vtype, loc, vl=vl)
+            vals.append(ctx.emit(mir.MOp(
+                "vloadix", [base, soff],
+                [ctx.vreg(vtype, hint="lsv", loc=loc)],
+                attrs={"eew": 64, "sew": sew_s},
+                loc=loc)))
+        if selector is not None:
+            sel_mask = selector(ctx, idx, vl, loc)
+            v0 = ctx.emit(mir.MOp(
+                "vmovmask", [sel_mask],
+                [ctx.vreg(mir.MaskType(), hint="lsv0", loc=loc,
+                          fixed_phys="v0")], loc=loc))
+            rtype = vals[0].type
+            # vsel(v0, x, y) = v0 ? x : y: the mask selects vals[0] (the
+            # even/minor-0 lanes), the fallback is vals[1]
+            merged = ctx.emit(mir.MOp(
+                "vsel", [v0, vals[0], vals[1]],
+                [ctx.vreg(rtype, hint="lsl", loc=loc)], loc=loc))
+        else:
+            merged = vals[0]
+        # store at the result's flat positions (the lane width; the
+        # widened lane carries the value's bytes exactly)
+        doff, _ = self._ws_scaled(ctx, idx, rec["esz"], loc, vl)
+        dbase = ctx.emit(mir.MOp(
+            "sadd", [ws, ctx.const(rec["offset"], mir.I64, loc)],
+            [ctx.vreg(mir.I64, hint="ldb", loc=loc)], loc=loc))
+        self._vregion(ctx, mir.VectorType(lane_sew, 1, lane_kind),
+                      loc, vl=vl)
+        ctx.emit0(mir.MOp(
+            "vstoreix", [dbase, doff, merged], [],
+            attrs={"eew": 64, "sew": lane_sew}, loc=loc))
+        # the step
+        step = ctx.const(vl, mir.I32, loc)
+        elem2 = ctx.emit(mir.MOp(
+            "sadd", [elem, step],
+            [ctx.vreg(mir.I32, hint="lse", loc=loc)], loc=loc))
+        ctx.emit0(mir.MOp("br", [], [],
+                          attrs={"target": head.name, "args": [elem2]},
+                          loc=loc))
+        ctx.switch(exitb)
+
+    def _decompose_map(self, ctx: _Ctx, idx: mir.VReg, shape, src_shape,
+                       vl: int, loc, drop_axes=(), zero_axes=(),
+                       flip_axis=None):
+        """The source flat position of each result lane for an
+        axis-permuting/broadcasting map: decompose the result lane index
+        by ``shape`` (the result shape), transform the per-axis indices
+        (``drop_axes``: result axes with no source counterpart;
+        ``zero_axes``: source axes held at 0; ``flip_axis``: the result
+        axis whose index reverses), and recompose over the SOURCE strides
+        (``src_shape``: the operand's own shape -- a singleton source axis
+        that expands keeps its stride role).
+
+        Emits (32,1) vector arithmetic; returns the source flat index
+        vector."""
+        n = len(shape)
+        strides = []
+        acc = 1
+        for e in reversed(shape):
+            strides.append(acc)
+            acc *= e.value
+        strides.reverse()
+        src_strides = []
+        acc = 1
+        for e in reversed(src_shape):
+            src_strides.append(acc)
+            acc *= e.value
+        src_strides.reverse()
+        out = None
+        si = 0
+        for i in range(n):
+            axis_idx = idx
+            if strides[i] != 1:
+                div = self._staging_const(ctx, strides[i], vl, loc)
+                axis_idx = self._staging_vbin(ctx, "sdiv", idx, div, vl,
+                                              loc)
+            if shape[i].value != 1:
+                mod = self._staging_const(ctx, shape[i].value, vl, loc)
+                axis_idx = self._staging_vbin(ctx, "srem", axis_idx, mod,
+                                              vl, loc)
+            if flip_axis is not None and i == flip_axis:
+                # idx' = extent - 1 - idx
+                m1 = self._staging_const(ctx, shape[i].value - 1, vl, loc)
+                axis_idx = self._staging_vbin(ctx, "sub", m1, axis_idx, vl,
+                                              loc)
+            if i in drop_axes:
+                continue
+            if si in zero_axes or src_shape[si].value == 1:
+                si += 1
+                continue
+            term = axis_idx
+            if src_strides[si] != 1:
+                st = self._staging_const(ctx, src_strides[si], vl, loc)
+                term = self._staging_vbin(ctx, "mul", axis_idx, st, vl,
+                                          loc)
+            out = term if out is None else self._staging_vbin(
+                ctx, "add", out, term, vl, loc)
+            si += 1
+        if out is None:
+            # every source axis is held at 0 (a pure splat through staging)
+            out = self._staging_const(ctx, 0, vl, loc)
+        return out
+
+    def _stage_permute(self, ctx: _Ctx, fn: tir.Function, op: tir.Op) -> None:
+        src = op.operands[0]
+        dims = op.attrs["dims"]
+        loc = op.loc or fn.loc
+        src_rec = self._staged[src.vid]
+        # result axis j is source axis dims[j]: the map decomposes the
+        # RESULT index and recomposes over the source strides with the
+        # axis roles swapped
+        res_shape = op.results[0].shape
+
+        def map_fn(ctx, idx, vl, loc):
+            return self._permute_map(ctx, idx, res_shape, dims, vl, loc)
+
+        self._emit_staging_loop(ctx, fn, op.results[0],
+                                [(src_rec, map_fn)])
+
+    def _permute_map(self, ctx: _Ctx, idx, res_shape, dims, vl, loc):
+        """src_flat for a permute: decompose idx by the result shape, then
+        recompose over the source strides in the permuted axis order."""
+        n = len(res_shape)
+        r_strides = []
+        acc = 1
+        for e in reversed(res_shape):
+            r_strides.append(acc)
+            acc *= e.value
+        r_strides.reverse()
+        # the source extents: source axis dims[j] carries res_shape[j]
+        s_ext = [0] * n
+        for j in range(n):
+            s_ext[dims[j]] = res_shape[j].value
+        s_strides = []
+        acc = 1
+        for e in reversed(s_ext):
+            s_strides.append(acc)
+            acc *= e
+        s_strides.reverse()
+        out = None
+        for j in range(n):
+            if s_ext[dims[j]] == 1 and res_shape[j].value == 1:
+                continue          # a 1-axis contributes 0
+            axis_idx = idx
+            if r_strides[j] != 1:
+                d = self._staging_const(ctx, r_strides[j], vl, loc)
+                axis_idx = self._staging_vbin(ctx, "sdiv", idx, d, vl, loc)
+            if res_shape[j].value != 1:
+                m = self._staging_const(ctx, res_shape[j].value, vl, loc)
+                axis_idx = self._staging_vbin(ctx, "srem", axis_idx, m, vl,
+                                              loc)
+            if s_strides[dims[j]] != 1:
+                st = self._staging_const(ctx, s_strides[dims[j]], vl, loc)
+                axis_idx = self._staging_vbin(ctx, "mul", axis_idx, st, vl,
+                                              loc)
+            out = axis_idx if out is None else self._staging_vbin(
+                ctx, "add", out, axis_idx, vl, loc)
+        if out is None:
+            out = self._staging_const(ctx, 0, vl, loc)
+        return out
+
+    def _stage_flip(self, ctx: _Ctx, fn: tir.Function, op: tir.Op) -> None:
+        src = op.operands[0]
+        dim = op.attrs["dim"]
+        loc = op.loc or fn.loc
+        src_rec = self._staged[src.vid]
+
+        def map_fn(ctx, idx, vl, loc):
+            return self._decompose_map(ctx, idx, op.results[0].shape,
+                                       list(op.results[0].shape), vl,
+                                       loc, flip_axis=dim)
+
+        self._emit_staging_loop(ctx, fn, op.results[0],
+                                [(src_rec, map_fn)])
+
+    def _stage_join(self, ctx: _Ctx, fn: tir.Function, op: tir.Op) -> None:
+        a, b = op.operands
+        loc = op.loc or fn.loc
+        a_rec, b_rec = self._staged[a.vid], self._staged[b.vid]
+
+        def map_a(ctx, idx, vl, loc):
+            two = self._staging_const(ctx, 2, vl, loc)
+            return self._staging_vbin(ctx, "sdiv", idx, two, vl, loc)
+
+        map_b = map_a
+
+        def selector(ctx, idx, vl, loc):
+            # the minor-axis parity: even lanes take a, odd lanes take b
+            one = self._staging_const(ctx, 1, vl, loc)
+            parity = self._staging_vbin(ctx, "and", idx, one, vl, loc)
+            zero = self._staging_const(ctx, 0, vl, loc)
+            self._staging_region(ctx, 32, vl, loc)
+            return ctx.emit(mir.MOp(
+                "vcmp", [parity, zero],
+                [ctx.vreg(mir.MaskType(), hint="lsp", loc=loc)],
+                attrs={"pred": "eq", "fp": False}, loc=loc))
+
+        self._emit_staging_loop(ctx, fn, op.results[0],
+                                [(a_rec, map_a), (b_rec, map_b)],
+                                selector=selector)
+
+    def _stage_split(self, ctx: _Ctx, fn: tir.Function, op: tir.Op) -> None:
+        src = op.operands[0]
+        loc = op.loc or fn.loc
+        src_rec = self._staged[src.vid]
+        for c, result in enumerate(op.results):
+
+            def map_fn(ctx, idx, vl, loc, c=c):
+                two = self._staging_const(ctx, 2, vl, loc)
+                off = self._staging_const(ctx, c, vl, loc)
+                scaled = self._staging_vbin(ctx, "mul", idx, two, vl, loc)
+                return self._staging_vbin(ctx, "add", scaled, off, vl,
+                                          loc)
+
+            self._emit_staging_loop(ctx, fn, result, [(src_rec, map_fn)])
+
+    def _stage_broadcast(self, ctx: _Ctx, fn: tir.Function, op: tir.Op) -> None:
+        src = op.operands[0]
+        loc = op.loc or fn.loc
+        src_rec = self._staged[src.vid]
+        src_shape = src.shape
+        res_shape = op.results[0].shape
+        pad = len(res_shape) - len(src_shape)
+        drop_axes = tuple(range(pad))
+        zero_axes = set()
+        for i, e in enumerate(src_shape):
+            if e.value == 1 and res_shape[pad + i].value != 1:
+                zero_axes.add(i)
+
+        def map_fn(ctx, idx, vl, loc):
+            return self._decompose_map(ctx, idx, res_shape, list(src_shape),
+                                       vl, loc,
+                                       drop_axes=drop_axes,
+                                       zero_axes=frozenset(zero_axes))
+
+        self._emit_staging_loop(ctx, fn, op.results[0],
+                                [(src_rec, map_fn)])
 
     def _scan_init_reg(self, ctx: _Ctx, frame: dict, ident,
                        loc) -> mir.VReg:
@@ -1823,7 +3120,9 @@ class SliceLowering:
                            (frame.else_block, stmt.els)):
             ctx.switch(block)
             names.push()
+            self._region_depth += 1
             self._lower_statements(ctx, arm.statements, fn, view_regs)
+            self._region_depth -= 1
             values = []
             for name in stmt.join_names:
                 v = names.get(name)
@@ -1840,6 +3139,12 @@ class SliceLowering:
         params = scalar_mod.join_if(ctx, frame, join_name, arm_values, loc)
         ctx.switch(ctx.blocks[join_name])
         for value, param in zip(stmt.join_results, params):
+            if value.vid in self._stage_out:
+                raise self._err(
+                    loc, "layout",
+                    f"a region join value ('{value.name}') cannot cross a "
+                    "pass boundary (the layout lane stages top-level "
+                    "values only)")
             self.values[value.vid] = param
             for key in value.scope_names():
                 names.define(key, value)
@@ -1877,7 +3182,9 @@ class SliceLowering:
         names.push()
         for (cname, init), param in zip(stmt.carried, frame.params):
             names.define(cname, init)
+        self._region_depth += 1
         self._lower_statements(ctx, stmt.body.statements, fn, view_regs)
+        self._region_depth -= 1
         back = []
         for cname, _ in stmt.carried:
             v = names.get(cname)
@@ -1892,6 +3199,12 @@ class SliceLowering:
 
         ctx.switch(frame.exit)
         for value, param in zip(stmt.join_results, frame.exit.params):
+            if value.vid in self._stage_out:
+                raise self._err(
+                    loc, "layout",
+                    f"a loop join value ('{value.name}') cannot cross a "
+                    "pass boundary (the layout lane stages top-level "
+                    "values only)")
             self.values[value.vid] = param
             for key in value.scope_names():
                 names.define(key, value)
@@ -1914,7 +3227,9 @@ class SliceLowering:
         names.push()
         for (cname, init), param in zip(stmt.carried, frame.params):
             names.define(cname, init)
+        self._region_depth += 1
         self._lower_statements(ctx, stmt.body.statements, fn, view_regs)
+        self._region_depth -= 1
         back = []
         for cname, _ in stmt.carried:
             v = names.get(cname)
@@ -1929,6 +3244,12 @@ class SliceLowering:
 
         ctx.switch(frame.exit)
         for value, param in zip(stmt.join_results, frame.exit.params):
+            if value.vid in self._stage_out:
+                raise self._err(
+                    loc, "layout",
+                    f"a while-join value ('{value.name}') cannot cross a "
+                    "pass boundary (the layout lane stages top-level "
+                    "values only)")
             self.values[value.vid] = param
             for key in value.scope_names():
                 names.define(key, value)
@@ -1962,6 +3283,15 @@ class SliceLowering:
             self._bind_result(op, reg)
             return
         if code == "const":
+            ty = op.results[0].type
+            if ty.is_float() and ty.bitwidth() == 16:
+                # the scalar core has no fp16 registers: the constant
+                # materializes at fp32 (exact for the literal) and the
+                # 16-bit consumers (the broadcast splat) round it once
+                reg = scalar_mod.lower_const(ctx, op.attrs["value"],
+                                             tir.FLOAT32, loc)
+                self._bind_result(op, reg)
+                return
             reg = scalar_mod.lower_const(ctx, op.attrs["value"],
                                          op.results[0].type, loc)
             self._bind_result(op, reg)
@@ -1971,22 +3301,75 @@ class SliceLowering:
                 raise self._err(loc, "tl.arange",
                                 "tl.arange used before any block-level "
                                 "statement opened the vector chunk region")
+            ity = self._vtype(tir.INT32)
+            self._vregion(ctx, ity, loc)
             vid = ctx.emit(mir.MOp(
-                "vid", [], [ctx.vreg(mir.VectorType(32, 1, "int"),
-                                     hint="iota", loc=loc)], loc=loc))
+                "vid", [], [ctx.vreg(ity, hint="iota", loc=loc)], loc=loc))
             reg = ctx.emit(mir.MOp(
                 "vbinx", [vid, self._chunk["elem"]],
-                [ctx.vreg(mir.VectorType(32, 1, "int"), hint="ar",
-                          loc=loc)],
+                [ctx.vreg(ity, hint="ar", loc=loc)],
                 attrs={"op": "add"}, loc=loc))
+            self._restore_region(ctx, loc)
             self._bind_result(op, reg)
             return
         if code == "broadcast":
             operand = self._need(op.operands[0], loc)
+            rty = op.results[0].type
+            if rty.is_bool() and operand.is_mask():
+                # a boolean scalar (a mask register) broadcasts to any
+                # shape: the mask is lane-count agnostic (the active vl
+                # governs) -- no (1,·) vector form exists (SEW < 8 is not
+                # a legal vector element width)
+                self._bind_result(op, operand)
+                return
+            if rty.is_bool() and not operand.is_vector():
+                # a boolean scalar held in a GPR (a scalar comparison's
+                # 0/1): splat at i32 and compare != 0 -- the mask form
+                ity = self._idx_vtype(self._vl)
+                self._vregion(ctx, ity, loc)
+                splat = self._splat_reg(ctx, operand, ity, loc)
+                zero = self._splat_const(ctx, 0, ity, loc)
+                reg = ctx.emit(mir.MOp(
+                    "vcmp", [splat, zero],
+                    [ctx.vreg(mir.MaskType(), hint="bcm", loc=loc)],
+                    attrs={"pred": "ne", "fp": False}, loc=loc))
+                self._restore_region(ctx, loc)
+                self._bind_result(op, reg)
+                return
+            if not operand.is_vector() and rty.is_float() \
+                    and rty.bitwidth() == 16 \
+                    and op.operands[0].rank == 0:
+                # a 16-bit float splat of a scalar: splat at fp32 and
+                # round once (the scalar core holds no fp16 values)
+                v32 = self._vtype(tir.FLOAT32)
+                self._vregion(ctx, v32, loc)
+                splat32 = self._splat_reg(ctx, operand, v32, loc)
+                reg = self._f32_to_ff(ctx, splat32, rty, loc)
+                self._bind_result(op, reg)
+                return
             if operand.is_vector():
-                raise self._err(loc, "broadcast",
-                                "broadcast of a block value is not in the "
-                                "slice (only scalar splats)")
+                # a block source: the extent-1 splat is in-pass (every lane
+                # is lane 0); any other block broadcast is a layout segment
+                # (the staging loop lowered it before the pass opened)
+                src = op.operands[0]
+                n_src = self._flat_extent_of(src.shape, loc, "broadcast")
+                if n_src != 1:
+                    raise self._err(loc, "broadcast",
+                                    "broadcast of a multi-lane block is a "
+                                    "layout segment (it lowers through the "
+                                    "staging loop; a broadcast here means "
+                                    "the op sits inside a runtime region -- "
+                                    "not in the layout lane)")
+                scalar = self._scalarize(ctx, operand, loc)
+                vtype = self._value_vtype(op.results[0].type)
+                switched = self._open_region(ctx, vtype, loc)
+                reg = ctx.emit(mir.MOp(
+                    "s2v", [scalar],
+                    [ctx.vreg(vtype, hint="spl1", loc=loc)], loc=loc))
+                if switched:
+                    self._restore_region(ctx, loc)
+                self._bind_result(op, reg)
+                return
             vtype = self._value_vtype(op.results[0].type)
             switched = self._open_region(ctx, vtype, loc)
             reg = ctx.emit(mir.MOp(
@@ -1996,9 +3379,49 @@ class SliceLowering:
                 self._restore_region(ctx, loc)
             self._bind_result(op, reg)
             return
-        if code == "realize":
-            self.values[op.results[0].vid] = self._need(op.operands[0], loc)
+        if code == "reshape":
+            # flat-identity metadata: the register (or the staged region)
+            # carries over unchanged; only the shape metadata changes
+            src = op.operands[0]
+            if src.vid in self._staged:
+                self._staged[op.results[0].vid] = self._staged[src.vid]
+                if self._names is not None:
+                    for key in op.results[0].scope_names():
+                        self._names.define(key, op.results[0])
+                return
+            reg = self._need(src, loc)
+            self.values[op.results[0].vid] = reg
+            if self._names is not None:
+                for key in op.results[0].scope_names():
+                    self._names.define(key, op.results[0])
+            if op.results[0].vid in self._stage_out:
+                # the metadata result is the layout operand: its lanes are
+                # the source's lanes -- stage them here
+                self._store_staged(op.results[0], reg, loc)
             return
+        if code == "realize":
+            src = op.operands[0]
+            if src.vid in self._staged:
+                # the staging loop already materialized real lanes
+                self._staged[op.results[0].vid] = self._staged[src.vid]
+                if self._names is not None:
+                    for key in op.results[0].scope_names():
+                        self._names.define(key, op.results[0])
+                return
+            reg = self._need(src, loc)
+            self.values[op.results[0].vid] = reg
+            if self._names is not None:
+                for key in op.results[0].scope_names():
+                    self._names.define(key, op.results[0])
+            if op.results[0].vid in self._stage_out:
+                self._store_staged(op.results[0], reg, loc)
+            return
+        if code in ("permute", "flip", "join", "split", "interleave"):
+            raise self._err(
+                loc, code,
+                f"a layout op ('{code}') inside a runtime region is not in "
+                "the layout lane (the staging loops lower top-level layout "
+                "ops only)")
         if code == "ptradd":
             self.pointer_ops[op.results[0].vid] = op
             self.values[op.results[0].vid] = self._need(op.operands[0], loc)
@@ -2024,15 +3447,43 @@ class SliceLowering:
                 else:
                     reg = scalar_mod.lower_cmp(ctx, op, lreg, rreg, loc)
             else:
-                switched = self._open_region(
-                    ctx, lreg.type if lreg.is_vector() else rreg.type, loc)
-                reg = ctx.emit(mir.MOp(
-                    "vcmp", [lreg, rreg],
-                    [ctx.vreg(mir.MaskType(), hint="m", loc=loc)],
-                    attrs={"pred": code.split(".")[1],
-                           "fp": lhs.type.is_float()}, loc=loc))
-                if switched:
+                # the declared numeric decision (T012): 16-bit float
+                # compares run in FP32 lanes (bf16 bits are NOT fp16
+                # bits -- comparing them at e16 misreads the format; the
+                # single-rounding policy's fp32 domain)
+                if lreg.is_vector() and lreg.type.kind == "float" \
+                        and lreg.type.sew == 16 \
+                        and self.options.fp16_bf16_fp32_lanes:
+                    ty16 = lhs.type if lhs.type.is_float() \
+                        and lhs.type.bitwidth() == 16 else rhs.type
+                    if not (ty16.is_float() and ty16.bitwidth() == 16):
+                        raise self._err(loc, code,
+                                        "a 16-bit float compare without "
+                                        "its TIR type")
+                    l32 = self._f16_to_f32(ctx, lreg, ty16, loc)
+                    if rreg.is_vector():
+                        r32 = self._f16_to_f32(ctx, rreg, ty16, loc) \
+                            if rreg.type.sew == 16 else rreg
+                    else:
+                        r32 = self._splat_reg(ctx, rreg, l32.type, loc)
+                    self._vregion(ctx, l32.type, loc)
+                    reg = ctx.emit(mir.MOp(
+                        "vcmp", [l32, r32],
+                        [ctx.vreg(mir.MaskType(), hint="m3", loc=loc)],
+                        attrs={"pred": code.split(".")[1], "fp": True},
+                        loc=loc))
                     self._restore_region(ctx, loc)
+                else:
+                    switched = self._open_region(
+                        ctx, lreg.type if lreg.is_vector() else rreg.type,
+                        loc)
+                    reg = ctx.emit(mir.MOp(
+                        "vcmp", [lreg, rreg],
+                        [ctx.vreg(mir.MaskType(), hint="m", loc=loc)],
+                        attrs={"pred": code.split(".")[1],
+                               "fp": lhs.type.is_float()}, loc=loc))
+                    if switched:
+                        self._restore_region(ctx, loc)
             self._bind_result(op, reg)
             return
         if code in tir.UNARY_OPS:
@@ -2155,8 +3606,23 @@ class SliceLowering:
         if code == "bitcast":
             # width-preserving reinterpretation: the same register under
             # the target type's view (the pointer-table pattern's int64 ->
-            # pointer form; the address resolution treats it as the base)
-            self.values[op.results[0].vid] = self._need(op.operands[0], loc)
+            # pointer form keeps the scalar identity; the vector forms
+            # retype the register through the bit-level move)
+            sreg = self._need(op.operands[0], loc)
+            if sreg.is_vector():
+                vtype = self._vtype(op.results[0].type)
+                if vtype.lmul != sreg.type.lmul:
+                    raise self._err(
+                        loc, "bitcast",
+                        f"the reinterpretation view {vtype!r} does not "
+                        f"match the register footprint {sreg.type!r}")
+                reg = self._vmovv(ctx, sreg, vtype, loc)
+                self._bind_result(op, reg)
+                return
+            self.values[op.results[0].vid] = sreg
+            if self._names is not None:
+                for key in op.results[0].scope_names():
+                    self._names.define(key, op.results[0])
             return
         if code == "atomic_rmw":
             scalar_mod.lower_atomic_rmw(self, ctx, op, loc)
@@ -2472,119 +3938,476 @@ class SliceLowering:
                                 "policy": "ta,ma"}, loc=loc))
         return scaled
 
-    def _lower_convert(self, ctx: _Ctx, op: tir.Op, loc) -> None:
-        """The conversions this path executes: int32 -> fp32 (the mean/
-        normalize kernels' accumulation typing) via vfcvt; the bool -> int
-        0/1 class (a compare's lanes extended to their integer class --
-        held at the data SEW, exact because the class {0,1} is closed
-        under this slice's block arithmetic, and widened to the declared
-        type at the scalar consumers); the scalar int widen/narrow forms;
-        everything else refuses with a located diagnostic naming the
-        conversions lane."""
-        src, dst = op.operands[0], op.results[0]
-        sreg = self._need(src, loc)
-        if sreg.is_vector() or sreg.is_mask():
-            if src.type.is_int() and src.type.bitwidth() == 32 \
-                    and dst.type.is_float() and dst.type.bitwidth() == 32:
-                reg = ctx.emit(mir.MOp(
-                    "vunary", [sreg],
-                    [ctx.vreg(mir.VectorType(32, 1, "float"),
-                              hint="cvt", loc=loc)],
-                    attrs={"op": "fcvt"}, loc=loc))
-                self._bind_result(op, reg)
-                return
-            if src.type.is_bool() and dst.type.is_int() \
-                    and dst.type.bitwidth() in (32, 64):
-                # the 0/1 value class: vsel(1, 0) at the data SEW, in the
-                # destination's own signedness kind
-                kind = "uint" if dst.type.is_int_unsigned() else "int"
-                one = self._splat_const(ctx, 1,
-                                        mir.VectorType(self._sew, 1, kind),
+    # -- T012: the conversion matrix -------------------------------------------
+    #
+    # Every conversion the corpus dtype surface declares, as one table over
+    # (src, dst) TIR types.  The routes (each target-legal, each probed or
+    # base-V):
+    #   * int -> int widen: vwiden (sext/zext by the SOURCE signedness --
+    #     the legaliser's vwadd/vwaddu with x0);
+    #   * int -> int narrow: the register view retyped to the destination
+    #     width (vmovv) and vrgather with the strided lane index (the
+    #     low halves of each source lane -- exact truncation);
+    #   * int <-> float at equal width: vfcvt.f.x[u].v / vfcvt.rtz.x[u].f.v
+    #     (the rtz forms are the pinned fptosi/fptoui truncation);
+    #   * int -> float widen: int widen to the float width, then the
+    #     same-width form (i16 -> i32 -> f32: exact for the widening half);
+    #   * float -> int narrow: f32 -> i16/u16 through vfncvt.rtz (then the
+    #     int narrowing for i8/u8);
+    #   * fp16 -> fp32: vfwcvt.f.f.v (exact); fp32 -> fp16: vfncvt.f.f.w
+    #     (RTNE, the pinned default downcast; rtz selects the rtz form);
+    #   * bf16 -> fp32: zext + shift (exact; bf16 is the high half of
+    #     fp32); fp32 -> bf16: the transport's own RTNE bit rounding
+    #     (bits + 0x7fff + lsb, NaN-quieting) -- bit-identical to the
+    #     host staging so both bf16 duality forms read back exactly;
+    #   * fp16 <-> bf16: through fp32 (the two step route);
+    #   * bool -> X: vsel(1, 0) / vsel(1.0, 0.0) at the destination type;
+    #     X -> bool: vcmp ne 0;
+    #   * fp64: refused (the corpus dtype surface has no fp64 tensor; the
+    #     16 dead dispatch branches fold at specialization).
+
+    def _f16_to_f32(self, ctx: _Ctx, reg: mir.VReg, ty16, loc) -> mir.VReg:
+        """A 16-bit float block to fp32 (exact for both fp16 and bf16)."""
+        if not ty16.is_float() or ty16.bitwidth() != 16:
+            raise self._err(loc, "convert", "not a 16-bit float type")
+        if ty16.name == "bf16":
+            # (u16 bits) zext -> (bits << 16) as fp32: exact (bf16 IS the
+            # high half of fp32)
+            fl = max(1, self._vl * 32 // self.target.vlen_bits)
+            ubits = self._vmovv(ctx, reg, mir.VectorType(
+                16, reg.type.lmul, "uint"), loc)
+            self._vregion(ctx, ubits.type, loc)
+            wide = ctx.emit(mir.MOp(
+                "vwiden", [ubits],
+                [ctx.vreg(mir.VectorType(32, reg.type.lmul * 2, "uint"),
+                          hint="cvb", loc=loc)],
+                attrs={"mode": "zext"}, loc=loc))
+            wide = self._vmovv(ctx, wide, mir.VectorType(32, fl, "uint"),
+                               loc) if reg.type.lmul * 2 != fl else wide
+            self._vregion(ctx, wide.type, loc)
+            shifted = ctx.emit(mir.MOp(
+                "vbinx", [wide,
+                          ctx.const(1 << 16, mir.ScalarType(32), loc)],
+                [ctx.vreg(mir.VectorType(32, fl, "uint"),
+                          hint="cvs", loc=loc)],
+                attrs={"op": "mul"}, loc=loc))
+            out = ctx.emit(mir.MOp(
+                "vmovv", [shifted],
+                [ctx.vreg(mir.VectorType(32, fl, "float"),
+                          hint="cvf", loc=loc)], loc=loc))
+            self._restore_region(ctx, loc)
+            return out
+        # fp16: the widening convert at the SOURCE's region (probed),
+        # retyped to the lanes-derived fp32 class
+        self._vregion(ctx, reg.type, loc)
+        wide = ctx.emit(mir.MOp(
+            "vfwcvt", [reg],
+            [ctx.vreg(mir.VectorType(32, reg.type.lmul * 2, "float"),
+                      hint="cvf", loc=loc)],
+            attrs={"op": "ff"}, loc=loc))
+        fl = max(1, self._vl * 32 // self.target.vlen_bits)
+        out = self._vmovv(ctx, wide, mir.VectorType(32, fl, "float"),
+                          loc) if reg.type.lmul * 2 != fl else wide
+        self._restore_region(ctx, loc)
+        return out
+
+    def _f32_to_ff(self, ctx: _Ctx, reg: mir.VReg, dst16, loc,
+                   rounding=None) -> mir.VReg:
+        """An fp32 block to the 16-bit float type ``dst16`` (one rounding)."""
+        if not dst16.is_float() or dst16.bitwidth() != 16:
+            raise self._err(loc, "convert", "not a 16-bit float target")
+        lmul = reg.type.lmul
+        if dst16.name == "bf16":
+            # the transport's own RTNE bit rounding: bits + 0x7fff + lsb,
+            # NaN inputs quieted (bit 22), then the high half
+            bits = self._vmovv(ctx, reg, mir.VectorType(32, lmul, "uint"),
+                               loc)
+            self._vregion(ctx, bits.type, loc)
+            half = self._splat_const(ctx, 0x7fff,
+                                     mir.VectorType(32, lmul, "uint"), loc)
+            lsb = self._splat_const(ctx, 1,
+                                    mir.VectorType(32, lmul, "uint"), loc)
+            add = ctx.emit(mir.MOp(
+                "vbin", [bits, half],
+                [ctx.vreg(bits.type, hint="cva", loc=loc)],
+                attrs={"op": "add"}, loc=loc))
+            shifted = ctx.emit(mir.MOp(
+                "vbin", [bits, lsb],
+                [ctx.vreg(bits.type, hint="cvs", loc=loc)],
+                attrs={"op": "srl"}, loc=loc))
+            rounded = ctx.emit(mir.MOp(
+                "vbin", [add, shifted],
+                [ctx.vreg(bits.type, hint="cvr", loc=loc)],
+                attrs={"op": "add"}, loc=loc))
+            # NaN: exponent all ones and a non-zero mantissa
+            emask = self._splat_const(ctx, 0x7f800000,
+                                      mir.VectorType(32, lmul, "uint"), loc)
+            eall = self._splat_const(ctx, 0x7f800000,
+                                     mir.VectorType(32, lmul, "uint"), loc)
+            mmask = self._splat_const(ctx, 0x007fffff,
+                                      mir.VectorType(32, lmul, "uint"), loc)
+            zero = self._splat_const(ctx, 0,
+                                     mir.VectorType(32, lmul, "uint"), loc)
+            exp = ctx.emit(mir.MOp(
+                "vbin", [bits, emask],
+                [ctx.vreg(bits.type, hint="cve", loc=loc)],
+                attrs={"op": "and"}, loc=loc))
+            is_exp = ctx.emit(mir.MOp(
+                "vcmp", [exp, eall],
+                [ctx.vreg(mir.MaskType(), hint="cvn", loc=loc)],
+                attrs={"pred": "eq", "fp": False}, loc=loc))
+            man = ctx.emit(mir.MOp(
+                "vbin", [bits, mmask],
+                [ctx.vreg(bits.type, hint="cvm", loc=loc)],
+                attrs={"op": "and"}, loc=loc))
+            has_man = ctx.emit(mir.MOp(
+                "vcmp", [man, zero],
+                [ctx.vreg(mir.MaskType(), hint="cvh", loc=loc)],
+                attrs={"pred": "ne", "fp": False}, loc=loc))
+            is_nan = ctx.emit(mir.MOp(
+                "vmand", [is_exp, has_man],
+                [ctx.vreg(mir.MaskType(), hint="cvq", loc=loc)], loc=loc))
+            qbit = self._splat_const(ctx, 0x00400000,
+                                     mir.VectorType(32, lmul, "uint"), loc)
+            quieted = ctx.emit(mir.MOp(
+                "vbin", [bits, qbit],
+                [ctx.vreg(bits.type, hint="cvz", loc=loc)],
+                attrs={"op": "or"}, loc=loc))
+            v0 = ctx.emit(mir.MOp(
+                "vmovmask", [is_nan],
+                [ctx.vreg(mir.MaskType(), hint="cv0", loc=loc,
+                          fixed_phys="v0")], loc=loc))
+            final = ctx.emit(mir.MOp(
+                "vsel", [v0, quieted, rounded],
+                [ctx.vreg(bits.type, hint="cvw", loc=loc)], loc=loc))
+            sixteen = self._splat_const(ctx, 16,
+                                        mir.VectorType(32, lmul, "uint"),
                                         loc)
-                zero = self._splat_const(ctx, 0,
-                                         mir.VectorType(self._sew, 1, kind),
-                                         loc)
-                if sreg.is_mask():
-                    v0 = ctx.emit(mir.MOp(
-                        "vmovmask", [sreg],
-                        [ctx.vreg(mir.MaskType(), hint="v0c", loc=loc,
-                                  fixed_phys="v0")], loc=loc))
-                else:
-                    v0 = sreg
-                reg = ctx.emit(mir.MOp(
+            down = ctx.emit(mir.MOp(
+                "vbin", [final, sixteen],
+                [ctx.vreg(bits.type, hint="cvd", loc=loc)],
+                attrs={"op": "srl"}, loc=loc))
+            # the low half: the strided gather at the half-width view,
+            # then the float-kind view of the bf16 bits
+            low = self._int_narrow(ctx, down, 32, 16, loc)
+            dl = max(1, self._vl * 16 // self.target.vlen_bits)
+            out = ctx.emit(mir.MOp(
+                "vmovv", [low],
+                [ctx.vreg(mir.VectorType(16, dl, "float"),
+                          hint="cvf", loc=loc)], loc=loc))
+            self._restore_region(ctx, loc)
+            return out
+        # fp16: the narrowing convert at the DESTINATION's region (RTNE
+        # default; rtz on request); the destination LMUL covers the pass's
+        # lanes at the 16-bit width.  The source is first re-viewed at the
+        # DOUBLE-LMUL group (the group the instruction actually reads --
+        # a (32,·)-typed source register implies an m2x group whose
+        # overlap with vd is an illegal form on this target, probed).
+        dl = max(1, self._vl * 16 // self.target.vlen_bits)
+        kind = "float" if reg.type.kind == "float" else \
+            ("uint" if reg.type.kind == "uint" else "int")
+        src2 = self._vmovv(ctx, reg,
+                           mir.VectorType(32, dl * 2, kind), loc)
+        vtype = mir.VectorType(16, dl, "float")
+        self._vregion(ctx, vtype, loc)
+        out = ctx.emit(mir.MOp(
+            "vfncvt", [src2],
+            [ctx.vreg(vtype, hint="cvd", loc=loc)],
+            attrs={"op": "ffrtz" if rounding == "rtz" else "ff"}, loc=loc))
+        self._restore_region(ctx, loc)
+        return out
+
+    def _int_narrow(self, ctx: _Ctx, reg: mir.VReg, sw: int, dw: int,
+                    loc) -> mir.VReg:
+        """Exact integer narrowing (sw -> dw, sw > dw): the register view
+        retyped to the destination width (vmovv at the SOURCE's region --
+        every used byte survives) and vrgather with the strided lane
+        index: each destination lane takes the low half of its source
+        lane."""
+        if dw >= sw:
+            raise self._err(loc, "convert", "int_narrow requires sw > dw")
+        factor = sw // dw
+        lmul = max(1, self._vl * dw // self.target.vlen_bits)
+        viewed = self._vmovv(ctx, reg, mir.VectorType(dw, lmul, "int"),
+                             loc)
+        self._vregion(ctx, viewed.type, loc)
+        vid = ctx.emit(mir.MOp(
+            "vid", [], [ctx.vreg(mir.VectorType(dw, lmul, "int"),
+                                 hint="cvi", loc=loc)], loc=loc))
+        sty = mir.ScalarType(dw, signed=True)
+        kreg = ctx.const(factor, sty, loc)
+        fac = ctx.emit(mir.MOp(
+            "s2v", [kreg], [ctx.vreg(mir.VectorType(dw, lmul, "int"),
+                                     hint="cvk", loc=loc)], loc=loc))
+        idx = ctx.emit(mir.MOp(
+            "vbin", [vid, fac],
+            [ctx.vreg(mir.VectorType(dw, lmul, "int"), hint="cvx",
+                      loc=loc)],
+            attrs={"op": "mul"}, loc=loc))
+        out = ctx.emit(mir.MOp(
+            "vrgather", [viewed, idx],
+            [ctx.vreg(mir.VectorType(dw, lmul, "int"), hint="cvg",
+                      loc=loc)], loc=loc))
+        self._restore_region(ctx, loc)
+        return out
+
+    def _int_widen(self, ctx: _Ctx, reg: mir.VReg, sw: int, dw: int,
+                   signed: bool, loc) -> mir.VReg:
+        """Exact integer widening (sw -> dw, a power-of-two factor): the
+        vwiden chain at each step's source region (sext for signed
+        sources, zext for unsigned -- the pinned extension semantics),
+        retyped to the lanes-derived destination class after every step
+        (the vwiden's group is double the source's even when the pass's
+        lanes only fill part of it)."""
+        cur = reg
+        w = sw
+        while w < dw:
+            self._vregion(ctx, cur.type, loc)
+            wide = ctx.emit(mir.MOp(
+                "vwiden", [cur],
+                [ctx.vreg(mir.VectorType(w * 2, cur.type.lmul * 2,
+                                         "int" if signed else "uint"),
+                          hint="cvw", loc=loc)],
+                attrs={"mode": "sext" if signed else "zext"}, loc=loc))
+            w *= 2
+            want = mir.VectorType(
+                w, max(1, self._vl * w // self.target.vlen_bits),
+                "int" if signed else "uint")
+            cur = self._vmovv(ctx, wide, want, loc) if \
+                (want.sew, want.lmul) != (wide.type.sew,
+                                          wide.type.lmul) else wide
+        self._restore_region(ctx, loc)
+        return cur
+
+    def _convert_vector(self, ctx: _Ctx, sreg: mir.VReg, src: tir.Type,
+                        dst: tir.Type, loc,
+                        rounding=None) -> mir.VReg:
+        """The conversion matrix over the corpus dtype surface (vector
+        form, at the current pass's vl)."""
+        sw, dw = src.bitwidth(), dst.bitwidth()
+        # fp64 is outside the executed corpus surface (the 16 dead dtype
+        # dispatch branches fold at specialization)
+        if (sw == 64 and src.is_float()) or (dw == 64 and dst.is_float()):
+            raise self._err(
+                loc, "convert",
+                f"fp64 conversions are not in the lane (the corpus dtype "
+                f"surface has no fp64 tensors): {src!r} -> {dst!r}")
+        if src.is_bool():
+            # bool -> X: the 0/1 class selected at the destination type.
+            # An integer destination WIDER than the pass's SEW keeps the
+            # {0,1} class at the data SEW (the class is closed under the
+            # pass's arithmetic; the merge/scalar consumers widen it --
+            # the exact form for the reduction feeds), exactly the T009
+            # contract; narrower destinations take their own width.
+            if dst.is_bool():
+                return sreg
+            v0 = sreg if sreg.is_mask() else self._mask_of_bool(ctx, sreg,
+                                                                loc)
+            v0 = ctx.emit(mir.MOp(
+                "vmovmask", [v0],
+                [ctx.vreg(mir.MaskType(), hint="cv0", loc=loc,
+                          fixed_phys="v0")], loc=loc))
+            if dst.is_int() and dw > self._sew:
+                kind = "uint" if dst.is_int_unsigned() else "int"
+                vtype = mir.VectorType(self._sew, 1, kind)
+                self._vregion(ctx, vtype, loc)
+                one = self._splat_const(ctx, 1, vtype, loc)
+                zero = self._splat_const(ctx, 0, vtype, loc)
+                out = ctx.emit(mir.MOp(
                     "vsel", [v0, one, zero],
-                    [ctx.vreg(mir.VectorType(self._sew, 1, "int"),
-                              hint="b01", loc=loc)], loc=loc))
-                self._bind_result(op, reg)
+                    [ctx.vreg(vtype, hint="cvb", loc=loc)], loc=loc))
+                self._restore_region(ctx, loc)
+                return out
+            if dst.is_float() and dw == 16:
+                # the 16-bit float formats differ in their bit layouts:
+                # splat at fp32 and convert down (exact for {0, 1})
+                v32 = self._vtype(tir.FLOAT32)
+                self._vregion(ctx, v32, loc)
+                one32 = self._splat_const(ctx, 1.0, v32, loc)
+                zero32 = self._splat_const(ctx, 0.0, v32, loc)
+                one = self._f32_to_ff(ctx, one32, dst, loc)
+                zero = self._f32_to_ff(ctx, zero32, dst, loc)
+                v0m = ctx.emit(mir.MOp(
+                    "vmovmask", [v0],
+                    [ctx.vreg(mir.MaskType(), hint="cv0", loc=loc,
+                              fixed_phys="v0")], loc=loc))
+                return ctx.emit(mir.MOp(
+                    "vsel", [v0m, one, zero],
+                    [ctx.vreg(one.type, hint="cvb", loc=loc)], loc=loc))
+            vtype = self._vtype(dst)
+            self._vregion(ctx, vtype, loc)
+            one = self._splat_const(ctx, 1.0 if dst.is_float() else 1,
+                                    vtype, loc)
+            zero = self._splat_const(ctx, 0.0 if dst.is_float() else 0,
+                                     vtype, loc)
+            out = ctx.emit(mir.MOp(
+                "vsel", [v0, one, zero],
+                [ctx.vreg(vtype, hint="cvb", loc=loc)], loc=loc))
+            self._restore_region(ctx, loc)
+            return out
+        if dst.is_bool():
+            # X -> bool: != 0 (a mask-typed source IS the bool form)
+            if sreg.is_mask():
+                self._bind_result(op, sreg)
                 return
-            if src.type.is_int() and dst.type.is_int() \
-                    and src.type.bitwidth() == 32 \
-                    and dst.type.bitwidth() == 64:
-                # the widening 0/1-class/int form: the widened lanes stay
-                # non-negative under this slice's block arithmetic (vwadd
-                # with x0 sext-extends, exact for the class and for the
-                # slice's i32-lane values consumed at 64 bits)
-                reg = ctx.emit(mir.MOp(
-                    "vwaddx0", [sreg],
-                    [ctx.vreg(mir.VectorType(64, 2, "int"), hint="cw",
-                              loc=loc)], attrs={"mode": "sext"}, loc=loc))
+            vtype = sreg.type
+            self._vregion(ctx, vtype, loc)
+            zero = self._splat_const(ctx, 0.0 if src.is_float() else 0,
+                                     vtype, loc)
+            out = ctx.emit(mir.MOp(
+                "vcmp", [sreg, zero],
+                [ctx.vreg(mir.MaskType(), hint="cvn", loc=loc)],
+                attrs={"pred": "ne", "fp": src.is_float()}, loc=loc))
+            self._restore_region(ctx, loc)
+            return out
+        if src.is_int() and dst.is_int():
+            if sw == dw:
+                # signedness reinterpretation at the same width: the
+                # register-view move (bit-identical)
+                return self._vmovv(ctx, sreg, self._vtype(dst), loc)
+            if sw < dw:
+                return self._int_widen(ctx, sreg, sw, dw,
+                                       src.is_int_signed(), loc)
+            return self._int_narrow(ctx, sreg, sw, dw, loc)
+        if src.is_int() and dst.is_float():
+            if sw <= dw:
+                if sw < dw:
+                    wide = self._int_widen(ctx, sreg, sw, dw,
+                                           src.is_int_signed(), loc)
+                else:
+                    wide = sreg
+                op = "fcvt" if src.is_int_signed() else "fcvt.fxu"
+                self._vregion(ctx, wide.type, loc)
+                out = ctx.emit(mir.MOp(
+                    "vunary", [wide],
+                    [ctx.vreg(self._vtype(dst), hint="cvf", loc=loc)],
+                    attrs={"op": op}, loc=loc))
+                self._restore_region(ctx, loc)
+                return out
+            if dw == 16:
+                # int -> fp16 through fp32 (the declared fp32-lane
+                # policy: the integer converts to fp32, then one final
+                # RTNE rounding to fp16; the double rounding stays
+                # inside the fp16 tolerance)
+                f32 = self._convert_vector(ctx, sreg, src, tir.FLOAT32,
+                                           loc)
+                return self._f32_to_ff(ctx, f32, dst, loc)
+            # sw > dw and dw == 32: i64 -> f32 narrows the integer first
+            # (values above 2^31 would wrap) -- refused, never wrong
+            raise self._err(
+                loc, "convert",
+                f"int{sw} -> f{dw} narrows the integer first (values "
+                "beyond the narrower width would wrap); the exact route "
+                "needs the fp64 staging outside the corpus dtype surface")
+        if src.is_float() and dst.is_int():
+            if sw == dw:
+                op = "fcvt.xf" if dst.is_int_signed() else "fcvt.xuf"
+                self._vregion(ctx, sreg.type, loc)
+                out = ctx.emit(mir.MOp(
+                    "vunary", [sreg],
+                    [ctx.vreg(self._vtype(dst), hint="cvi", loc=loc)],
+                    attrs={"op": op}, loc=loc))
+                self._restore_region(ctx, loc)
+                return out
+            if sw == 16:
+                # f16/bf16 -> i32/u32: widen to f32 (exact), then rtz
+                f32 = self._f16_to_f32(ctx, sreg, src, loc)
+                op = "fcvt.xf" if dst.is_int_signed() else "fcvt.xuf"
+                self._vregion(ctx, f32.type, loc)
+                out = ctx.emit(mir.MOp(
+                    "vunary", [f32],
+                    [ctx.vreg(self._vtype(dst), hint="cvi", loc=loc)],
+                    attrs={"op": op}, loc=loc))
+                self._restore_region(ctx, loc)
+                return out
+            if sw == 32 and dw < 32:
+                # f32 -> i16/u16: the narrowing rtz convert at the
+                # destination's region (the source re-viewed at the
+                # double-LMUL group the instruction reads); i8/u8 narrow
+                # the integer after
+                op = "xf" if dst.is_int_signed() else "xuf"
+                dl = max(1, self._vl * 16 // self.target.vlen_bits)
+                src2 = self._vmovv(ctx, sreg,
+                                   mir.VectorType(32, dl * 2, "float"),
+                                   loc)
+                vtype = mir.VectorType(16, dl,
+                                       "int" if dst.is_int_signed()
+                                       else "uint")
+                self._vregion(ctx, vtype, loc)
+                mid = ctx.emit(mir.MOp(
+                    "vfncvt", [src2],
+                    [ctx.vreg(vtype, hint="cvi", loc=loc)],
+                    attrs={"op": op}, loc=loc))
+                if dw == 16:
+                    self._restore_region(ctx, loc)
+                    return mid
+                out = self._int_narrow(ctx, mid, 16, dw, loc)
+                return out
+            raise self._err(
+                loc, "convert",
+                f"f{sw} -> i{dw} is not in the conversion matrix")
+        # float -> float
+        if src.is_float() and dst.is_float():
+            if sw == dw:
+                # fp16 <-> bf16: through fp32 (the two-step route)
+                f32 = self._f16_to_f32(ctx, sreg, src, loc)
+                return self._f32_to_ff(ctx, f32, dst, loc,
+                                       rounding=rounding)
+            if sw == 16 and dw == 32:
+                return self._f16_to_f32(ctx, sreg, src, loc)
+            if sw == 32 and dw == 16:
+                return self._f32_to_ff(ctx, sreg, dst, loc,
+                                       rounding=rounding)
+            raise self._err(
+                loc, "convert",
+                f"f{sw} -> f{dw} is not in the conversion matrix")
+        raise self._err(loc, "convert",
+                        f"no conversion route {src!r} -> {dst!r}")
+
+    def _lower_convert(self, ctx: _Ctx, op: tir.Op, loc) -> None:
+        """The full conversion matrix (T012): every corpus dtype pair
+        lowers through _convert_vector; scalars ride the splat-convert-
+        extract path."""
+        src, dst = op.operands[0], op.results[0]
+        rounding = op.attrs.get("rounding")
+        sreg = self._need(src, loc)
+        if sreg.is_vector() and not sreg.is_mask():
+            reg = self._convert_vector(ctx, sreg, src.type, dst.type, loc,
+                                       rounding=rounding)
+            self._bind_result(op, reg)
+            return
+        if sreg.is_mask() or src.type.is_bool():
+            # bool (a mask register): the 0/1 class through the vector
+            # path; a block result keeps the vector, a scalar result
+            # extracts lane 0
+            reg = self._convert_vector(ctx, sreg, src.type, dst.type, loc,
+                                       rounding=rounding)
+            if op.results[0].rank > 0:
                 self._bind_result(op, reg)
-                return
-            raise self._err(loc, "convert",
-                            "value conversion is not in the vector slice "
-                            "(the int32<->fp32 and bool->int forms are; "
-                            "the conversion matrix is the conversions "
-                            "lane)")
-        if src.type.is_int() and src.type.bitwidth() == 32 \
-                and dst.type.is_float() and dst.type.bitwidth() == 32:
-            splat = self._splat_reg(ctx, sreg,
-                                    mir.VectorType(32, 1, "int"), loc)
-            cvt = ctx.emit(mir.MOp(
-                "vunary", [splat],
-                [ctx.vreg(mir.VectorType(32, 1, "float"),
-                          hint="cvt", loc=loc)],
-                attrs={"op": "fcvt"}, loc=loc))
-            self._bind_result(op, self._scalarize(ctx, cvt, loc))
+            else:
+                self._bind_result(op, self._scalarize(ctx, reg, loc))
             return
         if src.type.is_int() and dst.type.is_int():
+            # the scalar core's own widen (and the 64->32 narrow; the
+            # sub-32 narrowing rides the vector path -- the scalar core
+            # has no form there)
             if src.type.bitwidth() < dst.type.bitwidth():
-                self._bind_result(op, scalar_mod.widen_to(ctx, sreg,
-                                                          dst.type.bitwidth(),
-                                                          loc))
+                self._bind_result(op, scalar_mod.widen_to(
+                    ctx, sreg, dst.type.bitwidth(), loc))
                 return
-            if src.type.bitwidth() > dst.type.bitwidth():
+            if src.type.bitwidth() > dst.type.bitwidth() \
+                    and dst.type.bitwidth() >= 32:
                 self._bind_result(op, scalar_mod.narrow_to(
                     ctx, sreg, dst.type.bitwidth(), loc))
                 return
-        if src.type.is_bool() and dst.type.is_int():
-            # the scalar 0/1 class, through the vector path
-            one = self._splat_const(ctx, 1, mir.VectorType(32, 1, "int"),
-                                    loc)
-            zero = self._splat_const(ctx, 0, mir.VectorType(32, 1, "int"),
-                                     loc)
-            if sreg.is_mask():
-                v0 = sreg
-            else:
-                v0 = self._mask_of_bool(ctx, sreg, loc)
-            sel = ctx.emit(mir.MOp(
-                "vsel", [v0, one, zero],
-                [ctx.vreg(mir.VectorType(32, 1, "int"), hint="bs1",
-                          loc=loc)], loc=loc))
-            reg = self._scalarize(ctx, sel, loc)
-            if dst.type.bitwidth() == 64:
-                reg = scalar_mod.widen_to(ctx, reg, 64, loc)
-            self._bind_result(op, reg)
-            return
-        if src.type.is_float() and src.type.is_int() \
-                and src.type.bitwidth() == dst.type.bitwidth():
-            raise self._err(loc, "convert",
-                            "float->int conversion selects a semantic "
-                            "rounding mode (the conversions lane owns the "
-                            "rounding forms)")
-        raise self._err(loc, "convert",
-                        "value conversion is not in the vector slice "
-                        "(the int32->fp32 form is; the conversion matrix "
-                        "is the conversions lane)")
+        # the scalar form: splat, convert, extract
+        splat_ty = src.type
+        vtype = self._vtype(splat_ty)
+        self._open_region(ctx, vtype, loc)
+        splat = self._splat_reg(ctx, sreg, vtype, loc)
+        cvt = self._convert_vector(ctx, splat, src.type, dst.type, loc,
+                                   rounding=rounding)
+        self._bind_result(op, self._scalarize(ctx, cvt, loc))
 
     # -- scalar float arithmetic through the vector path -------------------------
     def _scalar_float_binop(self, ctx: _Ctx, op: tir.Op, lreg: mir.VReg,
@@ -2660,15 +4483,56 @@ class SliceLowering:
                "bit.shl": "sll"}.get(code)
         if vop is None:
             raise self._err(loc, code, "vector binary op is not in the slice")
-        if vop in ("sdiv", "udiv", "frem", "srem", "urem"):
+        if vop in ("sdiv", "udiv", "srem", "urem"):
+            # T012: the layout lane's index maps and tl.swizzle2d need
+            # division/remainder by compile-time constants (probed under
+            # the pinned QEMU: vdiv/vrem/vdivu execute)
+            pass
+        if vop == "frem":
             raise self._err(loc, code,
-                            "integer division/remainder is not in the "
-                            "vector slice (the non-negative power-of-two "
-                            "remainder folds to a mask at the frontend; "
-                            "every other form is a located refusal)")
+                            "vector frem is not in the slice (no target "
+                            "form; a located refusal)")
         if vop == "fdiv" and lreg.type.kind != "float":
             raise self._err(loc, code,
                             "fdiv requires floating operands")
+        # the declared numeric decision (T012): fp16/bf16 compute lanes run
+        # in FP32 with one rounding back at the end (fp32 stays IEEE);
+        # bf16 has no native vector arithmetic on this target, and fp16
+        # native lanes exist (probed) but the single-rounding policy is
+        # the declared default.  The switch is recorded in the artifact
+        # identity (options.fp16_bf16_fp32_lanes).
+        if lreg.type.kind == "float" and lreg.type.sew == 16:
+            ty16 = op.results[0].type if op.results else None
+            if ty16 is None or not ty16.is_float() \
+                    or ty16.bitwidth() != 16:
+                raise self._err(loc, code,
+                                "a 16-bit float block without its TIR type "
+                                "(the fp32-lane policy needs the fp16/bf16 "
+                                "distinction)")
+            if ty16.name == "bf16" and \
+                    not self.options.fp16_bf16_fp32_lanes:
+                # the switch's OFF position documents the boundary:
+                # native bf16 vector arithmetic does not exist on this
+                # target (the e16 float lanes are fp16); computing bf16
+                # bits through them would silently miscompile -- the
+                # located refusal names the construct
+                raise self._err(
+                    loc, code,
+                    "bf16 block arithmetic requires the fp32-lane policy "
+                    "(fp16_bf16_fp32_lanes=True): native bf16 vector "
+                    "arithmetic does not exist on this target and the "
+                    "e16 float lanes are fp16 (a located refusal, never "
+                    "a silent miscompile)")
+            l32 = self._f16_to_f32(ctx, lreg, ty16, loc) \
+                if lreg.type.sew == 16 else lreg
+            r32 = self._f16_to_f32(ctx, rreg, ty16, loc) \
+                if rreg.type.sew == 16 else rreg
+            self._vregion(ctx, l32.type, loc)
+            res32 = ctx.emit(mir.MOp(
+                "vbin", [l32, r32],
+                [ctx.vreg(l32.type, hint="vb3", loc=loc)],
+                attrs={"op": vop}, loc=loc))
+            return self._f32_to_ff(ctx, res32, ty16, loc)
         switched = self._open_region(ctx, lreg.type, loc)
         reg = ctx.emit(mir.MOp(
             "vbin", [lreg, rreg],
@@ -2798,6 +4662,7 @@ class SliceLowering:
                                            loc) if wide is not None else None
         if unit_base is not None:
             rtype = self._vtype(op.results[0].type)
+            self._vregion(ctx, rtype, loc)
             operands = [unit_base]
             attrs = {"sew": rtype.sew}
             if mreg is not None and not self.options.witness_drop_tail_predicates:
@@ -2909,8 +4774,11 @@ class SliceLowering:
         unit_base = self._unit_stride_base(ctx, wide, base_reg, pointee,
                                            loc) if wide is not None else None
         if unit_base is not None:
+            stype = vreg.type if vreg.is_vector() else \
+                self._vtype(op.operands[1].type)
+            self._vregion(ctx, stype, loc)
             operands = [unit_base, vreg]
-            attrs = {"sew": self._sew}
+            attrs = {"sew": stype.sew}
             if mask_reg is not None and not self.options.witness_drop_tail_predicates:
                 v0 = ctx.emit(mir.MOp(
                     "vmovmask", [mask_reg],
@@ -2942,16 +4810,26 @@ class SliceLowering:
 
     # -- type mapping --------------------------------------------------------------
     def _vtype(self, ty: tir.Type) -> mir.VectorType:
+        """The register form of one TIR block type at the current pass's
+        vl: LMUL covers the pass's lanes at the type's width (the T012
+        multi-SEW rule -- for the SEW=32 passes of the single-pass form
+        this is exactly the old (SEW, 1) data class / EMUL-2 i64 index
+        class)."""
         kind = "float" if ty.is_float() else (
             "uint" if ty.is_int_unsigned() else "int")
-        return mir.VectorType(ty.bitwidth(), 1, kind)
+        lanes_bits = ty.bitwidth() * self._vl
+        lmul = max(1, (lanes_bits + self.target.vlen_bits - 1)
+                   // self.target.vlen_bits)
+        if lmul not in (1, 2, 4, 8):
+            raise self._err(None, "type",
+                            f"the {ty!r} value class needs LMUL {lmul} at "
+                            f"vl {self._vl} (outside 1..8; a located "
+                            "refusal)")
+        return mir.VectorType(ty.bitwidth(), lmul, kind)
 
     def _value_vtype(self, ty: tir.Type) -> mir.VectorType:
-        """The register form of one TIR block type at the chunk's vl: the
-        data class at (SEW, 1), the wider integer index class at its
-        EMUL (the i64 offsets of int64 index arithmetic)."""
-        if ty.is_int() and ty.bitwidth() > self._sew:
-            return self._index_vtype(ty.bitwidth())
+        """The register form of one TIR block type at the chunk's vl (the
+        _vtype rule; kept as the named entry point the callers use)."""
         return self._vtype(ty)
 
     def _index_vtype(self, width: int) -> mir.VectorType:

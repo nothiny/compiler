@@ -649,6 +649,20 @@ IMPLEMENTED_CONSTRUCTS = {
     "tl.xor_sum", "tl.reduce_or", "tl.cumsum", "tl.cumprod",
     "tl.softmax", "tl.histogram", "tl.sort", "tl.topk",
     "tl.cast",
+    # T012: layout, shape and dtype-conversion breadth -- reshape (with
+    # can_reorder accepted: any permutation is allowed and the identity is
+    # the realized choice), trans/permute, join/split, cat (the pinned
+    # join+permute+reshape desugar; can_reorder accepts the identity
+    # order), expand_dims/unsqueeze/squeeze (the reshape forms; the
+    # subscript ``[:, None]`` expands too), broadcast_to/broadcast,
+    # ravel, view (the pinned can_reorder=True reshape alias), flip,
+    # swizzle2d (the pinned arithmetic index transform), to_tensor; the
+    # cast parameters fp_downcast_rounding (rtne/rtz) and bitcast (the
+    # distinct bit-level reinterpretation construct) are implemented
+    "tl.reshape", "tl.view", "tl.ravel", "tl.squeeze", "tl.expand_dims",
+    "tl.unsqueeze", "tl.trans", "tl.permute", "tl.join", "tl.split",
+    "tl.cat", "tl.broadcast_to", "tl.broadcast", "tl.flip",
+    "tl.swizzle2d", "tl.to_tensor",
     # dtype constants (no parameters): parse, compare, create
     "tl.float32", "tl.int64", "tl.int32", "tl.bfloat16", "tl.float16",
     "tl.float64", "tl.uint32", "tl.int1", "tl.uint64", "tl.int16", "tl.int8",

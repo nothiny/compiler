@@ -141,7 +141,15 @@ class PointerTypeVal:
 
 
 #: method-call forms that map to declared constructs (``.to`` is ``tl.cast``)
-_METHOD_CONSTRUCTS = {".to": "tl.cast"}
+_METHOD_CONSTRUCTS = {
+    ".to": "tl.cast",
+    # T012: the layout/shape method forms (the pinned tensor members)
+    ".reshape": "tl.reshape", ".trans": "tl.trans", ".permute": "tl.permute",
+    ".expand_dims": "tl.expand_dims", ".unsqueeze": "tl.unsqueeze",
+    ".squeeze": "tl.squeeze", ".broadcast_to": "tl.broadcast_to",
+    ".ravel": "tl.ravel", ".view": "tl.view", ".flip": "tl.flip",
+    ".to_tensor": "tl.to_tensor",
+}
 
 #: parameters each implemented construct requires
 _REQUIRED_PARAMS = {
@@ -185,7 +193,29 @@ _REQUIRED_PARAMS = {
     "tl.atomic_or": ("pointer", "val"),
     "tl.atomic_xor": ("pointer", "val"),
     "tl.atomic_cas": ("pointer", "cmp", "val"),
+    # T012: layout, shape and dtype-conversion breadth
+    "tl.reshape": ("input",),
+    "tl.trans": ("input",),
+    "tl.permute": ("input",),
+    "tl.join": ("a", "b"),
+    "tl.split": ("a",),
+    "tl.cat": ("input", "other"),
+    "tl.expand_dims": ("input", "axis"),
+    "tl.unsqueeze": ("x", "dim"),
+    "tl.squeeze": ("x", "dim"),
+    "tl.broadcast_to": ("input",),
+    "tl.broadcast": ("input", "other"),
+    "tl.ravel": ("x",),
+    "tl.view": ("input",),
+    "tl.flip": ("x",),
+    "tl.swizzle2d": ("i", "j", "size_i", "size_j", "size_g"),
+    "tl.to_tensor": ("x",),
 }
+
+#: constructs whose call produces multiple values (the tuple-unpack forms):
+#: tl.max/min with return_indices, tl.split, tl.broadcast and tl.swizzle2d
+_MULTI_RESULT_CONSTRUCTS = {"tl.max", "tl.min", "tl.split", "tl.broadcast",
+                            "tl.swizzle2d"}
 
 #: reduction constructs -> the TIR reduce kind
 _REDUCE_KINDS = {
@@ -277,6 +307,15 @@ class Lowering:
             r.name = self._fresh_name(hint or r.name)
             return r
         return None  # type: ignore[return-value]
+
+    def _emit_multi(self, op: tir.Op, results: int, hint: str) -> tir.Op:
+        """Emit a multi-result op (tl.split's two values): every result
+        gets a fresh name; the caller binds the names."""
+        assert len(op.results) == results
+        self._block.statements.append(op)
+        for i, r in enumerate(op.results):
+            r.name = self._fresh_name(f"{hint}{i + 1}")
+        return op
 
     # ------------------------------------------------------------------ entry
     def lower(self) -> tir.Module:
@@ -1055,15 +1094,17 @@ class Lowering:
         if isinstance(node, ast.Call):
             return self._lower_call(node)
         if isinstance(node, ast.Attribute):
+            # the pinned 2-D transposition attribute (``x.T``): the AST
+            # visitor owns it in the reference too
+            if node.attr == "T":
+                base = self._lower_expr(node.value)
+                return self._lower_transpose_attr(base, node)
             raise self._err(
                 node, f".{node.attr}",
                 "attribute is not in the elementwise core (only compile-time "
                 "dtype attributes fold)")
         if isinstance(node, ast.Subscript):
-            raise self._err(
-                node, "subscript",
-                "subscripting (expand_dims / slicing / layout) is not "
-                "lowered by the elementwise core")
+            return self._lower_subscript(node)
         raise self._err(node, type(node).__name__,
                         "expression is not in the elementwise core")
 
@@ -1449,9 +1490,25 @@ class Lowering:
     def _lower_call_multi(self, node: ast.Call) -> Union[List[tir.Value],
                                                          None]:
         """Lower a call that may produce multiple values (the reduction
-        index forms with return_indices=True); None when the call is
-        single-result (the caller falls back to the plain path)."""
+        index forms with return_indices=True, tl.split, tl.broadcast,
+        tl.swizzle2d); None when the call is single-result (the caller
+        falls back to the plain path)."""
         construct = self._callee_construct(node)
+        if construct in ("tl.split", "tl.broadcast", "tl.swizzle2d"):
+            self._check_construct(construct, node)
+            bound, provided = self._bind_call_args(construct, node)
+            for required in _REQUIRED_PARAMS.get(construct, ()):
+                if required not in provided:
+                    raise self._err(
+                        node, construct,
+                        f"missing required parameter {required!r}")
+            if construct == "tl.split":
+                return self._lower_tl_split(bound, node, self._loc(node),
+                                            construct)
+            if construct == "tl.broadcast":
+                return self._lower_tl_broadcast(bound, node, self._loc(node),
+                                                construct)
+            return self._lower_tl_swizzle2d(bound, node, self._loc(node))
         if construct not in ("tl.max", "tl.min"):
             return None
         bound, provided = self._bind_call_args(construct, node)
@@ -1493,6 +1550,12 @@ class Lowering:
         if handler is None:  # pragma: no cover - table completeness
             raise self._err(node, construct,
                             "no lowering handler registered")
+        if construct in _MULTI_RESULT_CONSTRUCTS and \
+                construct not in ("tl.max", "tl.min"):
+            raise self._err(
+                node, construct,
+                "the construct produces multiple values; unpack them into "
+                "names (a, b = ...)")
         return handler(self, bound, node, loc)
 
     def _callee_construct(self, node: ast.Call) -> Optional[str]:
@@ -1577,7 +1640,19 @@ class Lowering:
                     "the construct takes no value receiver")
             bound[names[0]] = method_receiver
             names = names[1:]
+        # a parameter named ``*x`` is variadic: it absorbs every remaining
+        # positional argument (tl.reshape(x, (n, m)) and tl.reshape(x, n, m)
+        # bind the same construct)
+        variadic = next((n for n in names if n.startswith("*")), None)
         for i, arg in enumerate(node.args):
+            if variadic is not None and i >= names.index(variadic):
+                bound.setdefault(variadic, [])
+                if not isinstance(bound[variadic], list):
+                    raise self._err(
+                        node, construct,
+                        f"parameter {variadic!r} given twice")
+                bound[variadic].append(arg)
+                continue
             if i >= len(names):
                 raise self._err(
                     node, construct,
@@ -1864,10 +1939,20 @@ class Lowering:
         value = py_scalar(self.env.evaluate(args["value"],
                                             self.source.path))
         if value is NOT_CONSTEXPR:
-            raise self._err(
-                node, "tl.full",
-                "full with a runtime value is not in the elementwise core "
-                "(the value must be compile-time)")
+            # a runtime scalar value splats over the shape (the pinned
+            # semantic; the T012 layout lane's block-broadcast construct)
+            v = self._lower_expr(args["value"])
+            if isinstance(v, ConstVal):
+                raise self._err(
+                    node, "tl.full",
+                    "full with a runtime value is not in the elementwise "
+                    "core (the value must be compile-time)")
+            if v.rank != 0:
+                raise self._err(
+                    node, "tl.full",
+                    "full with a block value is not the splat form")
+            v = self._convert_if_needed(v, dtype, loc)
+            return self._broadcast_to(v, tir.real_shape(shape), loc)
         return self._emit(
             tir.Op.full(tir.real_shape(shape), _const_value(value, dtype),
                         dtype, loc), "f")
@@ -2697,19 +2782,42 @@ class Lowering:
                 node, construct,
                 "a compile-time value converts at specialization (no "
                 "runtime convert is produced)")
+        rounding = None
+        if "fp_downcast_rounding" in args:
+            r = self.env.evaluate(args["fp_downcast_rounding"],
+                                  self.source.path)
+            if r is not NOT_CONSTEXPR:
+                if r not in ("rtne", "rtz"):
+                    raise self._err(
+                        node, construct,
+                        f"fp_downcast_rounding {r!r} is not declared "
+                        "(rtne / rtz)")
+                rounding = str(r)
         if "bitcast" in args:
             flag = self.env.evaluate(args["bitcast"], self.source.path)
             if flag is not NOT_CONSTEXPR and flag:
-                raise self._err(
-                    node, construct,
-                    "bitcast=True is bit-level reinterpretation, a distinct "
-                    "construct (the conversions lane owns the bitcast "
-                    "matrix)")
-        if "fp_downcast_rounding" in args:
-            raise self._err(
-                node, construct,
-                "fp_downcast_rounding selects a semantic rounding mode "
-                "(the conversions lane owns the rounding forms)")
+                # bit-level reinterpretation: the DISTINCT construct (width
+                # preserved, value re-read; never a value conversion)
+                dtype_node = args["dtype"]
+                if isinstance(dtype_node, ast.Call) \
+                        and isinstance(dtype_node.func, ast.Attribute) \
+                        and isinstance(dtype_node.func.value, ast.Name) \
+                        and dtype_node.func.value.id == "tl" \
+                        and dtype_node.func.attr == "pointer_type":
+                    raise self._err(
+                        node, construct,
+                        "bitcast=True to a pointer type is not declared "
+                        "(the int-to-pointer reinterpretation is the "
+                        "pointer-table pattern's own form)")
+                target = self._constexpr_dtype(args["dtype"], node,
+                                               construct)
+                if not ftypes.bitcast_ok(value.type, target):
+                    raise self._err(
+                        node, construct,
+                        f"cannot bitcast {value.type!r} to {target!r}: "
+                        "bit-level reinterpretation preserves the width "
+                        "and never converts values")
+                return self._emit(tir.Op.bitcast(value, target, loc), "pbc")
         # the pointer-table pattern: .to(tl.pointer_type(elem)) reinterprets
         # a same-width integer as a pointer (the distinct bitcast construct,
         # never a value convert)
@@ -2739,6 +2847,8 @@ class Lowering:
                 loc_node(loc), "convert",
                 f"cannot convert {value.type!r} to {target!r}")
         op = tir.Op.convert(value, target, loc)
+        if rounding is not None:
+            op.attrs["rounding"] = rounding
         return self._emit(op, "cvt")
 
     # -- helpers ---------------------------------------------------------------
@@ -2803,6 +2913,565 @@ class Lowering:
         if tir.is_real(value.shape):
             return value
         return self._emit(tir.Op.realize(value, loc), "rz")
+
+    # -- T012: layout, shape and dtype-conversion breadth -------------------
+
+    def _shape_args(self, args, node, construct) -> Tuple[int, ...]:
+        """The declared shape from a construct's ``*shape`` binding: one
+        sequence (``reshape(x, (n, m))`` / ``reshape(x, [n])``) or several
+        bare integers (``reshape(x, n, m)``), per the pinned surface."""
+        if not isinstance(args, list):
+            args = [args]
+        if len(args) == 1:
+            value = py_scalar(self.env.evaluate(args[0], self.source.path))
+            if value is NOT_CONSTEXPR or not isinstance(value,
+                                                        (tuple, list)):
+                raise self._err(
+                    node, construct,
+                    "shape must be a compile-time sequence of integers")
+            items = list(value)
+        else:
+            items = [py_scalar(self.env.evaluate(a, self.source.path))
+                     for a in args]
+            if any(v is NOT_CONSTEXPR for v in items):
+                raise self._err(
+                    node, construct,
+                    "shape extents must be compile-time integers")
+        out = []
+        for item in items:
+            item = py_scalar(item)
+            if isinstance(item, bool) or not isinstance(item, int):
+                raise self._err(
+                    node, construct,
+                    f"shape extents must be compile-time integers, got "
+                    f"{item!r}")
+            if item < 1:
+                raise self._err(
+                    node, construct,
+                    f"shape extents must be positive, got {item}")
+            out.append(item)
+        return tuple(out)
+
+    def _reshaped_shape(self, src: tir.Shape, extents: Tuple[int, ...],
+                        node, construct) -> tir.Shape:
+        """The reshape result shape with the covered-axes broadcast flags
+        (the verifier's rule, built here): each result axis covers a
+        contiguous run of source axes (multiplicatively); an axis that
+        splits a source axis, or an inserted extent-1 axis, is REAL (the
+        conservative flag -- realize is the lowering's identity)."""
+        try:
+            return _reshape_flags(src, extents)
+        except ValueError as exc:
+            raise self._err(node, construct, str(exc))
+
+    def _lower_tl_reshape(self, args: Dict[str, ast.expr], node: ast.Call,
+                          loc, construct: str,
+                          can_reorder: bool = False) -> tir.Value:
+        """tl.reshape / tl.view / tl.ravel / tl.squeeze / tl.unsqueeze /
+        tl.expand_dims: the flat-identity axis re-partition (the result's
+        lanes are the source's lanes; ``can_reorder`` (tl.view, ravel's
+        flag) permits any permutation and the identity is the realized
+        choice -- recorded, countable)."""
+        value = self._lower_expr(args["input"])
+        if isinstance(value, ConstVal):
+            raise self._err(
+                node, construct,
+                "a compile-time value reshapes at specialization (no "
+                "runtime layout op is produced)")
+        extents = self._shape_args(args.get("*shape"), node, construct)
+        if not extents:
+            raise self._err(
+                node, construct,
+                "the unsplat form (reshape to a scalar) is not in the "
+                "layout lane (a rank-0 result from a block)")
+        if construct == "tl.view":
+            can_reorder = True     # the pinned deprecation alias
+        shape = self._reshaped_shape(value.shape, extents, node, construct)
+        if shape == value.shape:
+            return value                 # the identity reshape folds
+        return self._emit(tir.Op.reshape(value, shape, loc,
+                                         can_reorder=can_reorder), "rs")
+
+    def _wrap_axis(self, axis: int, ndim: int, node, construct,
+                   param: str) -> int:
+        if not (-ndim <= axis < ndim):
+            raise self._err(
+                node, f"{construct}.{param}",
+                f"axis {axis} outside the rank {ndim}")
+        return axis if axis >= 0 else axis + ndim
+
+    def _lower_tl_ravel(self, args, node, loc, construct) -> tir.Value:
+        """tl.ravel(x, can_reorder): reshape to ``[x.numel]``."""
+        value = self._lower_expr(args["x"])
+        if isinstance(value, ConstVal):
+            raise self._err(
+                node, construct,
+                "a compile-time value reshapes at specialization")
+        can_reorder = False
+        if "can_reorder" in args:
+            flag = self.env.evaluate(args["can_reorder"], self.source.path)
+            if flag is not NOT_CONSTEXPR:
+                can_reorder = bool(flag)
+        numel = tir.flat_extent(value.shape)
+        if numel is None:
+            raise self._err(
+                node, construct,
+                "ravel requires a compile-time-shaped block")
+        shape = self._reshaped_shape(value.shape, (numel,), node, construct)
+        if shape == value.shape:
+            return value
+        return self._emit(tir.Op.reshape(value, shape, loc,
+                                         can_reorder=can_reorder), "rs")
+
+    def _lower_tl_squeeze(self, args, node, loc, construct) -> tir.Value:
+        """tl.squeeze(x, dim): remove a length-1 axis (a reshape form)."""
+        value = self._lower_expr(args["x"])
+        if isinstance(value, ConstVal):
+            raise self._err(
+                node, construct,
+                "a compile-time value reshapes at specialization")
+        dim = self._constexpr_int(args.get("dim"), node, construct, "dim")
+        ndim = len(value.shape)
+        dim = self._wrap_axis(dim, ndim, node, construct, "dim")
+        if value.shape[dim].value != 1:
+            raise self._err(
+                node, construct,
+                f"squeeze requires a length-1 axis at dim {dim}, got "
+                f"{value.shape[dim].value}")
+        extents = tuple(e.value for i, e in enumerate(value.shape)
+                        if i != dim)
+        if not extents:
+            raise self._err(
+                node, construct,
+                "squeezing to a scalar is not in the layout lane (a rank-0 "
+                "result from a block)")
+        shape = self._reshaped_shape(value.shape, extents, node, construct)
+        return self._emit(tir.Op.reshape(value, shape, loc), "rs")
+
+    def _lower_tl_expand_dims(self, args, node, loc,
+                              construct) -> tir.Value:
+        """tl.expand_dims(x, axis) / tl.unsqueeze(x, dim): insert length-1
+        axes (a reshape form; the axis indices refer to the result)."""
+        value = self._lower_expr(args["input"] if "input" in args
+                                 else args["x"])
+        if isinstance(value, ConstVal):
+            raise self._err(
+                node, construct,
+                "a compile-time value reshapes at specialization")
+        axis_node = args.get("axis", args.get("dim"))
+        axis_val = py_scalar(self.env.evaluate(axis_node,
+                                               self.source.path))
+        if axis_val is NOT_CONSTEXPR:
+            raise self._err(
+                node, construct,
+                "axis must be a compile-time integer or sequence")
+        axes = list(axis_val) if isinstance(axis_val, (tuple, list)) \
+            else [axis_val]
+        axes = [py_scalar(a) for a in axes]
+        if any(isinstance(a, bool) or not isinstance(a, int) for a in axes):
+            raise self._err(
+                node, construct,
+                "axis must be a compile-time integer or sequence")
+        if not axes:
+            raise self._err(node, construct, "axis must not be empty")
+        new_ndim = len(value.shape) + len(axes)
+        wrapped = [self._wrap_axis(a, new_ndim, node, construct, "axis")
+                   for a in axes]
+        if len(set(wrapped)) != len(wrapped):
+            raise self._err(
+                node, construct,
+                f"expand_dims received duplicate axes, normalized axes = "
+                f"{wrapped}")
+        if value.rank == 0:
+            raise self._err(
+                node, construct,
+                "expand_dims of a scalar (the pinned splat form) is not in "
+                "the layout lane; a scalar already broadcasts to any shape")
+        extents = list(e.value for e in value.shape)
+        for a in sorted(wrapped):
+            extents.insert(a, 1)
+        shape = self._reshaped_shape(value.shape, tuple(extents), node,
+                                     construct)
+        return self._emit(tir.Op.reshape(value, shape, loc), "rs")
+
+    def _dims_args(self, args, node, construct,
+                   default_last_two: bool = False) -> Tuple[int, ...]:
+        """The axis order from a ``*dims`` binding (permute/trans)."""
+        raw = args.get("*dims")
+        if raw is None:
+            if default_last_two:
+                return ()          # trans with no dims: swap the last two
+            raise self._err(node, construct, "missing required parameter "
+                            "'dims'")
+        items = raw if isinstance(raw, list) else [raw]
+        dims = []
+        for a in items:
+            v = py_scalar(self.env.evaluate(a, self.source.path))
+            if v is NOT_CONSTEXPR:
+                raise self._err(
+                    node, construct,
+                    f"dims must be compile-time integers, got {v!r}")
+            if isinstance(v, (tuple, list)):
+                # tl.permute(x, (0, 2, 1)): one iterable argument
+                dims.extend(py_scalar(x) for x in v)
+            elif isinstance(v, bool) or not isinstance(v, int):
+                raise self._err(
+                    node, construct,
+                    f"dims must be compile-time integers, got {v!r}")
+            else:
+                dims.append(v)
+        return tuple(dims)
+
+    def _lower_tl_permute(self, args, node, loc, construct,
+                          default_last_two: bool = False) -> tir.Value:
+        """tl.trans / tl.permute: the axis permutation (trans with no dims
+        swaps the last two axes, per the pinned surface)."""
+        value = self._lower_expr(args["input"])
+        if isinstance(value, ConstVal):
+            raise self._err(
+                node, construct,
+                "a compile-time value has no layout (dims fold first)")
+        dims = self._dims_args(args, node, construct,
+                               default_last_two=default_last_two)
+        rank = len(value.shape)
+        if not dims and default_last_two:
+            if rank < 2:
+                raise self._err(
+                    node, construct,
+                    f"trans invoked with a {rank}-dimensional tensor")
+            dims = tuple(list(range(rank - 2)) + [rank - 1, rank - 2])
+        if len(dims) != rank:
+            raise self._err(
+                node, construct,
+                f"permute dims must have the same length as the input "
+                f"shape, got {len(dims)} and {rank}")
+        dims = tuple(self._wrap_axis(d, rank, node, construct, "dims")
+                     for d in dims)
+        if sorted(dims) != list(range(rank)):
+            raise self._err(
+                node, construct,
+                f"permute dims must be a permutation of 0..{rank - 1}, "
+                f"but were {dims}")
+        if dims == tuple(range(rank)):
+            return value                 # the identity permutation folds
+        return self._emit(tir.Op.permute(value, dims, loc), "pm")
+
+    def _lower_transpose_attr(self, base, node) -> tir.Value:
+        """``x.T``: the 2-D transposition (the pinned AST-visitor form)."""
+        if isinstance(base, ConstVal):
+            raise self._err(
+                node, ".T",
+                "a compile-time value has no layout")
+        rank = len(base.shape)
+        if rank != 2:
+            raise self._err(
+                node, ".T",
+                f"the .T attribute transposes a 2-D block, got rank {rank}")
+        dims = (1, 0)
+        return self._emit(tir.Op.permute(base, dims, self._loc(node)), "pm")
+
+    def _lower_subscript(self, node: ast.Subscript):
+        """``x[:, None]`` / ``x[None]``: the pinned ``__getitem__`` -- every
+        ``None`` inserts an axis (expand_dims at that position), a full
+        slice is a no-op, anything else is refused."""
+        # a constant integer index on a multi-result call selects one
+        # result (``tl.swizzle2d(...)[0]``, the Python-level tuple form)
+        if isinstance(node.value, ast.Call) and \
+                isinstance(node.slice, ast.Constant) and \
+                isinstance(node.slice.value, int) and \
+                not isinstance(node.slice.value, bool):
+            construct = self._callee_construct(node.value)
+            if construct in _MULTI_RESULT_CONSTRUCTS:
+                values = self._lower_call_multi(node.value)
+                assert isinstance(values, list)
+                idx = node.slice.value
+                if not 0 <= idx < len(values):
+                    raise self._err(
+                        node, construct,
+                        f"result index {idx} outside 0..{len(values) - 1}")
+                return values[idx]
+        base = self._lower_expr(node.value)
+        if isinstance(base, ConstVal):
+            raise self._err(
+                node, "subscript",
+                "a compile-time value has no layout (indexing folds first)")
+        sl = node.slice
+        parts = sl.elts if isinstance(sl, ast.Tuple) else [sl]
+        if isinstance(sl, ast.Slice):
+            parts = [sl]
+        value = base
+        for dim, p in enumerate(parts):
+            if isinstance(p, ast.Constant) and p.value is None:
+                if value.rank == 0:
+                    raise self._err(
+                        node, "subscript",
+                        "expand_dims of a scalar (the pinned splat form) is "
+                        "not in the layout lane")
+                extents = list(e.value for e in value.shape)
+                extents.insert(dim, 1)
+                shape = self._reshaped_shape(value.shape, tuple(extents),
+                                             node, "subscript")
+                value = self._emit(tir.Op.reshape(value, shape,
+                                                  self._loc(node)), "rs")
+            elif isinstance(p, ast.Slice):
+                if not (p.lower is None and p.upper is None
+                        and p.step is None):
+                    raise self._err(
+                        node, "subscript",
+                        f"unsupported tensor index: {ast.unparse(p)}")
+            else:
+                raise self._err(
+                    node, "subscript",
+                    f"unsupported tensor index: "
+                    f"{ast.unparse(p) if hasattr(ast, 'unparse') else p!r}")
+        return value
+
+    def _lower_tl_join(self, args, node, loc, construct) -> tir.Value:
+        """tl.join(a, b): broadcast-unify the operands (the pinned first
+        step), then append a minor extent-2 axis."""
+        a = self._lower_expr(args["a"])
+        b = self._lower_expr(args["b"])
+        if isinstance(a, ConstVal) or isinstance(b, ConstVal):
+            raise self._err(
+                node, construct,
+                "a scalar operand joins through the pinned splat form "
+                "(not in the layout lane); the corpus joins blocks")
+        try:
+            target, a_exp, b_exp = fshapes.unify_pair(a.shape, b.shape, loc)
+        except fshapes.ShapeError as exc:
+            raise self._err(node, construct, exc.message)
+        a_v = self._broadcast_to(a, target, loc)
+        b_v = self._broadcast_to(b, target, loc)
+        return self._emit(tir.Op.join(a_v, b_v, loc), "jn")
+
+    def _lower_tl_split(self, args, node, loc, construct) -> List[tir.Value]:
+        """tl.split(a): the last axis must be extent 2; two results."""
+        a = self._lower_expr(args["a"])
+        if isinstance(a, ConstVal):
+            raise self._err(
+                node, construct,
+                "a compile-time value has no layout")
+        if a.rank == 0:
+            raise self._err(
+                node, construct,
+                "split requires a non-scalar tensor")
+        if a.rank == 1:
+            raise self._err(
+                node, construct,
+                "the rank-1 split-to-scalars form (the pinned unsplat "
+                "route) is a declared-unsupported refusal: split a rank-2 "
+                "block instead")
+        if a.shape[-1].value != 2:
+            raise self._err(
+                node, construct,
+                f"expected last dimension to be 2 for split, got "
+                f"{a.shape[-1].value}")
+        op = self._emit_multi(tir.Op.split(a, loc), 2, "sp")
+        return list(op.results)
+
+    def _lower_tl_cat(self, args, node, loc, construct) -> tir.Value:
+        """tl.cat(input, other, can_reorder, dim): the pinned desugar --
+        join introduces the minor dim, permute moves it before the concat
+        dim, reshape merges (``can_reorder=True`` may reorder and the
+        identity order is the realized choice)."""
+        a = self._lower_expr(args["input"])
+        b = self._lower_expr(args["other"])
+        if isinstance(a, ConstVal) or isinstance(b, ConstVal):
+            raise self._err(
+                node, construct,
+                "a scalar operand cats through the pinned splat form "
+                "(not in the layout lane)")
+        can_reorder = False
+        if "can_reorder" in args:
+            flag = self.env.evaluate(args["can_reorder"], self.source.path)
+            if flag is not NOT_CONSTEXPR:
+                can_reorder = bool(flag)
+        dim = 0
+        if "dim" in args and not can_reorder:
+            dim = self._constexpr_int(args["dim"], node, construct, "dim")
+        if len(a.shape) != len(b.shape):
+            raise self._err(
+                node, construct,
+                f"tensors must have the same rank, got {len(a.shape)} and "
+                f"{len(b.shape)}")
+        rank = len(a.shape)
+        dim = self._wrap_axis(dim, rank, node, construct, "dim")
+        for i in range(rank):
+            if i != dim and a.shape[i].value != b.shape[i].value:
+                raise self._err(
+                    node, construct,
+                    f"tensor dims must match except in the concat dimension "
+                    f"{dim}, got {list(a.shape)} and {list(b.shape)}")
+        try:
+            target, a_exp, b_exp = fshapes.unify_pair(a.shape, b.shape, loc)
+        except fshapes.ShapeError as exc:
+            raise self._err(node, construct, exc.message)
+        a_v = self._broadcast_to(a, target, loc)
+        b_v = self._broadcast_to(b, target, loc)
+        c = self._emit(tir.Op.join(a_v, b_v, loc), "jn")
+        order = list(range(rank))
+        order.insert(dim, rank)
+        c = self._emit(tir.Op.permute(c, tuple(order), loc), "pm")
+        new_shape = list(e.value for e in a_v.shape)
+        new_shape[dim] = a_v.shape[dim].value + b_v.shape[dim].value
+        shape = self._reshaped_shape(c.shape, tuple(new_shape), node,
+                                     construct)
+        return self._emit(tir.Op.reshape(c, shape, loc,
+                                         can_reorder=can_reorder), "rs")
+
+    def _lower_tl_broadcast_to(self, args, node, loc,
+                               construct) -> tir.Value:
+        """tl.broadcast_to(input, *shape): explicit broadcast to a shape of
+        equal rank (each axis equal or a source singleton)."""
+        value = self._lower_expr(args["input"])
+        if isinstance(value, ConstVal):
+            raise self._err(
+                node, construct,
+                "a scalar splats to any shape (the pinned splat form is "
+                "not this construct)")
+        extents = self._shape_args(args.get("*shape"), node, construct)
+        if len(extents) != len(value.shape):
+            raise self._err(
+                node, construct,
+                f"Cannot broadcast, rank mismatch: {list(value.shape)}, "
+                f"{list(extents)}")
+        target = tir.real_shape(extents)
+        for i, e in enumerate(value.shape):
+            if extents[i] != e.value and e.value != 1:
+                raise self._err(
+                    node, construct,
+                    f"Cannot broadcast, the expanded size of the tensor "
+                    f"({extents[i]}) must match the existing size "
+                    f"({e.value}) at non-singleton dimension {i}")
+        return self._broadcast_to(value, target, loc)
+
+    def _lower_tl_broadcast(self, args, node, loc,
+                            construct) -> List[tir.Value]:
+        """tl.broadcast(input, other): the pinned ``broadcast_impl_value`` --
+        returns the two unified operands."""
+        a = self._lower_expr(args["input"])
+        b = self._lower_expr(args["other"])
+        if isinstance(a, ConstVal) or isinstance(b, ConstVal):
+            raise self._err(
+                node, construct,
+                "a scalar operand broadcasts through the pinned splat "
+                "form (not in the layout lane)")
+        try:
+            target, a_exp, b_exp = fshapes.unify_pair(a.shape, b.shape, loc)
+        except fshapes.ShapeError as exc:
+            raise self._err(node, construct, exc.message)
+        return [self._broadcast_to(a, target, loc),
+                self._broadcast_to(b, target, loc)]
+
+    def _lower_tl_flip(self, args, node, loc, construct) -> tir.Value:
+        """tl.flip(x, dim): reverse one axis (power-of-two extent, the
+        pinned static_assert)."""
+        value = self._lower_expr(args["x"])
+        if isinstance(value, ConstVal):
+            raise self._err(
+                node, construct,
+                "a compile-time value has no layout")
+        dim = 0
+        if "dim" in args:
+            dim = self._constexpr_int(args["dim"], node, construct, "dim")
+        ndim = len(value.shape)
+        if ndim == 0:
+            raise self._err(
+                node, construct,
+                "flip requires a block operand")
+        dim = self._wrap_axis(dim, ndim, node, construct, "dim")
+        ext = value.shape[dim].value
+        if not isinstance(ext, int) or ext < 1 or (ext & (ext - 1)):
+            raise self._err(
+                node, construct,
+                f"flip requires a power-of-two extent at dim {dim} (the "
+                f"pinned static_assert), got {ext!r}")
+        return self._emit(tir.Op.flip(value, dim, loc), "fl")
+
+    def _lower_tl_swizzle2d(self, args, node,
+                            loc) -> List[tir.Value]:
+        """tl.swizzle2d(i, j, size_i, size_j, size_g): the pinned arithmetic
+        definition (standard.py) -- an index-space transformation, no data
+        movement; returns (new_i, new_j)."""
+        i = self._lower_expr(args["i"])
+        j = self._lower_expr(args["j"])
+        if isinstance(i, ConstVal) or isinstance(j, ConstVal):
+            raise self._err(
+                node, "tl.swizzle2d",
+                "swizzle2d operates on runtime index blocks")
+        if i.rank == 0 or j.rank == 0:
+            raise self._err(
+                node, "tl.swizzle2d",
+                "swizzle2d operates on blocks (the scalar index form folds "
+                "at specialization)")
+        if not i.type.is_int() or not j.type.is_int():
+            raise self._err(
+                node, "tl.swizzle2d",
+                f"swizzle2d operates on integer index blocks, got "
+                f"{i.type!r} and {j.type!r}")
+        size_i = self._constexpr_int(args["size_i"], node, "tl.swizzle2d",
+                                     "size_i")
+        size_j = self._constexpr_int(args["size_j"], node, "tl.swizzle2d",
+                                     "size_j")
+        size_g = self._constexpr_int(args["size_g"], node, "tl.swizzle2d",
+                                     "size_g")
+
+        def const(v):
+            return self._emit(tir.Op.const(v, i.type, loc), "k")
+
+        def bin(op, a, b):
+            # the operands are pre-unified exactly like the elementwise
+            # core's binary path (broadcast_impl_value: an explicit
+            # broadcast op when the shapes differ)
+            if a.shape != b.shape:
+                try:
+                    target, a_exp, b_exp = fshapes.unify_pair(a.shape,
+                                                              b.shape, loc)
+                except fshapes.ShapeError as exc:
+                    raise self._err(node, "tl.swizzle2d", exc.message)
+                a = self._broadcast_to(a, target, loc)
+                b = self._broadcast_to(b, target, loc)
+            if a.type != b.type:
+                raise self._err(node, "tl.swizzle2d",
+                                f"operand types differ: {a.type!r} vs "
+                                f"{b.type!r}")
+            return self._emit(tir.Op.binop(op, a, b, loc), "sw")
+
+        # the pinned body (triton/language/standard.py), verbatim in form
+        ij = bin("arith.add", bin("arith.mul", i, const(size_j)), j)
+        size_gj = size_g * size_j
+        group_id = bin("arith.sdiv", ij, const(size_gj))
+        off_i = bin("arith.mul", group_id, const(size_g))
+        # size_g' = min(size_i - off_i, size_g): a runtime minimum
+        remaining = bin("arith.sub", const(size_i), off_i)
+        c = const(size_g)
+        if remaining.rank > 0 and c.rank == 0:
+            c = self._broadcast_to(c, remaining.shape, loc)
+        take_remaining = self._emit(tir.Op.cmp("cmp.lt", remaining, c,
+                                               loc), "swc")
+        size_g_eff = self._emit(tir.Op.where(take_remaining, remaining, c,
+                                             loc), "sw")
+        ij = bin("arith.srem", ij, const(size_gj))
+        new_i = bin("arith.add", off_i, bin("arith.srem", ij, size_g_eff))
+        new_j = bin("arith.sdiv", ij, size_g_eff)
+        return [new_i, new_j]
+
+    def _lower_tl_to_tensor(self, args, node, loc, construct) -> tir.Value:
+        """tl.to_tensor(x): a Python scalar becomes a rank-0 tensor of its
+        own type; a tensor is returned unchanged (the pinned semantics)."""
+        value = self._lower_expr(args["x"])
+        if isinstance(value, ConstVal):
+            v = py_scalar(value.value)
+            if isinstance(v, (DTypeValue, TypeObject)):
+                raise self._err(
+                    node, construct,
+                    "a dtype value is not a constant")
+            try:
+                lit_ty = ftypes.literal_type(v)
+            except ftypes.TypeRuleError as exc:
+                raise self._err(node, construct, exc.message)
+            return self._emit(tir.Op.const(v, lit_ty, loc), "lit")
+        return value
 
 
 _CONSTRUCT_HANDLERS = {
@@ -2871,6 +3540,46 @@ _CONSTRUCT_HANDLERS = {
         self, a, n, l, "tl.topk"),
     "tl.cast": lambda self, a, n, l: Lowering._lower_tl_cast(
         self, a, n, l, "tl.cast"),
+    # T012: layout, shape and dtype-conversion breadth
+    "tl.reshape": lambda self, a, n, l: Lowering._lower_tl_reshape(
+        self, a, n, l, "tl.reshape"),
+    "tl.view": lambda self, a, n, l: Lowering._lower_tl_reshape(
+        self, a, n, l, "tl.view"),
+    "tl.ravel": lambda self, a, n, l: Lowering._lower_tl_ravel(
+        self, a, n, l, "tl.ravel"),
+    "tl.squeeze": lambda self, a, n, l: Lowering._lower_tl_squeeze(
+        self, a, n, l, "tl.squeeze"),
+    "tl.expand_dims": lambda self, a, n, l: Lowering._lower_tl_expand_dims(
+        self, a, n, l, "tl.expand_dims"),
+    "tl.unsqueeze": lambda self, a, n, l: Lowering._lower_tl_expand_dims(
+        self, a, n, l, "tl.unsqueeze"),
+    "tl.trans": lambda self, a, n, l: Lowering._lower_tl_permute(
+        self, a, n, l, "tl.trans", default_last_two=True),
+    "tl.permute": lambda self, a, n, l: Lowering._lower_tl_permute(
+        self, a, n, l, "tl.permute"),
+    "tl.join": lambda self, a, n, l: Lowering._lower_tl_join(
+        self, a, n, l, "tl.join"),
+    "tl.cat": lambda self, a, n, l: Lowering._lower_tl_cat(
+        self, a, n, l, "tl.cat"),
+    "tl.broadcast_to": lambda self, a, n, l:
+        Lowering._lower_tl_broadcast_to(self, a, n, l, "tl.broadcast_to"),
+    "tl.flip": lambda self, a, n, l: Lowering._lower_tl_flip(
+        self, a, n, l, "tl.flip"),
+    "tl.to_tensor": lambda self, a, n, l: Lowering._lower_tl_to_tensor(
+        self, a, n, l, "tl.to_tensor"),
+    # multi-result constructs: the single-value call path refuses them
+    # before the handler runs (the tuple-unpack form is the legal use);
+    # registered so the surface's construct/handler consistency holds
+    "tl.split": lambda self, a, n, l: (_ for _ in ()).throw(
+        self._err(n, "tl.split",
+                  "tl.split produces two values; unpack them (a, b = ...)")),
+    "tl.broadcast": lambda self, a, n, l: (_ for _ in ()).throw(
+        self._err(n, "tl.broadcast",
+                  "tl.broadcast produces the two unified operands; unpack "
+                  "them (a, b = ...)")),
+    "tl.swizzle2d": lambda self, a, n, l: (_ for _ in ()).throw(
+        self._err(n, "tl.swizzle2d",
+                  "tl.swizzle2d produces (new_i, new_j); unpack them")),
 }
 
 
@@ -2943,6 +3652,75 @@ def _exceeds(shape: tir.Shape, target: tir.Shape) -> bool:
         if s.value != t.value and not s.is_one():
             return True
     return False
+
+
+def _reshape_flags(src: tir.Shape, extents) -> tir.Shape:
+    """The reshape covering rule (frontend and verifier share it): each
+    result axis covers a contiguous multiplicative run of source axes.
+    An axis that splits a source axis, or an inserted extent-1 axis, is
+    REAL (the conservative flag).  Raises ValueError when the extents do
+    not tile."""
+    src_vals = [e.value for e in src]
+    total_src, total_dst = 1, 1
+    for v in src_vals:
+        total_src *= v
+    for v in extents:
+        total_dst *= v
+    if total_src != total_dst:
+        raise ValueError(
+            f"cannot reshape {list(src)} to {list(extents)}: the element "
+            f"counts differ ({total_src} vs {total_dst})")
+    si = 0
+    rem = src_vals[0] if src_vals else None
+    out = []
+    for de in extents:
+        if de == 1:
+            # consume one extent-1 source axis when the next unconsumed
+            # axis is extent 1 (its flag is inherited); otherwise this is
+            # an inserted axis (real)
+            if rem == 1 and si < len(src_vals):
+                out.append(tir.Extent(1, src[si].broadcast))
+                si += 1
+                rem = src_vals[si] if si < len(src_vals) else None
+            else:
+                out.append(tir.Extent(1, False))
+            continue
+        need = de
+        flags = []
+        aligned = True
+        while need > 1:
+            if rem is None:
+                raise ValueError(
+                    f"cannot reshape {list(src)} to {list(extents)}: the "
+                    f"axes do not tile (ran out of source extent at "
+                    f"extent {de})")
+            if rem <= need and need % rem == 0:
+                flags.append(src[si].broadcast)
+                need //= rem
+                si += 1
+                rem = src_vals[si] if si < len(src_vals) else None
+            elif rem % need == 0:
+                # this result axis splits a source axis: conservative real
+                rem //= need
+                need = 1
+                aligned = False
+            else:
+                raise ValueError(
+                    f"cannot reshape {list(src)} to {list(extents)}: the "
+                    f"axes do not tile (extent {de} vs remaining source "
+                    f"extent {rem})")
+        out.append(tir.Extent(de, aligned and all(flags)))
+    # leftover source extent must be 1 (droppable extent-1 axes)
+    if rem is not None and rem != 1:
+        raise ValueError(
+            f"cannot reshape {list(src)} to {list(extents)}: source extent "
+            f"{rem} is left uncovered")
+    for v in src_vals[si:]:
+        if v != 1:
+            raise ValueError(
+                f"cannot reshape {list(src)} to {list(extents)}: source "
+                f"axes {src_vals[si:]} are left uncovered")
+    return tuple(out)
 
 
 def lower(source: OperatorSource, spec: Specialization,
