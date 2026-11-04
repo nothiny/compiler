@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-04T08:28:51.444060+00:00",
+  "updated_at": "2026-11-04T08:29:05.291838+00:00",
   "facts": [
     {
       "id": "F001",
@@ -66,6 +66,15 @@
       "confidence": "RUNTIME_PROBE",
       "status": "active",
       "category": "isa",
+      "origin": "input"
+    },
+    {
+      "id": "F007",
+      "statement": "The native runtime transport is present and usable: a100_support/native_io.py pack_case plus a100_support/run-riscv.sh plus the native_bundle.c runtime (io_fixture) plus unpack_outputs completed a full host-to-QEMU-to-host round trip for a strided-alias case with guest pointer relocation and for a bfloat16 value-storage case, both compared PASS; a100_support.native_device.make_device correctly refuses until A100_COMPILER_FACTORY is set, so there is no reference fallback for candidate execution.",
+      "source": "probe: timeout 300 python3 a100_support/build/transport_probe.py -> alias comparison PASS, bf16 comparison PASS; build commands in docs/compiler-agent/ENVIRONMENT.md Native runtime transport",
+      "confidence": "RUNTIME_PROBE",
+      "status": "active",
+      "category": "runtime",
       "origin": "input"
     }
   ],
@@ -252,6 +261,12 @@
       "phase": "ENVIRONMENT_ANALYSIS",
       "event": "fact",
       "detail": "F006 [isa/RUNTIME_PROBE/input] probe: timeout 60 $A100_QEMU -L $A100_SYSROOT -cpu \"$A100_QEMU_CPU\" ./a100_support/build/smoke_rvv -> exit 0; control with vlen=256 -> exit 1; docs/compiler-agent/ENVIRONMENT.md End-to-end smoke 3"
+    },
+    {
+      "at": "2026-11-04T08:29:05.291793+00:00",
+      "phase": "ENVIRONMENT_ANALYSIS",
+      "event": "fact",
+      "detail": "F007 [runtime/RUNTIME_PROBE/input] probe: timeout 300 python3 a100_support/build/transport_probe.py -> alias comparison PASS, bf16 comparison PASS; build commands in docs/compiler-agent/ENVIRONMENT.md Native runtime transport"
     }
   ]
 }
