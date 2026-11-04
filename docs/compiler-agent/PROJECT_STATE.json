@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-04T08:28:51.042998+00:00",
+  "updated_at": "2026-11-04T08:28:51.245668+00:00",
   "facts": [
     {
       "id": "F001",
@@ -48,6 +48,15 @@
       "confidence": "RUNTIME_PROBE",
       "status": "active",
       "category": "toolchain",
+      "origin": "input"
+    },
+    {
+      "id": "F005",
+      "statement": "The declared QEMU execution endpoint is present and usable: /home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64 reports qemu-riscv64 version 10.0.2 and executes riscv64 ELF under -cpu max,vlen=1024,elen=64,vext_spec=v1.0 with -L sysroot; three fresh smokes (C, hand-written assembly, RVV check) returned their expected outputs and exit codes.",
+      "source": "probe: $A100_QEMU --version; timeout-bounded runs of smoke_c, smoke_asm and smoke_rvv in docs/compiler-agent/ENVIRONMENT.md",
+      "confidence": "RUNTIME_PROBE",
+      "status": "active",
+      "category": "runtime",
       "origin": "input"
     }
   ],
@@ -222,6 +231,12 @@
       "phase": "ENVIRONMENT_ANALYSIS",
       "event": "fact",
       "detail": "F004 [toolchain/RUNTIME_PROBE/input] probe: ls $A100_SYSROOT/lib/libc.so.6 $A100_SYSROOT/lib/ld-linux-riscv64-lp64d.so.1; smoke 1 in docs/compiler-agent/ENVIRONMENT.md"
+    },
+    {
+      "at": "2026-11-04T08:28:51.245626+00:00",
+      "phase": "ENVIRONMENT_ANALYSIS",
+      "event": "fact",
+      "detail": "F005 [runtime/RUNTIME_PROBE/input] probe: $A100_QEMU --version; timeout-bounded runs of smoke_c, smoke_asm and smoke_rvv in docs/compiler-agent/ENVIRONMENT.md"
     }
   ]
 }
