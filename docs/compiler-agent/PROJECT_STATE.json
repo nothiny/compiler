@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-04T13:47:18.426570+00:00",
+  "updated_at": "2026-11-04T13:47:40.007003+00:00",
   "facts": [
     {
       "id": "F001",
@@ -1242,13 +1242,13 @@
         "backend-path-v1"
       ],
       "tags": [],
-      "status": "READY",
-      "assignee": "",
-      "attempts": 0,
+      "status": "RUNNING",
+      "assignee": "coder",
+      "attempts": 1,
       "evidence": "",
       "last_error": "",
       "failure_kind": "",
-      "start_revision": "",
+      "start_revision": "6164201ad8cd2ab580e5e1f2c33b5fec08a5c2dd",
       "end_revision": "",
       "completed_seq": 0,
       "debug_required": false,
@@ -1258,7 +1258,7 @@
       "debug_pending_failures": 0,
       "worker_debug_request": {},
       "coding_failures": 0,
-      "started_at": "",
+      "started_at": "2026-11-04T13:47:40.003297+00:00",
       "deferrals": 0,
       "debug_verified_patterns": [],
       "replan_baseline": {},
@@ -6827,6 +6827,12 @@
       "phase": "IMPLEMENTATION",
       "event": "complete-task",
       "detail": "T007 worker report WTI008: End-to-end vertical slice (gate G4) implemented and executed: the elementwise operator ops/suite/dev/absolute_kernel.py compiles through every stage (AST frontend -> specialization identity -> verified TIR -> provenance-checked 1-D grid model with compile-time equality self-check -> execution plan -> verified MIR -> legalisation -> table-driven selection -> interference-based allocation with spill/split -> complete program-level assembly -> cross as+ld+precompiled runtime) into one ELF64 little-endian RISC-V executable that runs under the declared QEMU endpoint through the a100_support native device protocol and compares bit-exact against the case's expected outputs at threads 1/2/4/8 on ONE artifact per compile identity. Slice operator: out=|x| over a 128-element block with masked ragged tails. All 9 declared test commands exit 0, including the ragged-tail witness (degraded build corrupts a poisoned guard region; real build keeps it intact). Two probe-found bugs were fixed during the work: (1) branch-argument moves for the not-taken edge read registers clobbered by the taken edge's cycle-breaking (fixed with per-edge move stubs after the condition is read); (2) fp arith.mul selected the integer vmul.vv row (fixed by splitting fp/int repertoire rows; the earlier pass was accidental - the -0.0 divergence hid inside the tolerance).\nacceptance[0]: `set -a; . ./.env; set +a; timeout 600 python3 a100c/tests/test_e2e_slice.py` -> exit 0\nacceptance[1]: `set -a; . ./.env; set +a; timeout 600 python3 a100c/tests/test_e2e_slice.py` -> exit 0\nacceptance[2]: `set -a; . ./.env; set +a; timeout 600 python3 a100c/tests/test_e2e_slice.py` -> exit 0\nacceptance[3]: `set -a; . ./.env; set +a; timeout 600 python3 tools/check_masked_tails.py --witness` -> exit 0\nacceptance[4]: `set -a; . ./.env; set +a; timeout 300 python3 a100c/tests/test_mir_verifier.py` -> exit 0\ntests[0]: `python3 a100c/tests/test_partition.py` -> exit 0\ntests[1]: `python3 a100c/tests/test_lowe"
+    },
+    {
+      "at": "2026-11-04T13:47:40.006992+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "start-task",
+      "detail": "T008 agent=coder"
     }
   ]
 }
