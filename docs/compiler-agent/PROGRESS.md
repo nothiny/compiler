@@ -13,7 +13,6 @@ Phase: **CHIP_ANALYSIS** · project: `compiler-a100-experiment-001`
 
 | When | Phase | Event | Detail |
 |---|---|---|---|
-| 2026-11-04T08:28:51.245626+00:00 | ENVIRONMENT_ANALYSIS | fact | F005 [runtime/RUNTIME_PROBE/input] probe: $A100_QEMU --version; timeout-bounded runs of smoke_c, smoke_asm and smoke_rvv in docs/compiler-agent/ENVIRONMENT.md |
 | 2026-11-04T08:28:51.444005+00:00 | ENVIRONMENT_ANALYSIS | fact | F006 [isa/RUNTIME_PROBE/input] probe: timeout 60 $A100_QEMU -L $A100_SYSROOT -cpu "$A100_QEMU_CPU" ./a100_support/build/smoke_rvv -> exit 0; control with vlen=256 -> exit 1; docs/compiler-agent/ENVIRONMENT.md End-to-end smoke 3 |
 | 2026-11-04T08:29:05.291793+00:00 | ENVIRONMENT_ANALYSIS | fact | F007 [runtime/RUNTIME_PROBE/input] probe: timeout 300 python3 a100_support/build/transport_probe.py -> alias comparison PASS, bf16 comparison PASS; build commands in docs/compiler-agent/ENVIRONMENT.md Native runtime transport |
 | 2026-11-04T08:29:05.483616+00:00 | ENVIRONMENT_ANALYSIS | fact | F008 [runtime/RUNTIME_PROBE/input] probe: gcc -shared -fPIC ... a100_support/probes/instruction_counts.c -o instruction_counts.so; timeout 90 $A100_QEMU ... -plugin instruction_counts.so,out=ime-int8-counts.json matrix_probe int8; docs/compiler-agent/ENVIRONMENT.md Dynamic instruction observation |
@@ -66,3 +65,4 @@ acceptance[2]: `python3 -c "import json; d=json.load(open('docs/ |
 | 2026-11-04T08:50:34.000190+00:00 | CHIP_ANALYSIS | fact | F043 [toolchain/FACT/input] chip.md#2 (compiler target boundary, POLICY lines 43-60); AGENTS.md Design and implementation (caching policy) |
 | 2026-11-04T08:50:34.199412+00:00 | CHIP_ANALYSIS | fact | F044 [toolchain/RUNTIME_PROBE/input] probe: fact F012 (docs/compiler-agent/ENVIRONMENT.md SpacemiT LLVM); chip.md#2/#5; reference-stack docs: docs/compiler-agent/target-material/sources/f97e5fa486885796bd4c24b204159f6c959cfe87015e5516c87d78ed9fc201d7/triton.md.search.txt:35-63, docs/compiler-agent/target-material/sources/22375bca9186501ada02cc4bd89cac6820aad719ffaddf373aa277c839fc67fb/math_library.md.search.txt:29-38 |
 | 2026-11-04T08:50:49.814821+00:00 | CHIP_ANALYSIS | fact | F045 [abi/RUNTIME_PROBE/input] probe: docs/compiler-agent/ENVIRONMENT.md (smoke build commands use -march=rv64gcv -mabi=lp64d; sysroot loader path, facts F002/F004); chip.md#2 (precompiled C/C++ runtime boundary) |
+| 2026-11-04T08:50:50.034561+00:00 | CHIP_ANALYSIS | fact | F046 [abi/RUNTIME_PROBE/input] probe: facts F003 (asm smoke, exit code 42 preserved) and F007 (transport round trip); chip.md#2-3 (POLICY) |

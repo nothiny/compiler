@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-04T08:50:49.814864+00:00",
+  "updated_at": "2026-11-04T08:50:50.034614+00:00",
   "facts": [
     {
       "id": "F001",
@@ -414,6 +414,15 @@
       "id": "F045",
       "statement": "ABI: the toolchain and sysroot use the lp64d ABI (double-precision hard-float calling convention) with rv64gcv; the sysroot libc and dynamic loader (ld-linux-riscv64-lp64d.so.1) are lp64d, and the precompiled C/C++ runtime that generated code links against follows the RISC-V psABI - generated assembly calling into that runtime must use the same psABI register conventions (integer arguments a0-a7, FP arguments fa0-fa7, callee-saved rules), and any convention the compiler chooses for its own internal helper calls must be declared once and shared by emitter and runtime.",
       "source": "probe: docs/compiler-agent/ENVIRONMENT.md (smoke build commands use -march=rv64gcv -mabi=lp64d; sysroot loader path, facts F002/F004); chip.md#2 (precompiled C/C++ runtime boundary)",
+      "confidence": "RUNTIME_PROBE",
+      "status": "active",
+      "category": "abi",
+      "origin": "input"
+    },
+    {
+      "id": "F046",
+      "statement": "Entry point and argument-binding contract: the generated standalone executable owns entry (raw-syscall _start with no libc was probed to work and preserve the guest exit code; the libc-backed main form also works), argument binding, program-ID/range calculation and stage sequencing, all in native code; the transport-level argument layout is the pack/unpack bundle contract with guest pointer relocation (strided-alias case probed PASS), and outputs are read back through the same declared convention with per-dtype decoding (bfloat16 value storage probed PASS).",
+      "source": "probe: facts F003 (asm smoke, exit code 42 preserved) and F007 (transport round trip); chip.md#2-3 (POLICY)",
       "confidence": "RUNTIME_PROBE",
       "status": "active",
       "category": "abi",
@@ -991,6 +1000,12 @@
       "phase": "CHIP_ANALYSIS",
       "event": "fact",
       "detail": "F045 [abi/RUNTIME_PROBE/input] probe: docs/compiler-agent/ENVIRONMENT.md (smoke build commands use -march=rv64gcv -mabi=lp64d; sysroot loader path, facts F002/F004); chip.md#2 (precompiled C/C++ runtime boundary)"
+    },
+    {
+      "at": "2026-11-04T08:50:50.034561+00:00",
+      "phase": "CHIP_ANALYSIS",
+      "event": "fact",
+      "detail": "F046 [abi/RUNTIME_PROBE/input] probe: facts F003 (asm smoke, exit code 42 preserved) and F007 (transport round trip); chip.md#2-3 (POLICY)"
     }
   ]
 }
