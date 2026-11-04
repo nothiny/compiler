@@ -1,0 +1,91 @@
+{
+  "allowed_units": [
+    "a100-compute-worker-slot-0",
+    "a100-compute-worker-slot-1",
+    "a100-compute-worker-slot-2",
+    "a100-compute-worker-slot-3",
+    "a100-compute-worker-slot-4",
+    "a100-compute-worker-slot-5",
+    "a100-compute-worker-slot-6",
+    "a100-compute-worker-slot-7"
+  ],
+  "minimum_workers": 2,
+  "instruction_patterns": [
+    "smt.vmadot",
+    "smt.vfwmadot"
+  ],
+  "evidence": [
+    "F053",
+    "F018",
+    "F019",
+    "F016",
+    "F017",
+    "F022",
+    "F025",
+    "F009",
+    "F034",
+    "F030",
+    "F037",
+    "F048",
+    "F047",
+    "F042"
+  ],
+  "shared_resources": [
+    {
+      "name": "ime2-tensor-engine",
+      "units": [
+        "a100-compute-worker-slot-0",
+        "a100-compute-worker-slot-1",
+        "a100-compute-worker-slot-2",
+        "a100-compute-worker-slot-3",
+        "a100-compute-worker-slot-4",
+        "a100-compute-worker-slot-5",
+        "a100-compute-worker-slot-6",
+        "a100-compute-worker-slot-7"
+      ],
+      "scope": "the IME-2.0 Tensor Core is shared by two compute cores and accepts one MMA instruction per cycle from each, so eight workers are not eight independent matrix throughputs and thread count is not matrix-engine count; under the pinned QEMU endpoint the engine is functionally emulated and the production pairing is unverified, so engine sharing is recorded as a constraint, never as an observed contention",
+      "evidence": [
+        "F017",
+        "F053",
+        "F034"
+      ]
+    },
+    {
+      "name": "a100-cluster-l2",
+      "units": [
+        "a100-compute-worker-slot-0",
+        "a100-compute-worker-slot-1",
+        "a100-compute-worker-slot-2",
+        "a100-compute-worker-slot-3",
+        "a100-compute-worker-slot-4",
+        "a100-compute-worker-slot-5",
+        "a100-compute-worker-slot-6",
+        "a100-compute-worker-slot-7"
+      ],
+      "scope": "1MB L2 cache per A100 cluster, a cluster-shared budget (MOESI coherence); never assume the whole L2 is privately available to every worker; QEMU guest threads do not establish cluster membership",
+      "evidence": [
+        "F022",
+        "F053"
+      ]
+    },
+    {
+      "name": "a100-cluster-scratchpad",
+      "units": [
+        "a100-compute-worker-slot-0",
+        "a100-compute-worker-slot-1",
+        "a100-compute-worker-slot-2",
+        "a100-compute-worker-slot-3",
+        "a100-compute-worker-slot-4",
+        "a100-compute-worker-slot-5",
+        "a100-compute-worker-slot-6",
+        "a100-compute-worker-slot-7"
+      ],
+      "scope": "1.5MB scratchpad per A100 cluster, a cluster-shared budget; under the pinned QEMU endpoint the executable memory path is Linux userspace virtual memory and the TCM/scratchpad MMIO regions are not on the execution path, so generated code may not assume them",
+      "evidence": [
+        "F022",
+        "F053",
+        "F025"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "work_unit": "native work range over source program instances (or legally repartitioned output tiles) executed by one persistent worker thread",
+  "worker_count": {
+    "default": 1,
+    "max": 8,
+    "configurable": true
+  },
+  "distribution": {
+    "mechanism": "the generated program computes each worker's range from (worker_id, worker_count) at runtime after reading --threads; a persistent pthread pool created once per process by the native runtime executes the ranges (OS-scheduled Linux threads; standard threads drive scalar/vector/matrix compute alike)",
+    "partitions": [
+      "strided round-robin over source program instances (default; every program instance executes exactly once across workers)",
+      "contiguous chunks over output tiles when repartitioning from the source grid is legal (disjoint output ownership)",
+      "two-phase partial reduction with explicit merge stage for cross-worker reductions",
+      "single-worker serial execution of the full range (worker_count=1 is a configuration of the same artifact)"
+    ]
+  },
+  "synchronization": [
+    "pthread barriers at declared stage boundaries, provided by the native runtime",
+    "C11 atomics for cross-worker partials and for the source's own atomic operations (sem/scope mapped to the declared RVWMO model with explicit synchronization)",
+    "cross-worker memory visibility is established only at the declared stage barriers; no implicit coherence is assumed"
+  ],
+  "safety": {
+    "condition": "concurrent workers are valid when every source program instance executes exactly once, output ownership is disjoint or combined through the source's own atomics or an explicit merge stage, and cross-worker visibility is established by the declared barriers; tails, ownership, visibility and repeated execution are validated at 1/2/4/8 workers",
+    "fallback": "the same artifact runs serially with worker_count=1: one worker executes the full range and stage barriers degrade to no-ops; there is no separate serial binary"
+  },
+  "evidence": [
+    "F018 chip.md#3 execution-model policy: parallelize one operator across native workers, persistent pool, explicit stages/synchronization/merges, validate at 1/2/4/8 workers",
+    "F053 at most 8 A100 compute workers supported (1/2/4/8 configurable); representative multi-worker cases must distribute useful work",
+    "F019 probed: a persistent pthread pool executes work ranges with distinct guest tids at 1/2/4/8 threads with full coverage and one pool initialization; worker count one is the single-thread serial configuration",
+    "F016 homogeneous RISC-V fusion: scalar, vector and matrix compute share one programming model driven by standard Linux threads, no heterogeneous scheduler",
+    "F043 the compiler generates the complete single-operator native program including worker range loops and program-ID/range calculation in native code",
+    "F054 board-level spinlock/interrupt synchronization primitives are userspace-inaccessible under QEMU; the generated code's cross-worker synchronization is the native runtime's pthread/atomic primitives"
+  ]
+}

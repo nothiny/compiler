@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-04T09:48:48.645211+00:00",
+  "updated_at": "2026-11-04T09:59:08.137432+00:00",
   "facts": [
     {
       "id": "F001",
@@ -847,14 +847,14 @@
       "tags": [
         "phase-compiler-planning"
       ],
-      "status": "RUNNING",
+      "status": "DONE",
       "assignee": "planner",
       "attempts": 1,
-      "evidence": "",
+      "evidence": "worker report WTI004: Compiler architecture and implementation plan for the A100 correctness-only run, derived from the 56 recorded facts, the workload feature matrix and the 107-construct api-spec. (1) docs/compiler-agent/COMPILER_ARCHITECTURE.md (mirrored at the project root where the engine reads it): two verified IRs (TIR tir/v1 carrying width/signedness, conversion-vs-bitcast, mask defaults, broadcast extents, reduction/dot contracts, runtime-symbolic launch geometry; MIR mir/v1 carrying vsetvli regions, masked memory ops, IME tile ops with the sourced operand contract, worker partition and stage structure) plus the emitted program-level assembly artifact; frontend with the declared-surface table, meta-tier specialization identity (shapes/grid/values runtime, never baked) and a provenance-tracked case-layer grid model emitted as a native runtime grid evaluation; the six basic optimization passes as normal pipeline work; execution planning with 1/2/4/8-worker partitioning, stage barriers, merge semantics and workspace ownership; RVV masked-tail handling; IME lowering for INT8 8x16x8 (smt.vmadot) and FP16 8x8x8 (smt.vfwmadot, FP32 accumulation) with register grouping constraints and the BF16 emulator gap handled by the vector FP32 path; repertoire-as-data backend with legalisation, one generic selection matcher, interference-based allocation over the 32x128B vector file; precompiled native C runtime (pool, barriers, a100-native-io/v1 bundle reader, --repeats with input restore); driver with artifact cache identity covering every bound dependency and the A100_COMPILER_FACTORY=a100c.factory:make_compiler integration through a100_support/native_device.py; per-stage dumps for first-incorrect-stage localisation. (2) ARCHITECTURE_CONSTRAINTS.json (root + docs mirror): schema_version 1, test_command 'python3 {test}', 43 responsibility-owned modules, 10 stages with tests, 2 IR levels with the six basic passes declared, cfg/register_allocation symbol contracts, 4 behaviou",
       "last_error": "",
       "failure_kind": "",
       "start_revision": "bc7c46f065c2b02ca1ebdbb96561de97abb8e717",
-      "end_revision": "",
+      "end_revision": "d8cd3a20d6c2583baf215431ffa63a9302bf1dc0",
       "completed_seq": 0,
       "debug_required": false,
       "debug_request_id": "",
@@ -864,6 +864,1416 @@
       "worker_debug_request": {},
       "coding_failures": 0,
       "started_at": "2026-11-04T09:24:04.884496+00:00",
+      "deferrals": 0,
+      "debug_verified_patterns": [],
+      "replan_baseline": {},
+      "origin": "manager",
+      "parent_task": "",
+      "optimization_stage": "",
+      "bundle_passes": [],
+      "shared_analysis": [],
+      "rollback_boundary": "",
+      "fastpath_fallback": "",
+      "profile_artifact": "",
+      "profile_sha256": "",
+      "profile_revision": "",
+      "bundle_evidence": []
+    },
+    {
+      "id": "T005",
+      "goal": "Native runtime, program ABI and bundle transport for the generated single-operator executables. Implement a100c/runtime/ as a reusable precompiled C runtime built only with the declared cross toolchain (F002/F003/F004): process main parsing --bundle <path> --threads <n> [--repeats <k>]; a persistent pthread pool supporting 1/2/4/8 compute workers created once per process and reused across repeated calls (F018/F019/F053); stage barriers and C11 atomics for cross-worker synchronization (F054, A006: explicit synchronization, no assumed coherence); workspace allocation with padded/aligned thread-private regions; an a100-native-io/v1 bundle reader (views with dtype/shape/strides/offset, typed scalars, pointer-table relocations patched on open and restored on close) implementing the single declared argument layout both sides derive from (F046/F047); input snapshot/restore so --repeats k executes the operator k independent times on the same case. Declare the runtime<->generated-code ABI once (psABI lp64d conventions, F045: the generated operator_entry signature and helper call forms in the runtime header). Prove the boundary with a HAND-WRITTEN assembly operator stub (not pipeline output) that reads views/scalars and writes outputs. The delivered executable must neither start, embed nor call Python (F043).",
+      "kind": "coding",
+      "gate": "G4",
+      "capability": "coding",
+      "purpose": "input",
+      "attempt_limit": 0,
+      "inputs": [
+        "docs/compiler-agent/COMPILER_ARCHITECTURE.md",
+        "docs/compiler-agent/CHIP_ANALYSIS.md",
+        "docs/compiler-agent/ENVIRONMENT.md",
+        "a100_support/native_io.py",
+        "a100_support/native_bundle.c",
+        "a100_support/native_device.py",
+        "a100_support/run-riscv.sh",
+        "chip.md"
+      ],
+      "outputs": [
+        "a100c/runtime/",
+        "a100c/runtime/build.py",
+        "a100c/tests/_bootstrap.py",
+        "a100c/tests/test_build.py",
+        "a100c/tests/test_runtime_smoke.py"
+      ],
+      "dependencies": [
+        "T004"
+      ],
+      "interfaces": [],
+      "acceptance": [
+        "A hand-written assembly operator stub (authored in this task, not generated) linked against the runtime executes under the declared QEMU endpoint via a100_support/run-riscv.sh and completes the pack_case -> execute -> unpack_outputs round trip with the strided-alias case and the bfloat16 value-storage case both comparing PASS (RT-EXECUTION-CONTRACT witness on a hand-written artifact).",
+        "The persistent pool is observed at 1, 2, 4 and 8 threads with distinct guest tids, full item coverage and one pool initialization per process, matching fact F019.",
+        "--repeats 3 with input snapshot/restore produces identical outputs across repeats (pool and workspace reuse, no cross-execution leakage); bundle inputs that violate the a100-native-io/v1 format are rejected before execution (recorded refusal, never a wrong result).",
+        "The runtime and stub are built exclusively by the declared cross gcc/as/ld with the declared sysroot (F002/F003/F004); no tool outside the declared build path appears (F044), and the built executable contains no Python symbol or dependency."
+      ],
+      "tests": [
+        "python3 a100c/tests/test_build.py",
+        "python3 a100c/tests/test_runtime_smoke.py"
+      ],
+      "conflicts": [
+        "a100c-runtime"
+      ],
+      "provides": [
+        "runtime-abi-v1"
+      ],
+      "consumes": [],
+      "tags": [],
+      "status": "READY",
+      "assignee": "",
+      "attempts": 0,
+      "evidence": "",
+      "last_error": "",
+      "failure_kind": "",
+      "start_revision": "",
+      "end_revision": "",
+      "completed_seq": 0,
+      "debug_required": false,
+      "debug_request_id": "",
+      "debug_pending_revision": "",
+      "debug_pending_attempts": -1,
+      "debug_pending_failures": 0,
+      "worker_debug_request": {},
+      "coding_failures": 0,
+      "started_at": "",
+      "deferrals": 0,
+      "debug_verified_patterns": [],
+      "replan_baseline": {},
+      "origin": "manager",
+      "parent_task": "",
+      "optimization_stage": "",
+      "bundle_passes": [],
+      "shared_analysis": [],
+      "rollback_boundary": "",
+      "fastpath_fallback": "",
+      "profile_artifact": "",
+      "profile_sha256": "",
+      "profile_revision": "",
+      "bundle_evidence": []
+    },
+    {
+      "id": "T006",
+      "goal": "Frontend core: declared surface, specialization, type/shape wellformedness and AST-to-TIR lowering for the elementwise core. Implement a100c/frontend/: source.py (operator module and case-layer loading by AST; single @triton.jit invariant; refusal with source locations for contract violations); surface.py (the recorded 107-construct/280-parameter surface as data; every parameter classified implemented / ignorable-with-recorded-reason / refused); specialize.py (meta-tier specialization identity: source path + kernel name + pointer device dtypes from pointer_dtypes + scalar specialization classes honoring do_not_specialize and do_not_specialize_on_alignment + all constexprs including the deterministically chosen autotune config; constexpr folding of tl.constexpr conditions, dtype predicates and dead dispatch branches such as the 16 float64 branches); types.py (literal typing, promotion/unification, result types, value conversion distinct from bitcast, zero-dim values, per pinned Triton 3.8 semantics); shapes.py (rank/extent inference with broadcast extents distinguished from real extents; disagreement is a diagnostic); lower_tir.py (AST -> TIR for the elementwise core: masked load with other / store, arithmetic, comparison, logical, where, constants, program_id). Implement a100c/ir/tir.py (TIR data structures per the declared property list) with a structural verifier, and a100c/ir/dump.py (textual dump with source attribution). Shapes, grid values and scalar values stay runtime-symbolic (never baked).",
+      "kind": "coding",
+      "gate": "G4",
+      "capability": "coding",
+      "purpose": "input",
+      "attempt_limit": 0,
+      "inputs": [
+        "docs/compiler-agent/COMPILER_ARCHITECTURE.md",
+        "docs/compiler-agent/OPERATOR_INVENTORY.md",
+        "docs/compiler-agent/PROJECT_STATE.json",
+        "ops/AGENTS.md",
+        "ops/docs/SUBSET.md",
+        "ops/docs/API_INVENTORY.md",
+        "ops/harness/compiler_api/AGENT_GUIDE.md",
+        "ops/harness/compiler_api/identity.py"
+      ],
+      "outputs": [
+        "a100c/frontend/",
+        "a100c/ir/tir.py",
+        "a100c/ir/dump.py",
+        "a100c/tests/test_frontend_surface.py",
+        "a100c/tests/test_specialize.py",
+        "a100c/tests/test_frontend_types.py",
+        "a100c/tests/test_frontend_shapes.py",
+        "a100c/tests/test_tir_verifier.py"
+      ],
+      "dependencies": [
+        "T004"
+      ],
+      "interfaces": [],
+      "acceptance": [
+        "The declared-surface enumeration test walks all 107 constructs and 280 parameters and asserts each is implemented, ignorable with a recorded reason, or refused with a located diagnostic; the control (a semantic parameter marked ignorable) fails a correctness test (FE-UNSUPPORTED-SURFACE).",
+        "Specialization identity: two cases differing only in shape, grid or scalar value produce ONE identity; cases differing in constexpr, pointer dtype or scalar specialization class produce distinct identities; do_not_specialize parameters are excluded from the class computation; the identity model matches the corpus's declared meta tier (compile count target 2161 for the full corpus, not 2734).",
+        "The TIR verifier rejects one hand-built malformed module per invariant class (use-before-definition, type contradiction, masked operation without declared default, broadcast extent consumed as real extent, carried value without join) and accepts the real frontend output for valid elementwise kernels.",
+        "Constexpr folding eliminates dead dtype-dispatch branches (e.g. float64 comparisons that no declared case dtype exercises) while still evaluating the comparison during specialization; a construct outside the declared surface is refused with a source location, never silently compiled."
+      ],
+      "tests": [
+        "python3 a100c/tests/test_frontend_surface.py",
+        "python3 a100c/tests/test_specialize.py",
+        "python3 a100c/tests/test_frontend_types.py",
+        "python3 a100c/tests/test_frontend_shapes.py",
+        "python3 a100c/tests/test_tir_verifier.py"
+      ],
+      "conflicts": [
+        "a100c-ir-frontend"
+      ],
+      "provides": [
+        "tir-v1",
+        "specialization-identity-v1"
+      ],
+      "consumes": [],
+      "tags": [],
+      "status": "READY",
+      "assignee": "",
+      "attempts": 0,
+      "evidence": "",
+      "last_error": "",
+      "failure_kind": "",
+      "start_revision": "",
+      "end_revision": "",
+      "completed_seq": 0,
+      "debug_required": false,
+      "debug_request_id": "",
+      "debug_pending_revision": "",
+      "debug_pending_attempts": -1,
+      "debug_pending_failures": 0,
+      "worker_debug_request": {},
+      "coding_failures": 0,
+      "started_at": "",
+      "deferrals": 0,
+      "debug_verified_patterns": [],
+      "replan_baseline": {},
+      "origin": "manager",
+      "parent_task": "",
+      "optimization_stage": "",
+      "bundle_passes": [],
+      "shared_analysis": [],
+      "rollback_boundary": "",
+      "fastpath_fallback": "",
+      "profile_artifact": "",
+      "profile_sha256": "",
+      "profile_revision": "",
+      "bundle_evidence": []
+    },
+    {
+      "id": "T007",
+      "goal": "End-to-end vertical slice (gate G4): one small elementwise operator compiled, built, executed on the target and independently compared, through every stage. Implement the minimal-but-real backend path: a100c/target.py (target model as data from recorded facts); a100c/plan/partition.py (worker range partition at 1/2/4/8 over source program instances, strided default, tails owned); a100c/lower/vectorize.py + addresses.py (RVV vectorization with vsetvli regions, exact vl, masked tails, whole-tree i64 address materialization with broadcast extents); a100c/lower/scalar.py and matrix.py as minimal stubs refusing what they do not implement yet; a100c/ir/mir.py (MIR + verifier incl. vsetvli region consistency); a100c/backend/repertoire.py (initial RVV + scalar entries as data), legalize.py (minimal), select.py (one generic matcher), allocate.py (interference-based GPR/vreg allocation against the 32x128B vector budget with spill/split), emit.py (complete program-level assembly: entry via the runtime ABI, bundle binding, native grid evaluation for the 1-D grid form, worker range loop, constants, workspace); a100c/runtime/build.py integration (as + ld + runtime -> ELF64 little-endian RISC-V); a100c/driver.py (pipeline orchestration + artifact cache keyed by specialization identity, compiler revision, target model and options; shapes/grid/threads values never in the key); per-stage dumps with source attribution. The 1-D grid form is extracted by the provenance-checked case-layer grid model with the compile-time equality self-check and emitted as a native grid-evaluation routine reading bundle scalars/view extents (launch geometry is runtime). Execute through the a100_support native device protocol (a factory shim) under QEMU and compare against the case's expected outputs with its declared comparison policy.",
+      "kind": "coding",
+      "gate": "G4",
+      "capability": "coding",
+      "purpose": "input",
+      "attempt_limit": 0,
+      "inputs": [
+        "docs/compiler-agent/COMPILER_ARCHITECTURE.md",
+        "docs/compiler-agent/CHIP_ANALYSIS.md",
+        "a100c/ir/tir.py",
+        "a100c/runtime/"
+      ],
+      "outputs": [
+        "a100c/__init__.py",
+        "a100c/target.py",
+        "a100c/plan/",
+        "a100c/lower/",
+        "a100c/backend/",
+        "a100c/ir/mir.py",
+        "a100c/driver.py",
+        "tools/check_masked_tails.py",
+        "a100c/tests/test_partition.py",
+        "a100c/tests/test_lower_vector.py",
+        "a100c/tests/test_legalize.py",
+        "a100c/tests/test_select.py",
+        "a100c/tests/test_allocate.py",
+        "a100c/tests/test_mir_verifier.py",
+        "a100c/tests/test_emit.py",
+        "a100c/tests/test_e2e_slice.py"
+      ],
+      "dependencies": [
+        "T005",
+        "T006"
+      ],
+      "interfaces": [],
+      "acceptance": [
+        "The slice operator's declared cases (aligned extent, ragged tail not a multiple of the block extent, and the size-one or zero-work edge where the operator declares one) execute under the declared QEMU endpoint and compare PASS with the case's own comparison policy at threads 1, 2, 4 and 8 on ONE artifact (identical artifact sha256 across thread counts; the program computes its partition from --threads).",
+        "Two cases of one compile identity compile once (artifact cache hit; second compile is a cache lookup) and the artifact is an ELF64 little-endian RISC-V executable that runs without Python (F043).",
+        "Per-stage dumps (TIR, plan, MIR, assembly) are produced with source attribution; the same input reproduces identical artifact bytes (determinism).",
+        "The ragged-tail witness holds: with the tail predicate removed in a scratch build the ragged case FAILS (tail lanes touch a poisoned guard region), and with the predicate present it passes (tools/check_masked_tails.py and its --witness mode, witness exits nonzero).",
+        "The MIR verifier rejects hand-built malformed modules (one per invariant class: vsetvli region inconsistency, masked store without inactive semantics, use before definition) and accepts the lowering's real output."
+      ],
+      "tests": [
+        "python3 a100c/tests/test_partition.py",
+        "python3 a100c/tests/test_lower_vector.py",
+        "python3 a100c/tests/test_legalize.py",
+        "python3 a100c/tests/test_select.py",
+        "python3 a100c/tests/test_allocate.py",
+        "python3 a100c/tests/test_mir_verifier.py",
+        "python3 a100c/tests/test_emit.py",
+        "python3 a100c/tests/test_e2e_slice.py",
+        "python3 tools/check_masked_tails.py"
+      ],
+      "conflicts": [
+        "a100c-lowering-backend"
+      ],
+      "provides": [
+        "backend-path-v1"
+      ],
+      "consumes": [
+        "runtime-abi-v1",
+        "tir-v1",
+        "specialization-identity-v1"
+      ],
+      "tags": [
+        "vertical-slice"
+      ],
+      "status": "BLOCKED",
+      "assignee": "",
+      "attempts": 0,
+      "evidence": "",
+      "last_error": "",
+      "failure_kind": "",
+      "start_revision": "",
+      "end_revision": "",
+      "completed_seq": 0,
+      "debug_required": false,
+      "debug_request_id": "",
+      "debug_pending_revision": "",
+      "debug_pending_attempts": -1,
+      "debug_pending_failures": 0,
+      "worker_debug_request": {},
+      "coding_failures": 0,
+      "started_at": "",
+      "deferrals": 0,
+      "debug_verified_patterns": [],
+      "replan_baseline": {},
+      "origin": "manager",
+      "parent_task": "",
+      "optimization_stage": "",
+      "bundle_passes": [],
+      "shared_analysis": [],
+      "rollback_boundary": "",
+      "fastpath_fallback": "",
+      "profile_artifact": "",
+      "profile_sha256": "",
+      "profile_revision": "",
+      "bundle_evidence": []
+    },
+    {
+      "id": "T008",
+      "goal": "Control flow, loop forms and grid generality. Implement in TIR and lowering: if/else with explicit join parameters for carried values (a source variable re-bound on one path must not merge with its earlier binding); tl.range (step; num_stages, loop_unroll_factor, disallow_acc_multi_buffer, flatten, warp_specialize, disable_licm classified ignorable-with-reason or honored); tl.static_range unrolling; while loops; program_id multi-axis decomposition; tl.num_programs from runtime grid extents; persistent grid-stride loops; if_pid patterns. Implement a100c/frontend/gridmodel.py: the provenance-tracking case-layer interpreter that extracts the grid expression for every corpus grid form (multi-axis tuples, cdiv products, lambda-meta form, shape-derived locals), proves every grid input equal to a bundle-visible quantity (scalar argument or view extent), emits the native grid-evaluation routine, and self-checks equality against the compiling case's concrete grid; operators whose grid inputs cannot be tied to bundle-visible quantities are refused with a located diagnostic (never baked), and the refusal count is reportable.",
+      "kind": "coding",
+      "gate": "G5",
+      "capability": "coding",
+      "purpose": "input",
+      "attempt_limit": 0,
+      "inputs": [
+        "docs/compiler-agent/COMPILER_ARCHITECTURE.md",
+        "docs/compiler-agent/OPERATOR_INVENTORY.md",
+        "a100c/ir/tir.py",
+        "a100c/frontend/"
+      ],
+      "outputs": [
+        "a100c/frontend/gridmodel.py",
+        "a100c/tests/test_control_flow.py",
+        "a100c/tests/test_grid_model.py"
+      ],
+      "dependencies": [
+        "T007"
+      ],
+      "interfaces": [],
+      "acceptance": [
+        "Control-flow operator families (flow.while 15 operators, flow.if 160, flow.tl_range 25, flow.static_range 21, persistent loops 146, if_pid 11) compile and their cases execute and compare PASS including multi-worker executions.",
+        "The grid model reproduces the concrete grid of every corpus operator at compile time via the provenance self-check, or refuses with a located diagnostic naming the untraceable input; the extraction/refusal census is recorded (no silent baking).",
+        "A carried-value re-bind case (a variable assigned on only one path of a branch, and a variable re-assigned twice in a loop) executes correctly at 1 and 4 workers; the lexical name-restore implementation is rejected by the TIR verifier test (carried value without join).",
+        "Multi-axis grids decompose program_id per axis correctly and tl.num_programs reads the runtime extents (verified on an operator reading num_programs)."
+      ],
+      "tests": [
+        "python3 a100c/tests/test_control_flow.py",
+        "python3 a100c/tests/test_grid_model.py"
+      ],
+      "conflicts": [
+        "a100c-ir-frontend"
+      ],
+      "provides": [
+        "control-flow-v1",
+        "grid-model-v1"
+      ],
+      "consumes": [
+        "tir-v1",
+        "backend-path-v1"
+      ],
+      "tags": [],
+      "status": "BLOCKED",
+      "assignee": "",
+      "attempts": 0,
+      "evidence": "",
+      "last_error": "",
+      "failure_kind": "",
+      "start_revision": "",
+      "end_revision": "",
+      "completed_seq": 0,
+      "debug_required": false,
+      "debug_request_id": "",
+      "debug_pending_revision": "",
+      "debug_pending_attempts": -1,
+      "debug_pending_failures": 0,
+      "worker_debug_request": {},
+      "coding_failures": 0,
+      "started_at": "",
+      "deferrals": 0,
+      "debug_verified_patterns": [],
+      "replan_baseline": {},
+      "origin": "manager",
+      "parent_task": "",
+      "optimization_stage": "",
+      "bundle_passes": [],
+      "shared_analysis": [],
+      "rollback_boundary": "",
+      "fastpath_fallback": "",
+      "profile_artifact": "",
+      "profile_sha256": "",
+      "profile_revision": "",
+      "bundle_evidence": []
+    },
+    {
+      "id": "T009",
+      "goal": "Reductions, scans and cross-worker merge semantics. Implement: reduction operations (tl.sum, tl.max, tl.min, tl.argmax, tl.argmin with return_indices and return_indices_tie_break_left, tl.xor_sum, tl.reduce_or, tl.softmax, tl.cumsum, tl.cumprod scans, tl.histogram, tl.sort, tl.topk) with axis selection, keep_dims, per-operation-and-dtype identity elements (signedness-correct), empty-extent behaviour and declared index tie-breaking; intra-program RVV reductions; cross-worker two-phase splits (a100c/plan/stages.py: partial results to owned workspace regions, a stage barrier establishing visibility, a merge step combining partials under the source's own semantics \u2014 floating accumulation order preserved within the declared tolerance, exact for integer/index/boolean); persistent reductions looping chunks inside one program; split-K style reduction feeds for dot. Implement tools/check_stage_barriers.py: a two-phase multi-worker case is correct with the declared barrier; --witness removes the barrier in a scratch build and must fail (proving the synchronization test can fail).",
+      "kind": "coding",
+      "gate": "G5",
+      "capability": "coding",
+      "purpose": "input",
+      "attempt_limit": 0,
+      "inputs": [
+        "docs/compiler-agent/COMPILER_ARCHITECTURE.md",
+        "docs/compiler-agent/OPERATOR_INVENTORY.md",
+        "a100c/ir/tir.py",
+        "a100c/plan/partition.py"
+      ],
+      "outputs": [
+        "a100c/plan/stages.py",
+        "tools/check_stage_barriers.py",
+        "a100c/tests/test_reductions.py",
+        "a100c/tests/test_stage_plan.py"
+      ],
+      "dependencies": [
+        "T007"
+      ],
+      "interfaces": [],
+      "acceptance": [
+        "Reduction and scan operator families (red.sum 195, red.axis 180, red.maxmin 91, red.argmaxmin 11, red.scan 4, red.keep_dims 4, red.histogram 1, red.sort 1, pat.persistent_reduce 146) compile and their cases execute and compare PASS, including multi-worker two-phase cases.",
+        "Empty-extent and single-element reductions are exact; argmax/argmin tie-break-left returns the declared index; integer and boolean reductions are exact (no tolerance).",
+        "The stage-barrier witness fails (nonzero exit) with the barrier removed in a scratch build and passes with it present: removing the declared synchronization changes the result of a cross-worker two-phase case.",
+        "Workspace ownership in the stage plan is disjoint per worker outside the declared merge; a plan violating ownership is rejected by the stage-plan test."
+      ],
+      "tests": [
+        "python3 a100c/tests/test_reductions.py",
+        "python3 a100c/tests/test_stage_plan.py",
+        "python3 tools/check_stage_barriers.py"
+      ],
+      "conflicts": [
+        "a100c-ir-frontend"
+      ],
+      "provides": [
+        "reductions-v1"
+      ],
+      "consumes": [
+        "tir-v1",
+        "backend-path-v1"
+      ],
+      "tags": [],
+      "status": "BLOCKED",
+      "assignee": "",
+      "attempts": 0,
+      "evidence": "",
+      "last_error": "",
+      "failure_kind": "",
+      "start_revision": "",
+      "end_revision": "",
+      "completed_seq": 0,
+      "debug_required": false,
+      "debug_request_id": "",
+      "debug_pending_revision": "",
+      "debug_pending_attempts": -1,
+      "debug_pending_failures": 0,
+      "worker_debug_request": {},
+      "coding_failures": 0,
+      "started_at": "",
+      "deferrals": 0,
+      "debug_verified_patterns": [],
+      "replan_baseline": {},
+      "origin": "manager",
+      "parent_task": "",
+      "optimization_stage": "",
+      "bundle_passes": [],
+      "shared_analysis": [],
+      "rollback_boundary": "",
+      "fastpath_fallback": "",
+      "profile_artifact": "",
+      "profile_sha256": "",
+      "profile_revision": "",
+      "bundle_evidence": []
+    },
+    {
+      "id": "T010",
+      "goal": "IME matrix slice with real instruction execution, before matrix breadth. Implement a100c/plan/tiles.py and a100c/lower/matrix.py: tl.dot lowering to the applicable IME families on the input path (F037) \u2014 INT8 8x16x8 -> INT32 via smt.vmadot with the u/us/su signedness variants (integer accumulation in 32-bit modular arithmetic, signed accumulator, F051) and FP16 8x8x8 -> FP32 via smt.vfwmadot (FP32 accumulation, F051); tile mapping with vs1 = A tile row-major and vs2 = B tile column-major (the geometric layout statement; no software transpose when the memory layout provides columns, otherwise packing via RVV loads or the smt.vpack family, F031/F035); K-loop accumulator chaining through the acc parameter; M/N/K tails via compiler-written zero-padded staging tiles (never reading out-of-range memory to construct a nominally neutral term) and masked M/N stores, with the ordinary RVV FMA path as a legal alternative for small or ragged tails; register grouping constraints (MUL_C=2: vd even-numbered, vd+vd+1 the group, destination group never overlapping vs1/vs2, F033/F040) enforced by the MIR verifier and honored by the allocator; implicit control state handled per the specification (MCPM.BF16 selects the 16-bit operand format and is not userspace-accessible under the pinned QEMU, so only FP16 operands reach IME floating tiles, F011/F034; the standard vm mask is not a matrix mask control and no vtype.lambda/altfmt fields exist, F032). BF16 tl.dot lowers to the vector FP32 path with the emulator gap recorded (F010/F034: BF16 IME execution is not claimable; never infer it from FP16 success). int4/sparse/scale source-level forms are outside the declared surface and refused. Execute one INT8 and one FP16 dot case under QEMU with the instruction-count plugin (a100_support/probes/instruction_counts.c, F008/F048): positive counted smt.vmadot / smt.vfwmadot executions bound to the same run, case and artifact.",
+      "kind": "coding",
+      "gate": "G5",
+      "capability": "coding",
+      "purpose": "input",
+      "attempt_limit": 0,
+      "inputs": [
+        "docs/compiler-agent/COMPILER_ARCHITECTURE.md",
+        "docs/compiler-agent/CHIP_ANALYSIS.md",
+        "a100_support/probes/instruction_counts.c",
+        "a100c/ir/mir.py",
+        "a100c/backend/allocate.py"
+      ],
+      "outputs": [
+        "a100c/plan/tiles.py",
+        "a100c/lower/matrix.py",
+        "a100c/tests/test_lower_matrix.py",
+        "a100c/tests/test_ime_evidence.py"
+      ],
+      "dependencies": [
+        "T007"
+      ],
+      "interfaces": [],
+      "acceptance": [
+        "One INT8 dot case and one FP16 dot case compile through the full pipeline, execute under the declared QEMU endpoint and compare PASS, with the instruction-count plugin recording at least one executed smt.vmadot (INT8 case) and smt.vfwmadot (FP16 case) bound to the same prepared run, case identity and artifact sha256 (a listing alone is not evidence, F048).",
+        "The IME slice cases also execute and compare PASS at 2, 4 and 8 workers on the same artifact (worker split recorded).",
+        "The MIR verifier rejects constructed illegal IME forms: LMUL not 1, odd vd where MUL_C=2, destination group overlapping vs1/vs2, operand format inconsistent with the family; the allocator honors parity/group constraints (test constructs an over-constrained function and requires a legal allocation or a diagnosed refusal).",
+        "A BF16 dot case executes and compares PASS via the declared vector FP32 path, and the BF16 IME gap is recorded (no BF16 IME execution claim); a source-level int4 dot is refused with a located diagnostic (outside the declared surface).",
+        "Tail handling: a dot case with M, N or K not divisible by the tile extents compares PASS, and the staging-tile code writes the padding (guard-region check: no out-of-range read)."
+      ],
+      "tests": [
+        "python3 a100c/tests/test_lower_matrix.py",
+        "python3 a100c/tests/test_ime_evidence.py"
+      ],
+      "conflicts": [
+        "a100c-lowering-backend"
+      ],
+      "provides": [
+        "ime-lowering-v1"
+      ],
+      "consumes": [
+        "tir-v1",
+        "backend-path-v1",
+        "runtime-abi-v1"
+      ],
+      "tags": [
+        "ime-slice"
+      ],
+      "status": "BLOCKED",
+      "assignee": "",
+      "attempts": 0,
+      "evidence": "",
+      "last_error": "",
+      "failure_kind": "",
+      "start_revision": "",
+      "end_revision": "",
+      "completed_seq": 0,
+      "debug_required": false,
+      "debug_request_id": "",
+      "debug_pending_revision": "",
+      "debug_pending_attempts": -1,
+      "debug_pending_failures": 0,
+      "worker_debug_request": {},
+      "coding_failures": 0,
+      "started_at": "",
+      "deferrals": 0,
+      "debug_verified_patterns": [],
+      "replan_baseline": {},
+      "origin": "manager",
+      "parent_task": "",
+      "optimization_stage": "",
+      "bundle_passes": [],
+      "shared_analysis": [],
+      "rollback_boundary": "",
+      "fastpath_fallback": "",
+      "profile_artifact": "",
+      "profile_sha256": "",
+      "profile_revision": "",
+      "bundle_evidence": []
+    },
+    {
+      "id": "T011",
+      "goal": "Memory access breadth and atomics. Implement: make_block_ptr / advance / load / store with boundary_check and padding_option; cache_modifier and eviction_policy classified ignorable-with-reason (performance-only) and volatile honored; tl.multiple_of / tl.max_contiguous hints feeding contiguity/alignment proofs for wide-access selection (unproven accesses keep masked or scalar forms); tl.gather; atomics (tl.atomic_add, max, min, xchg, and, or, xor, cas) with sem/scope parameters mapped to the declared RVWMO model with explicit fences \u2014 a masked atomic performs no access at disabled positions and keeps its signedness; tl.debug_barrier as intra-program ordering; pointer_table_relocations consumption (the grouped_gemm pattern: device addresses inside int64/uint64 buffers, patched by the bundle reader); tl.interleave. Scalar/integer paths: int64/bool/unsigned logic and index arithmetic with the declared wrap/shift/division semantics (A003).",
+      "kind": "coding",
+      "gate": "G5",
+      "capability": "coding",
+      "purpose": "input",
+      "attempt_limit": 0,
+      "inputs": [
+        "docs/compiler-agent/COMPILER_ARCHITECTURE.md",
+        "docs/compiler-agent/OPERATOR_INVENTORY.md",
+        "a100c/ir/tir.py",
+        "a100c/lower/scalar.py"
+      ],
+      "outputs": [
+        "a100c/lower/scalar.py",
+        "a100c/tests/test_lower_scalar.py",
+        "a100c/tests/test_memory_forms.py",
+        "a100c/tests/test_atomics.py"
+      ],
+      "dependencies": [
+        "T007"
+      ],
+      "interfaces": [],
+      "acceptance": [
+        "Block-pointer and boundary-check operator families (mem.blockptr 9, mem.boundary_check 8, pat.blockptr_boundary 8, mem.padding 4) compile and their cases execute and compare PASS.",
+        "Atomic operator families (mem.atomic 16 operators: atomic_add/max/min/xchg/and/or/xor/cas with sem/scope) compile and their cases execute and compare PASS including multi-worker cross-program accumulation; the pointer-table operator (grouped_gemm_kernel) passes with relocations applied and restored.",
+        "Masked atomic with disabled positions addressing out-of-range memory performs no access: the guard-region witness fails when the mask is dropped in a scratch build and passes with it present.",
+        "The sem/scope mapping is declared and legal (every atomic op emits the ordered/fenced form the case's scope requires); cache hints are ignorable-with-reason and the classification is recorded in the surface table."
+      ],
+      "tests": [
+        "python3 a100c/tests/test_lower_scalar.py",
+        "python3 a100c/tests/test_memory_forms.py",
+        "python3 a100c/tests/test_atomics.py"
+      ],
+      "conflicts": [
+        "a100c-lowering-backend"
+      ],
+      "provides": [
+        "memory-forms-v1"
+      ],
+      "consumes": [
+        "tir-v1",
+        "backend-path-v1"
+      ],
+      "tags": [],
+      "status": "BLOCKED",
+      "assignee": "",
+      "attempts": 0,
+      "evidence": "",
+      "last_error": "",
+      "failure_kind": "",
+      "start_revision": "",
+      "end_revision": "",
+      "completed_seq": 0,
+      "debug_required": false,
+      "debug_request_id": "",
+      "debug_pending_revision": "",
+      "debug_pending_attempts": -1,
+      "debug_pending_failures": 0,
+      "worker_debug_request": {},
+      "coding_failures": 0,
+      "started_at": "",
+      "deferrals": 0,
+      "debug_verified_patterns": [],
+      "replan_baseline": {},
+      "origin": "manager",
+      "parent_task": "",
+      "optimization_stage": "",
+      "bundle_passes": [],
+      "shared_analysis": [],
+      "rollback_boundary": "",
+      "fastpath_fallback": "",
+      "profile_artifact": "",
+      "profile_sha256": "",
+      "profile_revision": "",
+      "bundle_evidence": []
+    },
+    {
+      "id": "T012",
+      "goal": "Layout, shape and dtype-conversion breadth. Implement: reshape (can_reorder classified), trans / permute (dims), join / split, cat, expand_dims / unsqueeze, squeeze, broadcast_to / broadcast, ravel, view (bit-level reinterpretation), flip, tl.swizzle2d (declared with 0 corpus calls: implement or declare-unsupported with a refusal witness), to_tensor / tensor; value-level dtype introspection folding. Implement the full conversion matrix over the corpus dtype pairs (bfloat16, bool, float16, float32, int16, int32, int64, int8, uint variants) with value conversion and bit-level reinterpretation as distinct constructs \u2014 an identity fold removes a conversion only when the types are value-identical, never when they merely print the same width; bf16 pointer duality handled for both staging forms (host float32-cast and host uint16-bitview, reading back symmetrically); fp16/bf16 compute lanes may use FP32 with one final rounding inside the declared tolerance (fp16 1e-2, bf16 2e-2; fp32 stays IEEE), as a declared numeric decision with a per-pass switch.",
+      "kind": "coding",
+      "gate": "G5",
+      "capability": "coding",
+      "purpose": "input",
+      "attempt_limit": 0,
+      "inputs": [
+        "docs/compiler-agent/COMPILER_ARCHITECTURE.md",
+        "docs/compiler-agent/OPERATOR_INVENTORY.md",
+        "a100c/frontend/types.py",
+        "a100c/frontend/shapes.py"
+      ],
+      "outputs": [
+        "a100c/tests/test_layout_ops.py",
+        "a100c/tests/test_conversions.py"
+      ],
+      "dependencies": [
+        "T007"
+      ],
+      "interfaces": [],
+      "acceptance": [
+        "Layout and shape operator families (shape.reshape 27, shape.trans 18, shape.split_join 6, and the single-call forms) compile and their cases execute and compare PASS.",
+        "The conversion enumeration test covers every declared dtype pair (including bf16 duality in both staging forms) and fails when one promotion rule is removed (control); bitcast and conversion are proven distinct on a type pair where they differ.",
+        "Broadcast extents are never consumed as real extents: the shape oracle test enumerates rank/extent combinations including a broadcast dimension and a non-contiguous stride, with an independent index computation as the oracle.",
+        "Integer and boolean conversions are exact; floating conversions stay within each case's declared tolerance."
+      ],
+      "tests": [
+        "python3 a100c/tests/test_layout_ops.py",
+        "python3 a100c/tests/test_conversions.py"
+      ],
+      "conflicts": [
+        "a100c-ir-frontend"
+      ],
+      "provides": [
+        "layout-ops-v1"
+      ],
+      "consumes": [
+        "tir-v1",
+        "backend-path-v1"
+      ],
+      "tags": [],
+      "status": "BLOCKED",
+      "assignee": "",
+      "attempts": 0,
+      "evidence": "",
+      "last_error": "",
+      "failure_kind": "",
+      "start_revision": "",
+      "end_revision": "",
+      "completed_seq": 0,
+      "debug_required": false,
+      "debug_request_id": "",
+      "debug_pending_revision": "",
+      "debug_pending_attempts": -1,
+      "debug_pending_failures": 0,
+      "worker_debug_request": {},
+      "coding_failures": 0,
+      "started_at": "",
+      "deferrals": 0,
+      "debug_verified_patterns": [],
+      "replan_baseline": {},
+      "origin": "manager",
+      "parent_task": "",
+      "optimization_stage": "",
+      "bundle_passes": [],
+      "shared_analysis": [],
+      "rollback_boundary": "",
+      "fastpath_fallback": "",
+      "profile_artifact": "",
+      "profile_sha256": "",
+      "profile_revision": "",
+      "bundle_evidence": []
+    },
+    {
+      "id": "T013",
+      "goal": "Special math functions and bit-exact RNG. Implement: exp, exp2, log, log2, sqrt, sqrt_rn, rsqrt, sigmoid, erf, sin, cos, floor, ceil, clamp, pow, fma, div_rn, abs, maximum / minimum with propagate_nan, and the remaining declared math forms, with per-dtype accuracy inside each case's declared tolerance (fp32 IEEE; fp16/bf16 via FP32 lanes under the declared single-rounding policy); scalar constexpr math folded at specialization. Implement the RNG family bit-exactly from the pinned Triton 3.8 semantics (the reference environment pins triton 3.8.0, F013/F049): tl.philox (the counter-based primitive the corpus kernels inline around), tl.rand / randn / randint and their 4x variants with their offset formulas \u2014 RNG values feed compared outputs and integer outputs are exact, so the implementation must match reference vectors generated from the pinned Triton, never an approximation.",
+      "kind": "coding",
+      "gate": "G5",
+      "capability": "coding",
+      "purpose": "input",
+      "attempt_limit": 0,
+      "inputs": [
+        "docs/compiler-agent/COMPILER_ARCHITECTURE.md",
+        "docs/compiler-agent/OPERATOR_INVENTORY.md",
+        "a100c/frontend/types.py"
+      ],
+      "outputs": [
+        "a100c/tests/test_math_ops.py",
+        "a100c/tests/test_rng.py"
+      ],
+      "dependencies": [
+        "T012"
+      ],
+      "interfaces": [],
+      "acceptance": [
+        "Math operator families (math.transcendental 125, math.clamp 111, math.sqrt_rsqrt 62, math.round 7, arith.pow 15) compile and their cases execute and compare PASS within each case's declared tolerance; fp32 results use IEEE operations.",
+        "The philox implementation matches reference vectors generated from the pinned Triton 3.8 environment bit-exactly (integer exactness; recorded vectors and the generation command); rand/randn/randint variants match their offset formulas.",
+        "RNG operator families (misc.rng 12 operators) compile and their cases execute and compare PASS; maximum/minimum honor propagate_nan and the where/equal_nan policies hold.",
+        "A deliberately wrongly-rounded constant or off-by-one philox round fails the accuracy/bit-exactness test (control proving the tests can fail)."
+      ],
+      "tests": [
+        "python3 a100c/tests/test_math_ops.py",
+        "python3 a100c/tests/test_rng.py"
+      ],
+      "conflicts": [
+        "a100c-ir-frontend"
+      ],
+      "provides": [
+        "math-rng-v1"
+      ],
+      "consumes": [
+        "layout-ops-v1"
+      ],
+      "tags": [],
+      "status": "BLOCKED",
+      "assignee": "",
+      "attempts": 0,
+      "evidence": "",
+      "last_error": "",
+      "failure_kind": "",
+      "start_revision": "",
+      "end_revision": "",
+      "completed_seq": 0,
+      "debug_required": false,
+      "debug_request_id": "",
+      "debug_pending_revision": "",
+      "debug_pending_attempts": -1,
+      "debug_pending_failures": 0,
+      "worker_debug_request": {},
+      "coding_failures": 0,
+      "started_at": "",
+      "deferrals": 0,
+      "debug_verified_patterns": [],
+      "replan_baseline": {},
+      "origin": "manager",
+      "parent_task": "",
+      "optimization_stage": "",
+      "bundle_passes": [],
+      "shared_analysis": [],
+      "rollback_boundary": "",
+      "fastpath_fallback": "",
+      "profile_artifact": "",
+      "profile_sha256": "",
+      "profile_revision": "",
+      "bundle_evidence": []
+    },
+    {
+      "id": "T014",
+      "goal": "Matrix breadth beyond the IME slice: all dot-carrying families through the real pipeline. Implement and validate: k-loop dot pipelines (pat.k_loop 53 operators), matmul epilogues (pat.matmul_epilogue 45), dot_reduce (12), fp32 tl.dot in IEEE mode (no tf32: the subset strips input_precision/allow_tf32 and the runner pins TRITON_F32_DEFAULT=ieee, F052), out_dtype handling, acc chaining, split-K reductions with explicit merges, attention families (11 operators incl. flash_varlen with block pointers), conv/pool (20), quant (6), linear_attention (32), grouped GEMM with pointer tables; tile and chunk decisions bounded by the vector-file budget with an ordinary path always retained (a budget overflow produces a legal chunked plan or a diagnosed refusal when no chunking exists \u2014 never a silent over-budget emission); IME selection on eligible int8/fp16 dot cases confirmed by instruction counts on representative cases; BF16 dot via the vector FP32 path with the gap recorded.",
+      "kind": "coding",
+      "gate": "G5",
+      "capability": "coding",
+      "purpose": "input",
+      "attempt_limit": 0,
+      "inputs": [
+        "docs/compiler-agent/COMPILER_ARCHITECTURE.md",
+        "docs/compiler-agent/OPERATOR_INVENTORY.md",
+        "a100c/lower/matrix.py",
+        "a100c/plan/tiles.py"
+      ],
+      "outputs": [
+        "a100c/tests/test_matrix_breadth.py"
+      ],
+      "dependencies": [
+        "T008",
+        "T009",
+        "T010",
+        "T012"
+      ],
+      "interfaces": [],
+      "acceptance": [
+        "All dot/matrix-family operators (dot.matmul 74, dot.acc 4, dot.out_dtype 4, attention 11, conv_pool 20, quant 6, linear_attention 32, matmul family 57) compile and their cases execute and compare PASS, including multi-worker representative cases and split-K merges.",
+        "fp32 dot cases compare PASS in IEEE mode (exactness within the declared tolerance with no reduced-precision path); bf16 dot cases pass via the vector FP32 path with the gap recorded.",
+        "A deliberately over-budget tile plan is visibly handled: a legal chunked plan, a recorded spill count, or a diagnosed refusal \u2014 never a silent over-budget emission (the 32x128B vector file budget, F023/F028/F041).",
+        "Representative int8 and fp16 dot cases show positive smt.vmadot / smt.vfwmadot execution counts bound to their artifacts."
+      ],
+      "tests": [
+        "python3 a100c/tests/test_matrix_breadth.py"
+      ],
+      "conflicts": [
+        "a100c-lowering-backend"
+      ],
+      "provides": [
+        "matrix-breadth-v1"
+      ],
+      "consumes": [
+        "ime-lowering-v1",
+        "control-flow-v1",
+        "reductions-v1",
+        "layout-ops-v1"
+      ],
+      "tags": [],
+      "status": "BLOCKED",
+      "assignee": "",
+      "attempts": 0,
+      "evidence": "",
+      "last_error": "",
+      "failure_kind": "",
+      "start_revision": "",
+      "end_revision": "",
+      "completed_seq": 0,
+      "debug_required": false,
+      "debug_request_id": "",
+      "debug_pending_revision": "",
+      "debug_pending_attempts": -1,
+      "debug_pending_failures": 0,
+      "worker_debug_request": {},
+      "coding_failures": 0,
+      "started_at": "",
+      "deferrals": 0,
+      "debug_verified_patterns": [],
+      "replan_baseline": {},
+      "origin": "manager",
+      "parent_task": "",
+      "optimization_stage": "",
+      "bundle_passes": [],
+      "shared_analysis": [],
+      "rollback_boundary": "",
+      "fastpath_fallback": "",
+      "profile_artifact": "",
+      "profile_sha256": "",
+      "profile_revision": "",
+      "bundle_evidence": []
+    },
+    {
+      "id": "T015",
+      "goal": "Basic optimization passes as ordinary coding/input work with legality and result checks (never capability/purpose/tag optimization, never G9; F055). Implement a100c/passes/: pipeline.py (registration, ordering, per-pass switches A100C_PASS_<NAME>=off), analyses.py (one shared analysis owner: dominance, liveness, loop structure, memory effects, with a declared invalidation contract \u2014 a mutated module forces recomputation or a pass refusal, never a stale read), and the six passes on TIR under their legality conditions: cse (availability + effect/alias proof for memory reuse), dce (observable stores, atomics, synchronization and stage effects preserved), constprop (folding/propagation under source width, signedness, overflow, rounding and path conditions), copyprop (dominance, joins, value identity, pointer semantics), strength_reduction (affine index/address expressions: division/remainder by constants, repeated index work; equivalent integer/index behavior, declared floating policy), licm (invariant pure expressions only; masked or trapping accesses never hoisted; zero-trip safety). Each pass has a real switch and a trace counter (fired/declined) and declares consumed/preserved/invalidated analyses. Land each construct class on the general unoptimized path first: the corpus subset green with passes disabled, then enabled (MECH-GENERAL-PATH-FIRST).",
+      "kind": "coding",
+      "gate": "G5",
+      "capability": "coding",
+      "purpose": "input",
+      "attempt_limit": 0,
+      "inputs": [
+        "docs/compiler-agent/COMPILER_ARCHITECTURE.md",
+        "a100c/ir/tir.py",
+        "a100c/ir/dump.py"
+      ],
+      "outputs": [
+        "a100c/passes/",
+        "a100c/tests/test_passes_basic.py"
+      ],
+      "dependencies": [
+        "T008",
+        "T009"
+      ],
+      "interfaces": [],
+      "acceptance": [
+        "Each pass has a legality test: an eligible expression or loop is actually rewritten (structural trace observed) and the executed result still compares PASS against the independent reference; an unsafe case is declined with the unmet condition recorded (e.g. hoisting a masked load across a crossing store is refused; CSE across an intervening write is refused without an alias proof).",
+        "The shared-analysis invalidation contract holds: mutating the module invalidates dependent analyses and a pass refuses to run on a stale result rather than reading it.",
+        "Per-pass switches are real: disabling a pass changes the emitted code for a matching input and cannot silently reuse an artifact compiled with other options; trace counters distinguish fired-zero-times from disabled.",
+        "A representative corpus subset (covering each feature class) executes and compares PASS with the passes ENABLED (the normal pipeline) and with the passes DISABLED (the general path intact); no timing, speedup or counter quota is claimed."
+      ],
+      "tests": [
+        "python3 a100c/tests/test_passes_basic.py"
+      ],
+      "conflicts": [
+        "a100c-passes"
+      ],
+      "provides": [
+        "basic-passes-v1"
+      ],
+      "consumes": [
+        "tir-v1",
+        "control-flow-v1",
+        "reductions-v1"
+      ],
+      "tags": [],
+      "status": "BLOCKED",
+      "assignee": "",
+      "attempts": 0,
+      "evidence": "",
+      "last_error": "",
+      "failure_kind": "",
+      "start_revision": "",
+      "end_revision": "",
+      "completed_seq": 0,
+      "debug_required": false,
+      "debug_request_id": "",
+      "debug_pending_revision": "",
+      "debug_pending_attempts": -1,
+      "debug_pending_failures": 0,
+      "worker_debug_request": {},
+      "coding_failures": 0,
+      "started_at": "",
+      "deferrals": 0,
+      "debug_verified_patterns": [],
+      "replan_baseline": {},
+      "origin": "manager",
+      "parent_task": "",
+      "optimization_stage": "",
+      "bundle_passes": [],
+      "shared_analysis": [],
+      "rollback_boundary": "",
+      "fastpath_fallback": "",
+      "profile_artifact": "",
+      "profile_sha256": "",
+      "profile_revision": "",
+      "bundle_evidence": []
+    },
+    {
+      "id": "T016",
+      "goal": "Declared-surface coverage completion and recording. Close every remaining gap in the 107-construct/280-parameter declared surface (the workload analysis records the api-spec; the subset is closed over the kept operators, so no in-subset language gap is expected \u2014 residual gaps are implementation findings, not scope changes). For every construct record a coverage row: implemented with evidence (an executed comparison or test that exercises it) and covered parameters, naming the IR construct that carries it (constructs sharing a language feature name one carrier \u2014 a per-construct carrier is a dispatcher with a coverage table in front of it); or declared-unsupported with a working refusal witness command that proves the compiler rejects it with a located diagnostic (tl.swizzle2d, 0 corpus calls, is implemented or declared-unsupported with a witness). Record FRONTEND_COVERAGE.json through the engine's frontend-coverage command.",
+      "kind": "coding",
+      "gate": "G5",
+      "capability": "coding",
+      "purpose": "input",
+      "attempt_limit": 0,
+      "inputs": [
+        "docs/compiler-agent/PROJECT_STATE.json",
+        "docs/compiler-agent/OPERATOR_INVENTORY.md",
+        "a100c/frontend/surface.py"
+      ],
+      "outputs": [
+        "FRONTEND_COVERAGE.json"
+      ],
+      "dependencies": [
+        "T008",
+        "T009",
+        "T010",
+        "T011",
+        "T012",
+        "T013"
+      ],
+      "interfaces": [],
+      "acceptance": [
+        "FRONTEND_COVERAGE.json validates against the declared 107-construct surface: every construct has a row, no row is unimplemented, parameters are accounted for, and implemented rows name their IR construct and evidence.",
+        "Every declared-unsupported row has a refusal witness command that fails as specified (the construct is rejected with a located diagnostic, not silently accepted or miscompiled).",
+        "The enumeration control holds: removing one implementation entry from the surface table makes the enumeration test fail (a coverage figure computed against the declaration, not the corpus sample).",
+        "Coverage is recorded through the engine command and visible in the project status."
+      ],
+      "tests": [
+        "python3 a100c/tests/test_frontend_surface.py"
+      ],
+      "conflicts": [
+        "a100c-ir-frontend"
+      ],
+      "provides": [
+        "frontend-coverage-v1"
+      ],
+      "consumes": [
+        "tir-v1",
+        "control-flow-v1",
+        "reductions-v1",
+        "ime-lowering-v1",
+        "memory-forms-v1",
+        "layout-ops-v1",
+        "math-rng-v1"
+      ],
+      "tags": [],
+      "status": "BLOCKED",
+      "assignee": "",
+      "attempts": 0,
+      "evidence": "",
+      "last_error": "",
+      "failure_kind": "",
+      "start_revision": "",
+      "end_revision": "",
+      "completed_seq": 0,
+      "debug_required": false,
+      "debug_request_id": "",
+      "debug_pending_revision": "",
+      "debug_pending_attempts": -1,
+      "debug_pending_failures": 0,
+      "worker_debug_request": {},
+      "coding_failures": 0,
+      "started_at": "",
+      "deferrals": 0,
+      "debug_verified_patterns": [],
+      "replan_baseline": {},
+      "origin": "manager",
+      "parent_task": "",
+      "optimization_stage": "",
+      "bundle_passes": [],
+      "shared_analysis": [],
+      "rollback_boundary": "",
+      "fastpath_fallback": "",
+      "profile_artifact": "",
+      "profile_sha256": "",
+      "profile_revision": "",
+      "bundle_evidence": []
+    },
+    {
+      "id": "T017",
+      "goal": "Driver, artifact cache, factory wiring and generality checks. Implement a100c/factory.py (make_compiler() returning the compile_case(case) -> ExecutableArtifact protocol consumed by a100_support/native_device.py, with arguments ('--bundle','{bundle}','--threads','{threads}')) and wire A100_COMPILER_FACTORY into .env. Implement tools/run_scan.py: enumerate cases with the corpus's own harness (run_cases.py --manifest ops/suite/manifest.json --dry-run / opslib.runner.load_operator + make_case, exactly as the harness does); group by compile identity (compile once per identity, run every case \u2014 the corpus's declared economics: 2734 cases / 2161 identities); stage, execute and compare via the native device protocol under a per-case bound (A100_EXECUTION_TIMEOUT; a case that does not return is a recorded failure, never a wait; one faulting case must not poison the next); compare with each case's declared per-output policy (comparator, rtol/atol, equal_nan, quantized_interval, allclose_sign_invariant; integer/index/boolean exact) reading tolerance and reference from the case, never widening either; write the input-regression/v1 report rows for regression-record and the manifest builder for regression-prepare (every case, both tiers, per-case comparison policies, resource_evidence flags on representative rows); support resume without recompiling and the corpus's own acceptance checks (compile count vs identity census <= 1.25x, cache-hit speed). Implement tools/check_no_name_dispatch.py (nothing below the frontend branches on an operator, kernel or benchmark name; --witness injects a name-keyed branch into a scratch copy of the pipeline and the check must catch it, the witness exiting nonzero) and tools/check_numeric_policy.py (the comparison harness reads tolerance/reference from the case; --witness widens a tolerance in a scratch copy and must fail). The compiler and driver import no reference device and no torch (the reference service never substitutes for candidate execution, F049; no reference fallback, F052).",
+      "kind": "coding",
+      "gate": "G5",
+      "capability": "coding",
+      "purpose": "input",
+      "attempt_limit": 0,
+      "inputs": [
+        "docs/compiler-agent/COMPILER_ARCHITECTURE.md",
+        "a100_support/native_device.py",
+        "ops/harness/compiler_api/run_cases.py",
+        "ops/harness/compiler_api/COMPILE_CONTRACT.md",
+        "ops/harness/opslib/",
+        "a100c/driver.py"
+      ],
+      "outputs": [
+        "a100c/factory.py",
+        "tools/run_scan.py",
+        "tools/check_no_name_dispatch.py",
+        "tools/check_numeric_policy.py",
+        "a100c/tests/test_driver_cache.py"
+      ],
+      "dependencies": [
+        "T007"
+      ],
+      "interfaces": [],
+      "acceptance": [
+        "With A100_COMPILER_FACTORY set in .env, a100_support.native_device.make_device() constructs the native device and the driver runs a corpus group end to end: every case compiled, executed on the target, and compared with its declared policy.",
+        "Compile count equals the number of distinct compile identities in the run set (not the case count); a second run over the same set performs zero compilations (cache hits only); resume does not recompile.",
+        "A faulting or hanging case is recorded as a failure with its bound and later cases are unaffected (fault isolation witness: an injected fault in the middle of a small run leaves every other case's result unchanged).",
+        "tools/check_no_name_dispatch.py exits 0 on the pipeline and its --witness exits nonzero (an injected operator-name branch is caught); tools/check_numeric_policy.py exits 0 and its --witness exits nonzero (a widened tolerance in a scratch copy fails the comparison).",
+        "The driver, compiler and factory import neither the reference device nor torch (checked by the no-name-dispatch/generality checks and by import inspection)."
+      ],
+      "tests": [
+        "python3 a100c/tests/test_driver_cache.py",
+        "python3 tools/check_no_name_dispatch.py",
+        "python3 tools/check_numeric_policy.py"
+      ],
+      "conflicts": [
+        "a100c-tools-driver"
+      ],
+      "provides": [
+        "driver-cache-v1",
+        "scan-driver-v1"
+      ],
+      "consumes": [
+        "backend-path-v1",
+        "specialization-identity-v1"
+      ],
+      "tags": [],
+      "status": "BLOCKED",
+      "assignee": "",
+      "attempts": 0,
+      "evidence": "",
+      "last_error": "",
+      "failure_kind": "",
+      "start_revision": "",
+      "end_revision": "",
+      "completed_seq": 0,
+      "debug_required": false,
+      "debug_request_id": "",
+      "debug_pending_revision": "",
+      "debug_pending_attempts": -1,
+      "debug_pending_failures": 0,
+      "worker_debug_request": {},
+      "coding_failures": 0,
+      "started_at": "",
+      "deferrals": 0,
+      "debug_verified_patterns": [],
+      "replan_baseline": {},
+      "origin": "manager",
+      "parent_task": "",
+      "optimization_stage": "",
+      "bundle_passes": [],
+      "shared_analysis": [],
+      "rollback_boundary": "",
+      "fastpath_fallback": "",
+      "profile_artifact": "",
+      "profile_sha256": "",
+      "profile_revision": "",
+      "bundle_evidence": []
+    },
+    {
+      "id": "T018",
+      "goal": "Full compile sweep (gate G6): every one of the 500 corpus operators (2161 compile identities) compiled through the enabled pipeline (basic passes on). Every operator produces a target artifact, or is refused with a located diagnostic naming the construct and reason \u2014 each refusal is a recorded finding for repair, never a pass and never a silently narrowed corpus. The compile count reconciles with the corpus's declared identity census (<= 1.25x of 2161); no case value, shape or grid is baked (two cases of one identity share one artifact). Record the compile census (artifacts, refusals, identities, compile times) as the driver output this task validates.",
+      "kind": "coding",
+      "gate": "G6",
+      "capability": "coding",
+      "purpose": "input",
+      "attempt_limit": 0,
+      "inputs": [
+        "docs/compiler-agent/OPERATOR_INVENTORY.md",
+        "ops/suite/manifest.json",
+        "tools/run_scan.py"
+      ],
+      "outputs": [
+        "a100c/tests/test_compile_sweep.py"
+      ],
+      "dependencies": [
+        "T014",
+        "T015",
+        "T016",
+        "T017"
+      ],
+      "interfaces": [],
+      "acceptance": [
+        "The compile census covers all 500 operators: every identity has a built ELF artifact or a located refusal diagnostic; the artifact/refusal partition sums to the identity census.",
+        "The compile count is within the corpus's declared identity economics (<= 1.25x of 2161 identities for the 2734 cases); spot-check that two cases of one identity reuse one artifact (no shape/grid/value baking).",
+        "Every refusal names the construct and source location (MECH-DIAGNOSTIC-REFUSAL), is countable, and is reported for the repair loop rather than worked around.",
+        "The sweep runs within a bounded wall time per identity (compile budget respected; over-budget identities are recorded, not silently retried)."
+      ],
+      "tests": [
+        "python3 a100c/tests/test_compile_sweep.py"
+      ],
+      "conflicts": [
+        "a100c-tools-driver"
+      ],
+      "provides": [],
+      "consumes": [
+        "driver-cache-v1",
+        "frontend-coverage-v1",
+        "matrix-breadth-v1",
+        "basic-passes-v1"
+      ],
+      "tags": [],
+      "status": "BLOCKED",
+      "assignee": "",
+      "attempts": 0,
+      "evidence": "",
+      "last_error": "",
+      "failure_kind": "",
+      "start_revision": "",
+      "end_revision": "",
+      "completed_seq": 0,
+      "debug_required": false,
+      "debug_request_id": "",
+      "debug_pending_revision": "",
+      "debug_pending_attempts": -1,
+      "debug_pending_failures": 0,
+      "worker_debug_request": {},
+      "coding_failures": 0,
+      "started_at": "",
+      "deferrals": 0,
+      "debug_verified_patterns": [],
+      "replan_baseline": {},
+      "origin": "manager",
+      "parent_task": "",
+      "optimization_stage": "",
+      "bundle_passes": [],
+      "shared_analysis": [],
+      "rollback_boundary": "",
+      "fastpath_fallback": "",
+      "profile_artifact": "",
+      "profile_sha256": "",
+      "profile_revision": "",
+      "bundle_evidence": []
+    },
+    {
+      "id": "T019",
+      "goal": "Full input scan execution and comparison (gate G7): all 2734 cases (suite/dev 2192 + suite/perf 542, both tiers in the corpus's declared order) executed on the declared QEMU endpoint and compared with their original references and comparison policies. The scan plan: every case executes at a primary worker configuration, every feature class is validated at each of 1/2/4/8 workers somewhere in the scan (stratified class subsets), and representative rows (resource evidence) execute at all four counts \u2014 coverage, tails, ownership, visibility and repeated execution validated at 1/2/4/8 (F018). Each case row records compiled/executed/compared/passed and the artifact identity. Failures are classified by feature class and first incorrect stage (the census that drives the manager's repair rounds); the unclassified fraction is bounded with a recorded reason; zero failures in a partial run is not completion. This task executes the scan and produces the classified failure census; compiler fixes belong to the repair loop, not to this task.",
+      "kind": "integration",
+      "gate": "G7",
+      "capability": "integration",
+      "purpose": "input",
+      "attempt_limit": 0,
+      "inputs": [
+        "tools/run_scan.py",
+        "ops/suite/manifest.json",
+        "docs/compiler-agent/OPERATOR_INVENTORY.md"
+      ],
+      "outputs": [
+        "a100c/tests/test_scan_report.py"
+      ],
+      "dependencies": [
+        "T018"
+      ],
+      "interfaces": [],
+      "acceptance": [
+        "The scan report covers all 2734 declared cases across both tiers with per-case rows (compiled, executed, compared, passed, artifact identity); no case is skipped or substituted.",
+        "Every feature class is validated at each of 1, 2, 4 and 8 workers somewhere in the scan; representative rows executed at all four counts are identified.",
+        "Failures are classified by feature class and first incorrect stage with the census totals reconciling (classes sum to failures; unclassified bounded with a recorded reason).",
+        "The report is an input-regression/v1 report acceptable by regression-record when bound to a prepared run (schema conformance verified by the test)."
+      ],
+      "tests": [
+        "python3 a100c/tests/test_scan_report.py"
+      ],
+      "conflicts": [
+        "a100c-tools-driver"
+      ],
+      "provides": [],
+      "consumes": [
+        "scan-driver-v1",
+        "driver-cache-v1"
+      ],
+      "tags": [],
+      "status": "BLOCKED",
+      "assignee": "",
+      "attempts": 0,
+      "evidence": "",
+      "last_error": "",
+      "failure_kind": "",
+      "start_revision": "",
+      "end_revision": "",
+      "completed_seq": 0,
+      "debug_required": false,
+      "debug_request_id": "",
+      "debug_pending_revision": "",
+      "debug_pending_attempts": -1,
+      "debug_pending_failures": 0,
+      "worker_debug_request": {},
+      "coding_failures": 0,
+      "started_at": "",
+      "deferrals": 0,
+      "debug_verified_patterns": [],
+      "replan_baseline": {},
+      "origin": "manager",
+      "parent_task": "",
+      "optimization_stage": "",
+      "bundle_passes": [],
+      "shared_analysis": [],
+      "rollback_boundary": "",
+      "fastpath_fallback": "",
+      "profile_artifact": "",
+      "profile_sha256": "",
+      "profile_revision": "",
+      "bundle_evidence": []
+    },
+    {
+      "id": "T020",
+      "goal": "Parallel-execution and resource evidence (required execution evidence: resources; F048/F050). (1) PARALLEL_EVIDENCE.json: one compiled artifact measured at 1/2/4/8 worker counts with the worker split recorded \u2014 generated-code parallelism on a single artifact (per-worker completed units and overlapping activity intervals from the runtime's own observation, guest CLOCK_MONOTONIC as the declared measurement tool), correctness preserved at every count (each count's execution compares PASS), a conservative required-speedup threshold recorded honestly from what the pinned emulator actually exhibits (measure and record real numbers; a fabricated speedup is forbidden; if the emulator does not scale, record the observed values and surface them). (2) RESOURCE_EVIDENCE.json and per-case evidence files for the representative resource_evidence=true manifest rows: instruction listings (objdump of the executed artifact) containing the declared IME mnemonics; execution logs binding run_id, case_id, artifact sha256 and variant, with positive executed instruction counts for smt.vmadot / smt.vfwmadot (the QEMU instruction-count plugin, F008) and worker observations (unit identities from the declared allowed set, completed units, start/end timestamps on one shared clock) showing useful overlapping work on distinct eligible units (peak units >= the declared minimum workers). Record both artifacts through the engine's record commands as this task's contract permits.",
+      "kind": "integration",
+      "gate": "G7",
+      "capability": "integration",
+      "purpose": "input",
+      "attempt_limit": 0,
+      "inputs": [
+        "docs/compiler-agent/EXECUTION_MODEL.json",
+        "docs/compiler-agent/EXECUTION_RESOURCES.json",
+        "a100_support/probes/instruction_counts.c",
+        "tools/run_scan.py"
+      ],
+      "outputs": [
+        "PARALLEL_EVIDENCE.json",
+        "RESOURCE_EVIDENCE.json",
+        "a100c/tests/test_evidence_files.py"
+      ],
+      "dependencies": [
+        "T019"
+      ],
+      "interfaces": [],
+      "acceptance": [
+        "PARALLEL_EVIDENCE.json validates and records one artifact at 1/2/4/8 worker counts: work unit matches EXECUTION_MODEL.json, parallelism scope is generated-code, the worker split is recorded, and every count's execution compares PASS.",
+        "The measured multi-worker numbers are real recorded observations with the declared measurement tool (guest CLOCK_MONOTONIC via the runtime); the required-speedup threshold is met by the recorded values or the shortfall is surfaced honestly to the manager.",
+        "RESOURCE_EVIDENCE.json and the per-case evidence files pass the engine's resource-evidence check for every representative row: bindings current, instruction listings contain the declared mnemonics, executed instruction counts positive and bound to the same run/case/artifact, worker placements inside the declared allowed units with no migration during a work interval, and overlapping useful work on distinct eligible units (peak units >= minimum workers).",
+        "A worker observation with no completed units, a placement outside the declared set, or a zero instruction count is rejected by the evidence-file test (the controls prove the checks can fail)."
+      ],
+      "tests": [
+        "python3 a100c/tests/test_evidence_files.py"
+      ],
+      "conflicts": [
+        "a100c-tools-driver"
+      ],
+      "provides": [
+        "parallel-evidence-v1"
+      ],
+      "consumes": [
+        "scan-driver-v1"
+      ],
+      "tags": [],
+      "status": "BLOCKED",
+      "assignee": "",
+      "attempts": 0,
+      "evidence": "",
+      "last_error": "",
+      "failure_kind": "",
+      "start_revision": "",
+      "end_revision": "",
+      "completed_seq": 0,
+      "debug_required": false,
+      "debug_request_id": "",
+      "debug_pending_revision": "",
+      "debug_pending_attempts": -1,
+      "debug_pending_failures": 0,
+      "worker_debug_request": {},
+      "coding_failures": 0,
+      "started_at": "",
+      "deferrals": 0,
+      "debug_verified_patterns": [],
+      "replan_baseline": {},
+      "origin": "manager",
+      "parent_task": "",
+      "optimization_stage": "",
+      "bundle_passes": [],
+      "shared_analysis": [],
+      "rollback_boundary": "",
+      "fastpath_fallback": "",
+      "profile_artifact": "",
+      "profile_sha256": "",
+      "profile_revision": "",
+      "bundle_evidence": []
+    },
+    {
+      "id": "T021",
+      "goal": "Repeated-call and synchronization validation. Exercise the in-process --repeats mode (input snapshot/restore; pool and workspace reuse across calls in one process, F018) across representative operators of every feature class: outputs identical across repeats (each repeat is an independent execution of the operator on the same case), no cross-execution state leakage, workspace re-initialized between repeats. Validate synchronization: the stage-barrier witness (a two-phase case whose barrier is removed in a scratch build must fail), the masked-access witnesses (disabled positions addressing guarded memory perform no access), atomic ordering across workers (cross-program atomic cases at 8 workers repeated with stable results), and visibility (writes observable only after the declared barrier \u2014 removing it changes results). Every property test keeps a control that must fail (MECH-WITNESS-TEST: a synchronization test that cannot fail is not one).",
+      "kind": "testing",
+      "gate": "G8",
+      "capability": "validation",
+      "purpose": "input",
+      "attempt_limit": 0,
+      "inputs": [
+        "tools/run_scan.py",
+        "a100c/runtime/",
+        "docs/compiler-agent/OPERATOR_INVENTORY.md"
+      ],
+      "outputs": [
+        "a100c/tests/test_repeated_calls.py"
+      ],
+      "dependencies": [
+        "T019"
+      ],
+      "interfaces": [],
+      "acceptance": [
+        "In-process repeated execution (--repeats) produces identical, reference-matching outputs across repeats for representative operators of every feature class (elementwise/reduce, matmul, norm, select_scan_index, linear_attention, softmax_xent, conv_pool, attention, quant).",
+        "The barrier-removal witness fails (nonzero) with the barrier removed and passes with it present; the masked-access witnesses fail with masks dropped and pass with them present (recorded both ways).",
+        "Cross-program atomic cases at 8 workers produce stable, reference-matching results across repeated executions (ordering established by the declared synchronization, not by timing luck).",
+        "Each property test's control is recorded: removing the mechanism under test makes that test fail (no vacuous checks)."
+      ],
+      "tests": [
+        "python3 a100c/tests/test_repeated_calls.py",
+        "python3 tools/check_stage_barriers.py",
+        "python3 tools/check_masked_tails.py"
+      ],
+      "conflicts": [
+        "a100c-tools-driver"
+      ],
+      "provides": [],
+      "consumes": [
+        "scan-driver-v1"
+      ],
+      "tags": [],
+      "status": "BLOCKED",
+      "assignee": "",
+      "attempts": 0,
+      "evidence": "",
+      "last_error": "",
+      "failure_kind": "",
+      "start_revision": "",
+      "end_revision": "",
+      "completed_seq": 0,
+      "debug_required": false,
+      "debug_request_id": "",
+      "debug_pending_revision": "",
+      "debug_pending_attempts": -1,
+      "debug_pending_failures": 0,
+      "worker_debug_request": {},
+      "coding_failures": 0,
+      "started_at": "",
+      "deferrals": 0,
+      "debug_verified_patterns": [],
+      "replan_baseline": {},
+      "origin": "manager",
+      "parent_task": "",
+      "optimization_stage": "",
+      "bundle_passes": [],
+      "shared_analysis": [],
+      "rollback_boundary": "",
+      "fastpath_fallback": "",
+      "profile_artifact": "",
+      "profile_sha256": "",
+      "profile_revision": "",
+      "bundle_evidence": []
+    },
+    {
+      "id": "T022",
+      "goal": "Final full regression and validation recording (gate G8). From a clean state: rebuild the runtime and invalidate/rebuild artifacts as the cache identity requires; prepare the complete regression manifest with the engine's regression-prepare (all 2734 cases across both tiers, per-case comparison policies preserved, resource_evidence=true on the representative rows derived from EXECUTION_RESOURCES.json); execute the full scan via the driver (compile, execute on the declared QEMU endpoint, compare against each case's original reference and policy) including the resource-evidence rows and the multi-worker configurations; record the executed comparison with regression-record; run the declared architecture verification (architecture-check --run) and record every declared validation check by name with current evidence. Zero failures finishes the correctness-only delivery; any failure goes to the manager's repair loop with its classification (this task records, it does not repair).",
+      "kind": "testing",
+      "gate": "G8",
+      "capability": "validation",
+      "purpose": "input",
+      "attempt_limit": 0,
+      "inputs": [
+        "tools/run_scan.py",
+        "ARCHITECTURE_CONSTRAINTS.json",
+        "docs/compiler-agent/EXECUTION_RESOURCES.json",
+        "ops/suite/manifest.json"
+      ],
+      "outputs": [
+        "a100c/tests/test_final_regression.py",
+        "docs/compiler-agent/regression-runs/"
+      ],
+      "dependencies": [
+        "T020",
+        "T021"
+      ],
+      "interfaces": [],
+      "acceptance": [
+        "A prepared regression run is recorded (regression-prepare) whose manifest covers all 2734 cases across both tiers with per-case comparison policies and resource_evidence flags on the representative rows.",
+        "The executed comparison is recorded (regression-record) and binds to the prepared run: per-case rows for every declared case, resource-evidence rows inspected OK (bindings current, counts positive, placements and overlapping intervals valid).",
+        "Every declared architecture validation check name is recorded true with current evidence (the declared checks in ARCHITECTURE_CONSTRAINTS.json), and the declared verification executed (architecture-check --run) with the required tier green.",
+        "Either the full scan reports zero failures (correctness-only delivery complete) or every failure is recorded with its classification for the repair loop \u2014 no case is skipped, narrowed or substituted."
+      ],
+      "tests": [
+        "python3 a100c/tests/test_final_regression.py"
+      ],
+      "conflicts": [
+        "a100c-tools-driver"
+      ],
+      "provides": [],
+      "consumes": [
+        "scan-driver-v1",
+        "parallel-evidence-v1"
+      ],
+      "tags": [],
+      "status": "BLOCKED",
+      "assignee": "",
+      "attempts": 0,
+      "evidence": "",
+      "last_error": "",
+      "failure_kind": "",
+      "start_revision": "",
+      "end_revision": "",
+      "completed_seq": 0,
+      "debug_required": false,
+      "debug_request_id": "",
+      "debug_pending_revision": "",
+      "debug_pending_attempts": -1,
+      "debug_pending_failures": 0,
+      "worker_debug_request": {},
+      "coding_failures": 0,
+      "started_at": "",
       "deferrals": 0,
       "debug_verified_patterns": [],
       "replan_baseline": {},
@@ -4119,6 +5529,85 @@
         }
       ],
       "optimization": false
+    },
+    "2a2f356c02faaf12d412b277fe764ef830c720c90d7b86d702b97f4ffe47ee05": {
+      "run_id": "",
+      "digest": "e124244cffc1bbaa2b0761c8fd2346af08fc08c5964ded8edc4d1e9c8fc80c6f",
+      "assignments": [
+        {
+          "task_id": "T005",
+          "cases": []
+        },
+        {
+          "task_id": "T006",
+          "cases": []
+        },
+        {
+          "task_id": "T007",
+          "cases": []
+        },
+        {
+          "task_id": "T008",
+          "cases": []
+        },
+        {
+          "task_id": "T009",
+          "cases": []
+        },
+        {
+          "task_id": "T010",
+          "cases": []
+        },
+        {
+          "task_id": "T011",
+          "cases": []
+        },
+        {
+          "task_id": "T012",
+          "cases": []
+        },
+        {
+          "task_id": "T013",
+          "cases": []
+        },
+        {
+          "task_id": "T014",
+          "cases": []
+        },
+        {
+          "task_id": "T015",
+          "cases": []
+        },
+        {
+          "task_id": "T016",
+          "cases": []
+        },
+        {
+          "task_id": "T017",
+          "cases": []
+        },
+        {
+          "task_id": "T018",
+          "cases": []
+        },
+        {
+          "task_id": "T019",
+          "cases": []
+        },
+        {
+          "task_id": "T020",
+          "cases": []
+        },
+        {
+          "task_id": "T021",
+          "cases": []
+        },
+        {
+          "task_id": "T022",
+          "cases": []
+        }
+      ],
+      "optimization": false
     }
   },
   "validation": {},
@@ -4732,6 +6221,138 @@
       "phase": "PLANNING",
       "event": "pre-review-source-change",
       "detail": "AGENTS.md"
+    },
+    {
+      "at": "2026-11-04T09:54:01.136339+00:00",
+      "phase": "PLANNING",
+      "event": "task",
+      "detail": "T005 Native runtime, program ABI and bundle transport for the generated single-operator executables. Implement a100c/runtime/ as a reusable precompiled C runtime built only with the declared cross toolchain (F002/F003/F004): process main parsing --bundle <path> --threads <n> [--repeats <k>]; a persistent pthread pool supporting 1/2/4/8 compute workers created once per process and reused across repeated calls (F018/F019/F053); stage barriers and C11 atomics for cross-worker synchronization (F054, A006: explicit synchronization, no assumed coherence); workspace allocation with padded/aligned thread-private regions; an a100-native-io/v1 bundle reader (views with dtype/shape/strides/offset, typed scalars, pointer-table relocations patched on open and restored on close) implementing the single declared argument layout both sides derive from (F046/F047); input snapshot/restore so --repeats k executes the operator k independent times on the same case. Declare the runtime<->generated-code ABI once (psABI lp64d conventions, F045: the generated operator_entry signature and helper call forms in the runtime header). Prove the boundary with a HAND-WRITTEN assembly operator stub (not pipeline output) that reads views/scalars and writes outputs. The delivered executable must neither start, embed nor call Python (F043)."
+    },
+    {
+      "at": "2026-11-04T09:54:01.136427+00:00",
+      "phase": "PLANNING",
+      "event": "task",
+      "detail": "T006 Frontend core: declared surface, specialization, type/shape wellformedness and AST-to-TIR lowering for the elementwise core. Implement a100c/frontend/: source.py (operator module and case-layer loading by AST; single @triton.jit invariant; refusal with source locations for contract violations); surface.py (the recorded 107-construct/280-parameter surface as data; every parameter classified implemented / ignorable-with-recorded-reason / refused); specialize.py (meta-tier specialization identity: source path + kernel name + pointer device dtypes from pointer_dtypes + scalar specialization classes honoring do_not_specialize and do_not_specialize_on_alignment + all constexprs including the deterministically chosen autotune config; constexpr folding of tl.constexpr conditions, dtype predicates and dead dispatch branches such as the 16 float64 branches); types.py (literal typing, promotion/unification, result types, value conversion distinct from bitcast, zero-dim values, per pinned Triton 3.8 semantics); shapes.py (rank/extent inference with broadcast extents distinguished from real extents; disagreement is a diagnostic); lower_tir.py (AST -> TIR for the elementwise core: masked load with other / store, arithmetic, comparison, logical, where, constants, program_id). Implement a100c/ir/tir.py (TIR data structures per the declared property list) with a structural verifier, and a100c/ir/dump.py (textual dump with source attribution). Shapes, grid values and scalar values stay runtime-symbolic (never baked)."
+    },
+    {
+      "at": "2026-11-04T09:54:01.136465+00:00",
+      "phase": "PLANNING",
+      "event": "task",
+      "detail": "T007 End-to-end vertical slice (gate G4): one small elementwise operator compiled, built, executed on the target and independently compared, through every stage. Implement the minimal-but-real backend path: a100c/target.py (target model as data from recorded facts); a100c/plan/partition.py (worker range partition at 1/2/4/8 over source program instances, strided default, tails owned); a100c/lower/vectorize.py + addresses.py (RVV vectorization with vsetvli regions, exact vl, masked tails, whole-tree i64 address materialization with broadcast extents); a100c/lower/scalar.py and matrix.py as minimal stubs refusing what they do not implement yet; a100c/ir/mir.py (MIR + verifier incl. vsetvli region consistency); a100c/backend/repertoire.py (initial RVV + scalar entries as data), legalize.py (minimal), select.py (one generic matcher), allocate.py (interference-based GPR/vreg allocation against the 32x128B vector budget with spill/split), emit.py (complete program-level assembly: entry via the runtime ABI, bundle binding, native grid evaluation for the 1-D grid form, worker range loop, constants, workspace); a100c/runtime/build.py integration (as + ld + runtime -> ELF64 little-endian RISC-V); a100c/driver.py (pipeline orchestration + artifact cache keyed by specialization identity, compiler revision, target model and options; shapes/grid/threads values never in the key); per-stage dumps with source attribution. The 1-D grid form is extracted by the provenance-checked case-layer grid model with the compile-time equality self-check and emitted as a native grid-evaluation routine reading bundle scalars/view extents (launch geometry is runtime). Execute through the a100_support native device protocol (a factory shim) under QEMU and compare against the case's expected outputs with its declared comparison policy."
+    },
+    {
+      "at": "2026-11-04T09:54:01.136494+00:00",
+      "phase": "PLANNING",
+      "event": "task",
+      "detail": "T008 Control flow, loop forms and grid generality. Implement in TIR and lowering: if/else with explicit join parameters for carried values (a source variable re-bound on one path must not merge with its earlier binding); tl.range (step; num_stages, loop_unroll_factor, disallow_acc_multi_buffer, flatten, warp_specialize, disable_licm classified ignorable-with-reason or honored); tl.static_range unrolling; while loops; program_id multi-axis decomposition; tl.num_programs from runtime grid extents; persistent grid-stride loops; if_pid patterns. Implement a100c/frontend/gridmodel.py: the provenance-tracking case-layer interpreter that extracts the grid expression for every corpus grid form (multi-axis tuples, cdiv products, lambda-meta form, shape-derived locals), proves every grid input equal to a bundle-visible quantity (scalar argument or view extent), emits the native grid-evaluation routine, and self-checks equality against the compiling case's concrete grid; operators whose grid inputs cannot be tied to bundle-visible quantities are refused with a located diagnostic (never baked), and the refusal count is reportable."
+    },
+    {
+      "at": "2026-11-04T09:54:01.136523+00:00",
+      "phase": "PLANNING",
+      "event": "task",
+      "detail": "T009 Reductions, scans and cross-worker merge semantics. Implement: reduction operations (tl.sum, tl.max, tl.min, tl.argmax, tl.argmin with return_indices and return_indices_tie_break_left, tl.xor_sum, tl.reduce_or, tl.softmax, tl.cumsum, tl.cumprod scans, tl.histogram, tl.sort, tl.topk) with axis selection, keep_dims, per-operation-and-dtype identity elements (signedness-correct), empty-extent behaviour and declared index tie-breaking; intra-program RVV reductions; cross-worker two-phase splits (a100c/plan/stages.py: partial results to owned workspace regions, a stage barrier establishing visibility, a merge step combining partials under the source's own semantics \u2014 floating accumulation order preserved within the declared tolerance, exact for integer/index/boolean); persistent reductions looping chunks inside one program; split-K style reduction feeds for dot. Implement tools/check_stage_barriers.py: a two-phase multi-worker case is correct with the declared barrier; --witness removes the barrier in a scratch build and must fail (proving the synchronization test can fail)."
+    },
+    {
+      "at": "2026-11-04T09:54:01.136553+00:00",
+      "phase": "PLANNING",
+      "event": "task",
+      "detail": "T010 IME matrix slice with real instruction execution, before matrix breadth. Implement a100c/plan/tiles.py and a100c/lower/matrix.py: tl.dot lowering to the applicable IME families on the input path (F037) \u2014 INT8 8x16x8 -> INT32 via smt.vmadot with the u/us/su signedness variants (integer accumulation in 32-bit modular arithmetic, signed accumulator, F051) and FP16 8x8x8 -> FP32 via smt.vfwmadot (FP32 accumulation, F051); tile mapping with vs1 = A tile row-major and vs2 = B tile column-major (the geometric layout statement; no software transpose when the memory layout provides columns, otherwise packing via RVV loads or the smt.vpack family, F031/F035); K-loop accumulator chaining through the acc parameter; M/N/K tails via compiler-written zero-padded staging tiles (never reading out-of-range memory to construct a nominally neutral term) and masked M/N stores, with the ordinary RVV FMA path as a legal alternative for small or ragged tails; register grouping constraints (MUL_C=2: vd even-numbered, vd+vd+1 the group, destination group never overlapping vs1/vs2, F033/F040) enforced by the MIR verifier and honored by the allocator; implicit control state handled per the specification (MCPM.BF16 selects the 16-bit operand format and is not userspace-accessible under the pinned QEMU, so only FP16 operands reach IME floating tiles, F011/F034; the standard vm mask is not a matrix mask control and no vtype.lambda/altfmt fields exist, F032). BF16 tl.dot lowers to the vector FP32 path with the emulator gap recorded (F010/F034: BF16 IME execution is not claimable; never infer it from FP16 success). int4/sparse/scale source-level forms are outside the declared surface and refused. Execute one INT8 and one FP16 dot case under QEMU with the instruction-count plugin (a100_support/probes/instruction_counts.c, F008/F048): positive counted smt.vmadot / smt.vfwmadot executions bound to the same run, case and artifact."
+    },
+    {
+      "at": "2026-11-04T09:54:01.136582+00:00",
+      "phase": "PLANNING",
+      "event": "task",
+      "detail": "T011 Memory access breadth and atomics. Implement: make_block_ptr / advance / load / store with boundary_check and padding_option; cache_modifier and eviction_policy classified ignorable-with-reason (performance-only) and volatile honored; tl.multiple_of / tl.max_contiguous hints feeding contiguity/alignment proofs for wide-access selection (unproven accesses keep masked or scalar forms); tl.gather; atomics (tl.atomic_add, max, min, xchg, and, or, xor, cas) with sem/scope parameters mapped to the declared RVWMO model with explicit fences \u2014 a masked atomic performs no access at disabled positions and keeps its signedness; tl.debug_barrier as intra-program ordering; pointer_table_relocations consumption (the grouped_gemm pattern: device addresses inside int64/uint64 buffers, patched by the bundle reader); tl.interleave. Scalar/integer paths: int64/bool/unsigned logic and index arithmetic with the declared wrap/shift/division semantics (A003)."
+    },
+    {
+      "at": "2026-11-04T09:54:01.136609+00:00",
+      "phase": "PLANNING",
+      "event": "task",
+      "detail": "T012 Layout, shape and dtype-conversion breadth. Implement: reshape (can_reorder classified), trans / permute (dims), join / split, cat, expand_dims / unsqueeze, squeeze, broadcast_to / broadcast, ravel, view (bit-level reinterpretation), flip, tl.swizzle2d (declared with 0 corpus calls: implement or declare-unsupported with a refusal witness), to_tensor / tensor; value-level dtype introspection folding. Implement the full conversion matrix over the corpus dtype pairs (bfloat16, bool, float16, float32, int16, int32, int64, int8, uint variants) with value conversion and bit-level reinterpretation as distinct constructs \u2014 an identity fold removes a conversion only when the types are value-identical, never when they merely print the same width; bf16 pointer duality handled for both staging forms (host float32-cast and host uint16-bitview, reading back symmetrically); fp16/bf16 compute lanes may use FP32 with one final rounding inside the declared tolerance (fp16 1e-2, bf16 2e-2; fp32 stays IEEE), as a declared numeric decision with a per-pass switch."
+    },
+    {
+      "at": "2026-11-04T09:54:01.136636+00:00",
+      "phase": "PLANNING",
+      "event": "task",
+      "detail": "T013 Special math functions and bit-exact RNG. Implement: exp, exp2, log, log2, sqrt, sqrt_rn, rsqrt, sigmoid, erf, sin, cos, floor, ceil, clamp, pow, fma, div_rn, abs, maximum / minimum with propagate_nan, and the remaining declared math forms, with per-dtype accuracy inside each case's declared tolerance (fp32 IEEE; fp16/bf16 via FP32 lanes under the declared single-rounding policy); scalar constexpr math folded at specialization. Implement the RNG family bit-exactly from the pinned Triton 3.8 semantics (the reference environment pins triton 3.8.0, F013/F049): tl.philox (the counter-based primitive the corpus kernels inline around), tl.rand / randn / randint and their 4x variants with their offset formulas \u2014 RNG values feed compared outputs and integer outputs are exact, so the implementation must match reference vectors generated from the pinned Triton, never an approximation."
+    },
+    {
+      "at": "2026-11-04T09:54:01.136665+00:00",
+      "phase": "PLANNING",
+      "event": "task",
+      "detail": "T014 Matrix breadth beyond the IME slice: all dot-carrying families through the real pipeline. Implement and validate: k-loop dot pipelines (pat.k_loop 53 operators), matmul epilogues (pat.matmul_epilogue 45), dot_reduce (12), fp32 tl.dot in IEEE mode (no tf32: the subset strips input_precision/allow_tf32 and the runner pins TRITON_F32_DEFAULT=ieee, F052), out_dtype handling, acc chaining, split-K reductions with explicit merges, attention families (11 operators incl. flash_varlen with block pointers), conv/pool (20), quant (6), linear_attention (32), grouped GEMM with pointer tables; tile and chunk decisions bounded by the vector-file budget with an ordinary path always retained (a budget overflow produces a legal chunked plan or a diagnosed refusal when no chunking exists \u2014 never a silent over-budget emission); IME selection on eligible int8/fp16 dot cases confirmed by instruction counts on representative cases; BF16 dot via the vector FP32 path with the gap recorded."
+    },
+    {
+      "at": "2026-11-04T09:54:01.136693+00:00",
+      "phase": "PLANNING",
+      "event": "task",
+      "detail": "T015 Basic optimization passes as ordinary coding/input work with legality and result checks (never capability/purpose/tag optimization, never G9; F055). Implement a100c/passes/: pipeline.py (registration, ordering, per-pass switches A100C_PASS_<NAME>=off), analyses.py (one shared analysis owner: dominance, liveness, loop structure, memory effects, with a declared invalidation contract \u2014 a mutated module forces recomputation or a pass refusal, never a stale read), and the six passes on TIR under their legality conditions: cse (availability + effect/alias proof for memory reuse), dce (observable stores, atomics, synchronization and stage effects preserved), constprop (folding/propagation under source width, signedness, overflow, rounding and path conditions), copyprop (dominance, joins, value identity, pointer semantics), strength_reduction (affine index/address expressions: division/remainder by constants, repeated index work; equivalent integer/index behavior, declared floating policy), licm (invariant pure expressions only; masked or trapping accesses never hoisted; zero-trip safety). Each pass has a real switch and a trace counter (fired/declined) and declares consumed/preserved/invalidated analyses. Land each construct class on the general unoptimized path first: the corpus subset green with passes disabled, then enabled (MECH-GENERAL-PATH-FIRST)."
+    },
+    {
+      "at": "2026-11-04T09:54:01.136721+00:00",
+      "phase": "PLANNING",
+      "event": "task",
+      "detail": "T016 Declared-surface coverage completion and recording. Close every remaining gap in the 107-construct/280-parameter declared surface (the workload analysis records the api-spec; the subset is closed over the kept operators, so no in-subset language gap is expected \u2014 residual gaps are implementation findings, not scope changes). For every construct record a coverage row: implemented with evidence (an executed comparison or test that exercises it) and covered parameters, naming the IR construct that carries it (constructs sharing a language feature name one carrier \u2014 a per-construct carrier is a dispatcher with a coverage table in front of it); or declared-unsupported with a working refusal witness command that proves the compiler rejects it with a located diagnostic (tl.swizzle2d, 0 corpus calls, is implemented or declared-unsupported with a witness). Record FRONTEND_COVERAGE.json through the engine's frontend-coverage command."
+    },
+    {
+      "at": "2026-11-04T09:54:01.136751+00:00",
+      "phase": "PLANNING",
+      "event": "task",
+      "detail": "T017 Driver, artifact cache, factory wiring and generality checks. Implement a100c/factory.py (make_compiler() returning the compile_case(case) -> ExecutableArtifact protocol consumed by a100_support/native_device.py, with arguments ('--bundle','{bundle}','--threads','{threads}')) and wire A100_COMPILER_FACTORY into .env. Implement tools/run_scan.py: enumerate cases with the corpus's own harness (run_cases.py --manifest ops/suite/manifest.json --dry-run / opslib.runner.load_operator + make_case, exactly as the harness does); group by compile identity (compile once per identity, run every case \u2014 the corpus's declared economics: 2734 cases / 2161 identities); stage, execute and compare via the native device protocol under a per-case bound (A100_EXECUTION_TIMEOUT; a case that does not return is a recorded failure, never a wait; one faulting case must not poison the next); compare with each case's declared per-output policy (comparator, rtol/atol, equal_nan, quantized_interval, allclose_sign_invariant; integer/index/boolean exact) reading tolerance and reference from the case, never widening either; write the input-regression/v1 report rows for regression-record and the manifest builder for regression-prepare (every case, both tiers, per-case comparison policies, resource_evidence flags on representative rows); support resume without recompiling and the corpus's own acceptance checks (compile count vs identity census <= 1.25x, cache-hit speed). Implement tools/check_no_name_dispatch.py (nothing below the frontend branches on an operator, kernel or benchmark name; --witness injects a name-keyed branch into a scratch copy of the pipeline and the check must catch it, the witness exiting nonzero) and tools/check_numeric_policy.py (the comparison harness reads tolerance/reference from the case; --witness widens a tolerance in a scratch copy and must fail). The compiler and driver import no reference device and no torch (the reference service never substitutes for candidate execution, F049; no reference fallback, F052)."
+    },
+    {
+      "at": "2026-11-04T09:54:01.136779+00:00",
+      "phase": "PLANNING",
+      "event": "task",
+      "detail": "T018 Full compile sweep (gate G6): every one of the 500 corpus operators (2161 compile identities) compiled through the enabled pipeline (basic passes on). Every operator produces a target artifact, or is refused with a located diagnostic naming the construct and reason \u2014 each refusal is a recorded finding for repair, never a pass and never a silently narrowed corpus. The compile count reconciles with the corpus's declared identity census (<= 1.25x of 2161); no case value, shape or grid is baked (two cases of one identity share one artifact). Record the compile census (artifacts, refusals, identities, compile times) as the driver output this task validates."
+    },
+    {
+      "at": "2026-11-04T09:54:01.136806+00:00",
+      "phase": "PLANNING",
+      "event": "task",
+      "detail": "T019 Full input scan execution and comparison (gate G7): all 2734 cases (suite/dev 2192 + suite/perf 542, both tiers in the corpus's declared order) executed on the declared QEMU endpoint and compared with their original references and comparison policies. The scan plan: every case executes at a primary worker configuration, every feature class is validated at each of 1/2/4/8 workers somewhere in the scan (stratified class subsets), and representative rows (resource evidence) execute at all four counts \u2014 coverage, tails, ownership, visibility and repeated execution validated at 1/2/4/8 (F018). Each case row records compiled/executed/compared/passed and the artifact identity. Failures are classified by feature class and first incorrect stage (the census that drives the manager's repair rounds); the unclassified fraction is bounded with a recorded reason; zero failures in a partial run is not completion. This task executes the scan and produces the classified failure census; compiler fixes belong to the repair loop, not to this task."
+    },
+    {
+      "at": "2026-11-04T09:54:01.136833+00:00",
+      "phase": "PLANNING",
+      "event": "task",
+      "detail": "T020 Parallel-execution and resource evidence (required execution evidence: resources; F048/F050). (1) PARALLEL_EVIDENCE.json: one compiled artifact measured at 1/2/4/8 worker counts with the worker split recorded \u2014 generated-code parallelism on a single artifact (per-worker completed units and overlapping activity intervals from the runtime's own observation, guest CLOCK_MONOTONIC as the declared measurement tool), correctness preserved at every count (each count's execution compares PASS), a conservative required-speedup threshold recorded honestly from what the pinned emulator actually exhibits (measure and record real numbers; a fabricated speedup is forbidden; if the emulator does not scale, record the observed values and surface them). (2) RESOURCE_EVIDENCE.json and per-case evidence files for the representative resource_evidence=true manifest rows: instruction listings (objdump of the executed artifact) containing the declared IME mnemonics; execution logs binding run_id, case_id, artifact sha256 and variant, with positive executed instruction counts for smt.vmadot / smt.vfwmadot (the QEMU instruction-count plugin, F008) and worker observations (unit identities from the declared allowed set, completed units, start/end timestamps on one shared clock) showing useful overlapping work on distinct eligible units (peak units >= the declared minimum workers). Record both artifacts through the engine's record commands as this task's contract permits."
+    },
+    {
+      "at": "2026-11-04T09:54:01.136861+00:00",
+      "phase": "PLANNING",
+      "event": "task",
+      "detail": "T021 Repeated-call and synchronization validation. Exercise the in-process --repeats mode (input snapshot/restore; pool and workspace reuse across calls in one process, F018) across representative operators of every feature class: outputs identical across repeats (each repeat is an independent execution of the operator on the same case), no cross-execution state leakage, workspace re-initialized between repeats. Validate synchronization: the stage-barrier witness (a two-phase case whose barrier is removed in a scratch build must fail), the masked-access witnesses (disabled positions addressing guarded memory perform no access), atomic ordering across workers (cross-program atomic cases at 8 workers repeated with stable results), and visibility (writes observable only after the declared barrier \u2014 removing it changes results). Every property test keeps a control that must fail (MECH-WITNESS-TEST: a synchronization test that cannot fail is not one)."
+    },
+    {
+      "at": "2026-11-04T09:54:01.136889+00:00",
+      "phase": "PLANNING",
+      "event": "task",
+      "detail": "T022 Final full regression and validation recording (gate G8). From a clean state: rebuild the runtime and invalidate/rebuild artifacts as the cache identity requires; prepare the complete regression manifest with the engine's regression-prepare (all 2734 cases across both tiers, per-case comparison policies preserved, resource_evidence=true on the representative rows derived from EXECUTION_RESOURCES.json); execute the full scan via the driver (compile, execute on the declared QEMU endpoint, compare against each case's original reference and policy) including the resource-evidence rows and the multi-worker configurations; record the executed comparison with regression-record; run the declared architecture verification (architecture-check --run) and record every declared validation check by name with current evidence. Zero failures finishes the correctness-only delivery; any failure goes to the manager's repair loop with its classification (this task records, it does not repair)."
+    },
+    {
+      "at": "2026-11-04T09:54:01.136918+00:00",
+      "phase": "PLANNING",
+      "event": "task-submission",
+      "detail": "004-implementation-plan-initial"
+    },
+    {
+      "at": "2026-11-04T09:59:08.110956+00:00",
+      "phase": "PLANNING",
+      "event": "task-report-out-of-contract",
+      "detail": "T004: EXECUTION_MODEL.json, AGENTS.md, EXECUTION_RESOURCES.json, COMPILER_ARCHITECTURE.md, ARCHITECTURE_CONSTRAINTS.json"
+    },
+    {
+      "at": "2026-11-04T09:59:08.119235+00:00",
+      "phase": "PLANNING",
+      "event": "task-report",
+      "detail": "WTI004 COMPLETED attempt=1 [declared outputs do not exist: Implementation task DAG submitted via task-submit in docs/compiler-agent/PROJECT_STATE.json; changes outside the declared paths: EXECUTION_MODEL.json, AGENTS.md, EXECUTION_RESOURCES.json, COMPILER_ARCHITECTURE.md, ARCHITECTURE_CONSTRAINTS.json]"
+    },
+    {
+      "at": "2026-11-04T09:59:08.137379+00:00",
+      "phase": "PLANNING",
+      "event": "complete-task",
+      "detail": "T004 worker report WTI004: Compiler architecture and implementation plan for the A100 correctness-only run, derived from the 56 recorded facts, the workload feature matrix and the 107-construct api-spec. (1) docs/compiler-agent/COMPILER_ARCHITECTURE.md (mirrored at the project root where the engine reads it): two verified IRs (TIR tir/v1 carrying width/signedness, conversion-vs-bitcast, mask defaults, broadcast extents, reduction/dot contracts, runtime-symbolic launch geometry; MIR mir/v1 carrying vsetvli regions, masked memory ops, IME tile ops with the sourced operand contract, worker partition and stage structure) plus the emitted program-level assembly artifact; frontend with the declared-surface table, meta-tier specialization identity (shapes/grid/values runtime, never baked) and a provenance-tracked case-layer grid model emitted as a native runtime grid evaluation; the six basic optimization passes as normal pipeline work; execution planning with 1/2/4/8-worker partitioning, stage barriers, merge semantics and workspace ownership; RVV masked-tail handling; IME lowering for INT8 8x16x8 (smt.vmadot) and FP16 8x8x8 (smt.vfwmadot, FP32 accumulation) with register grouping constraints and the BF16 emulator gap handled by the vector FP32 path; repertoire-as-data backend with legalisation, one generic selection matcher, interference-based allocation over the 32x128B vector file; precompiled native C runtime (pool, barriers, a100-native-io/v1 bundle reader, --repeats with input restore); driver with artifact cache identity covering every bound dependency and the A100_COMPILER_FACTORY=a100c.factory:make_compiler integration through a100_support/native_device.py; per-stage dumps for first-incorrect-stage localisation. (2) ARCHITECTURE_CONSTRAINTS.json (root + docs mirror): schema_version 1, test_command 'python3 {test}', 43 responsibility-owned modules, 10 stages with tests, 2 IR levels with the six basic passes declared, cfg/register_allocation symbol contracts, 4 behaviou"
     }
   ]
 }
