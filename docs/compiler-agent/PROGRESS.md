@@ -13,7 +13,6 @@ Phase: **CHIP_ANALYSIS** · project: `compiler-a100-experiment-001`
 
 | When | Phase | Event | Detail |
 |---|---|---|---|
-| 2026-11-04T08:29:05.483616+00:00 | ENVIRONMENT_ANALYSIS | fact | F008 [runtime/RUNTIME_PROBE/input] probe: gcc -shared -fPIC ... a100_support/probes/instruction_counts.c -o instruction_counts.so; timeout 90 $A100_QEMU ... -plugin instruction_counts.so,out=ime-int8-counts.json matrix_probe int8; docs/compiler-agent/ENVIRONMENT.md Dynamic instruction observation |
 | 2026-11-04T08:29:05.686277+00:00 | ENVIRONMENT_ANALYSIS | fact | F009 [isa/RUNTIME_PROBE/input] probe: timeout 90 $A100_QEMU -L $A100_SYSROOT -cpu "$A100_QEMU_CPU" -plugin instruction_counts.so,out=ime-int8-counts.json matrix_probe int8 -> exit 0; recorded evidence docs/compiler-agent/TOOLCHAIN_PROBES.json matrix rows |
 | 2026-11-04T08:29:05.882658+00:00 | ENVIRONMENT_ANALYSIS | fact | F010 [isa/RUNTIME_PROBE/input] probe: timeout 90 $A100_QEMU ... matrix_probe bf16 -> exit 1, ime-bf16-counts.json shows operand_format MCPM-selected-float16; recorded docs/compiler-agent/TOOLCHAIN_PROBES.json bf16 row UNSUPPORTED_OR_FAILED |
 | 2026-11-04T08:29:06.078634+00:00 | ENVIRONMENT_ANALYSIS | fact | F011 [isa/RUNTIME_PROBE/input] probe: mcpm_control field of fresh matrix_probe runs; recorded csr row (returncode -4) in docs/compiler-agent/TOOLCHAIN_PROBES.json |
@@ -66,3 +65,4 @@ acceptance[2]: `python3 -c "import json; d=json.load(open('docs/ |
 | 2026-11-04T08:50:50.034561+00:00 | CHIP_ANALYSIS | fact | F046 [abi/RUNTIME_PROBE/input] probe: facts F003 (asm smoke, exit code 42 preserved) and F007 (transport round trip); chip.md#2-3 (POLICY) |
 | 2026-11-04T08:50:50.251208+00:00 | CHIP_ANALYSIS | fact | F047 [runtime/RUNTIME_PROBE/input] probe: fact F007 (docs/compiler-agent/ENVIRONMENT.md Native runtime transport); AGENTS.md Execution and evidence |
 | 2026-11-04T08:50:50.465233+00:00 | CHIP_ANALYSIS | fact | F048 [runtime/RUNTIME_PROBE/input] probe: fact F008 (docs/compiler-agent/ENVIRONMENT.md Dynamic instruction observation); chip.md#6 (validation hierarchy); system prompt Required execution evidence (resources) |
+| 2026-11-04T08:50:50.676131+00:00 | CHIP_ANALYSIS | fact | F049 [runtime/RUNTIME_PROBE/input] probe: fact F013 (docs/compiler-agent/ENVIRONMENT.md x86 Triton CPU reference environment); chip.md#5 (POLICY) |
