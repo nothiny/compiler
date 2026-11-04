@@ -1,13 +1,13 @@
 {
-  "channel": "review",
-  "ref": "architecture:G3",
-  "role": "reviewer",
+  "channel": "task",
+  "ref": "WTI006",
+  "role": "coder",
   "agent_call": {
-    "subagent_type": "Explore",
-    "description": "architecture review (G3)",
+    "subagent_type": "general-purpose",
+    "description": "T005 Native runtime, program ABI and bundle transport for the generated single-operator execut\u2026",
     "run_in_background": false,
-    "prompt": "You are an independent read-only reviewer executing exactly one architecture review. Your entire context is two files in this repository:\n  - `docs/compiler-agent/review-input-latest.system.md` \u2014 how to work: your role contract, the procedure and the output contract.\n  - `docs/compiler-agent/review-input-latest.prompt.md` \u2014 what to do: the architecture document, the machine-readable contract, the execution model, every task's full contract, the recorded evidence and the workload inventory.\nRead both before anything else. Nothing else is known to you, and nothing else is needed; no conversation content applies.\n\nWhen you are done, file your own result with the engine:\n  `python3 -m compiler_agent --root . review-report --file <verdict>.json`\n\nYou are read-only: you never edit code, never fix the plan and never call a workflow tool other than that one. Your decision is recorded verbatim -- it cannot be softened on its way into the engine, and an ambiguous verdict is REQUEST_CHANGES with the reason, never a silent PASS.\n\nThen reply with ONE line and nothing more:\n  `architecture <PASS|REQUEST_CHANGES|BLOCKED> + at most 200 characters`"
+    "prompt": "You are a fresh task worker for T005 (attempt 1). Your entire context is two files in this repository:\n  - `docs/compiler-agent/TASK_INPUTS/WTI006.system.md` \u2014 how to work: your role contract, the procedure and the output contract.\n  - `docs/compiler-agent/TASK_INPUTS/WTI006.prompt.md` \u2014 what to do: the task contract, the acceptance refs, the facts and the allowed paths.\nRead both before anything else. Nothing else is known to you, and nothing else is needed; no conversation content applies.\n\nWhen you are done, file your own result with the engine:\n  `python3 -m compiler_agent --root . task-report --file <report>.json`\n\nThe report must echo invocation_id `WTI006`, task_id `T005`, attempt 1 and context_sha256 `f67a1a980d4ebf3bcf6d0c7acbd0679a6d2f04d312d9776ac316a87b7e72f007` verbatim; its shape is in the output contract. Do not run git commands -- that one engine command is the only workflow state you touch.\n\nThen reply with ONE line and nothing more:\n  `WTI006 <COMPLETED|FAILED|DESIGN_ISSUE|EXTERNAL_BLOCKER> + at most 200 characters`"
   },
-  "written_at": "2026-11-04T18:34:14",
-  "consumed_at": "2026-11-04T18:34:19"
+  "written_at": "2026-11-04T18:45:19",
+  "consumed_at": "2026-11-04T18:45:26"
 }

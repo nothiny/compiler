@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-04T10:45:19.112324+00:00",
+  "updated_at": "2026-11-04T11:10:29.890793+00:00",
   "facts": [
     {
       "id": "F001",
@@ -976,14 +976,14 @@
       ],
       "consumes": [],
       "tags": [],
-      "status": "RUNNING",
+      "status": "DONE",
       "assignee": "coder",
       "attempts": 1,
-      "evidence": "",
+      "evidence": "worker report WTI006: Implemented a100c/runtime/ as the reusable precompiled C native runtime plus the hand-written assembly operator stub that proves the boundary. a100rt.h declares the single runtime<->generated-code ABI (lp64d psABI conventions, F045): operator_entry signature, a100rt_stage_barrier helper call form, workspace contract (zeroed per call, padded/aligned thread-private regions), stats observation record, and _Static_assert-pinned struct offsets for assembly consumers. bundle.c is the a100-native-io/v1 reader (views with dtype/shape/strides/offset, typed scalars, pointer-table relocations patched on open and restored on close) that validates the whole image before writing any byte, so a format violation is a recorded refusal that never touches the file. pool.c is the persistent pthread pool (1/2/4/8 workers, created once per process, startup-gated so a partial create cannot deadlock, C11 atomics, go/done/stage barriers). main.c parses --bundle/--threads/[--repeats], snapshots the mapped image, restores it before each repeat (independent executions), compares repeat images, and prints one status JSON line (threads, pool_initializations, per-worker guest_tid/items, repeats_all_equal). operator_stub.S (authored here, not pipeline output) reads views/scalars and writes outputs through two structural paths: strided-alias (guest-pointer dereference at index 0, strided stores, typed scalar addend round-tripped through thread-private workspace, stage barrier, shared-slot partial merge, second stage adding the merged total) and bfloat16 value storage (16-bit sign flip). build.py compiles and links exclusively with the declared cross gcc/as/ld and the declared sysroot (F002/F003/F004) into a100c/runtime/build/operator_exec (sha256 4d4ff3dbc3e3154d2592764c663b4925331bc43a3c7bcaf8101781adc1ab5008), caching runtime objects by content digest. Both declared tests pass end to end under the declared QEMU endpoint via a100_support/run-riscv.sh.\nacceptance[0]: `set -a; ",
       "last_error": "",
       "failure_kind": "",
       "start_revision": "08a49b85ffadc32abea9b8d949298b4f5d92b99d",
-      "end_revision": "",
+      "end_revision": "43adcbaec8e06d549ad2505884a756ff4c9c94e1",
       "completed_seq": 0,
       "debug_required": false,
       "debug_request_id": "",
@@ -6761,6 +6761,18 @@
       "phase": "IMPLEMENTATION",
       "event": "task-delegate",
       "detail": "WTI006 task=T005 attempt=1 profile=general-purpose"
+    },
+    {
+      "at": "2026-11-04T11:10:29.865676+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "task-report",
+      "detail": "WTI006 COMPLETED attempt=1"
+    },
+    {
+      "at": "2026-11-04T11:10:29.890769+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "complete-task",
+      "detail": "T005 worker report WTI006: Implemented a100c/runtime/ as the reusable precompiled C native runtime plus the hand-written assembly operator stub that proves the boundary. a100rt.h declares the single runtime<->generated-code ABI (lp64d psABI conventions, F045): operator_entry signature, a100rt_stage_barrier helper call form, workspace contract (zeroed per call, padded/aligned thread-private regions), stats observation record, and _Static_assert-pinned struct offsets for assembly consumers. bundle.c is the a100-native-io/v1 reader (views with dtype/shape/strides/offset, typed scalars, pointer-table relocations patched on open and restored on close) that validates the whole image before writing any byte, so a format violation is a recorded refusal that never touches the file. pool.c is the persistent pthread pool (1/2/4/8 workers, created once per process, startup-gated so a partial create cannot deadlock, C11 atomics, go/done/stage barriers). main.c parses --bundle/--threads/[--repeats], snapshots the mapped image, restores it before each repeat (independent executions), compares repeat images, and prints one status JSON line (threads, pool_initializations, per-worker guest_tid/items, repeats_all_equal). operator_stub.S (authored here, not pipeline output) reads views/scalars and writes outputs through two structural paths: strided-alias (guest-pointer dereference at index 0, strided stores, typed scalar addend round-tripped through thread-private workspace, stage barrier, shared-slot partial merge, second stage adding the merged total) and bfloat16 value storage (16-bit sign flip). build.py compiles and links exclusively with the declared cross gcc/as/ld and the declared sysroot (F002/F003/F004) into a100c/runtime/build/operator_exec (sha256 4d4ff3dbc3e3154d2592764c663b4925331bc43a3c7bcaf8101781adc1ab5008), caching runtime objects by content digest. Both declared tests pass end to end under the declared QEMU endpoint via a100_support/run-riscv.sh.\nacceptance[0]: `set -a;"
     }
   ]
 }
