@@ -1,0 +1,65 @@
+{
+  "schema": "a100-environment-lock/v1",
+  "flagtree_commit": "c8cc6023a45aa875bda85c34e63008b0c6c037aa",
+  "triton_cpu_commit": "5a4885bf9b0b349a525b490a1df25f449f12d4e9",
+  "corpus": {
+    "repository": "nothiny/triton-ops",
+    "tag": "ops-gpu-v3",
+    "commit": "9b4c00612bf2c5c04f083e8fa28a1adaedcd0ece",
+    "filename": "ops-gpu-v3.tar.gz",
+    "sha256": "57fe513506c3e7cae99ab31a822509c763e422e6bf4e0ab0935d135e0e98d578",
+    "operators": 500,
+    "cases": 2734,
+    "declared_compile_identities": 2161
+  },
+  "assets": {
+    "qemu": {
+      "repository": "zuoweixia497/spacemit-ci-assets",
+      "tag": "v0.1",
+      "filename": "jdsk-qemu-v10.0.2.tar.gz",
+      "sha256": "4405ef7d03b2a9bbf4203c281d09b073d497eec418935729717aeb925be80127",
+      "directory": "jdsk-qemu-10.0.2"
+    },
+    "toolchain": {
+      "repository": "spacemit-com/toolchain",
+      "tag": "v1.1.2",
+      "filename": "spacemit-toolchain-linux-glibc-x86_64-v1.1.2.tar.xz",
+      "sha256": "3760e145c1231be981109780d24f5ad3be0874e5d34992175bc6c97b2db95cf3",
+      "directory": "toolchain-1.1.2"
+    },
+    "llvm": {
+      "repository": "spacemit-com/spine-mlir",
+      "tag": "llvm-f6ded0be897e2878612dd903f7e8bb85448269e5",
+      "filename": "llvm-f6ded0be897e2878612dd903f7e8bb85448269e5-20260923-release-x86.tar.gz",
+      "sha256": "e6e74cba4bd762dd0aa3d9232b36f6419a546b57ce18b6b53b4ffba27ed5b337",
+      "directory": "llvm-spacemit-f6ded0be"
+    }
+  },
+  "reference_patch": {
+    "path": "a100_support/patches/triton-cpu-reference.patch",
+    "sha256": "34825a3eddd24e6c0fffe0bd56bb8cbd82067a64fbb6571c445a56a2fa7a42cc",
+    "files": {
+      "third_party/cpu/lib/TritonCPUToLLVM/MemoryOpToLLVM.cpp": {
+        "before": "f0dcdc3df282bc0a532701d52e2e4df30d0a6fa3a52e6d34c180371a3925ccd9",
+        "after": "96e10dc5a6774cf869fbda014747b9e3efae454cb35b8bb12c836f1d90b9645f"
+      },
+      "third_party/cpu/lib/TritonCPUTransforms/DecomposeFpConversions.cpp": {
+        "before": "7b1836764333b10320fdec5f96643b7b59eaf6e81518a06eda184ada55c4d6e1",
+        "after": "4a5b2b240e2e05a5d9b4de1c03e7cc73fe5e57149422568715a0ae6e36b7a5be"
+      },
+      "third_party/cpu/lib/TritonToTritonCPU/ConvertAtomicOps.cpp": {
+        "before": "79858cf7f491609d49f90e1c0904a9c6dbe41652499102376a27dd19f3e4b105",
+        "after": "28c6f295eb99b6825b295c95ddfa81724460a27074c6708f4381d6dd27251c70"
+      },
+      "third_party/cpu/lib/TritonToTritonCPU/ConvertElemManipOps.cpp": {
+        "before": "242fdfe7273662f6d77d0b5c314ac358131dec6611fe685d548d5fbdc04abd8a",
+        "after": "074340e289ebf8a4c4c245476edd8ab8b0efba7b70ba795a104461b6eba58f2c"
+      },
+      "third_party/cpu/lib/TritonToTritonCPU/ConvertReductionOp.cpp": {
+        "before": "ceb7c6f12dda13fc20aab54236773c6633b1bbdc8e39dffde122e9f76f2351ce",
+        "after": "0884a4e396e2532c58f7ef7588b307eb95041655c6c5ed06e1546ea4c31f75de"
+      }
+    },
+    "purpose": "x86 reference repairs: masked scalar memory, CAS results, tensor gather, low-precision reduction tree, portable BF16 RNE conversion. No target compiler implementation."
+  }
+}

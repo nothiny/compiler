@@ -1,0 +1,204 @@
+diff --git a/third_party/cpu/lib/TritonCPUToLLVM/MemoryOpToLLVM.cpp b/third_party/cpu/lib/TritonCPUToLLVM/MemoryOpToLLVM.cpp
+index 62d9ad7..d235905 100644
+--- a/third_party/cpu/lib/TritonCPUToLLVM/MemoryOpToLLVM.cpp
++++ b/third_party/cpu/lib/TritonCPUToLLVM/MemoryOpToLLVM.cpp
+@@ -73,6 +73,25 @@ struct LoadOpConversion : public OpConversionPattern<triton::LoadOp> {
+     Type ptrTy = LLVM::LLVMPointerType::get(getContext());
+     Value ptr = rewriter.getRemappedValue(op.getPtr());
+     Type resTy = getTypeConverter()->convertType(op.getType());
++    if (op.getMask()) {
++      // A select after an unconditional load still accesses masked addresses.
++      // Keep both memory safety and the declared `other` value in control flow.
++      Value mask = rewriter.getRemappedValue(op.getMask());
++      Value other = op.getOther() ? rewriter.getRemappedValue(op.getOther())
++                                 : LLVM::UndefOp::create(rewriter, loc, resTy);
++      Block *head = rewriter.getInsertionBlock();
++      Block *tail = rewriter.splitBlock(head, op->getIterator());
++      tail->addArgument(resTy, loc);
++      Block *active = rewriter.createBlock(tail);
++      Value loaded = LLVM::LoadOp::create(rewriter, loc, resTy, ptr, 0,
++                                          op.getIsVolatile());
++      LLVM::BrOp::create(rewriter, loc, ValueRange{loaded}, tail);
++      rewriter.setInsertionPointToEnd(head);
++      LLVM::CondBrOp::create(rewriter, loc, mask, active, ValueRange{},
++                            tail, ValueRange{other});
++      rewriter.replaceOp(op, tail->getArgument(0));
++      return success();
++    }
+     rewriter.replaceOpWithNewOp<LLVM::LoadOp>(op, resTy, ptr, 0,
+                                               op.getIsVolatile());
+     return success();
+@@ -88,6 +107,19 @@ struct StoreOpConversion : public OpConversionPattern<triton::StoreOp> {
+     auto loc = op.getLoc();
+     Value ptr = rewriter.getRemappedValue(op.getPtr());
+     Value val = rewriter.getRemappedValue(op.getValue());
++    if (op.getMask()) {
++      Value mask = rewriter.getRemappedValue(op.getMask());
++      Block *head = rewriter.getInsertionBlock();
++      Block *tail = rewriter.splitBlock(head, op->getIterator());
++      Block *active = rewriter.createBlock(tail);
++      LLVM::StoreOp::create(rewriter, loc, val, ptr);
++      LLVM::BrOp::create(rewriter, loc, ValueRange{}, tail);
++      rewriter.setInsertionPointToEnd(head);
++      LLVM::CondBrOp::create(rewriter, loc, mask, active, ValueRange{},
++                            tail, ValueRange{});
++      rewriter.eraseOp(op);
++      return success();
++    }
+     rewriter.replaceOpWithNewOp<LLVM::StoreOp>(op, val, ptr);
+     return success();
+   }
+diff --git a/third_party/cpu/lib/TritonCPUTransforms/DecomposeFpConversions.cpp b/third_party/cpu/lib/TritonCPUTransforms/DecomposeFpConversions.cpp
+index d1b1eaf..7b60a72 100644
+--- a/third_party/cpu/lib/TritonCPUTransforms/DecomposeFpConversions.cpp
++++ b/third_party/cpu/lib/TritonCPUTransforms/DecomposeFpConversions.cpp
+@@ -35,6 +35,19 @@ struct Fp32ToBf16Conversion : public OpRewritePattern<arith::TruncFOp> {
+ 
+     Location loc = op.getLoc();
+     Value i32Src = op_bitcast(toInt32(src.getType()), src);
++    // arith.truncf defaults to nearest-even; dropping the low bits is RTZ.
++    // Preserve NaNs (including tiny payloads) instead of rounding them to inf.
++    auto mode = op.getRoundingmode();
++    if (mode && *mode != arith::RoundingMode::to_nearest_even &&
++        *mode != arith::RoundingMode::toward_zero)
++      return failure();
++    if (!mode || *mode == arith::RoundingMode::to_nearest_even) {
++      Value odd = op_and(op_lshr(i32Src, cst_like(i32Src, 16)), cst_like(i32Src, 1));
++      Value rounded = op_addi(i32Src, op_addi(cst_like(i32Src, 0x7fff), odd));
++      Value isNan = op_icmp_ugt(op_and(i32Src, cst_like(i32Src, 0x7fffffff)),
++                               cst_like(i32Src, 0x7f800000));
++      i32Src = op_select(isNan, op_or(i32Src, cst_like(i32Src, 0x00400000)), rounded);
++    }
+     Value shiftedSrc = op_lshr(i32Src, cst_like(i32Src, 16));
+     Value i16Res = op_trunci(toInt16(src.getType()), shiftedSrc);
+     Value res = op_bitcast(op.getType(), i16Res);
+diff --git a/third_party/cpu/lib/TritonToTritonCPU/ConvertAtomicOps.cpp b/third_party/cpu/lib/TritonToTritonCPU/ConvertAtomicOps.cpp
+index 907fdbc..e131316 100644
+--- a/third_party/cpu/lib/TritonToTritonCPU/ConvertAtomicOps.cpp
++++ b/third_party/cpu/lib/TritonToTritonCPU/ConvertAtomicOps.cpp
+@@ -158,7 +158,7 @@ struct AtomicCASOpConversion : public OpConversionPattern<triton::AtomicCASOp> {
+     auto ptrTy = cast<RankedTensorType>(op.getPtr().getType()).getElementType();
+     auto vecTy = cast<VectorType>(vals.getType());
+     auto strides = computeStrides(vecTy.getShape());
+-    auto res =
++    Value res =
+         arith::ConstantOp::create(rewriter, loc, rewriter.getZeroAttr(vecTy));
+     int64_t numElems = vecTy.getNumElements();
+     for (int64_t idx = 0; idx < numElems; ++idx) {
+@@ -169,7 +169,7 @@ struct AtomicCASOpConversion : public OpConversionPattern<triton::AtomicCASOp> {
+       Value cmpVal = vector::ExtractOp::create(rewriter, loc, cmpVals, indices);
+       Value resElem = triton::AtomicCASOp::create(rewriter, loc, val.getType(),
+                                                   ptr, cmpVal, val, sem, scope);
+-      vector::InsertOp::create(rewriter, loc, resElem, res, indices);
++      res = vector::InsertOp::create(rewriter, loc, resElem, res, indices);
+     }
+ 
+     rewriter.replaceOp(op, res);
+diff --git a/third_party/cpu/lib/TritonToTritonCPU/ConvertElemManipOps.cpp b/third_party/cpu/lib/TritonToTritonCPU/ConvertElemManipOps.cpp
+index ad993ea..9f25a1e 100644
+--- a/third_party/cpu/lib/TritonToTritonCPU/ConvertElemManipOps.cpp
++++ b/third_party/cpu/lib/TritonToTritonCPU/ConvertElemManipOps.cpp
+@@ -8,6 +8,7 @@
+ #include "mlir/Dialect/Index/IR/IndexOps.h"
+ #include "mlir/Dialect/MemRef/IR/MemRef.h"
+ #include "mlir/Dialect/Vector/IR/VectorOps.h"
++#include "mlir/Dialect/Utils/IndexingUtils.h"
+ #include "mlir/Pass/Pass.h"
+ #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
+ 
+@@ -49,6 +50,7 @@ public:
+     addIllegalOp<triton::JoinOp>();
+     addIllegalOp<triton::CatOp>();
+     addIllegalOp<triton::SplitOp>();
++    addIllegalOp<triton::GatherOp>();
+   }
+ };
+ 
+@@ -196,6 +198,34 @@ struct SplitOpConversion : public OpConversionPattern<triton::SplitOp> {
+   }
+ };
+ 
++struct GatherOpConversion : public OpConversionPattern<triton::GatherOp> {
++  using OpConversionPattern::OpConversionPattern;
++
++  LogicalResult matchAndRewrite(triton::GatherOp op, OpAdaptor adaptor,
++                               ConversionPatternRewriter &rewriter) const override {
++    auto loc = op.getLoc();
++    Value src = rewriter.getRemappedValue(op.getSrc());
++    Value indices = rewriter.getRemappedValue(op.getIndices());
++    auto resultTy = cast<VectorType>(getTypeConverter()->convertType(op.getType()));
++    auto shape = resultTy.getShape();
++    auto strides = computeStrides(shape);
++    Value result = arith::ConstantOp::create(rewriter, loc, rewriter.getZeroAttr(resultTy));
++    for (int64_t i = 0; i < resultTy.getNumElements(); ++i) {
++      auto coordinates = delinearize(i, strides);
++      Value index = vector::ExtractOp::create(rewriter, loc, indices, coordinates);
++      index = arith::IndexCastOp::create(rewriter, loc, rewriter.getIndexType(), index);
++      SmallVector<OpFoldResult> positions;
++      for (int64_t axis = 0; axis < (int64_t)shape.size(); ++axis)
++        if (axis == op.getAxis()) positions.push_back(index);
++        else positions.push_back(rewriter.getIndexAttr(coordinates[axis]));
++      Value element = vector::ExtractOp::create(rewriter, loc, src, positions);
++      result = vector::InsertOp::create(rewriter, loc, element, result, coordinates);
++    }
++    rewriter.replaceOp(op, result);
++    return success();
++  }
++};
++
+ struct ConvertElemManipOps
+     : public triton::impl::ConvertElemManipOpsBase<ConvertElemManipOps> {
+   using ConvertElemManipOpsBase::ConvertElemManipOpsBase;
+@@ -218,6 +248,7 @@ struct ConvertElemManipOps
+     patterns.add<JoinOpConversion>(typeConverter, context);
+     patterns.add<CatOpConversion>(typeConverter, context);
+     patterns.add<SplitOpConversion>(typeConverter, context);
++    patterns.add<GatherOpConversion>(typeConverter, context);
+ 
+     if (failed(applyPartialConversion(mod, convTarget, std::move(patterns))))
+       return signalPassFailure();
+diff --git a/third_party/cpu/lib/TritonToTritonCPU/ConvertReductionOp.cpp b/third_party/cpu/lib/TritonToTritonCPU/ConvertReductionOp.cpp
+index 443a554..bf99e8d 100644
+--- a/third_party/cpu/lib/TritonToTritonCPU/ConvertReductionOp.cpp
++++ b/third_party/cpu/lib/TritonToTritonCPU/ConvertReductionOp.cpp
+@@ -105,6 +105,28 @@ struct ReduceOpConversion
+     auto loc = op.getLoc();
+     Region &combineOp = op.getRegion();
+     auto shape = cast<VectorType>(inputs[0].getType()).getShape();
++    bool lowPrecision = llvm::any_of(inputs, [](Value value) {
++      Type type = cast<VectorType>(value.getType()).getElementType();
++      return type.isF16() || type.isBF16();
++    });
++    if (lowPrecision) {
++      SmallVector<SmallVector<Value>> partials;
++      for (int64_t row = 0; row < shape[0]; ++row) {
++        SmallVector<Value> values;
++        for (Value input : inputs)
++          values.push_back(vector::ExtractOp::create(rewriter, loc, input, row));
++        partials.push_back(std::move(values));
++      }
++      while (partials.size() > 1) {
++        SmallVector<SmallVector<Value>> next;
++        for (size_t i = 0; i < partials.size(); i += 2) {
++          if (i + 1 == partials.size()) next.push_back(std::move(partials[i]));
++          else next.push_back(accumulate(partials[i], partials[i + 1], combineOp, rewriter));
++        }
++        partials = std::move(next);
++      }
++      return partials.front();
++    }
+     SmallVector<Value> res;
+     for (int64_t idx = 0; idx < shape[0]; ++idx) {
+       SmallVector<Value> subInputs(inputs.size());
+@@ -127,6 +149,11 @@ struct ReduceOpConversion
+ 
+     Value src = rewriter.getRemappedValue(op.getOperand(0));
+     VectorType srcTy = cast<VectorType>(src.getType());
++    // LLVM's ordered half/BF16 reduction rounds at each sequential addition.
++    // Use the existing logarithmic tree path to retain useful low-precision
++    // accuracy without changing the declared result type or comparison policy.
++    if (srcTy.getElementType().isF16() || srcTy.getElementType().isBF16())
++      return failure();
+ 
+     Block *block = op.getBody();
+     if (block->getNumArguments() != 2)

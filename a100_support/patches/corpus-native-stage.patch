@@ -1,0 +1,12 @@
+--- a/harness/opslib/device.py
++++ b/harness/opslib/device.py
+@@ -383,6 +383,9 @@
+     kernel observes the aliasing; a device without that hook fails loudly
+     on such cases instead of silently staging them as unrelated buffers.
+     """
++    custom_stage = getattr(device, "stage_case", None)
++    if callable(custom_stage):
++        return custom_stage(case, kernel=kernel)
+     kernel = kernel if kernel is not None else case.get("kernel")
+     if kernel is None:
+         raise ValueError("case has no kernel")

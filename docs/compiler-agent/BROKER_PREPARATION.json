@@ -1,0 +1,47 @@
+{
+  "schema": "a100-broker-preparation/v2",
+  "scope": "Historical source-preparation checks plus current pre-start transport configuration; no experiment challenge admitted.",
+  "historical_source_project": "/home/i_yinzida/compiler-k3-a100",
+  "historical_checks": {
+    "schema": "a100-broker-preparation/v1",
+    "reference_executed": true,
+    "actual_stdio_transport_verified": true,
+    "workflow_attack_checks_enabled": true,
+    "standalone_python_admission_verified": true,
+    "question_formats": [
+      "json-parameters",
+      "standalone-python"
+    ],
+    "reference_case_timeout_s": 600,
+    "check_budget_s": 3600,
+    "standalone_cache_scope": "one source-content identity; persistent across retries, inaccessible to other questions",
+    "admission": {
+      "valid": 5,
+      "invalid": 1,
+      "visible": 1,
+      "hidden": 4
+    },
+    "missing_candidate_was_not_scored": true,
+    "worker_container_isolation": {
+      "private_storage_visible": false,
+      "docker_socket_visible": false,
+      "broker_transport_in_environment": false
+    },
+    "deployment_constraint": "Trusted controller runs outside workers; workers mount only their public project and no host home/private storage/Docker socket.",
+    "current_host_session_is_trusted": true,
+    "candidate_compiler_implemented": false,
+    "config_sha256": "ba940878035e323f04e643b9b0b606b03686e7d8f6383971ef7fe9af75582098"
+  },
+  "current_setup": {
+    "project_root": "/home/i_yinzida/compiler-a100-experiment-001",
+    "config_sha256": "29e0607c7bd39099bf473235db0f056f4afcf3f269ba6aa54c8ecd0729c23b48",
+    "runtime_adapters": "a100_support",
+    "probe_returncode": 0,
+    "probe": {
+      "schema": "attack-broker/v1",
+      "ready": true
+    },
+    "challenge_admissions": 0,
+    "candidate_compiler_implemented": false
+  }
+}

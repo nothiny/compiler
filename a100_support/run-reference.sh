@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+source "$(dirname -- "${BASH_SOURCE[0]}")/env.sh"
+export PYTHONPATH="$A100_PROJECT_ROOT:$A100_PROJECT_ROOT/ops/harness${PYTHONPATH:+:$PYTHONPATH}"
+export TRITON_DEFAULT_BACKEND=cpu
+export TRITON_INTERPRET=0
+export TRITON_F32_DEFAULT=ieee
+export TRITON_CPU_FAST_MATH="${TRITON_CPU_FAST_MATH:-0}"
+export A100_REFERENCE_THREADS="${A100_REFERENCE_THREADS:-1}"
+export OMP_NUM_THREADS="$A100_REFERENCE_THREADS"
+export OPENBLAS_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+export NUMEXPR_NUM_THREADS=1
+export TRITON_CACHE_DIR="${TRITON_CACHE_DIR:-$HOME/.cache/a100-prep/reference-cache}"
+export OPS_GOLDEN_CACHE="${OPS_GOLDEN_CACHE:-$HOME/.cache/a100-prep/golden}"
+exec "$A100_REFERENCE_PYTHON" "$@"

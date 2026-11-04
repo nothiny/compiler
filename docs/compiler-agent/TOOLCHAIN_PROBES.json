@@ -1,0 +1,475 @@
+{
+  "schema": "a100-environment-probes/v1",
+  "cpu": "max,vlen=1024,elen=64,vext_spec=v1.0",
+  "tools": {
+    "qemu": "qemu-riscv64 version 10.0.2",
+    "gcc": "riscv64-unknown-linux-gnu-gcc (g56971dcbea2) 14.3.0",
+    "as": "GNU assembler (GNU Binutils) 2.43.1.20250119",
+    "ld": "GNU ld (GNU Binutils) 2.43.1.20250119",
+    "objdump": "GNU objdump (GNU Binutils) 2.43.1.20250119"
+  },
+  "artifacts": {
+    "instruction_counts.so": "0e750bfac231bf5bf13b20adb927612686d71954098275b1d71789749ab6e5ac",
+    "matrix_probe": "630718863c5c5827ff27a4d727821ca064716aef4942a0ef3994aade5f35e315",
+    "io_fixture": "11d3972971ddefc573ed9838956747f029deaf0847a88175efe7b2af7b7488e9",
+    "bare_matrix_probe": "265f51088480633ae6664c5fc9eaeacb39e6cd2629e95d6450a67d3b7d52a827",
+    "threads_probe": "1aa8b29b795b5a5ff65f25679ba255d5b05a0372af6f0ff368f11df3ccb73753"
+  },
+  "matrix": [
+    {
+      "probe": "int8",
+      "command": [
+        "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64",
+        "-L",
+        "/home/i_yinzida/.local/opt/a100/toolchain-1.1.2/sysroot",
+        "-cpu",
+        "max,vlen=1024,elen=64,vext_spec=v1.0",
+        "-plugin",
+        "/home/i_yinzida/compiler-a100-experiment-001/a100_support/build/instruction_counts.so,out=/home/i_yinzida/compiler-a100-experiment-001/a100_support/build/ime-int8-counts.json",
+        "/home/i_yinzida/compiler-a100-experiment-001/a100_support/build/matrix_probe",
+        "int8"
+      ],
+      "returncode": 0,
+      "stdout": "{\"probe\":\"int8\",\"passed\":true,\"vlenb\":128,\"mcpm_control\":\"default-no-userspace-access\"}\n",
+      "stderr": "",
+      "matrix_instruction_executions": 1,
+      "instruction_counts": {
+        "schema": "qemu-dynamic-instructions/v1",
+        "instructions": [
+          {
+            "mnemonic": "smt.vmadot",
+            "operand_format": "i8",
+            "pc": 68508,
+            "executions": 1
+          }
+        ]
+      },
+      "status": "EXECUTED_AND_COMPARED_PASS"
+    },
+    {
+      "probe": "int4",
+      "command": [
+        "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64",
+        "-L",
+        "/home/i_yinzida/.local/opt/a100/toolchain-1.1.2/sysroot",
+        "-cpu",
+        "max,vlen=1024,elen=64,vext_spec=v1.0",
+        "-plugin",
+        "/home/i_yinzida/compiler-a100-experiment-001/a100_support/build/instruction_counts.so,out=/home/i_yinzida/compiler-a100-experiment-001/a100_support/build/ime-int4-counts.json",
+        "/home/i_yinzida/compiler-a100-experiment-001/a100_support/build/matrix_probe",
+        "int4"
+      ],
+      "returncode": 0,
+      "stdout": "{\"probe\":\"int4\",\"passed\":true,\"vlenb\":128,\"mcpm_control\":\"default-no-userspace-access\"}\n",
+      "stderr": "",
+      "matrix_instruction_executions": 1,
+      "instruction_counts": {
+        "schema": "qemu-dynamic-instructions/v1",
+        "instructions": [
+          {
+            "mnemonic": "smt.vmadot",
+            "operand_format": "i4",
+            "pc": 68542,
+            "executions": 1
+          }
+        ]
+      },
+      "status": "EXECUTED_AND_COMPARED_PASS"
+    },
+    {
+      "probe": "fp16",
+      "command": [
+        "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64",
+        "-L",
+        "/home/i_yinzida/.local/opt/a100/toolchain-1.1.2/sysroot",
+        "-cpu",
+        "max,vlen=1024,elen=64,vext_spec=v1.0",
+        "-plugin",
+        "/home/i_yinzida/compiler-a100-experiment-001/a100_support/build/instruction_counts.so,out=/home/i_yinzida/compiler-a100-experiment-001/a100_support/build/ime-fp16-counts.json",
+        "/home/i_yinzida/compiler-a100-experiment-001/a100_support/build/matrix_probe",
+        "fp16"
+      ],
+      "returncode": 0,
+      "stdout": "{\"probe\":\"fp16\",\"passed\":true,\"vlenb\":128,\"mcpm_control\":\"default-no-userspace-access\"}\n",
+      "stderr": "",
+      "matrix_instruction_executions": 1,
+      "instruction_counts": {
+        "schema": "qemu-dynamic-instructions/v1",
+        "instructions": [
+          {
+            "mnemonic": "smt.vfwmadot",
+            "operand_format": "MCPM-selected-float16",
+            "pc": 68582,
+            "executions": 1
+          }
+        ]
+      },
+      "status": "EXECUTED_AND_COMPARED_PASS"
+    },
+    {
+      "probe": "bf16",
+      "command": [
+        "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64",
+        "-L",
+        "/home/i_yinzida/.local/opt/a100/toolchain-1.1.2/sysroot",
+        "-cpu",
+        "max,vlen=1024,elen=64,vext_spec=v1.0",
+        "-plugin",
+        "/home/i_yinzida/compiler-a100-experiment-001/a100_support/build/instruction_counts.so,out=/home/i_yinzida/compiler-a100-experiment-001/a100_support/build/ime-bf16-counts.json",
+        "/home/i_yinzida/compiler-a100-experiment-001/a100_support/build/matrix_probe",
+        "bf16"
+      ],
+      "returncode": 1,
+      "stdout": "{\"probe\":\"bf16\",\"passed\":false,\"vlenb\":128,\"mcpm_control\":\"default-no-userspace-access\"}\n",
+      "stderr": "",
+      "matrix_instruction_executions": 1,
+      "instruction_counts": {
+        "schema": "qemu-dynamic-instructions/v1",
+        "instructions": [
+          {
+            "mnemonic": "smt.vfwmadot",
+            "operand_format": "MCPM-selected-float16",
+            "pc": 68582,
+            "executions": 1
+          }
+        ]
+      },
+      "status": "UNSUPPORTED_OR_FAILED"
+    },
+    {
+      "probe": "csr",
+      "command": [
+        "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64",
+        "-L",
+        "/home/i_yinzida/.local/opt/a100/toolchain-1.1.2/sysroot",
+        "-cpu",
+        "max,vlen=1024,elen=64,vext_spec=v1.0",
+        "-plugin",
+        "/home/i_yinzida/compiler-a100-experiment-001/a100_support/build/instruction_counts.so,out=/home/i_yinzida/compiler-a100-experiment-001/a100_support/build/ime-csr-counts.json",
+        "/home/i_yinzida/compiler-a100-experiment-001/a100_support/build/matrix_probe",
+        "csr"
+      ],
+      "returncode": -4,
+      "stdout": "",
+      "stderr": "",
+      "matrix_instruction_executions": 0,
+      "instruction_counts": {
+        "schema": "qemu-dynamic-instructions/v1",
+        "instructions": []
+      },
+      "status": "UNSUPPORTED_OR_FAILED"
+    }
+  ],
+  "threads": [
+    {
+      "probe": "persistent_pool_two_stages",
+      "environment": "qemu-functional",
+      "passed": true,
+      "threads": 1,
+      "pool_initializations": 1,
+      "warmups": 1,
+      "ranges": [
+        [
+          0,
+          32771
+        ]
+      ],
+      "worker_units": "guest threads, not physical A100 cores",
+      "workers": [
+        {
+          "id": 0,
+          "guest_tid": 2015063,
+          "items": 32771,
+          "phase1_interval_ns": [
+            3389730223755166,
+            3389730224238934
+          ],
+          "phase2_interval_ns": [
+            3389730224241158,
+            3389730224356322
+          ]
+        }
+      ]
+    },
+    {
+      "probe": "persistent_pool_two_stages",
+      "environment": "qemu-functional",
+      "passed": true,
+      "threads": 2,
+      "pool_initializations": 1,
+      "warmups": 1,
+      "ranges": [
+        [
+          0,
+          16385
+        ],
+        [
+          16385,
+          32771
+        ]
+      ],
+      "worker_units": "guest threads, not physical A100 cores",
+      "workers": [
+        {
+          "id": 0,
+          "guest_tid": 2015070,
+          "items": 16385,
+          "phase1_interval_ns": [
+            3389730268704117,
+            3389730268934213
+          ],
+          "phase2_interval_ns": [
+            3389730268944196,
+            3389730268998637
+          ]
+        },
+        {
+          "id": 1,
+          "guest_tid": 2015072,
+          "items": 16386,
+          "phase1_interval_ns": [
+            3389730268703653,
+            3389730268935487
+          ],
+          "phase2_interval_ns": [
+            3389730268947796,
+            3389730269008029
+          ]
+        }
+      ]
+    },
+    {
+      "probe": "persistent_pool_two_stages",
+      "environment": "qemu-functional",
+      "passed": true,
+      "threads": 4,
+      "pool_initializations": 1,
+      "warmups": 1,
+      "ranges": [
+        [
+          0,
+          8192
+        ],
+        [
+          8192,
+          16385
+        ],
+        [
+          16385,
+          24578
+        ],
+        [
+          24578,
+          32771
+        ]
+      ],
+      "worker_units": "guest threads, not physical A100 cores",
+      "workers": [
+        {
+          "id": 0,
+          "guest_tid": 2015086,
+          "items": 8192,
+          "phase1_interval_ns": [
+            3389730318314408,
+            3389730318438873
+          ],
+          "phase2_interval_ns": [
+            3389730318451717,
+            3389730318482006
+          ]
+        },
+        {
+          "id": 1,
+          "guest_tid": 2015087,
+          "items": 8193,
+          "phase1_interval_ns": [
+            3389730318312892,
+            3389730318426750
+          ],
+          "phase2_interval_ns": [
+            3389730318447917,
+            3389730318474220
+          ]
+        },
+        {
+          "id": 2,
+          "guest_tid": 2015088,
+          "items": 8193,
+          "phase1_interval_ns": [
+            3389730318312348,
+            3389730318438051
+          ],
+          "phase2_interval_ns": [
+            3389730318453949,
+            3389730318484115
+          ]
+        },
+        {
+          "id": 3,
+          "guest_tid": 2015089,
+          "items": 8193,
+          "phase1_interval_ns": [
+            3389730318311437,
+            3389730318428435
+          ],
+          "phase2_interval_ns": [
+            3389730318449471,
+            3389730318476312
+          ]
+        }
+      ]
+    },
+    {
+      "probe": "persistent_pool_two_stages",
+      "environment": "qemu-functional",
+      "passed": true,
+      "threads": 8,
+      "pool_initializations": 1,
+      "warmups": 1,
+      "ranges": [
+        [
+          0,
+          4096
+        ],
+        [
+          4096,
+          8192
+        ],
+        [
+          8192,
+          12289
+        ],
+        [
+          12289,
+          16385
+        ],
+        [
+          16385,
+          20481
+        ],
+        [
+          20481,
+          24578
+        ],
+        [
+          24578,
+          28674
+        ],
+        [
+          28674,
+          32771
+        ]
+      ],
+      "worker_units": "guest threads, not physical A100 cores",
+      "workers": [
+        {
+          "id": 0,
+          "guest_tid": 2015160,
+          "items": 4096,
+          "phase1_interval_ns": [
+            3389730372418162,
+            3389730372491059
+          ],
+          "phase2_interval_ns": [
+            3389730372524962,
+            3389730372545084
+          ]
+        },
+        {
+          "id": 1,
+          "guest_tid": 2015163,
+          "items": 4096,
+          "phase1_interval_ns": [
+            3389730372418997,
+            3389730372505382
+          ],
+          "phase2_interval_ns": [
+            3389730372523638,
+            3389730372546986
+          ]
+        },
+        {
+          "id": 2,
+          "guest_tid": 2015164,
+          "items": 4097,
+          "phase1_interval_ns": [
+            3389730372415415,
+            3389730372490972
+          ],
+          "phase2_interval_ns": [
+            3389730372524772,
+            3389730372544527
+          ]
+        },
+        {
+          "id": 3,
+          "guest_tid": 2015165,
+          "items": 4096,
+          "phase1_interval_ns": [
+            3389730372417889,
+            3389730372482881
+          ],
+          "phase2_interval_ns": [
+            3389730372524035,
+            3389730372542300
+          ]
+        },
+        {
+          "id": 4,
+          "guest_tid": 2015166,
+          "items": 4096,
+          "phase1_interval_ns": [
+            3389730372420957,
+            3389730372498245
+          ],
+          "phase2_interval_ns": [
+            3389730372519308,
+            3389730372538222
+          ]
+        },
+        {
+          "id": 5,
+          "guest_tid": 2015167,
+          "items": 4097,
+          "phase1_interval_ns": [
+            3389730372420178,
+            3389730372487370
+          ],
+          "phase2_interval_ns": [
+            3389730372523773,
+            3389730372542569
+          ]
+        },
+        {
+          "id": 6,
+          "guest_tid": 2015168,
+          "items": 4096,
+          "phase1_interval_ns": [
+            3389730372416643,
+            3389730372499061
+          ],
+          "phase2_interval_ns": [
+            3389730372522180,
+            3389730372541879
+          ]
+        },
+        {
+          "id": 7,
+          "guest_tid": 2015169,
+          "items": 4097,
+          "phase1_interval_ns": [
+            3389730372415334,
+            3389730372486111
+          ],
+          "phase2_interval_ns": [
+            3389730372524355,
+            3389730372541110
+          ]
+        }
+      ]
+    }
+  ],
+  "compiler_results": false,
+  "board_performance_measured": false,
+  "bf16_note": "This pinned emulator does not expose a working BF16 IME mode in these probes; retain BF16 cases and record the validation gap."
+}
