@@ -1,0 +1,139 @@
+{
+  "invocation_id": "WTI007",
+  "task_id": "T006",
+  "attempt": 1,
+  "context_sha256": "37a49d7dc18ca6ce2a3a5bebde53d5cf6911c3d928ab5b5a7c90e0bcb5598c6d",
+  "outcome": "COMPLETED",
+  "failure_kind": "implementation",
+  "summary": "Implemented the frontend core and TIR for the elementwise path. a100c/ir/tir.py defines tir/v1 (Type width+signedness, distinct convert/bitcast ops, masked ops with a DECLARED masked_default (value/undef/no-access), per-axis extents with a broadcast flag distinct from real extents, i32/i64 index arithmetic, structured If/Loop regions with explicit joins) plus a structural verifier rejecting one hand-built malformed module per invariant class and accepting the real frontend output. a100c/ir/dump.py dumps TIR with per-op source attribution. a100c/frontend/: source.py loads operator modules by AST (single @triton.jit invariant, autotune configs, do_not_specialize lists, constexpr defaults incl. module-level constexpr globals, case-layer literals; located refusals for two jit kernels, torch, execution-path imports, non-literal case tables); surface.py embeds the recorded 107-construct/280-parameter api_spec as data with every parameter classified implemented / ignorable-with-reason / refused, and the lowering consults that classification (the control: marking tl.load.other or tl.store.mask ignorable visibly breaks masked semantics); specialize.py builds the meta-tier specialization identity (source path + kernel name + pointer device dtypes with pointer_dtypes overrides + scalar classes honoring do_not_specialize/do_not_specialize_on_alignment + all meta/launch_meta constexprs + the deterministic first autotune config) and the ConstexprEnv that folds tl.constexpr conditions, dtype predicates (ptr.type/tensor .dtype.element_ty, is_floating/is_int_signed/is_int_unsigned/int_bitwidth, tl.constexpr(x) wrappers, trace-time builtins) and dead dispatch branches while recording every folded comparison; types.py encodes the pinned Triton 3.8 rules (literal typing, integer promotion with i1 as a signed 1-bit integer, the scalar-participation computation_type matrix incl. the fp16/bf16 div/mod exception, convert vs bitcast legality); shapes.py does right-aligned rank/extent unification with broadcast-flag propagation (disagreement is a located diagnostic); lower_tir.py lowers the elementwise core (masked load with other / store, arithmetic incl. ptr+element-offset, comparisons, bitwise/logical, where, constants, program_id, tl.arange/tl.zeros/tl.full/tl.zeros_like) inserting the pinned implicit casts and broadcasts as explicit convert/broadcast ops and realizing broadcast extents before memory ops. Verified: all five declared tests pass (58 checks, exit 0); the full-corpus census (2734 cases) shows the identity model is exactly the corpus meta tier coarsened only by the mandated do_not_specialize exclusion (2113 identities vs the live identity.py 2116; the 3 merged groups are var_mean_welford_kernel's do_not_specialize=['correction','M','N'], which the pinned Triton 3.8 specialize.cc also drops from the key; the corpus's declared 2161 in SUITE_V3.md 10.2 is doc drift, recorded); 31 of 500 operators lower end-to-end to verified TIR over all their cases today and 469 refuse with located diagnostics naming the construct (tl.cast 189, for 80, subscript 47, tl.cdiv 36, tl.num_programs 18, tl.sum 17, ...) -- exactly the constructs owned by T008-T016, the designed refusal boundary, never a silent miscompile.",
+  "files_changed": [
+    "a100c/frontend/__init__.py",
+    "a100c/frontend/source.py",
+    "a100c/frontend/surface.py",
+    "a100c/frontend/specialize.py",
+    "a100c/frontend/types.py",
+    "a100c/frontend/shapes.py",
+    "a100c/frontend/lower_tir.py",
+    "a100c/ir/tir.py",
+    "a100c/ir/dump.py",
+    "a100c/tests/test_frontend_surface.py",
+    "a100c/tests/test_specialize.py",
+    "a100c/tests/test_frontend_types.py",
+    "a100c/tests/test_frontend_shapes.py",
+    "a100c/tests/test_tir_verifier.py"
+  ],
+  "artifacts": [
+    "docs/compiler-agent/PROJECT_STATE.json (workload.api_spec: the recorded 107-construct/280-parameter surface the table embeds and the test asserts equality with)",
+    "ops/harness/compiler_api/identity.py (the corpus's own meta-tier identity model used as the independent reference in the full-corpus census)",
+    "ops/suite/dev/absolute_kernel.py, ops/suite/perf/leaky_relu.py, ops/suite/perf/signbit_bitwise_and.py, ops/suite/dev/slice_scatter_kernel.py, ops/suite/perf/fused_index_select_eq.py, ops/suite/dev/mul_scalar_kernel.py, ops/suite/dev/kv_cache_write.py, ops/suite/perf/square_matrix.py (real corpus kernels the verifier accepts as frontend output)",
+    "ops/suite/dev/nansum_kernel_2.py (real float64 dtype-dispatch kernel: dead branch for the float16 case, live branch for the float32 case, both folded and recorded)",
+    "ops/suite/dev/var_mean_welford_kernel.py (the one corpus operator whose do_not_specialize exclusion coarsens the identity.py partition)"
+  ],
+  "commands": [
+    {
+      "command": "set -a; . ./.env; set +a; timeout 600 python3 a100c/tests/test_frontend_surface.py",
+      "exit_code": 0,
+      "observed": "12 PASS / 0 FAIL: surface-table-equals-workload-api-spec (107 constructs, 280 parameters), every-parameter-classified (implemented=25 ignorable=28 refused=227), implemented-constructs-lower, decorator-constructs-triton.jit-autotune, refused-constructs-diagnosed-with-location (78 refused constructs, each FrontendError names the construct and carries line/col), excluded-constructs-refused-with-location (tl.tanh/tl.pow/tl.fdiv/fp8/inline_asm/tensor-descriptor/tl.extra/tl.math + unknown names), ignorable-params-accepted-and-semantic-neutral (identical canonical TIR with cache_modifier/eviction_policy, dropped params recorded), control-baseline-correctness-passes, control-load-other-ignorable-fails-correctness, control-store-mask-ignorable-fails-correctness, source-contract-refusals-located"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; timeout 600 python3 a100c/tests/test_specialize.py",
+      "exit_code": 0,
+      "observed": "12 PASS / 0 FAIL in 7s. corpus-identity-census-matches-meta-tier: cases=2734 identities=2113 corpus-meta-tier=2116 declared=2161 dns-merges=['suite/dev/var_mean_welford_kernel.py']x3, never the 2734 case count; no corpus identity is split, no identity spans different param types. real-float64-dispatch-nansum_kernel_2-float16: folded=['mid.dtype.element_ty == tl.float64'] result=[False] zeros=fp32; -float32: result=[True] zeros=fp64; real-ifexp-folding-mul_scalar-float32/-bool-arm take orelse/body respectively"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; timeout 600 python3 a100c/tests/test_frontend_types.py",
+      "exit_code": 0,
+      "observed": "12 PASS / 0 FAIL: literal-typing-pinned, integer-promote-usual-arithmetic-conversions, computation-type-pinned-matrix, literal-guards-pinned, convert-vs-bitcast-distinct, scalar-arg-types-and-classes, zero-dim-scalar-broadcasts-into-block, int-true-division-is-fp32, store-value-converts-to-pointee, fp16-fp32-promotion-computes-fp32, bf16-pointer-override-types-loads, bool-lanes-stay-i1"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; timeout 600 python3 a100c/tests/test_frontend_shapes.py",
+      "exit_code": 0,
+      "observed": "6 PASS / 0 FAIL: unify-pair-pinned-rules, shape-disagreement-is-a-diagnostic (end-to-end 8+16 arange add refused with location), subscript-not-in-core-refused, scalar-store-value-realized-before-store, where-unifies-branch-shapes, shapes-and-scalars-stay-runtime-symbolic (the runtime bound stays a param value, never a constant; identical identity for n=17 vs n=4097)"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; timeout 600 python3 a100c/tests/test_tir_verifier.py",
+      "exit_code": 0,
+      "observed": "16 PASS / 0 FAIL: one malformed module rejected per invariant class (use-before-definition, type-contradiction, masked-op-without-declared-default, broadcast-extent-consumed-as-real, carried-value-without-join via if-arm and via loop), masked-store-must-declare-no-access, control-deleted-definition-rejected, and the real frontend output verified for 8 corpus kernels (absolute_kernel, leaky_relu bf16, signbit_bitwise_and int32, slice_scatter, fused_index_select_eq bf16, mul_scalar, kv_cache_write, square_matrix)"
+    },
+    {
+      "command": "timeout 570 python3 - (full-corpus lowering census: every case of every one of the 500 operators through source->specialize->lower->verify)",
+      "exit_code": 0,
+      "observed": "operators fully lowered over ALL their cases: 31, refused(located): 469, unexpected errors: 0 (4s). Top refusal constructs: tl.cast 189, for 80, subscript 47, tl.cdiv 36, tl.num_programs 18, tl.sum 17, if 11, tl.sqrt 9 -- the constructs owned by T008-T016"
+    }
+  ],
+  "acceptance": [
+    {
+      "ref": "acceptance[0]",
+      "command": "set -a; . ./.env; set +a; timeout 600 python3 a100c/tests/test_frontend_surface.py",
+      "exit_code": 0,
+      "observed": "The enumeration test walks the embedded table and asserts equality with PROJECT_STATE.json workload.api_spec (107 constructs / 280 parameters, names, parameter lists, tiers, corpus_calls, out_of_scope) and classifies every parameter: implemented=25, ignorable=28 (each with a recorded reason; all performance-only: cache/eviction hints, codegen hints, tuning machinery, alignment promises), refused=227. Behaviorally: every implemented construct lowers, every refused construct produces a FrontendError naming the construct with line/col (78 synthesized calls), excluded constructs (tl.tanh, tl.pow, tl.bool, tl.fdiv, fp8 dtypes, dot_scaled, inline_asm_elementwise, make_tensor_descriptor, tl.extra, tl.math, unknown names) refuse as outside the declared surface with locations. THE CONTROL passes: with tl.load.other marked ignorable the masked-load correctness check FAILS (default becomes undef, the 0.0 other disappears); with tl.store.mask marked ignorable the masked-store correctness check FAILS (stores become unmasked) -- the classification the lowering consults is load-bearing (FE-UNSUPPORTED-SURFACE)."
+    },
+    {
+      "ref": "acceptance[1]",
+      "command": "set -a; . ./.env; set +a; timeout 600 python3 a100c/tests/test_specialize.py",
+      "exit_code": 0,
+      "observed": "Shape-only (17/97/4097), grid-only and same-class scalar-value differences produce ONE identity; constexpr, pointer dtype (incl. bfloat16 pointer_dtypes overrides winning over host storage) and scalar class (one/div16/other) differences produce distinct identities; do_not_specialize parameters are fully excluded (1/16/17 identical) while do_not_specialize_on_alignment keeps ==1 and drops div-16; the autotune identity carries the deterministic first config's constexprs. Full corpus (2734 cases, in-process via the corpus's own golden.load_or_build_spec + identity.py as the independent reference): 2113 identities; the model never splits a corpus meta-tier identity and coarsens it by exactly the 3 groups of var_mean_welford_kernel (do_not_specialize=['correction','M','N']; the pinned Triton 3.8 specialize.cc drops specialize_value=False arguments from the key the same way); no identity spans different parameter types. The compile count is the identity count, never the 2734 case count. Recorded drift: the corpus's declared 2161 (SUITE_V3.md 10.2, OPERATOR_INVENTORY 1) vs the live identity.py meta tier 2116 on this tree (verified with both the host and the reference python)."
+    },
+    {
+      "ref": "acceptance[2]",
+      "command": "set -a; . ./.env; set +a; timeout 600 python3 a100c/tests/test_tir_verifier.py",
+      "exit_code": 0,
+      "observed": "The verifier rejects one hand-built malformed module per invariant class: use-before-definition (statement-order swap), type contradiction (arith.add i32+fp32 without an explicit convert), masked-op-without-declared-default (masked load whose masked_default attribute is absent), broadcast-extent-consumed-as-real (store value keeps a broadcast-flagged extent; an explicit realize is required), carried-value-without-join (an if-arm value used after the if with no join; and a loop-carried value the body never redefines). It also rejects a masked store that does not declare no-access semantics. The control (a definition deleted from a valid module) is rejected as use-before-definition. The real frontend output verifies for 8 corpus kernels including bfloat16 pointer overrides, int32 bitwise kernels and scalar-pointer loads."
+    },
+    {
+      "ref": "acceptance[3]",
+      "command": "set -a; . ./.env; set +a; timeout 600 python3 a100c/tests/test_specialize.py && timeout 600 python3 a100c/tests/test_frontend_surface.py",
+      "exit_code": 0,
+      "observed": "Constexpr folding eliminates dead dtype-dispatch branches while still evaluating the comparison: the real corpus kernel nansum_kernel_2 (if tl.constexpr(mid.dtype.element_ty == tl.float64)) folds the comparison to False for its float16 case (recorded: text='mid.dtype.element_ty == tl.float64', result False; the zeros is emitted at fp32, the float64 branch never lowers) and to True for its float32 case (zeros at fp64); the synthetic vector_norm-pattern dispatch folds the same way; dtype predicates (is_floating, is_int_signed, is_int_unsigned, int_bitwidth, .type/.dtype.element_ty) fold with recorded comparisons and int_bitwidth on a float dtype is a located error; mul_scalar's real IS_BOOL conditional expression takes the live arm in both directions. A runtime (non-constexpr) if is refused with a source location, and every construct outside the declared surface (tl.tanh, tl.pow, fp8, tensor descriptors, libdevice, unknown names) is refused with a source location, never silently compiled."
+    }
+  ],
+  "tests": [
+    {
+      "ref": "tests[0]",
+      "command": "python3 a100c/tests/test_frontend_surface.py",
+      "exit_code": 0,
+      "observed": "all checks PASS (12 PASS / 0 FAIL)"
+    },
+    {
+      "ref": "tests[1]",
+      "command": "python3 a100c/tests/test_specialize.py",
+      "exit_code": 0,
+      "observed": "all checks PASS (12 PASS / 0 FAIL, 7s; includes the full 2734-case corpus identity census)"
+    },
+    {
+      "ref": "tests[2]",
+      "command": "python3 a100c/tests/test_frontend_types.py",
+      "exit_code": 0,
+      "observed": "all checks PASS (12 PASS / 0 FAIL)"
+    },
+    {
+      "ref": "tests[3]",
+      "command": "python3 a100c/tests/test_frontend_shapes.py",
+      "exit_code": 0,
+      "observed": "all checks PASS (6 PASS / 0 FAIL)"
+    },
+    {
+      "ref": "tests[4]",
+      "command": "python3 a100c/tests/test_tir_verifier.py",
+      "exit_code": 0,
+      "observed": "all checks PASS (16 PASS / 0 FAIL)"
+    }
+  ],
+  "evidence": "Five declared tests, all exit 0 (58 checks). The load-bearing evidence: (1) the corpus census -- 2734 cases enumerated through the corpus's own golden cache and identity.py, my specialization identity induces 2113 groups that never split a corpus meta-tier group and differ from it only by var_mean_welford_kernel's do_not_specialize exclusion (3 groups), i.e. the identity model matches the corpus's declared meta tier with the mandated do_not_specialize refinement, and is nowhere near the 2734 case count; (2) the surface control -- reclassifying the semantic parameters tl.load.other / tl.store.mask as ignorable makes the masked-load/masked-store correctness checks fail, proving the classification the lowering consults is not documentation; (3) the TIR verifier rejects a hand-built malformed module per invariant class and accepts the real frontend output of 8 corpus kernels; (4) the real float64 dtype dispatch of nansum_kernel_2 folds (comparison evaluated and recorded, dead branch gone, zeros typed by the live branch) in both directions; (5) a full 500-operator sweep over every case: 31 operators lower to verified TIR end to end, 469 refuse with located diagnostics naming the construct (the T008-T016 scope), 0 unexpected errors.",
+  "design_issue": {},
+  "debug_request": {},
+  "attack": {},
+  "remaining_work": [
+    "T007: end-to-end vertical slice consuming tir/v1 and specialization-identity-v1 (target/plan/lower/backend/driver); the 31 fully-lowered operators are immediate slice candidates (absolute_kernel, leaky_relu, signbit_bitwise_and, ...)",
+    "T008: control flow (runtime if, for/while, tl.range/static_range, tl.num_programs, grid generality) -- currently refused with located diagnostics; TIR already carries If/Loop with joins",
+    "T009: reductions/scans (tl.sum/max/min/argmax/argmin/cumsum/cumprod, 17+ refusals) and cross-worker merge",
+    "T010/T014: IME matrix slice and dot breadth",
+    "T011: make_block_ptr/advance/boundary_check/padding_option/atomics (6 tl.load refusals are boundary_check/padding)",
+    "T012: casts (tl.cast/.to, 189 refusals -- the largest single refusal class), layout ops (subscript/expand_dims/reshape/trans, 47+), dtype-conversion breadth",
+    "T013: special math (tl.sqrt/exp/log/sigmoid/erf/cos/sin/floor/ceil, ~35 refusals) and RNG",
+    "T016: declared-surface coverage completion (tl.cdiv 36, tl.minimum/maximum, min/max builtins, tl.static_assert, tl.debug_barrier, tl.fma, tl.sort/topk/softmax etc.)",
+    "Recorded observation for the manager: the corpus's declared compile-economics number 2161 (SUITE_V3.md 10.2) does not match the live identity.py meta tier on this tree (2116, verified under both host and reference python); the corpus is read-only so the drift is recorded, not fixed. My model reports 2113 = 2116 - the 3 mandated do_not_specialize merges."
+  ],
+  "end_revision": "",
+  "at": "2026-11-04T12:19:40.972800+00:00"
+}

@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-04T11:10:47.964060+00:00",
+  "updated_at": "2026-11-04T12:19:41.034706+00:00",
   "facts": [
     {
       "id": "F001",
@@ -1062,14 +1062,14 @@
       ],
       "consumes": [],
       "tags": [],
-      "status": "RUNNING",
+      "status": "DONE",
       "assignee": "coder",
       "attempts": 1,
-      "evidence": "",
+      "evidence": "worker report WTI007: Implemented the frontend core and TIR for the elementwise path. a100c/ir/tir.py defines tir/v1 (Type width+signedness, distinct convert/bitcast ops, masked ops with a DECLARED masked_default (value/undef/no-access), per-axis extents with a broadcast flag distinct from real extents, i32/i64 index arithmetic, structured If/Loop regions with explicit joins) plus a structural verifier rejecting one hand-built malformed module per invariant class and accepting the real frontend output. a100c/ir/dump.py dumps TIR with per-op source attribution. a100c/frontend/: source.py loads operator modules by AST (single @triton.jit invariant, autotune configs, do_not_specialize lists, constexpr defaults incl. module-level constexpr globals, case-layer literals; located refusals for two jit kernels, torch, execution-path imports, non-literal case tables); surface.py embeds the recorded 107-construct/280-parameter api_spec as data with every parameter classified implemented / ignorable-with-reason / refused, and the lowering consults that classification (the control: marking tl.load.other or tl.store.mask ignorable visibly breaks masked semantics); specialize.py builds the meta-tier specialization identity (source path + kernel name + pointer device dtypes with pointer_dtypes overrides + scalar classes honoring do_not_specialize/do_not_specialize_on_alignment + all meta/launch_meta constexprs + the deterministic first autotune config) and the ConstexprEnv that folds tl.constexpr conditions, dtype predicates (ptr.type/tensor .dtype.element_ty, is_floating/is_int_signed/is_int_unsigned/int_bitwidth, tl.constexpr(x) wrappers, trace-time builtins) and dead dispatch branches while recording every folded comparison; types.py encodes the pinned Triton 3.8 rules (literal typing, integer promotion with i1 as a signed 1-bit integer, the scalar-participation computation_type matrix incl. the fp16/bf16 div/mod exception, convert vs bitcast legality); shapes.py does right-alig",
       "last_error": "",
       "failure_kind": "",
       "start_revision": "c35818ea1c99b76eaea63bdba1536a887ac28ff0",
-      "end_revision": "",
+      "end_revision": "71e8254b60cfaaa45ad2551c984d59bad9906c22",
       "completed_seq": 0,
       "debug_required": false,
       "debug_request_id": "",
@@ -1163,7 +1163,7 @@
       "tags": [
         "vertical-slice"
       ],
-      "status": "BLOCKED",
+      "status": "READY",
       "assignee": "",
       "attempts": 0,
       "evidence": "",
@@ -6785,6 +6785,18 @@
       "phase": "IMPLEMENTATION",
       "event": "task-delegate",
       "detail": "WTI007 task=T006 attempt=1 profile=general-purpose"
+    },
+    {
+      "at": "2026-11-04T12:19:41.012005+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "task-report",
+      "detail": "WTI007 COMPLETED attempt=1"
+    },
+    {
+      "at": "2026-11-04T12:19:41.034692+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "complete-task",
+      "detail": "T006 worker report WTI007: Implemented the frontend core and TIR for the elementwise path. a100c/ir/tir.py defines tir/v1 (Type width+signedness, distinct convert/bitcast ops, masked ops with a DECLARED masked_default (value/undef/no-access), per-axis extents with a broadcast flag distinct from real extents, i32/i64 index arithmetic, structured If/Loop regions with explicit joins) plus a structural verifier rejecting one hand-built malformed module per invariant class and accepting the real frontend output. a100c/ir/dump.py dumps TIR with per-op source attribution. a100c/frontend/: source.py loads operator modules by AST (single @triton.jit invariant, autotune configs, do_not_specialize lists, constexpr defaults incl. module-level constexpr globals, case-layer literals; located refusals for two jit kernels, torch, execution-path imports, non-literal case tables); surface.py embeds the recorded 107-construct/280-parameter api_spec as data with every parameter classified implemented / ignorable-with-reason / refused, and the lowering consults that classification (the control: marking tl.load.other or tl.store.mask ignorable visibly breaks masked semantics); specialize.py builds the meta-tier specialization identity (source path + kernel name + pointer device dtypes with pointer_dtypes overrides + scalar classes honoring do_not_specialize/do_not_specialize_on_alignment + all meta/launch_meta constexprs + the deterministic first autotune config) and the ConstexprEnv that folds tl.constexpr conditions, dtype predicates (ptr.type/tensor .dtype.element_ty, is_floating/is_int_signed/is_int_unsigned/int_bitwidth, tl.constexpr(x) wrappers, trace-time builtins) and dead dispatch branches while recording every folded comparison; types.py encodes the pinned Triton 3.8 rules (literal typing, integer promotion with i1 as a signed 1-bit integer, the scalar-participation computation_type matrix incl. the fp16/bf16 div/mod exception, convert vs bitcast legality); shapes.py does right-alig"
     }
   ]
 }
