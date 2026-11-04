@@ -1,0 +1,124 @@
+{
+  "invocation_id": "WTI002",
+  "task_id": "T002",
+  "attempt": 1,
+  "context_sha256": "8208ac8ef502ce9bad3f06d22f1e54ee5c6dcbe4784100ef33c81e1d56543d06",
+  "outcome": "COMPLETED",
+  "failure_kind": "implementation",
+  "summary": "Chip analysis for the A100 target completed. Read chip.md in full and all 146 paths its ## Target pack declares (verified to resolve inside the project root; 25 markdown docs + 27 search.txt incl. both PDF extractions read, 2 PDFs and 94 figures verified valid and consumed through their parent documents). Recorded 41 provenance-labelled ChipFacts (F016-F056: execution_model 5, memory 6, isa 12, registers 3, toolchain 3, abi 2, runtime 4, constraints 6; 26 anchored in the declared pack, 11 RUNTIME_PROBE with commands, 4 policy/chip.md-sourced) and 6 assumptions with validation methods (A003-A008) through the engine fact/assume commands. Wrote CHIP_ANALYSIS.md covering all 8 G1 categories property-by-property, including explicit negative facts (absent Zvvm instructions, no Zvvmtls, no mixed FP16/BF16 formats, vm mask unused for matrix instructions, LMUL=1-only IME legality, the pinned QEMU BF16 IME format-control gap kept unverified, MCPM CSR not userspace-accessible, no Hypervisor in RVA23*, other-chip exclusions, unusable SpacemiT LLVM), the knowledge-profile declaration (present: k3-a100), and three reported (not averaged) documentation framing differences (IME lambda figure-caption vs tables; X100 L2 brief vs manual; Preview vs production A100 cluster composition) - none affecting codegen. Correctness_only: no performance anchors, timings or speedups recorded (the 60 TOPS INT4-sparse headline is recorded only as a qualified specification, explicitly not a target). CHIP_ANALYSIS.md exists at the task's declared output path docs/compiler-agent/CHIP_ANALYSIS.md and as an identical copy at the project root, which is where the engine's G1 check reads it (WORKFLOW_ROOT_ARTIFACTS convention).",
+  "files_changed": [
+    "docs/compiler-agent/CHIP_ANALYSIS.md",
+    "CHIP_ANALYSIS.md",
+    "docs/compiler-agent/PROJECT_STATE.json"
+  ],
+  "artifacts": [
+    "docs/compiler-agent/CHIP_ANALYSIS.md",
+    "CHIP_ANALYSIS.md",
+    "docs/compiler-agent/PROJECT_STATE.json",
+    "chip.md",
+    "docs/compiler-agent/TARGET_SUMMARY.md",
+    "docs/compiler-agent/ENVIRONMENT.md",
+    "docs/compiler-agent/TOOLCHAIN_PROBES.json",
+    "docs/compiler-agent/target-material/manifest.json",
+    "docs/compiler-agent/target-material/sources/bd69e01a6280ae5ab4493ea82b0e819fb34f093da43c264fc3be3c6291a8c6c8/ime_extension.md",
+    "docs/compiler-agent/target-material/sources/ff2340c355516e190769949abbfe57d2121efbe72326b5fc65b166f6cd55d90d/08_cpu.md",
+    "docs/compiler-agent/target-material/sources/9564d4ba5ed9a64d71c0c7e5bf0c8f7d74ed717fd0aa71265328f8c1eaea8c91/K3_architecture_preview.pdf.search.txt",
+    "docs/compiler-agent/target-material/sources/4f7d0d5c4e77c7a0647e946a698656682ead8a9ae7fbc9fae6a83da37e625c6e/06_address_map.md"
+  ],
+  "commands": [
+    {
+      "command": "python3 (script): extract the 146 paths from chip.md '## Target pack' and verify each exists and resolves inside the project root",
+      "exit_code": 0,
+      "observed": "declared paths: 146 | missing: [] | outside root: []"
+    },
+    {
+      "command": "python3 -c \"import hashlib; ...\" (script): verify every .md.search.txt is byte-identical to its .md base and every binary figure has a valid PNG/JPEG/WEBP/PDF magic and non-zero size",
+      "exit_code": 0,
+      "observed": "94 binary figure files valid (86 PNG, 5 JPEG, 1 WEBP, 2 PDF), none bad; 25 search.txt identical to base, 2 PDF extractions differ as expected"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; timeout 60 python3 -m compiler_agent --root . fact --statement ... --source ... --category ... --confidence ... --origin input  (41 invocations for F016-F056)",
+      "exit_code": 0,
+      "observed": "41 facts recorded in docs/compiler-agent/PROJECT_STATE.json across categories execution_model/memory/isa/registers/toolchain/abi/runtime/constraints"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; timeout 60 python3 -m compiler_agent --root . assume --statement ... --why ... --method ... --risk ... (6 invocations for A003-A008)",
+      "exit_code": 0,
+      "observed": "6 assumptions recorded with why-needed and validation methods"
+    },
+    {
+      "command": "cp docs/compiler-agent/CHIP_ANALYSIS.md CHIP_ANALYSIS.md && sha256sum both",
+      "exit_code": 0,
+      "observed": "identical sha256 adbaa14df1055e4eb1972a7b66027acc2978984f7175fd3cd244b04f30b81b56; the root copy is where the engine's G1 _chip_property_check reads the document (ws.read_artifact resolves to the project root)"
+    }
+  ],
+  "acceptance": [
+    {
+      "ref": "acceptance[0]",
+      "command": "set -a; . ./.env; set +a; timeout 120 python3 -m compiler_agent --root . --json gates --diagnostics",
+      "exit_code": 0,
+      "observed": "G1 'chip categories address their properties' check: ok=True, detail '8 categories, every property addressed'; every TGT-* property is answered from the material, measured with a recorded command, or recorded as an Assumption with a validation method (A003-A008); nothing silently defaulted"
+    },
+    {
+      "ref": "acceptance[1]",
+      "command": "timeout 60 python3 -c \"import json; d=json.load(open('docs/compiler-agent/PROJECT_STATE.json')); chip=[f for f in d['facts'] if f['id']>='F016']; print(len(chip), all(f['source'].strip() for f in chip))\"",
+      "exit_code": 0,
+      "observed": "41 chip facts, all with non-empty sources; 26 cite document anchors inside the declared pack (target-material/sources/... with line anchors), 11 RUNTIME_PROBE facts name the probe command/conditions (TOOLCHAIN_PROBES.json / ENVIRONMENT.md), 4 cite chip.md policy sections; conditional experience is kept in CHIP_ANALYSIS.md's 'Conditional design guidance' section (premise/benefit/cost), not recorded as Facts"
+    },
+    {
+      "ref": "acceptance[2]",
+      "command": "timeout 60 python3 -c \"import re,os; text=open('chip.md').read(); m=re.search(r'## Target pack\\n(.*?)</details>',text,re.S); pack=re.findall(r'`([^`]+)`',m.group(1)); root=os.path.abspath('.'); print(len(pack), all(os.path.exists(os.path.join(root,p)) for p in pack))\"",
+      "exit_code": 0,
+      "observed": "146 declared paths, all existing and resolving inside the project root (no host paths, no .. escapes); all text documents read (IME spec v0.6 English+Chinese editions in full at the relevant chapters; large manuals at full structure plus every compilation-relevant section); both PDF text extractions read; all 94 figures verified as valid files and consumed through their parent documents' captions/text"
+    },
+    {
+      "ref": "acceptance[3]",
+      "command": "timeout 60 python3 -c \"import json; d=json.load(open('docs/compiler-agent/PROJECT_STATE.json')); print([f['id'] for f in d['facts'] if any(k in f['statement'] for k in ['NOT supported','not implemented','NOT defined','not a mask control','remains unverified','not accessible','excluding the Hypervisor','do NOT extend','unusable'])])\"",
+      "exit_code": 0,
+      "observed": "Negative facts recorded explicitly in F032 (community Zvvm vmmacc/vwmmacc/vfmmacc/vfqwmmacc/vf8wmmacc not supported; Zvvmtls not implemented; mixed FP16/BF16 not defined; RVV vm mask not a mask control for matrix instructions -> tails/masking of matrix work must come from ordinary vector/scalar code), F034 (pinned QEMU BF16 IME format-control gap kept unverified; MCPM CSR not userspace-accessible), F027 (RVA23* excludes Hypervisor), F038 (K1/A60 and X100 examples do not extend to A100), F044 (SpacemiT LLVM ld.lld/lld present but unusable and not on the declared linker path); F010/F011/F012 from the environment phase remain active"
+    },
+    {
+      "ref": "acceptance[4]",
+      "command": "grep -n 'Knowledge profile' chip.md; grep -c 'Knowledge profile' docs/compiler-agent/CHIP_ANALYSIS.md",
+      "exit_code": 0,
+      "observed": "chip.md line 13 declares 'Knowledge profile: k3-a100' (present, matching this target's class); CHIP_ANALYSIS.md records the declaration and its scope companions (correctness_only, Required execution evidence: resources) in the Knowledge profile section and F055"
+    },
+    {
+      "ref": "acceptance[5]",
+      "command": "timeout 60 python3 -c \"import json; d=json.load(open('docs/compiler-agent/PROJECT_STATE.json')); print([f['id'] for f in d['facts'] if f['confidence']=='UNKNOWN' and f['status']=='active'])\"; grep -c '## Contradictions and reconciliation' docs/compiler-agent/CHIP_ANALYSIS.md",
+      "exit_code": 0,
+      "observed": "No active UNKNOWN-confidence fact exists (gaps are Assumptions A003-A008 with validation methods); three documentation framing differences are reported in the Contradictions and reconciliation section rather than averaged: IME lambda figure-caption vs parameter tables (operative tile/MUL_C/constraint contract consistent everywhere; no codegen effect), X100 L2 brief vs manual framing (X100 is not the codegen target), and Preview vs production A100 cluster composition (abstraction levels of the same 8-hart/2-cluster topology; board verification is A008) - none affects code generation"
+    },
+    {
+      "ref": "acceptance[6]",
+      "command": "timeout 60 python3 -c \"import json; d=json.load(open('docs/compiler-agent/PROJECT_STATE.json')); print([f['id'] for f in d['facts'] if any(k in f['statement'].lower() for k in ['achievable rate','launch floor','measurement noise','speedup'])])\"",
+      "exit_code": 0,
+      "observed": "Only F050/F055 contain those terms and both are explicit negations ('timing or speedup evidence is NOT required to finish', 'no performance anchors (achievable rates, launch floor, measurement noise) are recorded or required'); the 60 TOPS INT4-sparse / 30-15-7.5 figures are recorded solely as documented specification qualifiers explicitly marked not-a-target; no timing, benchmark or speedup was recorded or required"
+    }
+  ],
+  "tests": [
+    {
+      "ref": "tests[0]",
+      "command": "set -a; . ./.env; set +a; timeout 120 python3 -m compiler_agent --root . --json gates --diagnostics",
+      "exit_code": 0,
+      "observed": "G1 status PASS; check 'chip categories address their properties' ok=True advisory=True detail='8 categories, every property addressed', read from CHIP_ANALYSIS.md (root copy; identical to docs/compiler-agent/CHIP_ANALYSIS.md) plus the 41 category-tagged sourced facts"
+    },
+    {
+      "ref": "tests[1]",
+      "command": "set -a; . ./.env; set +a; timeout 120 python3 -m compiler_agent --root . --json status",
+      "exit_code": 0,
+      "observed": "phase=CHIP_ANALYSIS, acceptance_scope=correctness_only, gates G0=PASS G1=PASS, tasks T001=DONE T002=RUNNING, advisories=[]; PROJECT_STATE.json holds 56 facts with confidences {EMPIRICAL, FACT, RUNTIME_PROBE}, all with non-empty sources, and zero active UNKNOWN facts"
+    }
+  ],
+  "evidence": "docs/compiler-agent/CHIP_ANALYSIS.md (identical copy at project root CHIP_ANALYSIS.md, sha256 adbaa14df1055e4eb1972a7b66027acc2978984f7175fd3cd244b04f30b81b56) plus 41 sourced ChipFacts F016-F056 and assumptions A003-A008 in docs/compiler-agent/PROJECT_STATE.json; the engine's G1 diagnostic gate reports '8 categories, every property addressed' and 'no blocking unknowns' over exactly these artifacts, and every fact's source names either a line anchor inside the declared target pack, a probe command recorded in docs/compiler-agent/TOOLCHAIN_PROBES.json / docs/compiler-agent/ENVIRONMENT.md, or a chip.md policy section",
+  "design_issue": {},
+  "debug_request": {},
+  "attack": {},
+  "remaining_work": [
+    "The workload-analysis phase (G2) consumes these chip facts next; the corpus dtype surface fact F037 and the IME family constraints (F030-F034) are its direct inputs",
+    "Board-porting validation items A003-A008 (integer/alignment probes, cross-hart memory model, TCM/DMA/spinlock interfaces, matrix-engine pairing) remain open by design and must not be silently defaulted by later phases",
+    "The BF16 IME format-control gap (F034) stays unverified: BF16 dot cases must run via the ordinary vector path under the pinned emulator until a passing BF16 probe exists, and no BF16 IME execution claim may be made from FP16 or vector success"
+  ],
+  "end_revision": "",
+  "at": "2026-11-04T08:57:43.629591+00:00"
+}

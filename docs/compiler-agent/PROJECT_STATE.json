@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-04T08:51:11.587887+00:00",
+  "updated_at": "2026-11-04T08:57:43.687838+00:00",
   "facts": [
     {
       "id": "F001",
@@ -535,6 +535,54 @@
       "validation_method": "Run a100_support/run-candidate-container.sh with the first generated operator executable and record the executed result.",
       "risk": "low",
       "status": "open"
+    },
+    {
+      "id": "A003",
+      "statement": "Standard RISC-V unprivileged semantics hold for the non-universal integer cases (wrap-around signed overflow, division/remainder by zero defined not trapping, shift amounts masked to the operand width) and standard RVV 1.0 FP semantics (frm-controlled rounding) via RVA23 compliance; the pack states RVA23* compliance but does not restate these behaviours.",
+      "why_needed": "The compiler's arithmetic lowering and basic-optimization legality conditions depend on integer overflow/div/shift semantics; the target documents only profile compliance.",
+      "validation_method": "Bounded probe under the declared QEMU endpoint (div-by-zero, overwide shift, wrap cases, an frm rounding check) and re-verification on the board at porting; until then treat as RISC-V-standard.",
+      "risk": "low",
+      "status": "open"
+    },
+    {
+      "id": "A004",
+      "statement": "Vector and scalar memory operands are naturally aligned; the compiler emits aligned accesses with masked tails and does not rely on misaligned access support. The pack does not state misaligned or out-of-range access behaviour for A100.",
+      "why_needed": "Predicated/tail lowering and wide-access grouping legality depend on the alignment contract.",
+      "validation_method": "Bounded misaligned-access probe under the declared QEMU endpoint (expect exception or defined behaviour, recorded either way); on-board check at porting; keep aligned-plus-mask codegen until verified.",
+      "risk": "medium",
+      "status": "open"
+    },
+    {
+      "id": "A005",
+      "statement": "The FMA contraction/rounding detail of smt.vfwmadot (single-rounding fused versus two-rounding widen-then-multiply-add) is not specified by the IME v0.6 document; no exactness claim may rely on it. Floating outputs are compared within each case's declared tolerance, so either behaviour is within policy.",
+      "why_needed": "The spec gives program-visible semantics as fp32 accumulate but not the rounding-point contract.",
+      "validation_method": "If a case ever demands it, differential comparison of the executed instruction result against an independent fp32 reference at the used shapes; otherwise treat as tolerance-covered.",
+      "risk": "low",
+      "status": "open"
+    },
+    {
+      "id": "A006",
+      "statement": "The formal memory model between A100 harts is assumed RVWMO (implied by RVA23 profile compliance) with per-level cache coherence as documented (MESI L1 D, MOESI L2 per cluster); the pack does not state the cross-cluster ordering contract. Generated cross-worker communication therefore uses explicit pthread/atomic synchronization and does not assume timing-based visibility.",
+      "why_needed": "Cross-worker merge correctness and any future reordering optimization depend on the visibility rule; only per-cache coherence protocols are documented.",
+      "validation_method": "On-board memory-ordering probes during porting (write-visibility across clusters with and without fences); under the pinned QEMU the guest is a single coherent address space so the assumption is untested there.",
+      "risk": "medium",
+      "status": "open"
+    },
+    {
+      "id": "A007",
+      "statement": "TCM, DMA and hardware-spinlock software interfaces (allocation, completion, visibility, lifetime) are unverified, and under the pinned QEMU endpoint these MMIO regions are not part of the userspace execution path; no generated code may assume TCM/DMA availability or asynchronous reuse until the interfaces are verified.",
+      "why_needed": "The manuals document the hardware but not the software allocation/completion contracts; the Preview's async-DMA dataflow needs matching SDK sources and probes.",
+      "validation_method": "Match SDK sources and run on-board probes (spacemit-tcm-smi resource state, TCM allocation/DMA completion/visibility) before any use; the correctness path uses Linux userspace memory only.",
+      "risk": "high",
+      "status": "open"
+    },
+    {
+      "id": "A008",
+      "statement": "The production pairing of the shared IME-2.0 matrix engines (Preview: shared by two compute cores) and the actual allowed A100 core set (official examples use core IDs 8-15) are unverified on hardware; QEMU guest threads establish neither. Resource evidence under QEMU records guest threads, work partition and dynamic instruction counts, never physical core identities.",
+      "why_needed": "Work placement and matrix-throughput reasoning depend on the real topology; the Preview is an architectural description that production hardware must confirm.",
+      "validation_method": "On-board discovery during the porting step (probe eligible cores, confirm engine pairing and usable storage); extend assumption A001.",
+      "risk": "high",
+      "status": "open"
     }
   ],
   "decisions": [],
@@ -650,14 +698,14 @@
       "tags": [
         "phase-chip-analysis"
       ],
-      "status": "RUNNING",
+      "status": "DONE",
       "assignee": "planner",
       "attempts": 1,
-      "evidence": "",
+      "evidence": "worker report WTI002: Chip analysis for the A100 target completed. Read chip.md in full and all 146 paths its ## Target pack declares (verified to resolve inside the project root; 25 markdown docs + 27 search.txt incl. both PDF extractions read, 2 PDFs and 94 figures verified valid and consumed through their parent documents). Recorded 41 provenance-labelled ChipFacts (F016-F056: execution_model 5, memory 6, isa 12, registers 3, toolchain 3, abi 2, runtime 4, constraints 6; 26 anchored in the declared pack, 11 RUNTIME_PROBE with commands, 4 policy/chip.md-sourced) and 6 assumptions with validation methods (A003-A008) through the engine fact/assume commands. Wrote CHIP_ANALYSIS.md covering all 8 G1 categories property-by-property, including explicit negative facts (absent Zvvm instructions, no Zvvmtls, no mixed FP16/BF16 formats, vm mask unused for matrix instructions, LMUL=1-only IME legality, the pinned QEMU BF16 IME format-control gap kept unverified, MCPM CSR not userspace-accessible, no Hypervisor in RVA23*, other-chip exclusions, unusable SpacemiT LLVM), the knowledge-profile declaration (present: k3-a100), and three reported (not averaged) documentation framing differences (IME lambda figure-caption vs tables; X100 L2 brief vs manual; Preview vs production A100 cluster composition) - none affecting codegen. Correctness_only: no performance anchors, timings or speedups recorded (the 60 TOPS INT4-sparse headline is recorded only as a qualified specification, explicitly not a target). CHIP_ANALYSIS.md exists at the task's declared output path docs/compiler-agent/CHIP_ANALYSIS.md and as an identical copy at the project root, which is where the engine's G1 check reads it (WORKFLOW_ROOT_ARTIFACTS convention).\nacceptance[0]: `set -a; . ./.env; set +a; timeout 120 python3 -m compiler_agent --root . --json gates --diagnostics` -> exit 0\nacceptance[1]: `timeout 60 python3 -c \"import json; d=json.load(open('docs/compiler-agent/PROJECT_STATE.json')); chip=[f for f in d['f",
       "last_error": "",
       "failure_kind": "",
       "start_revision": "8711f7f876cd193d576bfe0831049bc624a8f766",
-      "end_revision": "",
+      "end_revision": "a6455c9cb5861c29a5ac007a25c57f8a569ea646",
       "completed_seq": 0,
       "debug_required": false,
       "debug_request_id": "",
@@ -1156,6 +1204,60 @@
       "phase": "CHIP_ANALYSIS",
       "event": "fact",
       "detail": "F056 [constraints/FACT/input] docs/compiler-agent/target-material/sources/18ed67a57de04224793b95fab0299ba71445f1fc27dd3d0511528fd284cd232e/spinlock.md.search.txt:141-153 (16.7.5); docs/compiler-agent/target-material/sources/e3c328de09ccec8594134bfa2d29c635b7cc78578dde2cfe28de169983b9ecb7/dma.md.search.txt:21-42 (16.1.2)"
+    },
+    {
+      "at": "2026-11-04T08:51:28.533666+00:00",
+      "phase": "CHIP_ANALYSIS",
+      "event": "assumption",
+      "detail": "A003 Standard RISC-V unprivileged semantics hold for the non-universal integer cases (wrap-around signed overflow, division/remainder by zero defined not trapping, shift amounts masked to the operand width) and standard RVV 1.0 FP semantics (frm-controlled rounding) via RVA23 compliance; the pack states RVA23* compliance but does not restate these behaviours."
+    },
+    {
+      "at": "2026-11-04T08:51:28.686641+00:00",
+      "phase": "CHIP_ANALYSIS",
+      "event": "assumption",
+      "detail": "A004 Vector and scalar memory operands are naturally aligned; the compiler emits aligned accesses with masked tails and does not rely on misaligned access support. The pack does not state misaligned or out-of-range access behaviour for A100."
+    },
+    {
+      "at": "2026-11-04T08:51:28.838699+00:00",
+      "phase": "CHIP_ANALYSIS",
+      "event": "assumption",
+      "detail": "A005 The FMA contraction/rounding detail of smt.vfwmadot (single-rounding fused versus two-rounding widen-then-multiply-add) is not specified by the IME v0.6 document; no exactness claim may rely on it. Floating outputs are compared within each case's declared tolerance, so either behaviour is within policy."
+    },
+    {
+      "at": "2026-11-04T08:51:28.991988+00:00",
+      "phase": "CHIP_ANALYSIS",
+      "event": "assumption",
+      "detail": "A006 The formal memory model between A100 harts is assumed RVWMO (implied by RVA23 profile compliance) with per-level cache coherence as documented (MESI L1 D, MOESI L2 per cluster); the pack does not state the cross-cluster ordering contract. Generated cross-worker communication therefore uses explicit pthread/atomic synchronization and does not assume timing-based visibility."
+    },
+    {
+      "at": "2026-11-04T08:51:29.144548+00:00",
+      "phase": "CHIP_ANALYSIS",
+      "event": "assumption",
+      "detail": "A007 TCM, DMA and hardware-spinlock software interfaces (allocation, completion, visibility, lifetime) are unverified, and under the pinned QEMU endpoint these MMIO regions are not part of the userspace execution path; no generated code may assume TCM/DMA availability or asynchronous reuse until the interfaces are verified."
+    },
+    {
+      "at": "2026-11-04T08:51:29.294920+00:00",
+      "phase": "CHIP_ANALYSIS",
+      "event": "assumption",
+      "detail": "A008 The production pairing of the shared IME-2.0 matrix engines (Preview: shared by two compute cores) and the actual allowed A100 core set (official examples use core IDs 8-15) are unverified on hardware; QEMU guest threads establish neither. Resource evidence under QEMU records guest threads, work partition and dynamic instruction counts, never physical core identities."
+    },
+    {
+      "at": "2026-11-04T08:57:43.673909+00:00",
+      "phase": "CHIP_ANALYSIS",
+      "event": "task-report-out-of-contract",
+      "detail": "T002: CHIP_ANALYSIS.md"
+    },
+    {
+      "at": "2026-11-04T08:57:43.681164+00:00",
+      "phase": "CHIP_ANALYSIS",
+      "event": "task-report",
+      "detail": "WTI002 COMPLETED attempt=1 [declared outputs do not exist: Fact/Assumption records in docs/compiler-agent/PROJECT_STATE.json; changes outside the declared paths: CHIP_ANALYSIS.md]"
+    },
+    {
+      "at": "2026-11-04T08:57:43.687791+00:00",
+      "phase": "CHIP_ANALYSIS",
+      "event": "complete-task",
+      "detail": "T002 worker report WTI002: Chip analysis for the A100 target completed. Read chip.md in full and all 146 paths its ## Target pack declares (verified to resolve inside the project root; 25 markdown docs + 27 search.txt incl. both PDF extractions read, 2 PDFs and 94 figures verified valid and consumed through their parent documents). Recorded 41 provenance-labelled ChipFacts (F016-F056: execution_model 5, memory 6, isa 12, registers 3, toolchain 3, abi 2, runtime 4, constraints 6; 26 anchored in the declared pack, 11 RUNTIME_PROBE with commands, 4 policy/chip.md-sourced) and 6 assumptions with validation methods (A003-A008) through the engine fact/assume commands. Wrote CHIP_ANALYSIS.md covering all 8 G1 categories property-by-property, including explicit negative facts (absent Zvvm instructions, no Zvvmtls, no mixed FP16/BF16 formats, vm mask unused for matrix instructions, LMUL=1-only IME legality, the pinned QEMU BF16 IME format-control gap kept unverified, MCPM CSR not userspace-accessible, no Hypervisor in RVA23*, other-chip exclusions, unusable SpacemiT LLVM), the knowledge-profile declaration (present: k3-a100), and three reported (not averaged) documentation framing differences (IME lambda figure-caption vs tables; X100 L2 brief vs manual; Preview vs production A100 cluster composition) - none affecting codegen. Correctness_only: no performance anchors, timings or speedups recorded (the 60 TOPS INT4-sparse headline is recorded only as a qualified specification, explicitly not a target). CHIP_ANALYSIS.md exists at the task's declared output path docs/compiler-agent/CHIP_ANALYSIS.md and as an identical copy at the project root, which is where the engine's G1 check reads it (WORKFLOW_ROOT_ARTIFACTS convention).\nacceptance[0]: `set -a; . ./.env; set +a; timeout 120 python3 -m compiler_agent --root . --json gates --diagnostics` -> exit 0\nacceptance[1]: `timeout 60 python3 -c \"import json; d=json.load(open('docs/compiler-agent/PROJECT_STATE.json')); chip=[f for f in d['f"
     }
   ]
 }
