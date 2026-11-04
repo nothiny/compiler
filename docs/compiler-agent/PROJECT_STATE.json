@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-04T08:49:50.413380+00:00",
+  "updated_at": "2026-11-04T08:49:50.615359+00:00",
   "facts": [
     {
       "id": "F001",
@@ -270,6 +270,15 @@
       "id": "F029",
       "statement": "SpacemiT IME instruction set (Zvvm_spacemit profile, version 0.6 public release 2026-04-13): 46 custom AI instructions, all prefixed smt. (SMT vendor prefix); it reuses the 32 RVV vector registers for 2D matrix tiles with no dedicated matrix register file (no extra architectural state or context-switch overhead). The A100 core in K3 supports 13 sub-extensions: Xsmti4i32mm, Xsmti8i32mm, Xsmti8i32mm_slide, Xsmti4i32mm_42sp, Xsmti8i32mm_42sp, Xsmti4fp16mm_scl16f, Xsmti4bf16mm_scl16f, Xsmti8fp16mm_scl16f, Xsmti8bf16mm_scl16f, Xsmtfp16fp32mm, Xsmtbf16fp32mm, Xsmtfp16fp32mm_slide, Xsmtbf16fp32mm_slide; the toolchain names the A100 set collectively Xsmtvdotii. Chinese and English v0.6 editions in the pack agree.",
       "source": "docs/compiler-agent/target-material/sources/bd69e01a6280ae5ab4493ea82b0e819fb34f093da43c264fc3be3c6291a8c6c8/ime_extension.md.search.txt:5-9,56,206-243 (1.6/1.7),2333-2339 (App. B); cross-checked with the Chinese edition docs/compiler-agent/target-material/sources/efb5d87ac66581c12a931698b95db2ae840a57110cf23e429142fca07662e189/ime_extension.md.search.txt:91-144",
+      "confidence": "FACT",
+      "status": "active",
+      "category": "isa",
+      "origin": "input"
+    },
+    {
+      "id": "F030",
+      "statement": "A100 IME tile shapes and implementation parameters (LMUL=1 tiles): INT4 x INT4 -> INT32 tile 8x32x8; INT8 x INT8 -> INT32 tile 8x16x8 (integer family: lambda=4, MUL_C=2, SEW=32); FP16/BF16 x FP16/BF16 -> FP32 tile 8x8x8 (MUL_C=2, SEW=32); 4:2 structured sparse: INT4 8x64x8, INT8 8x32x8; block-scaled integer (Int4/Int8 + FP16/BF16 scale -> FP16/BF16): lambda=8, MUL_C=1, SEW=16, tiles 8x32x8 (Int4) / 8x16x8 (Int8); sliding-window variants keep their base family tile. lambda is fixed per instruction family and NOT configurable via vtype; MUL_C = VLEN/(SEW x lambda^2).",
+      "source": "docs/compiler-agent/target-material/sources/bd69e01a6280ae5ab4493ea82b0e819fb34f093da43c264fc3be3c6291a8c6c8/ime_extension.md.search.txt:274-317 (2.1.2),371-396 (2.5),2313-2329 (App. A)",
       "confidence": "FACT",
       "status": "active",
       "category": "isa",
@@ -751,6 +760,12 @@
       "phase": "CHIP_ANALYSIS",
       "event": "fact",
       "detail": "F029 [isa/FACT/input] docs/compiler-agent/target-material/sources/bd69e01a6280ae5ab4493ea82b0e819fb34f093da43c264fc3be3c6291a8c6c8/ime_extension.md.search.txt:5-9,56,206-243 (1.6/1.7),2333-2339 (App. B); cross-checked with the Chinese edition docs/compiler-agent/target-material/sources/efb5d87ac66581c12a931698b95db2ae840a57110cf23e429142fca07662e189/ime_extension.md.search.txt:91-144"
+    },
+    {
+      "at": "2026-11-04T08:49:50.615317+00:00",
+      "phase": "CHIP_ANALYSIS",
+      "event": "fact",
+      "detail": "F030 [isa/FACT/input] docs/compiler-agent/target-material/sources/bd69e01a6280ae5ab4493ea82b0e819fb34f093da43c264fc3be3c6291a8c6c8/ime_extension.md.search.txt:274-317 (2.1.2),371-396 (2.5),2313-2329 (App. A)"
     }
   ]
 }
