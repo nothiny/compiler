@@ -13,7 +13,6 @@ Phase: **CHIP_ANALYSIS** · project: `compiler-a100-experiment-001`
 
 | When | Phase | Event | Detail |
 |---|---|---|---|
-| 2026-11-04T08:13:49.563874+00:00 | ENVIRONMENT_ANALYSIS | start-task | T001 agent=planner |
 | 2026-11-04T08:13:49.934658+00:00 | ENVIRONMENT_ANALYSIS | task-delegate | WTI001 task=T001 attempt=1 profile=general-purpose |
 | 2026-11-04T08:28:09.643365+00:00 | ENVIRONMENT_ANALYSIS | fact | F001 [environment/EMPIRICAL/operator] read ./.env and a100_support/env.sh on 2026-11-04; every declared path resolved by the probes recorded in docs/compiler-agent/ENVIRONMENT.md |
 | 2026-11-04T08:28:50.636394+00:00 | ENVIRONMENT_ANALYSIS | fact | F002 [toolchain/RUNTIME_PROBE/input] probe: set -a; . ./.env; set +a; ${A100_CROSS_PREFIX}gcc --version; build and run recorded in docs/compiler-agent/ENVIRONMENT.md End-to-end smoke 1 |
@@ -66,3 +65,4 @@ acceptance[2]: `python3 -c "import json; d=json.load(open('docs/ |
 | 2026-11-04T08:50:11.598382+00:00 | CHIP_ANALYSIS | fact | F037 [isa/FACT/input] docs/compiler-agent/CORPUS_LOCK.json (500 operators, 2734 cases, dtypes bfloat16/bool/float16/float32/int16/int32/int64/int8); ops/README.md (declared subset); chip.md#4 (input and numeric contract) |
 | 2026-11-04T08:50:11.801579+00:00 | CHIP_ANALYSIS | fact | F038 [isa/FACT/input] docs/compiler-agent/target-material/sources/462bf27aed1712f9ca43fee5cb6302de444e4e1c66f513a08be5a8bd62b445a1/instruction.md.search.txt:26-33 (K1/A60); docs/compiler-agent/target-material/sources/83ddde6d173d633a2b89bad966f7ec23ae7ab4699185cf85989521a79c03d066/concept.md.search.txt:26-56 (K1 figures); docs/compiler-agent/target-material/sources/ff2340c355516e190769949abbfe57d2121efbe72326b5fc65b166f6cd55d90d/08_cpu.md.search.txt:22 (X100 VLEN=256); chip.md:114-116 (pack scope note) |
 | 2026-11-04T08:50:33.181535+00:00 | CHIP_ANALYSIS | fact | F039 [registers/FACT/input] docs/compiler-agent/target-material/sources/9564d4ba5ed9a64d71c0c7e5bf0c8f7d74ed717fd0aa71265328f8c1eaea8c91/K3_architecture_preview.pdf.search.txt:727-731,739-745 (3.2.1/3.2.2); docs/compiler-agent/target-material/sources/bd69e01a6280ae5ab4493ea82b0e819fb34f093da43c264fc3be3c6291a8c6c8/ime_extension.md.search.txt:25-38 (1.1) |
+| 2026-11-04T08:50:33.391490+00:00 | CHIP_ANALYSIS | fact | F040 [registers/FACT/input] docs/compiler-agent/target-material/sources/bd69e01a6280ae5ab4493ea82b0e819fb34f093da43c264fc3be3c6291a8c6c8/ime_extension.md.search.txt:104-129 (1.5),254-269 (2.1.2 tables),319-369 (2.2-2.4),398-435 (2.6) |
