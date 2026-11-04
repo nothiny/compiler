@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-04T08:49:23.151072+00:00",
+  "updated_at": "2026-11-04T08:49:23.354775+00:00",
   "facts": [
     {
       "id": "F001",
@@ -234,6 +234,15 @@
       "id": "F025",
       "statement": "Executable memory path under the pinned QEMU endpoint: Linux userspace virtual memory - the native transport round trip (a100_support/native_io.pack_case -> run-riscv.sh -> native_bundle io_fixture -> unpack_outputs) completed with guest pointer relocation and bfloat16 value storage, both compared PASS; board-level TCM/DMA/spinlock MMIO regions are not part of the QEMU userspace execution path.",
       "source": "probe: timeout 300 python3 a100_support/build/transport_probe.py -> alias comparison PASS, bf16 comparison PASS; docs/compiler-agent/ENVIRONMENT.md Native runtime transport (fact F007)",
+      "confidence": "RUNTIME_PROBE",
+      "status": "active",
+      "category": "memory",
+      "origin": "input"
+    },
+    {
+      "id": "F026",
+      "statement": "Vector memory access under the declared endpoint: RVV 1.0 with VLEN=1024 (CSR vlenb reads 128, control at vlen=256 fails) and ELEN=64, so supported vector element widths are 8..64 bits; IME input data uses EEW=8 or 16 with standard linear element ordering. Alignment/misaligned-access and out-of-range behaviour is not stated in the pack (see assumption on aligned accesses with masked tails).",
+      "source": "probe: smoke_rvv under -cpu max,vlen=1024,elen=64,vext_spec=v1.0 (fact F006, docs/compiler-agent/ENVIRONMENT.md smoke 3); docs/compiler-agent/target-material/sources/bd69e01a6280ae5ab4493ea82b0e819fb34f093da43c264fc3be3c6291a8c6c8/ime_extension.md.search.txt:441-451 (2.7.1)",
       "confidence": "RUNTIME_PROBE",
       "status": "active",
       "category": "memory",
@@ -691,6 +700,12 @@
       "phase": "CHIP_ANALYSIS",
       "event": "fact",
       "detail": "F025 [memory/RUNTIME_PROBE/input] probe: timeout 300 python3 a100_support/build/transport_probe.py -> alias comparison PASS, bf16 comparison PASS; docs/compiler-agent/ENVIRONMENT.md Native runtime transport (fact F007)"
+    },
+    {
+      "at": "2026-11-04T08:49:23.354724+00:00",
+      "phase": "CHIP_ANALYSIS",
+      "event": "fact",
+      "detail": "F026 [memory/RUNTIME_PROBE/input] probe: smoke_rvv under -cpu max,vlen=1024,elen=64,vext_spec=v1.0 (fact F006, docs/compiler-agent/ENVIRONMENT.md smoke 3); docs/compiler-agent/target-material/sources/bd69e01a6280ae5ab4493ea82b0e819fb34f093da43c264fc3be3c6291a8c6c8/ime_extension.md.search.txt:441-451 (2.7.1)"
     }
   ]
 }
