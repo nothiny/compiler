@@ -611,18 +611,15 @@ def check_var_len_copy_corpus(compiler):
 
 def check_refusals_located(compiler):
     """Operators whose remaining constructs belong to later tasks refuse
-    with a located diagnostic naming the construct -- control_flow.py
-    (masked load with other=), tril_inplace_zero_tile (2-D arange
-    indexing / early return), prelu (vector integer division)."""
+    with a located diagnostic naming the construct -- tril_inplace_zero_tile
+    (2-D arange indexing / early return).  control_flow.py (masked load
+    with other=) and prelu_kernel.py moved past this boundary in T011
+    (the other-merge, the scalar converts and the fp compare rows landed;
+    both compile and execute PASS now -- verified by the probe runs in
+    T011's evidence), so they are no longer refusal cases."""
     from a100c.driver import PipelineError
     bad = []
     cases = [
-        ("ops/suite/dev/control_flow.py",
-         {"shape": (257,), "dtype": "float32"},
-         ("cast", "other", "not implemented")),
-        ("ops/suite/dev/prelu_kernel.py",
-         {"shape": (17,), "dtype": "float32"},
-         ("division", "not in", "cast", "SEW", "repertoire", "vcmp")),
         ("ops/suite/dev/tril_inplace_zero_tile_kernel.py",
          {}, ("subscript", "return", "program_id axis", "grid")),
     ]

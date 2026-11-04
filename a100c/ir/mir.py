@@ -178,7 +178,15 @@ VEC_OPS = {
     "vid", "s2v", "vbin", "vbinx", "vunary", "vcmp", "vcmpx", "vsel",
     "vwaddx0", "vwiden", "vloadix", "vstoreix",
     "vred", "vextract", "vmand",
+    "vrgather", "vslidedn", "vunit_load", "vunit_store",
 }
+
+#: atomic op codes (T011, lower/scalar.py): the RVWMO-ordered forms.
+#: ``satomic`` is the scalar AMO (attrs: op/width/aq/rl/unsigned/float),
+#: ``slr``/``ssc`` the load-reserved/store-conditional pair the CAS retry
+#: loop and the floating synthesis are built from, ``sfence`` the explicit
+#: RVWMO fence (attrs pred/succ).
+ATOMIC_OPS = {"satomic", "slr", "ssc", "sfence"}
 
 #: vector reduction kinds (vred.vs: vd[0] = identity[0] combine vs2 lanes;
 #: only lane 0 of the result is meaningful -- the merge accumulator
@@ -191,18 +199,19 @@ VRED_KINDS = {
 }
 
 #: memory ops with masks and declared inactive semantics
-MEM_OPS = {"vloadix", "vstoreix"}
+MEM_OPS = {"vloadix", "vstoreix", "vunit_load", "vunit_store"}
 
 #: ops whose mask operand is read from hardware v0
-MASK_READING_OPS = {"vsel", "vloadix", "vstoreix"}
+MASK_READING_OPS = {"vsel", "vloadix", "vstoreix",
+                    "vunit_load", "vunit_store"}
 
 #: scalar binary op codes (type from operands; i32 selects the *w forms)
 SBIN_OPS = {"sadd", "ssub", "smul", "sdiv", "sdivu", "sand", "sor", "sxor",
-            "sshl", "ssra", "slt", "sltu"}
+            "sshl", "ssra", "srl", "slt", "sltu"}
 
 #: vector binary op codes
 VBIN_OPS = {"add", "sub", "mul", "and", "or", "xor", "fadd", "fsub",
-            "fmul", "fdiv"}
+            "fmul", "fdiv", "srl", "sra", "sll"}
 
 #: vector x scalar op codes
 VBINX_OPS = {"add", "mul"}
@@ -676,6 +685,97 @@ def _type_check(op: MOp, errors: List[MirError]) -> None:
             return err("'vwaddx0' mode must be sext/zext")
         if r != VectorType(a.sew * 2, a.lmul * 2, "int"):
             return err(f"'vwaddx0' result must double SEW and LMUL, got {r!r}")
+    elif code == "vrgather":
+        if len(ops) != 2 or len(res) != 1:
+            return err("'vrgather' takes a source and an index vector")
+        a, idx, r = V(0), V(1), res[0].type
+        if not a or not idx or not res[0].is_vector():
+            return err("'vrgather' operates on vectors")
+        if (a.sew, a.lmul) != (idx.sew, idx.lmul) or r != a:
+            return err(f"'vrgather' needs the index at the data's "
+                       f"(SEW, LMUL) (an integer index into any element "
+                       f"kind): {a!r}, {idx!r} -> {r!r}")
+        if idx.kind == "float":
+            return err("'vrgather' index must be an integer vector")
+    elif code == "vslidedn":
+        if len(ops) != 1 or len(res) != 1:
+            return err("'vslidedn' takes one operand and one result")
+        a, r = V(0), res[0].type
+        if not a or not res[0].is_vector() or r != a:
+            return err("'vslidedn' preserves the vector type")
+    elif code == "vunit_load":
+        if len(ops) not in (1, 2):
+            return err("'vunit_load' takes a base and an optional mask")
+        if not S(0) or S(0) != I64:
+            return err("'vunit_load' base must be i64")
+        if len(ops) == 2 and not ops[1].is_mask():
+            return err("'vunit_load' mask operand must be a mask value")
+        if len(res) != 1 or not res[0].is_vector():
+            return err("'vunit_load' produces one vector")
+    elif code == "vunit_store":
+        if len(ops) not in (2, 3):
+            return err("'vunit_store' takes a base and a value, plus an "
+                       "optional mask")
+        if res:
+            return err("'vunit_store' produces nothing")
+        if not S(0) or S(0) != I64:
+            return err("'vunit_store' base must be i64")
+        if not V(1):
+            return err("'vunit_store' value must be a vector")
+        if len(ops) == 3 and not ops[2].is_mask():
+            return err("'vunit_store' mask operand must be a mask value")
+    elif code == "satomic":
+        if len(ops) != 2 or len(res) != 1:
+            return err("'satomic' takes (address, value) and produces the "
+                       "old value")
+        addr, val = S(0), S(1)
+        if not addr or addr != I64:
+            return err("'satomic' address must be i64")
+        if not val or not res[0].is_scalar():
+            return err("'satomic' value and result are scalars")
+        width = op.attrs.get("width")
+        if width not in (32, 64):
+            return err(f"'satomic' width {width} not in 32/64 (the AMO "
+                       "families are .w/.d only)")
+        if val.width != width or res[0].type.width != width:
+            return err(f"'satomic' value/result width must equal the "
+                       f"declared width {width}")
+        if op.attrs.get("op") not in ("add", "max", "min", "xchg", "and",
+                                      "or", "xor"):
+            return err(f"'satomic' op {op.attrs.get('op')!r} unknown")
+        if op.attrs.get("float") and op.attrs.get("op") != "xchg":
+            return err("'satomic' float form is xchg only (floating AMO "
+                       "arithmetic is synthesized from lr/sc by the "
+                       "lowering, never emitted directly)")
+        if bool(op.attrs.get("aq")) not in (True, False) \
+                or bool(op.attrs.get("rl")) not in (True, False):
+            return err("'satomic' aq/rl must be booleans (the RVWMO "
+                       "ordered forms)")
+    elif code == "slr":
+        if len(ops) != 1 or not S(0) or ops[0].type != I64:
+            return err("'slr' takes one i64 address")
+        if len(res) != 1 or not res[0].is_scalar():
+            return err("'slr' produces the loaded scalar")
+        if op.attrs.get("width") not in (32, 64):
+            return err("'slr' width must be 32/64")
+        if res[0].type.width != op.attrs.get("width"):
+            return err("'slr' result width must equal the declared width")
+    elif code == "ssc":
+        if len(ops) != 2 or not S(0) or ops[0].type != I64 or not S(1):
+            return err("'ssc' takes an i64 address and the stored scalar")
+        if len(res) != 1 or res[0].type != I64:
+            return err("'ssc' produces the i64 success flag (0 = stored)")
+        if op.attrs.get("width") not in (32, 64):
+            return err("'ssc' width must be 32/64")
+        if ops[1].type.width != op.attrs.get("width"):
+            return err("'ssc' value width must equal the declared width")
+    elif code == "sfence":
+        if ops or res:
+            return err("'sfence' takes no operands and produces nothing")
+        if not isinstance(op.attrs.get("pred"), str) \
+                or not isinstance(op.attrs.get("succ"), str):
+            return err("'sfence' requires declared pred/succ sets "
+                       "(the RVWMO fence form)")
     elif code == "vloadix":
         if len(ops) not in (2, 3):
             return err("'vloadix' takes a base, an index and an optional mask")
@@ -734,7 +834,9 @@ def _mask_semantics(op: MOp, errors: List[MirError]) -> None:
     if op.opcode not in MEM_OPS:
         return
     has_mask = (op.opcode == "vloadix" and len(op.operands) == 3) or \
-               (op.opcode == "vstoreix" and len(op.operands) == 4)
+               (op.opcode == "vstoreix" and len(op.operands) == 4) or \
+               (op.opcode == "vunit_load" and len(op.operands) == 2) or \
+               (op.opcode == "vunit_store" and len(op.operands) == 3)
     if not has_mask:
         return
     default = op.attrs.get("default")
@@ -787,6 +889,21 @@ def _region_and_v0(op: MOp, region, errors: List[MirError]) -> Optional[tuple]:
                 f"widening source {src!r} does not match region "
                 f"e{sew}m{lmul}"))
         return region
+
+    def check_v0() -> None:
+        """The working-mask constraint, shared by every mask-reading op
+        (the memory forms branch below and return before the generic
+        widths loop, which their index operands would legitimately
+        fail)."""
+        mask_operand = op.operands[0] if op.opcode == "vsel" \
+            else op.operands[-1]
+        if mask_operand is not None and mask_operand.fixed_phys != "v0":
+            errors.append(MirError(
+                Invariant.V0_MASK_CONSTRAINT, op.loc,
+                f"'{op.opcode}' reads its mask from hardware v0; operand "
+                f"{mask_operand.name} is not the fixed v0 value (insert a "
+                "vmovmask)"))
+
     if op.opcode == "vloadix":
         dst = op.results[0].type
         if (dst.sew, dst.lmul) != (sew, lmul):
@@ -794,14 +911,29 @@ def _region_and_v0(op: MOp, region, errors: List[MirError]) -> Optional[tuple]:
                 Invariant.VSETVLI_REGION_INCONSISTENCY, op.loc,
                 f"'vloadix' result {dst!r} does not match region "
                 f"e{sew}m{lmul}"))
+        if len(op.operands) == 3:
+            check_v0()
         return region
-    if op.opcode == "vstoreix":
-        val = op.operands[2].type
+    if op.opcode in ("vstoreix", "vunit_store"):
+        val = op.operands[2 if op.opcode == "vstoreix" else 1].type
         if (val.sew, val.lmul) != (sew, lmul):
             errors.append(MirError(
                 Invariant.VSETVLI_REGION_INCONSISTENCY, op.loc,
-                f"'vstoreix' value {val!r} does not match region "
+                f"'{op.opcode}' value {val!r} does not match region "
                 f"e{sew}m{lmul}"))
+        masked = len(op.operands) == (4 if op.opcode == "vstoreix" else 3)
+        if masked:
+            check_v0()
+        return region
+    if op.opcode == "vunit_load":
+        dst = op.results[0].type
+        if (dst.sew, dst.lmul) != (sew, lmul):
+            errors.append(MirError(
+                Invariant.VSETVLI_REGION_INCONSISTENCY, op.loc,
+                f"'vunit_load' result {dst!r} does not match region "
+                f"e{sew}m{lmul}"))
+        if len(op.operands) == 2:
+            check_v0()
         return region
     for w, m in widths:
         if (w, m) != (sew, lmul):
@@ -811,17 +943,7 @@ def _region_and_v0(op: MOp, region, errors: List[MirError]) -> Optional[tuple]:
                 f"e{sew}m{lmul}"))
     # the working-mask constraint: masked mem ops and vmerge read hardware v0
     if op.opcode in MASK_READING_OPS:
-        mask_operand = None
-        if op.opcode == "vsel":
-            mask_operand = op.operands[0]
-        else:
-            mask_operand = op.operands[-1]
-        if mask_operand is not None and mask_operand.fixed_phys != "v0":
-            errors.append(MirError(
-                Invariant.V0_MASK_CONSTRAINT, op.loc,
-                f"'{op.opcode}' reads its mask from hardware v0; operand "
-                f"{mask_operand.name} is not the fixed v0 value (insert a "
-                "vmovmask)"))
+        check_v0()
     return region
 
 

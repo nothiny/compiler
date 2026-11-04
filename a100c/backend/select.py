@@ -71,6 +71,23 @@ def _features(op: mir.MOp) -> Dict[str, object]:
         features["mode"] = op.attrs["mode"]
     elif op.opcode in ("vloadix", "vstoreix"):
         features["eew"] = op.attrs["eew"]
+    elif op.opcode == "satomic":
+        # the AMO family selector: operation, width, the RVWMO aq/rl
+        # ordered-form bits and the signedness of the min/max forms
+        features["op"] = op.attrs["op"]
+        features["width"] = op.attrs["width"]
+        features["aq"] = bool(op.attrs.get("aq"))
+        features["rl"] = bool(op.attrs.get("rl"))
+        features["unsigned"] = bool(op.attrs.get("unsigned"))
+    elif op.opcode in ("slr", "ssc"):
+        features["width"] = op.attrs["width"]
+        features["aq"] = bool(op.attrs.get("aq"))
+        features["rl"] = bool(op.attrs.get("rl"))
+    elif op.opcode == "sfence":
+        features["pred"] = op.attrs["pred"]
+        features["succ"] = op.attrs["succ"]
+    elif op.opcode in ("vunit_load", "vunit_store"):
+        features["sew"] = op.attrs["sew"]
     elif op.opcode == "vsetvli":
         features["sew"] = op.attrs["sew"]
         features["lmul"] = op.attrs["lmul"]

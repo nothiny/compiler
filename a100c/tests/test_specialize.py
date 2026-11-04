@@ -376,6 +376,11 @@ def check_real_corpus_folding():
         # the next boundary (a later task's path), so the lowering either
         # completes or refuses at the cast -- after the dispatch folded and
         # the zeros was emitted
+        # T011 widened the frontend path this kernel rides (the scalar
+        # int/fp converts and the bool->int 0/1 class): the lowering now
+        # completes for both dtypes, where it used to stop at the cast
+        # boundary.  Either outcome is fine here -- the check's subject is
+        # the dispatch fold and the zeros dtype, both asserted below.
         stopped_at_boundary = False
         try:
             lowering.lower()
@@ -385,7 +390,7 @@ def check_real_corpus_folding():
         f64 = spec.fold.float64_comparisons()
         zeros = [st for st in lowering.module.functions[0].body.statements
                  if isinstance(st, tir.Op) and st.op == "zeros"]
-        ok = stopped_at_boundary and len(f64) == 1
+        ok = len(f64) == 1
         ok &= f64[0].result is (want_branch == "body")
         ok &= len(zeros) == 1 and zeros[0].results[0].type == want_zeros
         ok &= any(b.taken == want_branch for b in spec.fold.branches)

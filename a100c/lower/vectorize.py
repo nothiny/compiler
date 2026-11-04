@@ -80,6 +80,13 @@ class LowerOptions:
     #: partials no barrier has published).  Never set by the normal path;
     #: recorded in the artifact identity when set.
     witness_drop_stage_barrier: bool = False
+    #: witness-only degraded build (T011 test_atomics.py): the masked
+    #: block atomic's disabled-lane address redirection is dropped, so the
+    #: out-of-range lanes touch a poisoned guard region and the run
+    #: compares FAIL (MECH-WITNESS-TEST: the no-access property is
+    #: load-bearing).  Never set by the normal path; recorded in the
+    #: artifact identity when set.
+    witness_drop_atomic_masks: bool = False
 
     def identity_part(self) -> str:
         parts = []
@@ -87,6 +94,8 @@ class LowerOptions:
             parts.append("witness-drop-tail-predicates")
         if self.witness_drop_stage_barrier:
             parts.append("witness-drop-stage-barrier")
+        if self.witness_drop_atomic_masks:
+            parts.append("witness-drop-atomic-masks")
         return ",".join(parts) if parts else "default"
 
 
@@ -131,6 +140,17 @@ class _Ctx:
         return self.emit(mir.MOp("sconst", [],
                                  [self.vreg(mtype, hint="k", loc=loc)],
                                  attrs={"value": int(bits)}, loc=loc))
+
+
+def ctx_emit_view_load(sl: "SliceLowering", loc, view_index: int) -> mir.VReg:
+    """One fresh view-base load at a use site (the lazy multi-view form:
+    the views pointer is the single live GPR instead of one per view)."""
+    ctx = sl._ctx
+    return ctx.emit(mir.MOp(
+        "sload", [sl._views_reg],
+        [ctx.vreg(mir.I64, hint="vw", loc=loc)],
+        attrs={"width": 64, "offset": view_index * 56, "ext": "sext"},
+        loc=loc))
 
 
 class _Names:
@@ -189,6 +209,22 @@ class SliceLowering:
         self._body_split: Optional[Tuple[list, list, list]] = None
         #: open chunk-region merge frames (vid -> spec), in slot order
         self._chunk_merges: List[dict] = []
+        #: every wide-access selection (T011): the proven-contiguous loads
+        #: and stores that selected the unit-stride form, with the proof's
+        #: source (structural / hint) and detail -- the counter that
+        #: distinguishes "selected" from "not applicable" (IR-OBSERVABILITY)
+        self._wide_selections: List[dict] = []
+        #: the atomic scratch region's offset/max element size (set in
+        #: lower() from the kernel's atomic ops)
+        self._atomic_ws_offset = 0
+        self._atomic_max_esz = 4
+        #: the emission context (set in lower(); _need's lazy view loads
+        #: emit through it)
+        self._ctx: Optional[_Ctx] = None
+        #: lazy view bases: vid -> view index (multi-view kernels; set in
+        #: _emit_entry from the target's register budget)
+        self._lazy_view_index: Dict[int, int] = {}
+        self._views_reg: Optional[mir.VReg] = None
         #: scan accumulators discovered by the pre-scan (workspace scans)
         self._scan_accs: List[dict] = []
 
@@ -203,6 +239,12 @@ class SliceLowering:
         return self.values.get(t.vid)
 
     def _need(self, t: tir.Value, loc) -> mir.VReg:
+        # a lazy view base re-materializes at every use (multi-view kernels
+        # whose base registers would crowd the GPR file -- the target's own
+        # register budget decided at entry binding)
+        view_index = getattr(self, "_lazy_view_index", {}).get(t.vid)
+        if view_index is not None:
+            return ctx_emit_view_load(self, loc, view_index)
         reg = self.value(t)
         if reg is None:
             raise self._err(loc, t.name,
@@ -264,6 +306,91 @@ class SliceLowering:
         private_bytes = self.plan.workspace_private
         if self._scan_accs:
             private_bytes = max(private_bytes, arange_extent * 4)
+        # the atomic scratch region (T011): per-lane old values reloaded
+        # as the block result, then the 8-byte redirect slot disabled
+        # lanes' atomics are redirected to (no access at the disabled
+        # position's own address)
+        self._atomic_ws_offset = private_bytes
+        self._atomic_max_esz = 4
+        has_atomic = False
+        for op in self._walk_ops(fn.body):
+            if isinstance(op, tir.Op) and op.op in ("atomic_rmw",
+                                                    "atomic_cas"):
+                has_atomic = True
+                width = op.operands[0].type.pointee.bitwidth()
+                if width in (32, 64):
+                    self._atomic_max_esz = max(self._atomic_max_esz,
+                                               width // 8)
+        if has_atomic:
+            private_bytes += self._vl * self._atomic_max_esz + 8
+        # the gather materialization region: the whole block at 4 bytes
+        # (the source stores its chunk slice; the gather reads ws[index])
+        self._gather_ws_offset = private_bytes
+        has_gather = any(
+            isinstance(op, tir.Op) and op.op == "gather"
+            for op in self._walk_ops(fn.body))
+        if has_gather:
+            private_bytes += arange_extent * 4
+        # the live-out scalars: chunk-invariant region values the suffix
+        # consumes (the trailing store's address arithmetic lowered inside
+        # the region) -- stored at the back edge, reloaded at the exit
+        self._liveouts: List[Tuple[int, int]] = []
+        if self._body_split is not None and self._body_split[1] \
+                and self._body_split[2]:
+            region, suffix = self._body_split[1], self._body_split[2]
+            region_defined = set()
+            for st in region:
+                if isinstance(st, tir.Op):
+                    region_defined.update(r.vid for r in st.results)
+            partial_vids = {p.value_id for p in
+                            (self.stage_plan.partials
+                             if self.stage_plan else [])}
+            partial_vids.update(p.pair_value_id for p in
+                                (self.stage_plan.partials
+                                 if self.stage_plan else [])
+                            if p.pair_value_id is not None)
+            partial_vids.update(f["vid"] for f in self._scan_accs)
+            prefix_defined = set()
+            for st in self._body_split[0]:
+                if isinstance(st, tir.Op):
+                    prefix_defined.update(r.vid for r in st.results)
+
+            def consumed(statements):
+                out = set()
+
+                def add(value):
+                    if value is None or value.vid in out:
+                        return
+                    out.add(value.vid)
+                    # transitive through the ptradd chains the memory ops
+                    # flatten at address resolution: a suffix store of
+                    # ``ptr + off`` consumes off's producers too
+                    prod = value.producer
+                    if prod is not None and prod.op == "ptradd":
+                        for operand in prod.operands:
+                            add(operand)
+
+                for st in statements:
+                    if isinstance(st, tir.Op):
+                        for o in st.operands:
+                            add(o)
+                    elif isinstance(st, tir.If):
+                        out.update(consumed(st.then.statements))
+                        out.update(consumed(st.els.statements))
+                    elif isinstance(st, tir.Loop):
+                        for bound in (st.lower, st.upper, st.step, st.cond):
+                            if bound is not None:
+                                add(bound)
+                        for _, init in st.carried:
+                            add(init)
+                        out.update(consumed(st.body.statements))
+                return out
+
+            for vid in sorted(consumed(suffix) & region_defined):
+                if vid in partial_vids or vid in prefix_defined:
+                    continue
+                self._liveouts.append((vid, private_bytes))
+                private_bytes += 8
         self.plan.workspace_private = private_bytes
         if self.stage_plan.eligible and self.stage_plan.partials:
             self.plan.workspace_shared = max(
@@ -275,6 +402,7 @@ class SliceLowering:
         function = mir.MFunction("operator_entry", [launch], fn.loc)
         module.functions.append(function)
         ctx = _Ctx(module, function)
+        self._ctx = ctx
         ctx.add_block("entry", [launch], fn.loc)
         ctx.switch(ctx.blocks["entry"])
 
@@ -303,7 +431,7 @@ class SliceLowering:
         region = list(statements[first:last + 1])
         suffix = list(statements[last + 1:])
         partial_vids = set()
-        if self.stage_plan is not None and self.stage_plan.eligible:
+        if self.stage_plan is not None:
             for p in self.stage_plan.partials:
                 partial_vids.add(p.value_id)
                 if p.pair_value_id is not None:
@@ -442,11 +570,16 @@ class SliceLowering:
         return found.attrs["end"] - found.attrs["start"], found
 
     def _element_width(self, body: tir.Block, arange_extent) -> Tuple[int, str]:
-        """The data SEW: the pointee width every memory op must agree on."""
+        """The data SEW: the pointee width every BLOCK memory op must agree
+        on.  Rank-0 accesses ride the scalar core (any width it supports,
+        including the 64-bit pointer-table loads); only block accesses
+        select the vector region."""
         sew = None
         kind = "int"
         for op in self._walk_ops(body):
             if op.op in ("load", "store"):
+                if op.operands[0].rank == 0:
+                    continue         # the scalar core's own width domain
                 pointee = op.operands[0].type.pointee
                 if pointee.is_bool():
                     raise self._err(op.loc, op.op,
@@ -559,9 +692,29 @@ class SliceLowering:
                 if p.name == binding.name:
                     self.values[p.vid] = tir_reg
 
-        # view bindings: data base (flat, pointee-typed pointer semantics)
+        # view bindings: data base (flat, pointee-typed pointer semantics).
+        # A kernel whose view count strains the GPR file re-materializes
+        # each base at its uses instead of keeping every base live across
+        # the whole program (the target's own register budget decides --
+        # F023's 32 GPRs minus the ABI-reserved; the fixed entry/loop
+        # infrastructure and the per-lane atomic loop state both count
+        # against it, because the deep multi-view kernels' atomic loops
+        # sit exactly there)
         view_regs: Dict[str, mir.VReg] = {}
+        budget = self.target.gprs - len(self.target.reserved_gprs)
+        has_atomic = any(
+            isinstance(op, tir.Op) and op.op in ("atomic_rmw", "atomic_cas")
+            for op in self._walk_ops(fn.body))
+        loop_state = 13 if has_atomic else 5
+        lazy_views = len(self.layout.views) + 10 + loop_state > budget
+        self._lazy_view_index: Dict[int, int] = {}
+        self._views_reg = views
         for binding in self.layout.views:
+            if lazy_views:
+                for p in fn.params:
+                    if p.name == binding.name:
+                        self._lazy_view_index[p.vid] = binding.view_index
+                continue
             reg = ctx.emit(mir.MOp(
                 "sload", [views],
                 [ctx.vreg(mir.I64, hint=binding.name, loc=loc)],
@@ -833,7 +986,11 @@ class SliceLowering:
         # its back edge in both paths; the split path additionally strides
         # the ranges per worker
         self._chunk_merges = []
-        if self.stage_plan is not None and self.stage_plan.eligible:
+        if self.stage_plan is not None:
+            # the partials drive the chunk-level merge (the accumulator
+            # riding the chunk back edge) whether or not the two-phase
+            # split is eligible: an escaping reduction always needs the
+            # merged value in the suffix
             for p in self.stage_plan.partials:
                 self._chunk_merges.append(self._merge_frame_of(p))
         for acc in self._scan_accs:
@@ -845,12 +1002,15 @@ class SliceLowering:
         self._lower_statements(ctx, region, fn, view_regs)
 
         # close the region: the back edge (with the merge combines), then
-        # the exit block binds the merged values
+        # the exit block binds the merged values and reloads the live-out
+        # scalars (chunk-invariant region values the suffix consumes --
+        # the store's address arithmetic lowered inside the region)
         if self._chunk is not None:
             self._close_chunk_back_edge(ctx, fn, strided=strided)
             exit_name = self._chunk["exit"]
             ctx.switch(ctx.blocks[exit_name])
             self._bind_chunk_merges(ctx, loc)
+            self._reload_liveouts(ctx, loc)
         else:
             exit_name = None
 
@@ -947,12 +1107,42 @@ class SliceLowering:
         vtype = self._vtype(partial.dtype)
         index = partial.merge in (stages_mod.MERGE_MIN_INDEX,
                                   stages_mod.MERGE_MAX_INDEX)
+        widen = 0
+        if partial.dtype.is_int() and partial.dtype.bitwidth() > self._sew \
+                and partial.merge == stages_mod.MERGE_SUM \
+                and self._is_01_class_partial(partial.value_id):
+            # the cmp-converted 0/1 class (``(x != 0).to(tl.int64)``): the
+            # merge rides the data-SEW integer class -- exact, because the
+            # class {0,1} is closed under the sum merge and the total
+            # stays inside i32 -- and the merged value widens to the
+            # declared type where the suffix consumes it (the widening is
+            # value-exact for the class)
+            vtype = mir.VectorType(self._sew, 1, "int")
+            widen = partial.dtype.bitwidth()
         return {
             "kind": partial.merge, "vid": partial.value_id,
             "pair_vid": partial.pair_value_id, "vtype": vtype,
             "index": index, "source": "plan", "acc": None,
-            "partial": partial,
+            "partial": partial, "widen_exit": widen,
         }
+
+    def _is_01_class_partial(self, vid: int) -> bool:
+        """Is the partial's producer a sum-reduce over a bool-converted
+        block (the 0/1 value class)?  Structural, from the TIR alone."""
+        fns = self.tir_module.functions
+        if len(fns) != 1:
+            return False
+        for op in self._walk_ops(fns[0].body):
+            if not isinstance(op, tir.Op) or not op.results:
+                continue
+            if op.results[0].vid != vid or op.op != "reduce":
+                continue
+            src = op.operands[0]
+            prod = src.producer
+            return prod is not None and prod.op == "convert" \
+                and isinstance(prod.attrs.get("from"), tir.Type) \
+                and prod.attrs["from"].is_bool()
+        return False
 
     def _store_partial(self, ctx: _Ctx, frame: dict, wsbase: mir.VReg,
                        slot_off: int, exit_params, pi: int,
@@ -1068,7 +1258,8 @@ class SliceLowering:
             else:
                 merged = frame.exit.params[pi + 1]
                 pi += 1
-                self.values[f["vid"]] = self._scalarize(ctx, merged, loc)
+                self.values[f["vid"]] = self._widen_exit(
+                    ctx, self._scalarize(ctx, merged, loc), f, loc)
         # the names environment must see the merged bindings
         for f in frames:
             for vid in (f["vid"], f["pair_vid"]):
@@ -1261,9 +1452,67 @@ class SliceLowering:
                         ctx, exit_params[pi + 1], loc)
                 pi += 2
             else:
-                self.values[frame["vid"]] = self._scalarize(
-                    ctx, exit_params[pi], loc)
+                merged = self._scalarize(ctx, exit_params[pi], loc)
+                self.values[frame["vid"]] = self._widen_exit(
+                    ctx, merged, frame, loc)
                 pi += 1
+
+    def _widen_exit(self, ctx: _Ctx, reg: mir.VReg, frame: dict,
+                    loc) -> mir.VReg:
+        """Widen a merged 0/1-class partial to its declared type at the
+        consumer boundary (value-exact for the class)."""
+        width = frame.get("widen_exit") or 0
+        if width and reg.type.width < width and not reg.type.float:
+            return scalar_mod.widen_to(ctx, reg, width, loc)
+        return reg
+
+    def _store_liveouts(self, ctx: _Ctx, loc) -> None:
+        """At the chunk back edge: spill the live-out scalars to the
+        worker-private workspace (their value is chunk-invariant, so any
+        iteration's value is the value)."""
+        if not self._liveouts:
+            return
+        ws = self._workspace_private_reg(ctx, loc)
+        for vid, slot in self._liveouts:
+            reg = self.values.get(vid)
+            if reg is None:
+                continue          # the region never defined it (dead)
+            if reg.is_vector() or reg.is_mask():
+                raise self._err(
+                    loc, "region",
+                    "a live-out region value is a block value (the suffix "
+                    "cannot consume it through the scalar live-out path)")
+            width = reg.type.width if reg.type.width in (8, 16, 32, 64) \
+                else 64
+            ctx.emit0(mir.MOp("sstore", [ws, reg], [],
+                              attrs={"width": width, "offset": slot},
+                              loc=loc))
+
+    def _reload_liveouts(self, ctx: _Ctx, loc) -> None:
+        """At the chunk exit: reload the live-out scalars and rebind their
+        vids (the suffix's uses now read the reloaded registers).  The
+        workspace base re-loads here: the cached register was defined
+        inside the chunk body and does not dominate the exit."""
+        if not self._liveouts:
+            return
+        launch = ctx.function.params[0]
+        ws = ctx.emit(mir.MOp(
+            "sload", [launch], [ctx.vreg(mir.I64, hint="wsr", loc=loc)],
+            attrs={"width": 64, "offset": 16, "ext": "sext"}, loc=loc))
+        for vid, slot in self._liveouts:
+            reg = self.values.get(vid)
+            if reg is None:
+                continue
+            width = reg.type.width if reg.type.width in (8, 16, 32, 64) \
+                else 64
+            reloaded = ctx.emit(mir.MOp(
+                "sload", [ws],
+                [ctx.vreg(mir.ScalarType(width, signed=reg.type.signed,
+                                         float=reg.type.float),
+                          hint="lo", loc=loc)],
+                attrs={"width": width, "offset": slot, "ext": "sext"},
+                loc=loc))
+            self.values[vid] = reloaded
 
     # -- statement lowering -----------------------------------------------------
     def _lower_statements(self, ctx: _Ctx, statements, fn: tir.Function,
@@ -1517,6 +1766,10 @@ class SliceLowering:
                 merge_next.append(self._combine_value(ctx, frame["acc"],
                                                       cand, frame["kind"],
                                                       loc))
+        # the live-out scalars spill before the back edge (inside the
+        # body; their value is chunk-invariant so any iteration's is the
+        # value the exit reloads)
+        self._store_liveouts(ctx, loc)
         ctx.emit0(mir.MOp("br", [], [],
                           attrs={"target": chunk["head"].name,
                                  "args": [elem_next, items_next] +
@@ -1734,10 +1987,13 @@ class SliceLowering:
                 raise self._err(loc, "broadcast",
                                 "broadcast of a block value is not in the "
                                 "slice (only scalar splats)")
+            vtype = self._value_vtype(op.results[0].type)
+            switched = self._open_region(ctx, vtype, loc)
             reg = ctx.emit(mir.MOp(
                 "s2v", [operand],
-                [ctx.vreg(self._vtype(op.results[0].type), hint="splat",
-                          loc=loc)], loc=loc))
+                [ctx.vreg(vtype, hint="splat", loc=loc)], loc=loc))
+            if switched:
+                self._restore_region(ctx, loc)
             self._bind_result(op, reg)
             return
         if code == "realize":
@@ -1768,11 +2024,15 @@ class SliceLowering:
                 else:
                     reg = scalar_mod.lower_cmp(ctx, op, lreg, rreg, loc)
             else:
+                switched = self._open_region(
+                    ctx, lreg.type if lreg.is_vector() else rreg.type, loc)
                 reg = ctx.emit(mir.MOp(
                     "vcmp", [lreg, rreg],
                     [ctx.vreg(mir.MaskType(), hint="m", loc=loc)],
                     attrs={"pred": code.split(".")[1],
                            "fp": lhs.type.is_float()}, loc=loc))
+                if switched:
+                    self._restore_region(ctx, loc)
             self._bind_result(op, reg)
             return
         if code in tir.UNARY_OPS:
@@ -1879,13 +2139,42 @@ class SliceLowering:
         if code == "convert":
             self._lower_convert(ctx, op, loc)
             return
-        if code == "bitcast":
-            raise self._err(loc, "bitcast",
-                            "bit reinterpretation is not in the vector slice")
         if code == "debug_barrier":
-            ctx.emit0(mir.MOp("callbarrier",
-                              [ctx.function.params[0]], [], loc=loc))
+            # intra-program ordering: a program instance executes on one
+            # worker thread, so an explicit fence orders its own memory
+            # operations (the cross-worker stage barrier would desync the
+            # pool -- programs are strided across workers)
+            scalar_mod.emit_debug_barrier(ctx, loc)
             return
+        if code == "hint":
+            # a recorded promise (multiple_of / max_contiguous): an
+            # identity at the value level; the wide-access proof reads the
+            # attrs from the TIR op itself
+            self.values[op.results[0].vid] = self._need(op.operands[0], loc)
+            return
+        if code == "bitcast":
+            # width-preserving reinterpretation: the same register under
+            # the target type's view (the pointer-table pattern's int64 ->
+            # pointer form; the address resolution treats it as the base)
+            self.values[op.results[0].vid] = self._need(op.operands[0], loc)
+            return
+        if code == "atomic_rmw":
+            scalar_mod.lower_atomic_rmw(self, ctx, op, loc)
+            return
+        if code == "atomic_cas":
+            scalar_mod.lower_atomic_cas(self, ctx, op, loc)
+            return
+        if code == "gather":
+            scalar_mod.lower_gather(self, ctx, op, loc)
+            return
+        if code == "interleave":
+            raise self._err(
+                loc, "tl.interleave",
+                "interleave produces a 2x-extent block; the one-extent "
+                "chunk region cannot host its operands -- the construct "
+                "lowers through the standalone program-level path "
+                "(a100c.lower.scalar.lower_interleave), and the composed "
+                "kernel form is the layout lane's (multi-extent blocks)")
         if code == "reduce":
             self._lower_reduce(ctx, op, loc)
             return
@@ -1914,7 +2203,7 @@ class SliceLowering:
                 "differs from the kernel's block extent; multi-shape "
                 "blocks are the layout lane's path -- the counting "
                 "semantics are declared in a100c/plan/stages.py")
-        if code in ("dot", "atomic_rmw", "atomic_cas", "scatter", "gather"):
+        if code in ("dot", "scatter"):
             from a100c.lower import matrix
             matrix.refuse_matrix(loc, code,
                                  f"construct '{code}' routes to the matrix/"
@@ -2185,11 +2474,16 @@ class SliceLowering:
 
     def _lower_convert(self, ctx: _Ctx, op: tir.Op, loc) -> None:
         """The conversions this path executes: int32 -> fp32 (the mean/
-        normalize kernels' accumulation typing) via vfcvt; everything else
-        refuses with a located diagnostic naming the conversions lane."""
+        normalize kernels' accumulation typing) via vfcvt; the bool -> int
+        0/1 class (a compare's lanes extended to their integer class --
+        held at the data SEW, exact because the class {0,1} is closed
+        under this slice's block arithmetic, and widened to the declared
+        type at the scalar consumers); the scalar int widen/narrow forms;
+        everything else refuses with a located diagnostic naming the
+        conversions lane."""
         src, dst = op.operands[0], op.results[0]
         sreg = self._need(src, loc)
-        if sreg.is_vector():
+        if sreg.is_vector() or sreg.is_mask():
             if src.type.is_int() and src.type.bitwidth() == 32 \
                     and dst.type.is_float() and dst.type.bitwidth() == 32:
                 reg = ctx.emit(mir.MOp(
@@ -2199,10 +2493,48 @@ class SliceLowering:
                     attrs={"op": "fcvt"}, loc=loc))
                 self._bind_result(op, reg)
                 return
+            if src.type.is_bool() and dst.type.is_int() \
+                    and dst.type.bitwidth() in (32, 64):
+                # the 0/1 value class: vsel(1, 0) at the data SEW, in the
+                # destination's own signedness kind
+                kind = "uint" if dst.type.is_int_unsigned() else "int"
+                one = self._splat_const(ctx, 1,
+                                        mir.VectorType(self._sew, 1, kind),
+                                        loc)
+                zero = self._splat_const(ctx, 0,
+                                         mir.VectorType(self._sew, 1, kind),
+                                         loc)
+                if sreg.is_mask():
+                    v0 = ctx.emit(mir.MOp(
+                        "vmovmask", [sreg],
+                        [ctx.vreg(mir.MaskType(), hint="v0c", loc=loc,
+                                  fixed_phys="v0")], loc=loc))
+                else:
+                    v0 = sreg
+                reg = ctx.emit(mir.MOp(
+                    "vsel", [v0, one, zero],
+                    [ctx.vreg(mir.VectorType(self._sew, 1, "int"),
+                              hint="b01", loc=loc)], loc=loc))
+                self._bind_result(op, reg)
+                return
+            if src.type.is_int() and dst.type.is_int() \
+                    and src.type.bitwidth() == 32 \
+                    and dst.type.bitwidth() == 64:
+                # the widening 0/1-class/int form: the widened lanes stay
+                # non-negative under this slice's block arithmetic (vwadd
+                # with x0 sext-extends, exact for the class and for the
+                # slice's i32-lane values consumed at 64 bits)
+                reg = ctx.emit(mir.MOp(
+                    "vwaddx0", [sreg],
+                    [ctx.vreg(mir.VectorType(64, 2, "int"), hint="cw",
+                              loc=loc)], attrs={"mode": "sext"}, loc=loc))
+                self._bind_result(op, reg)
+                return
             raise self._err(loc, "convert",
                             "value conversion is not in the vector slice "
-                            "(the int32<->fp32 scalar form is; the "
-                            "conversion matrix is the conversions lane)")
+                            "(the int32<->fp32 and bool->int forms are; "
+                            "the conversion matrix is the conversions "
+                            "lane)")
         if src.type.is_int() and src.type.bitwidth() == 32 \
                 and dst.type.is_float() and dst.type.bitwidth() == 32:
             splat = self._splat_reg(ctx, sreg,
@@ -2214,7 +2546,36 @@ class SliceLowering:
                 attrs={"op": "fcvt"}, loc=loc))
             self._bind_result(op, self._scalarize(ctx, cvt, loc))
             return
-        if src.type.is_float() and dst.type.is_int() \
+        if src.type.is_int() and dst.type.is_int():
+            if src.type.bitwidth() < dst.type.bitwidth():
+                self._bind_result(op, scalar_mod.widen_to(ctx, sreg,
+                                                          dst.type.bitwidth(),
+                                                          loc))
+                return
+            if src.type.bitwidth() > dst.type.bitwidth():
+                self._bind_result(op, scalar_mod.narrow_to(
+                    ctx, sreg, dst.type.bitwidth(), loc))
+                return
+        if src.type.is_bool() and dst.type.is_int():
+            # the scalar 0/1 class, through the vector path
+            one = self._splat_const(ctx, 1, mir.VectorType(32, 1, "int"),
+                                    loc)
+            zero = self._splat_const(ctx, 0, mir.VectorType(32, 1, "int"),
+                                     loc)
+            if sreg.is_mask():
+                v0 = sreg
+            else:
+                v0 = self._mask_of_bool(ctx, sreg, loc)
+            sel = ctx.emit(mir.MOp(
+                "vsel", [v0, one, zero],
+                [ctx.vreg(mir.VectorType(32, 1, "int"), hint="bs1",
+                          loc=loc)], loc=loc))
+            reg = self._scalarize(ctx, sel, loc)
+            if dst.type.bitwidth() == 64:
+                reg = scalar_mod.widen_to(ctx, reg, 64, loc)
+            self._bind_result(op, reg)
+            return
+        if src.type.is_float() and src.type.is_int() \
                 and src.type.bitwidth() == dst.type.bitwidth():
             raise self._err(loc, "convert",
                             "float->int conversion selects a semantic "
@@ -2272,6 +2633,20 @@ class SliceLowering:
     def _vbin(self, ctx: _Ctx, op: tir.Op, lreg: mir.VReg, rreg: mir.VReg,
               loc) -> mir.VReg:
         code = op.op
+        if lreg.is_mask() and rreg.is_mask():
+            # boolean block logic: the mask-register forms (the block
+            # pointer's per-axis boundary conditions combine with and)
+            if code == "bit.and":
+                reg = ctx.emit(mir.MOp(
+                    "vmand", [lreg, rreg],
+                    [ctx.vreg(mir.MaskType(), hint="mand", loc=loc)],
+                    loc=loc))
+                self._bind_result(op, reg)
+                return reg
+            raise self._err(loc, code,
+                            "boolean block logic beyond and is not in the "
+                            "slice (the boundary conditions combine with "
+                            "&)")
         if lreg.type != rreg.type:
             raise self._err(loc, code,
                             f"vector operand types differ: {lreg.type!r} vs "
@@ -2280,20 +2655,28 @@ class SliceLowering:
                "bit.and": "and", "bit.or": "or", "bit.xor": "xor",
                "arith.fdiv": "fdiv", "arith.sdiv": "sdiv",
                "arith.udiv": "udiv", "arith.frem": "frem",
-               "arith.srem": "srem", "arith.urem": "urem"}.get(code)
+               "arith.srem": "srem", "arith.urem": "urem",
+               "bit.lshr": "srl", "bit.ashr": "sra",
+               "bit.shl": "sll"}.get(code)
         if vop is None:
             raise self._err(loc, code, "vector binary op is not in the slice")
         if vop in ("sdiv", "udiv", "frem", "srem", "urem"):
             raise self._err(loc, code,
                             "integer division/remainder is not in the "
-                            "vector slice")
+                            "vector slice (the non-negative power-of-two "
+                            "remainder folds to a mask at the frontend; "
+                            "every other form is a located refusal)")
         if vop == "fdiv" and lreg.type.kind != "float":
             raise self._err(loc, code,
                             "fdiv requires floating operands")
-        return ctx.emit(mir.MOp(
+        switched = self._open_region(ctx, lreg.type, loc)
+        reg = ctx.emit(mir.MOp(
             "vbin", [lreg, rreg],
             [ctx.vreg(lreg.type, hint="vb", loc=loc)],
             attrs={"op": vop}, loc=loc))
+        if switched:
+            self._restore_region(ctx, loc)
+        return reg
 
     # -- memory ops --------------------------------------------------------------
     def _address_of(self, ctx: _Ctx, ptr: tir.Value, loc):
@@ -2311,7 +2694,8 @@ class SliceLowering:
             base_value, offset_value = node.producer.operands
             offsets.append(offset_value)
             node = base_value
-        if node.producer is not None:
+        if node.producer is not None \
+                and node.producer.op not in ("bitcast", "hint"):
             raise self._err(loc, ptr.name,
                             f"pointer '{ptr.name}' is not a ptradd-formed "
                             "address (the slice's whole-tree address form)")
@@ -2324,7 +2708,9 @@ class SliceLowering:
 
     def _sum_offsets(self, ctx: _Ctx, values, loc) -> mir.VReg:
         """Sum the flattened ptradd offsets, left-associatively, preserving
-        each value's width and shape (modular i32 arithmetic associates)."""
+        each value's width and shape (modular i32 arithmetic associates).
+        Index-class (i64/EMUL-2) accumulators open their own region for
+        the vector adds and restore the data region after."""
         if len(values) == 1:
             return self._need(values[0], loc)
         acc = self._need(values[0], loc)
@@ -2347,30 +2733,39 @@ class SliceLowering:
                         loc, "ptradd",
                         f"scalar offset width {reg.type.width} exceeds the "
                         f"vector index SEW {acc.type.sew}")
+                switched = self._open_region(ctx, acc.type, loc)
                 acc = ctx.emit(mir.MOp(
                     "vbinx", [acc, reg],
                     [ctx.vreg(acc.type, hint="os", loc=loc)],
                     attrs={"op": "add"}, loc=loc))
+                if switched:
+                    self._restore_region(ctx, loc)
             elif acc.is_scalar() and reg.is_vector():
                 if acc.type.width > reg.type.sew:
                     raise self._err(
                         loc, "ptradd",
                         f"scalar offset width {acc.type.width} exceeds the "
                         f"vector index SEW {reg.type.sew}")
+                switched = self._open_region(ctx, reg.type, loc)
                 acc = ctx.emit(mir.MOp(
                     "vbinx", [reg, acc],
                     [ctx.vreg(reg.type, hint="os", loc=loc)],
                     attrs={"op": "add"}, loc=loc))
+                if switched:
+                    self._restore_region(ctx, loc)
             else:
                 if acc.type != reg.type:
                     raise self._err(
                         loc, "ptradd",
                         f"vector offset types differ: {acc.type!r} vs "
                         f"{reg.type!r}")
+                switched = self._open_region(ctx, acc.type, loc)
                 acc = ctx.emit(mir.MOp(
                     "vbin", [acc, reg],
                     [ctx.vreg(acc.type, hint="os", loc=loc)],
                     attrs={"op": "add"}, loc=loc))
+                if switched:
+                    self._restore_region(ctx, loc)
         return acc
 
     def _lower_load(self, ctx: _Ctx, op: tir.Op, loc) -> None:
@@ -2394,23 +2789,49 @@ class SliceLowering:
             raise self._err(loc, "tl.load",
                             "a block load appears outside the vector chunk "
                             "region (block values must live inside it)")
-        scaled, tree = addr_mod.materialize_address(
-            ctx, base_reg, offset_reg, pointee, loc, self._vl, (self._sew, 1))
-        self.trees.append(tree)
-        operands = [base_reg, scaled]
-        attrs = {"eew": 64, "sew": self._sew}
         mreg = self._need(mask, loc) if mask is not None else None
-        if mreg is not None and not self.options.witness_drop_tail_predicates:
-            v0 = ctx.emit(mir.MOp(
-                "vmovmask", [mreg],
-                [ctx.vreg(mir.MaskType(), hint="v0", loc=loc,
-                          fixed_phys="v0")], loc=loc))
-            operands.append(v0)
-            attrs["default"] = "undef"
-        reg = ctx.emit(mir.MOp(
-            "vloadix", operands,
-            [ctx.vreg(self._vtype(op.results[0].type), hint="ld", loc=loc)],
-            attrs=attrs, loc=loc))
+        # the wide-access proof (T011): a proven-contiguous access selects
+        # the unit-stride form; an unproven one keeps the indexed form
+        # (MECH-MASKED-VECTOR-ACCESS -- the proof never guesses)
+        wide = scalar_mod.prove_wide_access(self, ptr, self._vl)
+        unit_base = self._unit_stride_base(ctx, wide, base_reg, pointee,
+                                           loc) if wide is not None else None
+        if unit_base is not None:
+            rtype = self._vtype(op.results[0].type)
+            operands = [unit_base]
+            attrs = {"sew": rtype.sew}
+            if mreg is not None and not self.options.witness_drop_tail_predicates:
+                v0 = ctx.emit(mir.MOp(
+                    "vmovmask", [mreg],
+                    [ctx.vreg(mir.MaskType(), hint="v0", loc=loc,
+                              fixed_phys="v0")], loc=loc))
+                operands.append(v0)
+                attrs["default"] = "undef"
+            reg = ctx.emit(mir.MOp(
+                "vunit_load", operands,
+                [ctx.vreg(rtype, hint="ldu", loc=loc)], attrs=attrs, loc=loc))
+            self._wide_selections.append(
+                {"op": "load", "source": wide.source,
+                 "detail": wide.detail, "loc": str(loc)})
+        else:
+            scaled, tree = addr_mod.materialize_address(
+                ctx, base_reg, offset_reg, pointee, loc, self._vl,
+                (self._sew, 1))
+            self.trees.append(tree)
+            operands = [base_reg, scaled]
+            attrs = {"eew": 64, "sew": self._sew}
+            if mreg is not None and not self.options.witness_drop_tail_predicates:
+                v0 = ctx.emit(mir.MOp(
+                    "vmovmask", [mreg],
+                    [ctx.vreg(mir.MaskType(), hint="v0", loc=loc,
+                              fixed_phys="v0")], loc=loc))
+                operands.append(v0)
+                attrs["default"] = "undef"
+            reg = ctx.emit(mir.MOp(
+                "vloadix", operands,
+                [ctx.vreg(self._vtype(op.results[0].type), hint="ld",
+                          loc=loc)],
+                attrs=attrs, loc=loc))
         if other is not None or default == tir.MaskedDefault.VALUE:
             # the declared disabled-position value: the masked load
             # performed no access there (v0.t); the select substitutes the
@@ -2426,6 +2847,40 @@ class SliceLowering:
                 "vsel", [v0, reg, oreg],
                 [ctx.vreg(reg.type, hint="ldo", loc=loc)], loc=loc))
         self._bind_result(op, reg)
+
+    def _unit_stride_base(self, ctx: _Ctx, wide, base_reg: mir.VReg,
+                          pointee: tir.Type, loc) -> Optional[mir.VReg]:
+        """The scalar byte base of one proven-contiguous access:
+        ``base + (elem + scalar terms) * esz`` (the arange's lanes are the
+        consecutive elements from there)."""
+        esz = pointee.bitwidth() // 8
+        elem = self._chunk["elem"]
+        acc = ctx.emit(mir.MOp(
+            "smove", [elem],
+            [ctx.vreg(mir.I64, hint="us0", loc=loc)], loc=loc)) \
+            if elem.type.width == 32 else elem
+        for term in wide.scalar_terms:
+            treg = self._need(term, loc)
+            if treg.type.width != 64:
+                if treg.type.float:
+                    raise self._err(loc, "tl.load/tl.store",
+                                    "a floating scalar term cannot feed a "
+                                    "proven byte base (the proof declined "
+                                    "a non-integer term)")
+                treg = ctx.emit(mir.MOp(
+                    "smove", [treg],
+                    [ctx.vreg(mir.I64, hint="us1", loc=loc)], loc=loc)) \
+                    if treg.type.width == 32 else treg
+            acc = ctx.emit(mir.MOp(
+                "sadd", [acc, treg],
+                [ctx.vreg(mir.I64, hint="us2", loc=loc)], loc=loc))
+        if esz != 1:
+            acc = ctx.emit(mir.MOp(
+                "smul", [acc, ctx.const(esz, mir.I64, loc)],
+                [ctx.vreg(mir.I64, hint="us3", loc=loc)], loc=loc))
+        return ctx.emit(mir.MOp(
+            "sadd", [base_reg, acc],
+            [ctx.vreg(mir.I64, hint="usb", loc=loc)], loc=loc))
 
     def _lower_store(self, ctx: _Ctx, op: tir.Op, loc) -> Optional[mir.VReg]:
         ptr, value = op.operands[0], op.operands[1]
@@ -2444,15 +2899,37 @@ class SliceLowering:
             raise self._err(loc, "tl.store",
                             "a block store appears outside the vector chunk "
                             "region (block values must live inside it)")
-        scaled, tree = addr_mod.materialize_address(
-            ctx, base_reg, offset_reg, pointee, loc, self._vl, (self._sew, 1))
-        self.trees.append(tree)
         vreg = self._need(value, loc)
-        operands = [base_reg, scaled, vreg]
-        attrs = {"eew": 64, "sew": self._sew}
         mask_reg = None
         if mask is not None:
             mask_reg = self._need(mask, loc)
+        # the wide-access proof (T011): the store side selects the same
+        # unit-stride form a proven-contiguous access proves
+        wide = scalar_mod.prove_wide_access(self, ptr, self._vl)
+        unit_base = self._unit_stride_base(ctx, wide, base_reg, pointee,
+                                           loc) if wide is not None else None
+        if unit_base is not None:
+            operands = [unit_base, vreg]
+            attrs = {"sew": self._sew}
+            if mask_reg is not None and not self.options.witness_drop_tail_predicates:
+                v0 = ctx.emit(mir.MOp(
+                    "vmovmask", [mask_reg],
+                    [ctx.vreg(mir.MaskType(), hint="v0", loc=loc,
+                              fixed_phys="v0")], loc=loc))
+                operands.append(v0)
+                attrs["default"] = "no-access"
+            ctx.emit0(mir.MOp("vunit_store", operands, [], attrs=attrs,
+                              loc=loc))
+            self._wide_selections.append(
+                {"op": "store", "source": wide.source,
+                 "detail": wide.detail, "loc": str(loc)})
+            return mask_reg
+        scaled, tree = addr_mod.materialize_address(
+            ctx, base_reg, offset_reg, pointee, loc, self._vl, (self._sew, 1))
+        self.trees.append(tree)
+        operands = [base_reg, scaled, vreg]
+        attrs = {"eew": 64, "sew": self._sew}
+        if mask is not None:
             if not self.options.witness_drop_tail_predicates:
                 v0 = ctx.emit(mir.MOp(
                     "vmovmask", [mask_reg],
@@ -2469,6 +2946,50 @@ class SliceLowering:
             "uint" if ty.is_int_unsigned() else "int")
         return mir.VectorType(ty.bitwidth(), 1, kind)
 
+    def _value_vtype(self, ty: tir.Type) -> mir.VectorType:
+        """The register form of one TIR block type at the chunk's vl: the
+        data class at (SEW, 1), the wider integer index class at its
+        EMUL (the i64 offsets of int64 index arithmetic)."""
+        if ty.is_int() and ty.bitwidth() > self._sew:
+            return self._index_vtype(ty.bitwidth())
+        return self._vtype(ty)
+
+    def _index_vtype(self, width: int) -> mir.VectorType:
+        """The register form of a width-bit INDEX-CLASS block value at the
+        chunk's vl (int64 index arithmetic -- pid.to(int64) offsets --
+        lives at EMUL 2 so the chunk's lanes fit; A003's declared i64
+        index arithmetic)."""
+        lanes_bits = width * self._vl
+        lmul = (lanes_bits + self.target.vlen_bits - 1) \
+            // self.target.vlen_bits
+        lmul = max(1, lmul)
+        if lmul not in (1, 2, 4, 8):
+            raise self._err(None, "index",
+                            f"the {width}-bit index class needs LMUL "
+                            f"{lmul} at vl {self._vl} (outside 1..8; a "
+                            "located refusal)")
+        return mir.VectorType(width, lmul, "int")
+
+    def _open_region(self, ctx: _Ctx, vtype: mir.VectorType, loc) -> bool:
+        """Open the region one vector op needs (no-op when it is the data
+        region); returns whether :meth:`_restore_region` must follow (the
+        materialize_address switch/restore pattern, generalized)."""
+        if (vtype.sew, vtype.lmul) == (self._sew, 1):
+            return False
+        avl = ctx.const(self._vl, mir.I32, loc)
+        ctx.emit(mir.MOp(
+            "vsetvli", [avl], [ctx.vreg(mir.I32, hint="rgo", loc=loc)],
+            attrs={"sew": vtype.sew, "lmul": vtype.lmul,
+                   "policy": "ta,ma"}, loc=loc))
+        return True
+
+    def _restore_region(self, ctx: _Ctx, loc) -> None:
+        avl = ctx.const(self._vl, mir.I32, loc)
+        ctx.emit(mir.MOp(
+            "vsetvli", [avl], [ctx.vreg(mir.I32, hint="rgr", loc=loc)],
+            attrs={"sew": self._sew, "lmul": 1, "policy": "ta,ma"},
+            loc=loc))
+
 
 def lower_to_mir(tir_module: tir.Module, plan: ExecutionPlan,
                  target: TargetModel, layout: ArgumentLayout,
@@ -2480,6 +3001,7 @@ def lower_to_mir(tir_module: tir.Module, plan: ExecutionPlan,
     module.meta["block_extent"] = plan.block_extent
     module.meta["chunks"] = [[vl, n] for vl, n in plan.chunks]
     module.meta["address_trees"] = [t.describe() for t in lowering.trees]
+    module.meta["wide_selections"] = list(lowering._wide_selections)
     module.meta["witness"] = lowering.options.identity_part()
     module.meta["grid"] = lowering.grid.describe()
     module.meta["stats_mode"] = ("elements" if lowering._count_reg is not None

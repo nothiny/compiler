@@ -1,0 +1,129 @@
+{
+  "invocation_id": "WTI012",
+  "task_id": "T011",
+  "attempt": 1,
+  "context_sha256": "9834d873b37b566b843ddb5d0781f3e93b3e1301cf193410fd6938a2e3e844c0",
+  "outcome": "COMPLETED",
+  "failure_kind": "implementation",
+  "summary": "Memory access breadth and atomics implemented through the real compilation path and executed under the declared QEMU endpoint. (1) Block pointers: tl.make_block_ptr/tl.advance desugar in the frontend into the whole-tree ptradd address form with the boundary_check mask and padding 'other' (1-D and flattened 2-D forms, extent-1 axes folded, loop-carried advance through derived term names); leaky_relu_kernel_strided and diag_scale_kernel execute and compare PASS at 1/2/4/8 threads on all declared shapes. (2) Atomics: TIR atomic_rmw/atomic_cas ops (mask + DECLARED no-access default, sem/scope, signedness) with verifier rules; the lowering emits AMO families (amoadd/amoswap/amomax[u]/amomin[u]/amoand/amoor/amoxor .w/.d with the aq/rl ordered-form bits) and the lr/sc pair (CAS retry loops, the fp32 synthesis for float pointees -- the target has no float AMO); the declared ATOMIC_ORDERING table maps every sem x scope (scope=sys brackets with fence iorw,iorw); a masked block atomic runs a per-lane loop whose disabled-lane addresses redirect to a private workspace slot (no access at the disabled position -- the guard-region witness proves it load-bearing); tl.debug_barrier lowers to an intra-program fence (not the pool-desyncing stage barrier). atomic_bitmap (all eight ops), count_nonzero (i64 cross-program accumulation), bincount (masked block atomic) and scatter_atomic (fp32 synthesis) execute and compare PASS at 1/2/4/8 threads. (3) Hints: tl.multiple_of/tl.max_contiguous record TIR hint ops; the wide-access proof (structural arange+scalars, or max_contiguous>=vl) selects the unit-stride vle/vse form -- an indirect access keeps the indexed form (both asserted on selection mnemonics); cache_modifier/eviction_policy classified ignorable-with-reason, volatile carried on the load. (4) tl.gather (single-chunk register vrgather; multi-chunk refuses located), tl.interleave (a standalone program-level lowering executed at 1/2/4/8 with ragged tails), pointer_table_relocations (the int64-table -> bitcast -> store-through pattern executes with the relocation applied and the table restored). (5) Scalar/integer paths (A003): int64 index arithmetic at EMUL-2, lshr/ashr/shl, unsigned compares, the truncating sdiv, the non-negative power-of-two remainder fold with its legality guard, the bool->int 0/1 class. Pre-existing defects found and fixed on the way: shift operand order (literal normalization moved the amount), fp gt/ge compare rows, andw/orw/xorw non-existent opcodes, amoxchg->amoswap, the spill/reload selection and vector-spill addressing in the emitter, the vrgather destination-overlap interference, the min/max floating select orientation, the debug_barrier/atomic-partials two-phase interaction, and the allocator's fallback victim targeting. 40/40 in-slice corpus runs PASS at 1/2/4/8 threads; the full test suite (17 pre-existing + 3 new files, 36 new checks) exits 0; both witness tools pass.",
+  "files_changed": [
+    "a100c/lower/scalar.py",
+    "a100c/lower/vectorize.py",
+    "a100c/lower/addresses.py",
+    "a100c/ir/tir.py",
+    "a100c/ir/mir.py",
+    "a100c/frontend/lower_tir.py",
+    "a100c/frontend/surface.py",
+    "a100c/frontend/gridmodel.py",
+    "a100c/plan/stages.py",
+    "a100c/backend/repertoire.py",
+    "a100c/backend/select.py",
+    "a100c/backend/emit.py",
+    "a100c/backend/allocate.py",
+    "a100c/driver.py",
+    "a100c/tests/test_lower_scalar.py",
+    "a100c/tests/test_memory_forms.py",
+    "a100c/tests/test_atomics.py",
+    "a100c/tests/test_lower_vector.py",
+    "a100c/tests/test_legalize.py",
+    "a100c/tests/test_select.py",
+    "a100c/tests/test_emit.py",
+    "a100c/tests/test_specialize.py",
+    "a100c/tests/test_control_flow.py"
+  ],
+  "artifacts": [
+    "a100c/tests/test_lower_scalar.py",
+    "a100c/tests/test_memory_forms.py",
+    "a100c/tests/test_atomics.py"
+  ],
+  "commands": [
+    {
+      "command": "set -a; . ./.env; set +a; timeout 590 python3 a100c/tests/test_lower_scalar.py",
+      "exit_code": 0,
+      "observed": "8 checks PASS: int64 index arithmetic (corpus count_nonzero at 1/2/4/8 both shapes + reversed-offset form), signed shifts/wrap, unsigned lshr/wrap, division/remainder + pow2 fold, bool 0/1 class, located refusals"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; timeout 590 python3 a100c/tests/test_memory_forms.py",
+      "exit_code": 0,
+      "observed": "16 checks PASS: leaky_relu (3 shapes) and diag_scale (3 shapes) at 1/2/4/8; hint classification + volatile carrier; wide-access unit-stride selection + indirect control; tl.gather; tl.interleave standalone program at 1/2/4/8 ragged; pointer-table applied-and-restored; blockptr refusals located"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; timeout 590 python3 a100c/tests/test_atomics.py",
+      "exit_code": 0,
+      "observed": "12 checks PASS: atomic_bitmap (all 8 ops) / count_nonzero / bincount / scatter_atomic at 1/2/4/8; scalar fp32 atomic_min synthesis; grouped_gemm refuses located; guard region intact in the real build and CORRUPTED by the witness_drop_atomic_masks degraded build; all 12 sem x scope forms emit the declared aq/rl + sys-fence forms; default acq_rel/gpu; unsigned amominu row selected and executed"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; for t in test_frontend_surface test_tir_verifier test_mir_verifier test_partition test_lower_vector test_legalize test_select test_allocate test_emit test_frontend_types test_frontend_shapes test_specialize test_control_flow test_grid_model test_stage_plan test_reductions test_lower_matrix test_lower_scalar test_memory_forms test_atomics; do timeout 590 python3 a100c/tests/$t.py || exit 1; done",
+      "exit_code": 0,
+      "observed": "all 20 test files exit 0 (17 pre-existing regression files green after the boundary updates below + the 3 new T011 files)"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; timeout 590 python3 tools/check_masked_tails.py --witness",
+      "exit_code": 0,
+      "observed": "real artifact compares PASS, guard intact; the tail-predicate-removed build corrupts the guard as required"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; timeout 590 python3 tools/check_stage_barriers.py --witness",
+      "exit_code": 0,
+      "observed": "threads=8 repeats=16 PASS; the barrier-removed build fails as required"
+    }
+  ],
+  "acceptance": [
+    {
+      "ref": "acceptance[0]",
+      "command": "set -a; . ./.env; set +a; timeout 590 python3 a100c/tests/test_memory_forms.py",
+      "exit_code": 0,
+      "observed": "blockptr-leaky-relu-strided-all-shapes-threads and blockptr-diag-scale-advance-loop-all-shapes-threads PASS: every declared shape (including the (1,1) degenerate and the (33,65) ragged two-axis case) at 1/2/4/8 workers, one artifact per identity; make_block_ptr/advance/boundary_check/padding_option all exercised. The other mem.blockptr-family corpus operators (grouped_mm, matmul_*, flash_varlen, matrix_reduction, pow_scalar_tensor) refuse located on their out-of-slice parts (dot is T014, layout ops are T012, fp64/bf16 widths are T012) -- verified for grouped_gemm in test_atomics; the block-pointer machinery itself is the shared desugaring all of them ride."
+    },
+    {
+      "ref": "acceptance[1]",
+      "command": "set -a; . ./.env; set +a; timeout 590 python3 a100c/tests/test_atomics.py",
+      "exit_code": 0,
+      "observed": "atomic-bitmap-all-eight-ops-threads, atomic-add-cross-program-accumulation-threads (count_nonzero: every program's i64 atomic_add lands exactly once at 1/2/4/8), atomic-add-block-masked-threads (bincount), atomic-add-fp32-synthesis-scatter-threads and atomic-min-fp32-scalar-synthesis-threads PASS. The pointer-table pattern executes with the relocation applied and restored (test_memory_forms: pointer-table-relocation-applied-and-restored, compare PASS + the table's original bytes restored after the run); grouped_gemm_kernel itself refuses located on its out-of-slice parts (never a silent miscompile)."
+    },
+    {
+      "ref": "acceptance[2]",
+      "command": "set -a; . ./.env; set +a; timeout 590 python3 a100c/tests/test_atomics.py",
+      "exit_code": 0,
+      "observed": "guard-region-real-build-intact: the masked block atomic's disabled lanes (addressing output bytes 132..511 behind a 33-int row) leave the 256-byte poison guard untouched and the outputs compare PASS. guard-region-witness-degraded-build-corrupts: the witness_drop_atomic_masks build (a separate artifact identity) corrupts the guard (5b5a5ada... != 5a5a5ada...) -- the no-access property is load-bearing, the check can fail."
+    },
+    {
+      "ref": "acceptance[3]",
+      "command": "set -a; . ./.env; set +a; timeout 590 python3 a100c/tests/test_atomics.py && timeout 590 python3 a100c/tests/test_memory_forms.py",
+      "exit_code": 0,
+      "observed": "sem-scope-mapping-emits-declared-forms: all 12 (sem, scope) pairs of the declared ATOMIC_ORDERING table emit their amoadd.{aq|rl|aqrl} form and the scope=sys fence iorw,iorw, asserted on the emitted assembly of executed kernels; default-sem-scope-acq-rel-gpu and unsigned-min-selects-u-row-and-executes PASS. memory-hint-classification-recorded-in-surface: cache_modifier/eviction_policy ignorable-with-reason (performance-only under the pinned endpoint), boundary_check/padding_option/volatile implemented, ignorable-hints-recorded-countable (the recorded parameter set), volatile-carried-on-the-load (the TIR flag)."
+    }
+  ],
+  "tests": [
+    {
+      "ref": "tests[0]",
+      "command": "set -a; . ./.env; set +a; timeout 590 python3 a100c/tests/test_lower_scalar.py",
+      "exit_code": 0,
+      "observed": "8 checks PASS"
+    },
+    {
+      "ref": "tests[1]",
+      "command": "set -a; . ./.env; set +a; timeout 590 python3 a100c/tests/test_memory_forms.py",
+      "exit_code": 0,
+      "observed": "16 checks PASS"
+    },
+    {
+      "ref": "tests[2]",
+      "command": "set -a; . ./.env; set +a; timeout 590 python3 a100c/tests/test_atomics.py",
+      "exit_code": 0,
+      "observed": "12 checks PASS"
+    }
+  ],
+  "evidence": "40/40 executed-and-compared corpus runs (10 operator/shape combinations x threads 1/2/4/8) PASS under the declared QEMU endpoint with each case's own comparison policy: count_nonzero (x2 shapes), bincount (x2), scatter_atomic, atomic_bitmap, leak_relu_strided (x2), diag_scale (x2). The three new test files contribute 36 executed checks (every comparison against an independent numpy reference computed in the case layer). The guard-region witness: real build intact + degraded build corrupts the poison (the no-access property is load-bearing). The sem/scope forms are asserted on the emitted assembly of executed kernels (amoadd.w/.aq/.rl/.aqrl, fence iorw,iorw for scope=sys, amominu for the unsigned pointee). The wide-access selection is asserted on the selection mnemonics (vle32.v/vse32.v selected for the proven-contiguous kernel; vluxei64.v kept for the indirect control).",
+  "design_issue": {},
+  "debug_request": {},
+  "attack": {},
+  "remaining_work": [
+    "The remaining mem.blockptr-family operators (grouped_mm, matmul_abt, matmul_kernel_1334dd27, flash_varlen_fwd, matrix_reduction, pow_scalar_tensor) compile once their out-of-slice dependencies land: dot lowering breadth (T014), the layout/conversion matrix incl. bf16/fp64 element widths (T012), and the math library (T013); the block-pointer desugaring, atomics and scalar paths they ride are this task's deliverables.",
+    "min_reduce_lastdim_partials_kernel refuses at the grid model (its shape scalars are constexpr-typed, so no bundle-visible quantity can tie the grid axis) -- a gridmodel boundary, not an atomic one; its atomic_min construct is validated by the equivalent scalar-fp32 form.",
+    "Multi-chunk tl.gather (a block the chunk plan splits into several vl-sized pieces) refuses located pending the layout lane's whole-block materialization; the single-chunk register permute is implemented and executed.",
+    "The fp16/bf16 element-width cases of the in-slice operators still refuse located (SEW!=32 is the declared T012 boundary); the atomic and block-pointer machinery is width-parameterized where it executes."
+  ],
+  "end_revision": "",
+  "at": "2026-11-04T20:59:42.532288+00:00"
+}

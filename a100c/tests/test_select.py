@@ -78,10 +78,14 @@ def check_slice_selection():
         check("slice-selects-fully", False, str(exc)[:100])
         return
     mnemonics = {s.mnemonic for s in selection.values()}
+    # T011's wide-access selection: this kernel's structurally proven
+    # contiguous accesses select the unit-stride forms (vle32.v/vse32.v)
+    # instead of the indexed vluxei64/vsuxei64, and the address
+    # widening/scaling ops (vwadd.vx, vmul.vx) disappear with them
     expected = {"vsetvli", "vid.v", "vmv.v.x", "vadd.vv", "vadd.vx",
                 "vmslt.vv", "vmflt.vv", "vfmul.vv", "vfsgnjn.vv",
-                "vmerge.vvm", "vmv1r.v", "vluxei64.v", "vsuxei64.v",
-                "vcpop.m", "vwadd.vx", "vmul.vx", "li", "ld", "lwu",
+                "vmerge.vvm", "vmv1r.v", "vle32.v", "vse32.v",
+                "vcpop.m", "li", "ld", "lwu",
                 "add", "addw", "sub", "mulw", "divu", "slt",
                 "mv", "addiw", "sd", "j", "bne", "ret"}
     missing = expected - mnemonics

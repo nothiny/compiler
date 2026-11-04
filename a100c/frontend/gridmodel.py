@@ -229,6 +229,13 @@ _TRACE_BUILTINS = {"int", "tuple", "len", "min", "max", "abs", "dict",
 _NP_CTORS = {"zeros", "empty", "ones", "full", "zeros_like", "empty_like",
              "ones_like", "arange", "tile", "repeat"}
 
+#: np scalar dtype casts: a value-preserving cast of one tracked scalar
+#: (``np.int32(n)`` as a kernel argument keeps ``n``'s provenance -- the
+#: grid model ties the argument to the same bundle-visible quantity)
+_NP_SCALAR_CASTS = {"bool_", "int8", "int16", "int32", "int64",
+                    "uint8", "uint16", "uint32", "uint64",
+                    "float16", "float32", "float64", "int_", "float_"}
+
 #: rng methods whose last positional argument is the size
 _RNG_SIZE_METHODS = {"standard_normal", "normal", "integers", "random",
                      "rand", "randn", "choice", "permutation"}
@@ -621,9 +628,13 @@ class _Interpreter:
                   "div": _op.truediv, "floordiv": _op.floordiv,
                   "mod": _op.mod, "pow": _op.pow}[opname]
             return _lit(fn(lhs.concrete, rhs.concrete))
-        # symbolic arithmetic: both sides must carry grid expressions;
-        # otherwise the value is untracked (a grid axis consuming it
-        # refuses at the axis check -- conservative, never a guess)
+        # symbolic arithmetic: both sides must carry grid expressions
+        # (integer literals already carry Lit leaves from _lit; a value
+        # with a concrete payload but no grid expression -- a case
+        # parameter like the seed, which is not an identity input -- is
+        # untracked: baking it would break case-to-artifact reuse); a
+        # grid axis consuming an untracked value refuses at the axis
+        # check -- conservative, never a guess
         if lhs.gexpr is None or rhs.gexpr is None:
             def _why(v):
                 if v.opaque:
@@ -745,6 +756,11 @@ class _Interpreter:
             if tail in _NP_CTORS:
                 return self._np_ctor(node, tail,
                                      [self._eval(a) for a in node.args])
+            if tail in _NP_SCALAR_CASTS and len(node.args) == 1:
+                # a scalar dtype cast preserves the value and its
+                # provenance (the cast never changes what the argument
+                # equals -- the tie the grid model needs survives it)
+                return self._eval(node.args[0])
             if tail == "ceil" and len(node.args) == 1:
                 arg = node.args[0]
                 if isinstance(arg, ast.BinOp) and isinstance(arg.op, ast.Div):
@@ -931,6 +947,19 @@ def _module_constants(source: OperatorSource) -> Dict[str, object]:
         if (isinstance(node, ast.Assign) and len(node.targets) == 1
                 and isinstance(node.targets[0], ast.Name)):
             name, value = node.targets[0].id, node.value
+        elif (isinstance(node, ast.Assign) and len(node.targets) == 1
+                and isinstance(node.targets[0], (ast.Tuple, ast.List))
+                and isinstance(node.value, (ast.Tuple, ast.List))
+                and len(node.targets[0].elts) == len(node.value.elts)):
+            # tuple-unpacked module constants (BLOCK_M, BLOCK_N = 32, 128
+            # -- the corpus's block-size idiom)
+            for t, v in zip(node.targets[0].elts, node.value.elts):
+                if isinstance(t, ast.Name):
+                    try:
+                        out[t.id] = ast.literal_eval(v)
+                    except (ValueError, SyntaxError):
+                        continue
+            continue
         elif (isinstance(node, ast.AnnAssign)
                 and isinstance(node.target, ast.Name)
                 and node.value is not None):
@@ -1251,13 +1280,15 @@ def extract_grid(source: OperatorSource, case: dict) -> GridModel:
         kind = tie[0]
         if kind == "scalar":
             value = (case.get("args") or {}).get(tie[1])
-            if isinstance(value, bool) or not isinstance(value, int):
+            import numbers as _numbers
+            if isinstance(value, bool) \
+                    or not isinstance(value, _numbers.Integral):
                 raise GridError(
                     source.path, make_case.lineno, make_case.col_offset + 1,
                     "grid",
                     f"tied scalar argument {tie[1]!r} is not an integer at "
                     "compile time; a grid extent must be integral")
-            concrete[key] = value
+            concrete[key] = int(value)
         elif kind == "view_extent":
             view, axis = tie[1], tie[2]
             shape = arrays.get(str(view))

@@ -556,10 +556,13 @@ class Op:
     @staticmethod
     def load(ptr: Value, mask: Optional[Value], masked_default: Optional[str],
              other: Optional[Value] = None,
-             loc: Optional[SrcLoc] = None) -> "Op":
+             loc: Optional[SrcLoc] = None,
+             volatile: bool = False) -> "Op":
         attrs: dict = {}
         if mask is not None:
             attrs["masked_default"] = masked_default
+        if volatile:
+            attrs["volatile"] = True
         return Op("load", tuple(v for v in (ptr, mask, other) if v is not None),
                   loc, ptr.type.pointee, ptr.shape, attrs=attrs)
 
@@ -576,6 +579,90 @@ class Op:
     @staticmethod
     def barrier(loc: Optional[SrcLoc] = None) -> "Op":
         return Op("debug_barrier", (), loc, None, None, results=0)
+
+    # -- T011: memory access breadth and atomics --------------------------
+
+    @staticmethod
+    def hint(value: Value, multiple_of: Optional[int] = None,
+             max_contiguous: Optional[int] = None,
+             loc: Optional[SrcLoc] = None) -> "Op":
+        """An alignment/contiguity promise attached to a value
+        (``tl.multiple_of`` / ``tl.max_contiguous``).
+
+        The hint is a *promise about the value's lanes*, never a
+        requirement: the identity result carries the recorded facts and
+        the wide-access proof consults them; a proof without a hint
+        declines (the access keeps its masked/indexed form).  Ignoring a
+        hint is always safe.
+        """
+        attrs = {}
+        if multiple_of is not None:
+            attrs["multiple_of"] = int(multiple_of)
+        if max_contiguous is not None:
+            attrs["max_contiguous"] = int(max_contiguous)
+        return Op("hint", (value,), loc, value.type, value.shape,
+                  attrs=attrs)
+
+    @staticmethod
+    def atomic_rmw(op: str, ptr: Value, val: Value,
+                   mask: Optional[Value], masked_default: Optional[str],
+                   sem: str, scope: str,
+                   loc: Optional[SrcLoc] = None) -> "Op":
+        """An atomic read-modify-write (``tl.atomic_add/max/min/xchg/and/
+        or/xor``): the result is the OLD value at every position.
+
+        Carries (IR-SEMANTIC-FIDELITY): the operation ``op``; the mask
+        with its DECLARED disabled-position semantics (no-access -- a
+        masked atomic performs no access at disabled positions); the
+        ``sem``/``scope`` ordering pair the lowering maps onto the
+        declared RVWMO model; the pointee's own signedness (min/max keep
+        it).  The old value at disabled positions is undefined.
+        """
+        attrs = {"op": op, "sem": sem, "scope": scope}
+        if mask is not None:
+            attrs["masked_default"] = masked_default
+        return Op("atomic_rmw",
+                  tuple(v for v in (ptr, val, mask) if v is not None),
+                  loc, ptr.type.pointee, ptr.shape, attrs=attrs)
+
+    @staticmethod
+    def atomic_cas(ptr: Value, cmp: Value, val: Value,
+                   mask: Optional[Value], masked_default: Optional[str],
+                   sem: str, scope: str,
+                   loc: Optional[SrcLoc] = None) -> "Op":
+        """An atomic compare-and-swap (``tl.atomic_cas``): when the old
+        value equals ``cmp`` it becomes ``val``; the result is the OLD
+        value (undefined at disabled positions of a masked form)."""
+        attrs = {"sem": sem, "scope": scope}
+        if mask is not None:
+            attrs["masked_default"] = masked_default
+        return Op("atomic_cas",
+                  tuple(v for v in (ptr, cmp, val, mask) if v is not None),
+                  loc, ptr.type.pointee, ptr.shape, attrs=attrs)
+
+    @staticmethod
+    def gather(src: Value, index: Value, axis: int,
+               loc: Optional[SrcLoc] = None) -> "Op":
+        """``out[i...] = src[index[i...]]`` along ``axis``
+        (``tl.gather``): the result carries the index's shape."""
+        return Op("gather", (src, index), loc, src.type, index.shape,
+                  attrs={"axis": axis})
+
+    @staticmethod
+    def interleave(a: Value, b: Value,
+                   loc: Optional[SrcLoc] = None) -> "Op":
+        """``r[2i] = a[i]``, ``r[2i+1] = b[i]`` (``tl.interleave``): the
+        last extent doubles (a compile-time extent; a symbolic last axis
+        is constructed by the frontend as an explicit expression, never
+        guessed here)."""
+        last = a.shape[-1]
+        if not isinstance(last.value, int):
+            raise ValueError(
+                "interleave requires a compile-time last extent (the "
+                "doubled extent must be nameable)")
+        shape = list(a.shape)
+        shape[-1] = Extent(last.value * 2, last.broadcast)
+        return Op("interleave", (a, b), loc, a.type, tuple(shape))
 
     @staticmethod
     def reduce(value: Value, kind: str, axes: Sequence[int],
@@ -1043,6 +1130,9 @@ def _type_rule_errors(op: Op, errors: list) -> None:
                 return err("'load' result type must equal the pointee type")
             if op.results[0].shape != ptr.shape:
                 return err("'load' result shape must equal the pointer shape")
+        if op.attrs.get("volatile") not in (None, True):
+            return err("'load' volatile must be a flag (the not-elidable "
+                       "carrier)")
     elif op_name == "store":
         if op.results:
             return err("'store' produces no value")
@@ -1144,6 +1234,111 @@ def _type_rule_errors(op: Op, errors: list) -> None:
         if op.operands or op.results:
             return err("'debug_barrier' takes no operands and produces "
                        "nothing")
+    elif op_name == "hint":
+        if len(ops) != 1 or len(op.results) != 1:
+            return err("'hint' takes one operand and produces one value")
+        v = ops[0]
+        if op.results[0].type != v.type \
+                or op.results[0].shape != v.shape:
+            return err("'hint' preserves the operand's type and shape "
+                       "(it is a recorded promise, never a conversion)")
+        for key in ("multiple_of", "max_contiguous"):
+            val = op.attrs.get(key)
+            if val is not None and (not isinstance(val, int)
+                                    or isinstance(val, bool) or val < 1):
+                return err(f"'hint' {key} must be a positive integer")
+    elif op_name in ("atomic_rmw", "atomic_cas"):
+        need = 2 if op_name == "atomic_rmw" else 3
+        if not op.results:
+            return err(f"'{op_name}' must produce the old value")
+        ptr = ops[0]
+        if not ptr.type.is_pointer():
+            return err(f"'{op_name}' pointer operand must be a pointer, "
+                       f"got {ptr.type!r}")
+        if op.results[0].type != ptr.type.pointee:
+            return err(f"'{op_name}' result type must equal the pointee "
+                       "type (the old value)")
+        if not _same_values(op.results[0].shape, ptr.shape):
+            return err(f"'{op_name}' result extents must equal the pointer "
+                       "extents")
+        vals = ops[1:need]              # the value operands (never the mask)
+        for i, v in enumerate(vals):
+            if v.type != ptr.type.pointee:
+                return err(f"'{op_name}' operand {i + 1} type {v.type!r} "
+                           f"must equal the pointee type "
+                           f"{ptr.type.pointee!r}")
+            if not _same_values(v.shape, ptr.shape):
+                return err(f"'{op_name}' operand {i + 1} extents must "
+                           "equal the pointer extents")
+        mask = ops[need] if len(ops) > need else None
+        if mask is not None:
+            if not mask.type.is_bool():
+                return err(f"'{op_name}' mask must be i1")
+            if not _same_values(mask.shape, ptr.shape):
+                return err(f"'{op_name}' mask extents must equal the "
+                           "pointer extents")
+            declared = op.attrs.get("masked_default")
+            if declared is None:
+                errors.append(TirError(
+                    Invariant.MASKED_WITHOUT_DEFAULT, op.loc,
+                    f"masked '{op_name}' without a declared disabled-"
+                    "position default (no-access)"))
+            elif declared != MaskedDefault.NO_ACCESS:
+                return err(f"masked '{op_name}' must declare no-access "
+                           "semantics for disabled positions (a masked "
+                           "atomic performs no access there)")
+        if op_name == "atomic_rmw" and op.attrs.get("op") not in (
+                "add", "max", "min", "xchg", "and", "or", "xor"):
+            return err(f"'atomic_rmw' op {op.attrs.get('op')!r} is not "
+                       "declared")
+        if op.attrs.get("sem") not in ("relaxed", "acquire", "release",
+                                       "acq_rel"):
+            return err(f"'{op_name}' sem {op.attrs.get('sem')!r} is not "
+                       "declared")
+        if op.attrs.get("scope") not in ("gpu", "sys", "cta"):
+            return err(f"'{op_name}' scope {op.attrs.get('scope')!r} is "
+                       "not declared")
+    elif op_name == "gather":
+        if len(ops) != 2 or len(op.results) != 1:
+            return err("'gather' takes a source and an index and produces "
+                       "one value")
+        src, index = ops
+        if src.rank == 0 or index.rank == 0:
+            return err("'gather' operates on block values")
+        if not index.type.is_int():
+            return err(f"'gather' index must be integer, got "
+                       f"{index.type!r}")
+        if op.results[0].type != src.type:
+            return err("'gather' preserves the source element type")
+        if op.results[0].shape != index.shape:
+            return err("'gather' result shape is the index's shape")
+        axis = op.attrs.get("axis")
+        if not isinstance(axis, int) or isinstance(axis, bool) \
+                or not 0 <= axis < src.rank:
+            return err(f"'gather' axis {axis!r} outside the source rank "
+                       f"{src.rank}")
+    elif op_name == "interleave":
+        if len(ops) != 2 or len(op.results) != 1:
+            return err("'interleave' takes two operands and produces one "
+                       "value")
+        a, b = ops
+        if a.type != b.type:
+            return err(f"'interleave' operand types differ: {a.type!r} vs "
+                       f"{b.type!r}")
+        if a.rank == 0:
+            return err("'interleave' operates on block values")
+        if not _same_values(a.shape, b.shape):
+            return err("'interleave' operand extent values must agree")
+        if op.results[0].type != a.type:
+            return err("'interleave' preserves the element type")
+        last = a.shape[-1].value
+        if not isinstance(last, int) \
+                or value_shape(op.results[0].shape)[-1] != last * 2:
+            return err("'interleave' result last extent must double the "
+                       "operands' (a compile-time extent)")
+        if value_shape(op.results[0].shape)[:-1] != \
+                value_shape(a.shape)[:-1]:
+            return err("'interleave' preserves the leading extents")
     elif op_name == "reduce":
         if len(ops) != 1 or not op.results:
             return err("'reduce' takes one operand and produces a value")
@@ -1468,12 +1663,15 @@ def _verify_block(block: Block, scope: _Scope, errors: list,
                 _check_use(operand, f"op '{stmt.op}' operand {i}", stmt.loc,
                            scope, errors)
             _type_rule_errors(stmt, errors)
-            if stmt.op in ("load", "store"):
+            if stmt.op in ("load", "store", "atomic_rmw", "atomic_cas"):
                 _require_real(stmt.operands[0], "memory pointer operand",
                               stmt, errors)
-                if stmt.op == "store":
-                    _require_real(stmt.operands[1], "store value operand",
-                                  stmt, errors)
+                if stmt.op in ("store", "atomic_rmw", "atomic_cas"):
+                    _require_real(stmt.operands[1],
+                                  f"{stmt.op} value operand", stmt, errors)
+            if stmt.op == "gather":
+                _require_real(stmt.operands[1], "gather index operand",
+                              stmt, errors)
             for r in stmt.results:
                 for key in r.scope_names():
                     scope.define(key, r)

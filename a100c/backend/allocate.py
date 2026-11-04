@@ -234,6 +234,14 @@ def _interference(fn: mir.MFunction) -> Tuple[Dict[int, Set[int]], Dict[int, Set
             if op.opcode == "callbarrier":
                 for rid in after:
                     avoid.setdefault(rid, set()).update(CALLER_SAVED)
+            if op.opcode == "vrgather":
+                # RVV vrgather: the destination must not overlap either
+                # source (the index is read while the destination is
+                # written -- vd == vs1 is an illegal form the hardware
+                # traps on)
+                for o in op.operands:
+                    for r in op.results:
+                        edge(r.rid, o.rid)
         for _target, args in b.branch_args().items():
             for a in args:
                 touch(a)
@@ -435,9 +443,18 @@ def _split_value(fn: mir.MFunction, reg: mir.VReg, slot: int) -> bool:
 
 
 def _pick_victim(fn: mir.MFunction, fixed: Dict[int, str],
-                 exclude: Set[int]) -> Optional[mir.VReg]:
-    """The fallback spill candidate: the least-used non-fixed, non-excluded
-    value (masks and non-m1/m2 vectors are not spillable in this slice)."""
+                 exclude: Set[int],
+                 failed: Optional[mir.VReg] = None,
+                 graph: Optional[Dict[int, set]] = None) -> Optional[mir.VReg]:
+    """The fallback spill candidate.
+
+    When the failing value is known (and already split once), prefer one of
+    its interference neighbours: a neighbour's range covers the failure
+    point by definition, so spilling it relieves the actual pressure (the
+    globally least-used value may live nowhere near the failure and split
+    uselessly).  Among the neighbours, the least-used one is the cheapest
+    to spill.  Masks and non-m1/m2 vectors are not spillable in this slice.
+    """
     use_counts: Dict[int, int] = {}
     regs: Dict[int, mir.VReg] = {}
     reload_defs: Set[int] = set()
@@ -451,15 +468,26 @@ def _pick_victim(fn: mir.MFunction, fixed: Dict[int, str],
                 use_counts[o.rid] = use_counts.get(o.rid, 0) + 1
             for r in op.results:
                 regs[r.rid] = r
+
+    def spillable(reg: mir.VReg) -> bool:
+        if reg.rid in fixed or reg.rid in exclude or reg.is_mask():
+            return False
+        if reg.rid in reload_defs:
+            return False                  # already a short-range reload
+        if reg.is_vector() and reg.type.lmul not in (1, 2):
+            return False
+        return True
+
+    if failed is not None and graph is not None:
+        neighbours = [regs[n] for n in graph.get(failed.rid, ())
+                      if n in regs and spillable(regs[n])]
+        for reg in sorted(neighbours,
+                          key=lambda r: (use_counts.get(r.rid, 0), r.rid)):
+            return reg
     for reg in sorted(regs.values(), key=lambda r: (use_counts.get(r.rid, 0),
                                                     r.rid)):
-        if reg.rid in fixed or reg.rid in exclude or reg.is_mask():
-            continue
-        if reg.rid in reload_defs:
-            continue                      # already a short-range reload
-        if reg.is_vector() and reg.type.lmul not in (1, 2):
-            continue
-        return reg
+        if spillable(reg):
+            return reg
     return None
 
 
@@ -497,7 +525,7 @@ def _allocate_function(module: mir.MModule, fn: mir.MFunction,
                 None, f"allocation did not converge for '{fn.name}' after "
                 f"{rounds} spill rounds (each round splits one value)")
         victim = failed if failed is not None and failed.rid not in split_once \
-            else _pick_victim(fn, fixed, split_once)
+            else _pick_victim(fn, fixed, split_once, failed, graph)
         if victim is None:
             raise AllocationError(
                 None, f"register pressure in '{fn.name}' exceeds the "

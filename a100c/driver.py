@@ -93,8 +93,13 @@ class CompileOptions:
     #: witness-only degraded build (tools/check_stage_barriers.py): the
     #: stage barrier call is dropped from the two-phase split path so the
     #: cross-worker visibility race becomes observable; recorded in the
-    #: artifact identity so it can never leak into the normal cache
+    #: artifact identity when set
     witness_drop_stage_barrier: bool = False
+    #: witness-only degraded build (T011 test_atomics.py): the masked
+    #: block atomic's disabled-lane address redirection is dropped so the
+    #: out-of-range lanes touch a poisoned guard region; recorded in the
+    #: artifact identity when set
+    witness_drop_atomic_masks: bool = False
 
     def identity_part(self) -> str:
         parts = []
@@ -102,6 +107,8 @@ class CompileOptions:
             parts.append("witness-drop-tail-predicates")
         if self.witness_drop_stage_barrier:
             parts.append("witness-drop-stage-barrier")
+        if self.witness_drop_atomic_masks:
+            parts.append("witness-drop-atomic-masks")
         if not self.dumps:
             parts.append("no-dumps")      # dumps do not affect the ELF
         return ",".join(parts) if parts else "default"
@@ -257,7 +264,8 @@ class Compiler:
         # 6. TIR -> MIR + verification
         options = LowerOptions(
             witness_drop_tail_predicates=self.options.witness_drop_tail_predicates,
-            witness_drop_stage_barrier=self.options.witness_drop_stage_barrier)
+            witness_drop_stage_barrier=self.options.witness_drop_stage_barrier,
+            witness_drop_atomic_masks=self.options.witness_drop_atomic_masks)
         try:
             mir_module = vectorize.lower_to_mir(tir_module, plan, self.target,
                                                 layout, grid, options)

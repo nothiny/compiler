@@ -90,11 +90,18 @@ def check_program_shape():
     blocks = [b.name for fn in module.functions for b in fn.blocks]
     check("one-label-per-block",
           all(f".L{b}:" in text for b in blocks), str(blocks))
+    # T011's wide-access selection: this kernel's proven-contiguous
+    # accesses take the unit-stride form, so the e64m2 address region may
+    # be absent entirely (the data region is always emitted)
     check("vsetvli-regions-emitted",
-          "e32, m1, ta,ma" in text and "e64, m2, ta,ma" in text)
+          "e32, m1, ta,ma" in text
+          and ("e64, m2, ta,ma" in text or "vle32.v" in text))
+    # the masked vector memory with its v0.t: the indexed forms when the
+    # proof declines, the unit-stride forms when it holds (T011)
     check("masked-indexed-memory-with-v0t",
-          "vluxei64.v " in text and ", v0.t" in text
-          and "vsuxei64.v " in text)
+          ", v0.t" in text
+          and (("vluxei64.v " in text and "vsuxei64.v " in text)
+               or ("vle32.v " in text and "vse32.v " in text)))
     check("note-gnu-stack", '.section .note.GNU-stack' in text)
     # per-edge branch argument moves: condition read first, stubs per edge
     check("brc-edge-stubs", ".Lbrc" in text and "_true:" in text)

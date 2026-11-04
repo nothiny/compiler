@@ -625,7 +625,19 @@ IMPLEMENTED_CONSTRUCTS = {
     "tl.constexpr",                     # annotation + tl.constexpr(...) folding
     "tl.where",
     "tl.zeros", "tl.full", "tl.zeros_like",
-    "tl.multiple_of", "tl.max_contiguous",   # accepted no-op hints
+    "tl.multiple_of", "tl.max_contiguous",   # recorded hint carriers (T011)
+    # memory access breadth and atomics (T011): block pointers desugar to
+    # the whole-tree ptradd + mask + padding forms; atomics lower to the
+    # TIR atomic ops carrying sem/scope; cdiv is the (a+b-1)//b desugar;
+    # gather is the register permute; interleave's composed form is the
+    # standalone program-level lowering (a located refusal in the
+    # elementwise lane names it); pointer_type builds the pointer-typed
+    # cast target of the pointer-table pattern (int64 -> ptr bitcast)
+    "tl.make_block_ptr", "tl.advance",
+    "tl.cdiv", "tl.gather", "tl.interleave", "tl.pointer_type",
+    "tl.atomic_add", "tl.atomic_max", "tl.atomic_min", "tl.atomic_xchg",
+    "tl.atomic_and", "tl.atomic_or", "tl.atomic_xor", "tl.atomic_cas",
+    "tl.debug_barrier",                    # intra-program ordering (T011)
     # control flow and grid generality (T008): the loop forms and the
     # runtime grid-extent read
     "tl.range", "tl.static_range", "tl.num_programs",
@@ -652,20 +664,21 @@ IGNORABLE_PARAMS: Dict[Tuple[str, str], str] = {
     ("triton.jit", "launch_metadata"): "launch telemetry hook; no kernel semantics",
     ("triton.jit", "debug"): "debug-info generation hint; no kernel semantics",
     ("triton.jit", "noinline"): "codegen hint (inlining); no kernel semantics",
-    # memory-system hints on load/store
+    # memory-system hints on load/store (performance-only under the
+    # declared target model: the functional emulator's memory system has
+    # no cache hierarchy the hints could change; recorded, countable)
     ("tl.load", "cache_modifier"):
-        "cache hint; no effect on loaded values under the declared target model",
+        "cache hint; performance-only (the pinned endpoint's memory system "
+        "has no cache hierarchy to hint -- values are unaffected)",
     ("tl.load", "eviction_policy"):
-        "cache hint; no effect on loaded values under the declared target model",
+        "cache hint; performance-only (the pinned endpoint's memory system "
+        "has no cache hierarchy to hint -- values are unaffected)",
     ("tl.store", "cache_modifier"):
-        "cache hint; no effect on stored values under the declared target model",
+        "cache hint; performance-only (the pinned endpoint's memory system "
+        "has no cache hierarchy to hint -- values are unaffected)",
     ("tl.store", "eviction_policy"):
-        "cache hint; no effect on stored values under the declared target model",
-    # alignment/contiguity promises (optimization facts, not requirements)
-    ("tl.multiple_of", "values"):
-        "divisibility promise; recorded as a fact, ignoring it is always safe",
-    ("tl.max_contiguous", "values"):
-        "contiguity promise; recorded as a fact, ignoring it is always safe",
+        "cache hint; performance-only (the pinned endpoint's memory system "
+        "has no cache hierarchy to hint -- values are unaffected)",
     # autotune machinery: the deterministic first-config choice never tunes
     ("triton.autotune", "key"):
         "tuning granularity; the deterministic first-config choice never re-tunes",
@@ -708,18 +721,9 @@ IGNORABLE_PARAMS: Dict[Tuple[str, str], str] = {
 
 #: semantic-but-unsupported parameters of *implemented* constructs: a call
 #: that passes one is refused with a located diagnostic (never miscompiled)
+#: (T011 consumed the block-pointer machinery: boundary_check, padding_option
+#: and volatile are implemented parameters of tl.load/tl.store now)
 REFUSED_PARAMS: Dict[Tuple[str, str], str] = {
-    ("tl.load", "boundary_check"):
-        "block-pointer boundary checking is semantic and not implemented by "
-        "the elementwise core (make_block_ptr is refused)",
-    ("tl.load", "padding_option"):
-        "padding semantics are semantic and not implemented by the elementwise "
-        "core (block-pointer machinery)",
-    ("tl.load", "volatile"):
-        "volatile ordering is semantic (it forbids elision); not implemented",
-    ("tl.store", "boundary_check"):
-        "block-pointer boundary checking is semantic and not implemented by "
-        "the elementwise core (make_block_ptr is refused)",
 }
 
 #: constructs outside the declared surface entirely (SUBSET.md 6; the

@@ -65,19 +65,28 @@ def materialize_address(ctx, base_reg: mir.VReg, offset_reg: mir.VReg,
     ``base_reg`` itself.  The i64 scale executes in its own e64m2 region
     (probe-verified region switching); the data region is restored after.
     """
-    if not offset_reg.is_vector() or offset_reg.type.sew != 32:
+    if not offset_reg.is_vector() or offset_reg.type.sew not in (32, 64):
         raise AddressError(
-            loc, f"offset '{offset_reg.name}' must be a vi32 vector (i32 "
-                 f"index arithmetic), got {offset_reg.type!r}")
+            loc, f"offset '{offset_reg.name}' must be a vi32/vi64 vector "
+                 f"(index arithmetic), got {offset_reg.type!r}")
+    if offset_reg.type.sew == 64 and offset_reg.type.lmul != 2:
+        raise AddressError(
+            loc, f"the i64 index class must sit at EMUL 2 (the chunk's "
+                 f"lanes at EEW=64), got {offset_reg.type!r}")
     if base_reg.type != mir.I64:
         raise AddressError(
             loc, f"base '{base_reg.name}' must be an i64 view data pointer, "
                  f"got {base_reg.type!r}")
     esz = pointee.bitwidth() // 8
-    wide = ctx.emit(mir.MOp(
-        "vwiden", [offset_reg],
-        [ctx.vreg(mir.VectorType(64, 2, "int"), hint="addrw", loc=loc)],
-        attrs={"mode": "sext"}, loc=loc))
+    if offset_reg.type.sew == 32:
+        wide = ctx.emit(mir.MOp(
+            "vwiden", [offset_reg],
+            [ctx.vreg(mir.VectorType(64, 2, "int"), hint="addrw", loc=loc)],
+            attrs={"mode": "sext"}, loc=loc))
+    else:
+        # the int64 index class: the lanes are already i64 (pid.to(int64)
+        # index arithmetic); the same e64m2 region scales them
+        wide = offset_reg
     avl = ctx.const(vl, mir.I32, loc)
     ctx.emit(mir.MOp("vsetvli", [avl],
                      [ctx.vreg(mir.I32, hint="rega", loc=loc)],
@@ -93,7 +102,7 @@ def materialize_address(ctx, base_reg: mir.VReg, offset_reg: mir.VReg,
                      attrs={"sew": region[0], "lmul": region[1],
                             "policy": "ta,ma"}, loc=loc))
     tree = AddressTree(base=base_reg.name, index=offset_reg.name,
-                       index_sew=32, esz=esz)
+                       index_sew=offset_reg.type.sew, esz=esz)
     return scaled, tree
 
 

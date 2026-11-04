@@ -191,6 +191,20 @@ class _Emitter:
                 return f"v{i}"
         return None
 
+    def _free_gpr(self) -> Optional[str]:
+        """A GPR no allocated value owns and no ABI role reserves (the
+        vector spill/reload address scratch: no call intervenes between
+        the address materialization and the vector access, so a
+        caller-saved register the allocation does not own is safe)."""
+        from a100c.backend.allocate import GPR_NAMES
+        reserved = {"zero", "ra", "sp", "gp", "tp"}
+        used = set(self.alloc.assignment.values())
+        for name in GPR_NAMES:
+            if name in reserved or name in used:
+                continue
+            return name
+        return None
+
     def _emit_move(self, dst: str, src: str, dstv: mir.VReg, op: mir.MOp) -> None:
         if dstv.is_scalar():
             self.emit(f"mv {dst}, {src}", op)
@@ -319,6 +333,27 @@ class _Emitter:
                       "rs1": self.phys(op.operands[1])}
             self.emit(_fmt(selected.entry.form, values), op)
             return
+        if code in ("vunit_load", "vunit_store"):
+            # unit-stride vector memory at the region's SEW; the masked
+            # forms append v0.t (inactive lanes perform no access)
+            selected = self.selection[op.index]
+            values = {"rs1": self.phys(op.operands[0])}
+            if code == "vunit_load":
+                values["vd"] = self.phys(op.results[0])
+            else:
+                values["rs2"] = self.phys(op.operands[1])
+            text = _fmt(selected.entry.form, values)
+            masked = len(op.operands) == (2 if code == "vunit_load" else 3)
+            if masked:
+                text += ", v0.t"
+            self.emit(text, op)
+            return
+        if code == "sfence":
+            selected = self.selection[op.index]
+            values = {"pred": op.attrs["pred"],
+                      "succ": op.attrs["succ"]}
+            self.emit(_fmt(selected.entry.form, values), op)
+            return
         if code == "vunary":
             selected = self.selection[op.index]
             values = {"vd": self.phys(op.results[0]),
@@ -358,28 +393,46 @@ class _Emitter:
             self.emit_epilogue(op)
             return
         if code == "sspill":
-            selected = self.selection[op.index]
+            # allocator-inserted (never selected: selection runs before
+            # allocation); the form is the allocator's own, matching the
+            # repertoire row
             values = {"rs2": self.phys(op.operands[0]),
                       "slot": str(self.slot_offsets[op.attrs["slot"]])}
-            self.emit(_fmt(selected.entry.form, values), op)
+            self.emit(_fmt("sd {rs2}, {slot}(sp)", values), op)
             return
         if code == "sreload":
-            selected = self.selection[op.index]
             values = {"rd": self.phys(op.results[0]),
                       "slot": str(self.slot_offsets[op.attrs["slot"]])}
-            self.emit(_fmt(selected.entry.form, values), op)
+            self.emit(_fmt("ld {rd}, {slot}(sp)", values), op)
             return
         if code == "vspill":
             sew, lmul = op.attrs["sew"], op.attrs["lmul"]
+            off = self.slot_offsets[op.attrs["slot"]]
             self.emit(f"vsetvli x0, x0, e{sew}, m{lmul}, ta, ma", op)
+            # vector unit-stride accesses take a bare base register (no
+            # immediate offset form exists): materialize sp+off in a
+            # scratch GPR no allocated value owns
+            scratch = self._free_gpr()
+            if scratch is None:
+                raise EmissionError(op.loc, "vspill",
+                                    "no free GPR for the spill address "
+                                    "(a located refusal)")
+            self.emit(f"addi {scratch}, sp, {off}", op)
             self.emit(f"vse{sew}.v {self.phys(op.operands[0])}, "
-                      f"{self.slot_offsets[op.attrs['slot']]}(sp)", op)
+                      f"({scratch})", op)
             return
         if code == "vreload":
             sew, lmul = op.attrs["sew"], op.attrs["lmul"]
+            off = self.slot_offsets[op.attrs["slot"]]
             self.emit(f"vsetvli x0, x0, e{sew}, m{lmul}, ta, ma", op)
+            scratch = self._free_gpr()
+            if scratch is None:
+                raise EmissionError(op.loc, "vreload",
+                                    "no free GPR for the reload address "
+                                    "(a located refusal)")
+            self.emit(f"addi {scratch}, sp, {off}", op)
             self.emit(f"vle{sew}.v {self.phys(op.results[0])}, "
-                      f"{self.slot_offsets[op.attrs['slot']]}(sp)", op)
+                      f"({scratch})", op)
             return
         # generic template path (sconst, sload, smove, swext, sbin, s2v, vid,
         # vsetvli, vbin, vbinx)

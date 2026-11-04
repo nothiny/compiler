@@ -106,13 +106,22 @@ def _scalar_rows() -> List[InstructionEntry]:
                        f"{m} {{rs2}}, {{imm}}({{rs1}})",
                        evidence="RV64IMAFDC (F002)"))
     # integer arithmetic: i64 plain, i32 *w forms (i32 values are held
-    # sign-extended; the w forms re-establish that invariant)
+    # sign-extended; the w forms re-establish that invariant).  and/or/xor
+    # have NO *w forms in RV64 -- and none are needed: the bitwise ops on
+    # sign-extended i32 operands produce sign-extended exact i32 results
+    # in the plain 64-bit form
     for width, sfx in ((64, ""), (32, "w")):
         for op, m in (("sadd", "add"), ("ssub", "sub"), ("smul", "mul"),
-                      ("sdivu", "divu"), ("sand", "and"), ("sor", "or"),
-                      ("sxor", "xor"), ("sshl", "sll"), ("ssra", "sra")):
+                      ("sdivu", "divu"), ("sshl", "sll"), ("ssra", "sra"),
+                      ("srl", "srl")):
             rows.append(_E(m + sfx, op, (("width", width),),
                            f"{m}{sfx} {{rd}}, {{rs1}}, {{rs2}}",
+                           evidence="RV64IMAFDC (F002)"))
+        for op, m in (("sand", "and"), ("sor", "or"), ("sxor", "xor")):
+            rows.append(_E(m, op, (("width", width),),
+                           f"{m} {{rd}}, {{rs1}}, {{rs2}}",
+                           notes="no andw/orw/xorw exists; the plain form "
+                                 "is exact on sign-extended i32 operands",
                            evidence="RV64IMAFDC (F002)"))
         rows.append(_E("sdiv", "sdiv", (("width", width),),
                        f"div{sfx} {{rd}}, {{rs1}}, {{rs2}}",
@@ -138,7 +147,8 @@ def _vector_rows() -> List[InstructionEntry]:
     # integer forms (op names are the MIR arith codes; fp operands carry
     # fp=True in the features and select the vf* rows below)
     for op, m in (("add", "vadd"), ("sub", "vsub"), ("mul", "vmul"),
-                  ("and", "vand"), ("or", "vor"), ("xor", "vxor")):
+                  ("and", "vand"), ("or", "vor"), ("xor", "vxor"),
+                  ("srl", "vsrl"), ("sra", "vsra"), ("sll", "vsll")):
         rows.append(_E(m + ".vv", "vbin", (("op", op), ("fp", False)),
                        f"{m}.vv {{vd}}, {{vs2}}, {{vs1}}",
                        evidence="RVV 1.0 (F006/F026)"))
@@ -219,11 +229,20 @@ def _vector_rows() -> List[InstructionEntry]:
                        (("pred", pred), ("fp", False), ("unsigned", True)),
                        f"{m}.vv {{vd}}, {{vs2}}, {{vs1}}", swap_operands=swap,
                        evidence="RVV 1.0 (F006/F026)"))
-    # floating compares (vv): only eq/ne/lt/le exist (no gt/ge forms)
+    # floating compares (vv): only eq/ne/lt/le exist (no gt/ge forms);
+    # gt/ge realize by swapping the operands (gt(a,b) == lt(b,a))
     for pred, m in (("lt", "vmflt"), ("le", "vmfle"),
                     ("eq", "vmfeq"), ("ne", "vmfne")):
         rows.append(_E(m + ".vv", "vcmp", (("pred", pred), ("fp", True)),
                        f"{m}.vv {{vd}}, {{vs2}}, {{vs1}}",
+                       evidence="RVV 1.0 (F006/F026)"))
+    for pred, m, swap in (("gt", "vmflt", True), ("ge", "vmfle", True)):
+        rows.append(_E(m + ".vv", "vcmp", (("pred", pred), ("fp", True)),
+                       f"{m}.vv {{vd}}, {{vs2}}, {{vs1}}",
+                       swap_operands=swap,
+                       notes="no floating gt/ge form exists (see "
+                             "ABSENT_FORMS); the swapped-operand lt/le "
+                             "realizes it",
                        evidence="RVV 1.0 (F006/F026)"))
     for pred, m, swap in (("lt", "vmslt", False), ("le", "vmsle", False),
                           ("eq", "vmseq", False), ("ne", "vmsne", False),

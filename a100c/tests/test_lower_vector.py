@@ -80,11 +80,16 @@ def check_slice_mir():
           str(errors[0]) if errors else "")
     text = mir.dump_module(mir_module)
 
-    # exact vl + region structure: e32m1 data region and e64m2 address region
+    # exact vl + region structure: the e32m1 data region always; the
+    # e64m2 address region only when an access kept its indexed form (the
+    # structurally proven contiguous accesses of this kernel select the
+    # unit-stride wide-access form since T011, which needs no address
+    # region at all)
     vsetvlis = [op for fn in mir_module.functions for b in fn.blocks
                 for op in b.ops if op.opcode == "vsetvli"]
     forms = {(op.attrs["sew"], op.attrs["lmul"]) for op in vsetvlis}
-    check("vsetvli-regions-present", forms == {(32, 1), (64, 2)},
+    check("vsetvli-regions-present",
+          (32, 1) in forms and forms <= {(32, 1), (64, 2)},
           str(sorted(forms)))
     avls = {op.operands[0].name: op for op in vsetvlis}
     # the data region's AVL is the constant 32 (exact vl)
@@ -97,26 +102,44 @@ def check_slice_mir():
                 for op in b.ops)
     check("exact-vl-is-32", exact)
 
-    # masked memory ops with declared inactive semantics
-    loads = [op for fn in mir_module.functions for b in fn.blocks
-             for op in b.ops if op.opcode == "vloadix"]
-    stores = [op for fn in mir_module.functions for b in fn.blocks
-              for op in b.ops if op.opcode == "vstoreix"]
+    # masked memory ops with declared inactive semantics (the indexed
+    # forms vloadix/vstoreix and, for proven-contiguous accesses, the
+    # unit-stride forms vunit_load/vunit_store -- T011's wide-access
+    # selection)
+    def mem_ops(codes):
+        return [op for fn in mir_module.functions for b in fn.blocks
+                for op in b.ops if op.opcode in codes]
+    loads = mem_ops(("vloadix", "vunit_load"))
+    stores = mem_ops(("vstoreix", "vunit_store"))
     check("masked-load-declares-undef",
-          loads and all(len(op.operands) == 3 and op.attrs["default"] == "undef"
-                        for op in loads))
+          loads and all(
+              (op.opcode == "vloadix" and len(op.operands) == 3
+               and op.attrs["default"] == "undef")
+              or (op.opcode == "vunit_load" and len(op.operands) == 2
+                  and op.attrs["default"] == "undef")
+              for op in loads))
     check("masked-store-declares-no-access",
-          stores and all(len(op.operands) == 4
-                         and op.attrs["default"] == "no-access"
-                         for op in stores))
+          stores and all(
+              (op.opcode == "vstoreix" and len(op.operands) == 4
+               and op.attrs["default"] == "no-access")
+              or (op.opcode == "vunit_store" and len(op.operands) == 3
+                  and op.attrs["default"] == "no-access")
+              for op in stores))
+    indexed = [op for op in loads + stores if op.opcode.endswith("ix")]
     check("memory-index-at-eew64",
           all(op.attrs["eew"] == 64 and op.operands[1].type.sew == 64
-              for op in loads + stores))
+              for op in indexed))
 
     # whole-tree address form + independent model check
     trees = mir_module.meta["address_trees"]
+    # whole-tree address records: an indexed access records its tree; a
+    # kernel whose every access selected the unit-stride form records
+    # none (the wide-selection entries in the module meta carry those)
+    wide = mir_module.meta.get("wide_selections") or []
     check("address-trees-recorded",
-          any("+ sext(vi32" in t and "* 4" in t for t in trees), str(trees))
+          any("+ sext(vi32" in t and "* 4" in t for t in trees)
+          or (not trees and wide),
+          f"trees={trees} wide={len(wide)}")
     base = 0x11000
     lanes = list(range(0, 128))
     expected = [base + i * 4 for i in lanes]
@@ -143,10 +166,16 @@ def check_slice_mir():
 def check_witness_option():
     _, _, _, _, _, _, _, mir_module = lower_slice(
         options=vectorize.LowerOptions(witness_drop_tail_predicates=True))
+    # the predicate-dropped memory ops carry NO mask operand: the indexed
+    # forms (vloadix 2 / vstoreix 3 operands) and the unit-stride forms
+    # (vunit_load 1 / vunit_store 2 -- T011's wide-access selection)
+    unmasked_widths = {"vloadix": 2, "vstoreix": 3,
+                       "vunit_load": 1, "vunit_store": 2}
     loads = [op for fn in mir_module.functions for b in fn.blocks
-             for op in b.ops if op.opcode in ("vloadix", "vstoreix")]
+             for op in b.ops if op.opcode in unmasked_widths]
     check("witness-drops-tail-predicates",
-          loads and all(len(op.operands) in (2, 3) for op in loads)
+          loads and all(len(op.operands) == unmasked_widths[op.opcode]
+                        for op in loads)
           and mir_module.meta["witness"] == "witness-drop-tail-predicates")
 
 
@@ -191,7 +220,13 @@ def check_refusals():
         grid_mod.extract_grid(bad_src, case)
         check("untied-grid-refused", False, "no refusal raised")
     except grid_mod.GridError as exc:
-        check("untied-grid-refused", "not provenance-tracked" in str(exc)
+        # the refusal is located either at tracking (the classic form) or
+        # at the tie stage (T011 lets integer literals ride the grid
+        # expression, so an unbundle-visible leaf like a case parameter
+        # refuses when its tie is attempted -- same discipline, later gate)
+        check("untied-grid-refused",
+              "not provenance-tracked" in str(exc)
+              or "not bundle-visible" in str(exc)
               or "cannot be proven" in str(exc), str(exc)[:90])
     finally:
         path.unlink(missing_ok=True)

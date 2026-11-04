@@ -703,13 +703,17 @@ def _escapes_region(value: tir.Value, region_stmts: Sequence,
     # observable effect: a store whose value or pointer is tainted --
     # including a store INSIDE the region (a region-internal store of a
     # partial would write the per-chunk value; its final write needs the
-    # merged value, so the partial escapes through it)
+    # merged value, so the partial escapes through it).  An atomic is the
+    # same class of effect (T011): a region value feeding an atomic's
+    # value or pointer escapes (the atomic must run on the merged value).
     for st in stmt_list:
-        if isinstance(st, tir.Op) and st.op == "store":
+        if isinstance(st, tir.Op) and st.op in ("store", "atomic_rmw",
+                                                "atomic_cas"):
             if any(o.vid in tainted for o in st.operands):
                 return True
     for st in region_stmts:
-        if isinstance(st, tir.Op) and st.op == "store":
+        if isinstance(st, tir.Op) and st.op in ("store", "atomic_rmw",
+                                                "atomic_cas"):
             if any(o.vid in tainted for o in st.operands):
                 return True
     return False
@@ -802,12 +806,13 @@ def build_stage_plan(module: tir.Module) -> TwoPhasePlan:
     if not ok:
         plan.reason = f"post-region statements are not scalar-only: {why}"
         return plan
-    for st in _walk_statements(list(region) + list(suffix)):
-        if isinstance(st, tir.Op) and st.op == "debug_barrier":
-            plan.reason = ("a debug_barrier inside the reduction region "
-                           "(the stage contract requires equal barrier "
-                           "counts per worker; the split would break it)")
-            return plan
+    # a debug_barrier inside the region breaks only the TWO-PHASE SPLIT
+    # (the stage contract requires equal barrier counts per worker); the
+    # within-program chunk merge still applies, so the partials are built
+    # below regardless and the plan stays ineligible
+    barrier_in_region = any(
+        isinstance(st, tir.Op) and st.op == "debug_barrier"
+        for st in _walk_statements(list(region) + list(suffix)))
 
     # region-exit values: reduce results and loop-exit joins defined in
     # the region that the suffix uses
@@ -894,6 +899,12 @@ def build_stage_plan(module: tir.Module) -> TwoPhasePlan:
         return plan
 
     plan.partials = tuple(partials)
+    if barrier_in_region:
+        plan.reason = ("a debug_barrier inside the reduction region (the "
+                       "two-phase split requires equal barrier counts per "
+                       "worker); the within-program chunk merge still "
+                       "applies")
+        return plan
     plan.layout = plan.layout_for(max(SPLIT_WORKERS))
     plan.eligible = True
     plan.reason = (f"{len(partials)} partial(s), two-phase split at "
