@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-04T08:50:10.976166+00:00",
+  "updated_at": "2026-11-04T08:50:11.187075+00:00",
   "facts": [
     {
       "id": "F001",
@@ -316,6 +316,15 @@
       "statement": "Measured IME availability under the pinned QEMU endpoint (jdsk-qemu 10.0.2, -cpu max,vlen=1024,elen=64,vext_spec=v1.0): int8, int4 and fp16 matrix probes are EXECUTED_AND_COMPARED_PASS with counted dynamic executions (smt.vmadot for int8/int4, smt.vfwmadot for fp16, one execution each at fixed pc); the BF16 matrix probe FAILS (exit 1, passed=false) while its executed smt.vfwmadot selects the MCPM float16 operand format - the pinned emulator's BF16 IME format selection has NOT passed and remains unverified; FP16 or ordinary vector success cannot prove BF16 IME execution and BF16 cases must be preserved with the gap recorded separately. The MCPM control CSR is not accessible from userspace (recorded csr probe returncode -4, zero matrix executions; fresh probes report default-no-userspace-access).",
       "source": "probe: docs/compiler-agent/TOOLCHAIN_PROBES.json matrix rows int8/int4/fp16 EXECUTED_AND_COMPARED_PASS and bf16 UNSUPPORTED_OR_FAILED (returncode 1, operand_format MCPM-selected-float16) and csr row (returncode -4); fresh 2026-11-04 re-runs in docs/compiler-agent/ENVIRONMENT.md (facts F009/F010/F011)",
       "confidence": "RUNTIME_PROBE",
+      "status": "active",
+      "category": "isa",
+      "origin": "input"
+    },
+    {
+      "id": "F035",
+      "statement": "IME data-layout transformation instructions: smt.vpack.vv, smt.vupack.vv, smt.vnpack.vv, smt.vnspack.vv, smt.vnpack4.vv, smt.vnspack4.vv (functionally equivalent to Zvzip vzip.vv / vunzipe.v / vunzipo.v / vpaire.vv / vpairo.v); imm2 selects interleave granularity (SEW/128/256/512-bit for pack/upack; 32/64/128/256-bit for the narrowing forms); vd must be even-numbered for vpack/vupack; bit [14] distinguishes normal vs saturating narrowing; encoding uses the 0101011 opcode with vd[4:1] packing where the even-register constraint frees bit 0.",
+      "source": "docs/compiler-agent/target-material/sources/bd69e01a6280ae5ab4493ea82b0e819fb34f093da43c264fc3be3c6291a8c6c8/ime_extension.md.search.txt:509-513 (Ch.3),585-592 (4.3),2255-2311 (8.6)",
+      "confidence": "FACT",
       "status": "active",
       "category": "isa",
       "origin": "input"
@@ -826,6 +835,12 @@
       "phase": "CHIP_ANALYSIS",
       "event": "fact",
       "detail": "F034 [isa/RUNTIME_PROBE/input] probe: docs/compiler-agent/TOOLCHAIN_PROBES.json matrix rows int8/int4/fp16 EXECUTED_AND_COMPARED_PASS and bf16 UNSUPPORTED_OR_FAILED (returncode 1, operand_format MCPM-selected-float16) and csr row (returncode -4); fresh 2026-11-04 re-runs in docs/compiler-agent/ENVIRONMENT.md (facts F009/F010/F011)"
+    },
+    {
+      "at": "2026-11-04T08:50:11.187028+00:00",
+      "phase": "CHIP_ANALYSIS",
+      "event": "fact",
+      "detail": "F035 [isa/FACT/input] docs/compiler-agent/target-material/sources/bd69e01a6280ae5ab4493ea82b0e819fb34f093da43c264fc3be3c6291a8c6c8/ime_extension.md.search.txt:509-513 (Ch.3),585-592 (4.3),2255-2311 (8.6)"
     }
   ]
 }
