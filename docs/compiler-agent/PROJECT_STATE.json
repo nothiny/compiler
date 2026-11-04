@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-04T08:49:50.615359+00:00",
+  "updated_at": "2026-11-04T08:49:50.820514+00:00",
   "facts": [
     {
       "id": "F001",
@@ -279,6 +279,15 @@
       "id": "F030",
       "statement": "A100 IME tile shapes and implementation parameters (LMUL=1 tiles): INT4 x INT4 -> INT32 tile 8x32x8; INT8 x INT8 -> INT32 tile 8x16x8 (integer family: lambda=4, MUL_C=2, SEW=32); FP16/BF16 x FP16/BF16 -> FP32 tile 8x8x8 (MUL_C=2, SEW=32); 4:2 structured sparse: INT4 8x64x8, INT8 8x32x8; block-scaled integer (Int4/Int8 + FP16/BF16 scale -> FP16/BF16): lambda=8, MUL_C=1, SEW=16, tiles 8x32x8 (Int4) / 8x16x8 (Int8); sliding-window variants keep their base family tile. lambda is fixed per instruction family and NOT configurable via vtype; MUL_C = VLEN/(SEW x lambda^2).",
       "source": "docs/compiler-agent/target-material/sources/bd69e01a6280ae5ab4493ea82b0e819fb34f093da43c264fc3be3c6291a8c6c8/ime_extension.md.search.txt:274-317 (2.1.2),371-396 (2.5),2313-2329 (App. A)",
+      "confidence": "FACT",
+      "status": "active",
+      "category": "isa",
+      "origin": "input"
+    },
+    {
+      "id": "F031",
+      "statement": "IME operand and data-layout contract: vs1 holds tile A (row-major), vs2 holds tile B (column-major); B^T in the semantics C <- C + A x B^T is a geometric layout statement and does NOT require a software transpose of B; vd holds both the initial accumulator and the result with an implementation-defined result layout; Int4 inputs use packed nibble storage (element 2n in bits [3:0], 2n+1 in bits [7:4] of byte n); EEW=8/16 use standard linear vector element ordering; integer signedness variants (none/u/us/su) select signed/unsigned interpretation of A and B with the accumulator always signed.",
+      "source": "docs/compiler-agent/target-material/sources/bd69e01a6280ae5ab4493ea82b0e819fb34f093da43c264fc3be3c6291a8c6c8/ime_extension.md.search.txt:67-86 (1.4),144-155 (1.5),437-479 (2.7),529-538 (4.2)",
       "confidence": "FACT",
       "status": "active",
       "category": "isa",
@@ -766,6 +775,12 @@
       "phase": "CHIP_ANALYSIS",
       "event": "fact",
       "detail": "F030 [isa/FACT/input] docs/compiler-agent/target-material/sources/bd69e01a6280ae5ab4493ea82b0e819fb34f093da43c264fc3be3c6291a8c6c8/ime_extension.md.search.txt:274-317 (2.1.2),371-396 (2.5),2313-2329 (App. A)"
+    },
+    {
+      "at": "2026-11-04T08:49:50.820466+00:00",
+      "phase": "CHIP_ANALYSIS",
+      "event": "fact",
+      "detail": "F031 [isa/FACT/input] docs/compiler-agent/target-material/sources/bd69e01a6280ae5ab4493ea82b0e819fb34f093da43c264fc3be3c6291a8c6c8/ime_extension.md.search.txt:67-86 (1.4),144-155 (1.5),437-479 (2.7),529-538 (4.2)"
     }
   ]
 }
