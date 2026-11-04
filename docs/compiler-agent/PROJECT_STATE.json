@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-04T08:50:11.187075+00:00",
+  "updated_at": "2026-11-04T08:50:11.397327+00:00",
   "facts": [
     {
       "id": "F001",
@@ -324,6 +324,15 @@
       "id": "F035",
       "statement": "IME data-layout transformation instructions: smt.vpack.vv, smt.vupack.vv, smt.vnpack.vv, smt.vnspack.vv, smt.vnpack4.vv, smt.vnspack4.vv (functionally equivalent to Zvzip vzip.vv / vunzipe.v / vunzipo.v / vpaire.vv / vpairo.v); imm2 selects interleave granularity (SEW/128/256/512-bit for pack/upack; 32/64/128/256-bit for the narrowing forms); vd must be even-numbered for vpack/vupack; bit [14] distinguishes normal vs saturating narrowing; encoding uses the 0101011 opcode with vd[4:1] packing where the even-register constraint frees bit 0.",
       "source": "docs/compiler-agent/target-material/sources/bd69e01a6280ae5ab4493ea82b0e819fb34f093da43c264fc3be3c6291a8c6c8/ime_extension.md.search.txt:509-513 (Ch.3),585-592 (4.3),2255-2311 (8.6)",
+      "confidence": "FACT",
+      "status": "active",
+      "category": "isa",
+      "origin": "input"
+    },
+    {
+      "id": "F036",
+      "statement": "FP8 and headline compute specifications (Preview 2026-01-29; not probed, not a performance target under correctness_only): A100 integrates customized FP8 (E4M3 and E5M2) vector conversion instructions and FP8 operands are converted to BF16 before computation; headline K3 AI compute: INT4 30 dense / 60 sparse TOPS with block scaling, INT8 15 dense / 30 sparse, BF16/FP16 7.5 (IEEE FP16 and bfloat16 formats), FP8 7.5. The development corpus excludes fp8, so FP8 is not on the current input path.",
+      "source": "docs/compiler-agent/target-material/sources/9564d4ba5ed9a64d71c0c7e5bf0c8f7d74ed717fd0aa71265328f8c1eaea8c91/K3_architecture_preview.pdf.search.txt:158-165 (Table 1),970-985 (FP8 conversion instructions); corpus exclusion: ops/README.md (declared subset: no fp8)",
       "confidence": "FACT",
       "status": "active",
       "category": "isa",
@@ -841,6 +850,12 @@
       "phase": "CHIP_ANALYSIS",
       "event": "fact",
       "detail": "F035 [isa/FACT/input] docs/compiler-agent/target-material/sources/bd69e01a6280ae5ab4493ea82b0e819fb34f093da43c264fc3be3c6291a8c6c8/ime_extension.md.search.txt:509-513 (Ch.3),585-592 (4.3),2255-2311 (8.6)"
+    },
+    {
+      "at": "2026-11-04T08:50:11.397284+00:00",
+      "phase": "CHIP_ANALYSIS",
+      "event": "fact",
+      "detail": "F036 [isa/FACT/input] docs/compiler-agent/target-material/sources/9564d4ba5ed9a64d71c0c7e5bf0c8f7d74ed717fd0aa71265328f8c1eaea8c91/K3_architecture_preview.pdf.search.txt:158-165 (Table 1),970-985 (FP8 conversion instructions); corpus exclusion: ops/README.md (declared subset: no fp8)"
     }
   ]
 }
