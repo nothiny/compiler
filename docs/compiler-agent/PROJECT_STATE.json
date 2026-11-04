@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-04T08:28:50.636445+00:00",
+  "updated_at": "2026-11-04T08:28:50.839996+00:00",
   "facts": [
     {
       "id": "F001",
@@ -27,6 +27,15 @@
       "id": "F002",
       "statement": "RISC-V cross compiler /home/i_yinzida/.local/opt/a100/toolchain-1.1.2/bin/riscv64-unknown-linux-gnu-gcc is present and usable: version riscv64-unknown-linux-gnu-gcc (g56971dcbea2) 14.3.0; it built a trivial C program (-O2 -march=rv64gcv -mabi=lp64d) that executed under the declared QEMU endpoint with the expected output A100-C-SMOKE-OK and exit 0.",
       "source": "probe: set -a; . ./.env; set +a; ${A100_CROSS_PREFIX}gcc --version; build and run recorded in docs/compiler-agent/ENVIRONMENT.md End-to-end smoke 1",
+      "confidence": "RUNTIME_PROBE",
+      "status": "active",
+      "category": "toolchain",
+      "origin": "input"
+    },
+    {
+      "id": "F003",
+      "statement": "Cross binutils at /home/i_yinzida/.local/opt/a100/toolchain-1.1.2/bin (riscv64-unknown-linux-gnu-as, -ld, -objdump; GNU Binutils 2.43.1.20250119) are present and usable: hand-written rv64gcv assembly was assembled with as and linked with ld into a static ELF that executed under the declared QEMU endpoint with expected output and the guest exit code preserved (42).",
+      "source": "probe: ${A100_CROSS_PREFIX}as --version; ${A100_CROSS_PREFIX}ld --version; ${A100_CROSS_PREFIX}objdump --version; as/ld build and run in docs/compiler-agent/ENVIRONMENT.md End-to-end smoke 2",
       "confidence": "RUNTIME_PROBE",
       "status": "active",
       "category": "toolchain",
@@ -192,6 +201,12 @@
       "phase": "ENVIRONMENT_ANALYSIS",
       "event": "fact",
       "detail": "F002 [toolchain/RUNTIME_PROBE/input] probe: set -a; . ./.env; set +a; ${A100_CROSS_PREFIX}gcc --version; build and run recorded in docs/compiler-agent/ENVIRONMENT.md End-to-end smoke 1"
+    },
+    {
+      "at": "2026-11-04T08:28:50.839948+00:00",
+      "phase": "ENVIRONMENT_ANALYSIS",
+      "event": "fact",
+      "detail": "F003 [toolchain/RUNTIME_PROBE/input] probe: ${A100_CROSS_PREFIX}as --version; ${A100_CROSS_PREFIX}ld --version; ${A100_CROSS_PREFIX}objdump --version; as/ld build and run in docs/compiler-agent/ENVIRONMENT.md End-to-end smoke 2"
     }
   ]
 }
