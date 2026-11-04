@@ -4,7 +4,7 @@
 - phase: **WORKLOAD_ANALYSIS**
 - acceptance scope: `correctness_only`
 - schema: v1
-- updated: 2026-11-04T09:08:43.615618+00:00
+- updated: 2026-11-04T09:10:29.346135+00:00
 
 ## Inputs
 

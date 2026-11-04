@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-04T09:08:43.615618+00:00",
+  "updated_at": "2026-11-04T09:10:29.346135+00:00",
   "facts": [
     {
       "id": "F001",
@@ -2972,7 +2972,1029 @@
       "suite/dev": 2192,
       "suite/perf": 542
     },
-    "case_source": "ops corpus enumeration: cd ops && python3 harness/compiler_api/run_cases.py --manifest suite/manifest.json --dry-run --group-order (suite/dev cases=2192, suite/perf cases=542, TOTAL cases=2734); cross-checked with ops/suite/manifest.json cases_total=2734 and docs/compiler-agent/A100_CORPUS_CASES.json.manifest (2734 rows: suite/dev 2192, suite/perf 542)"
+    "case_source": "ops corpus enumeration: cd ops && python3 harness/compiler_api/run_cases.py --manifest suite/manifest.json --dry-run --group-order (suite/dev cases=2192, suite/perf cases=542, TOTAL cases=2734); cross-checked with ops/suite/manifest.json cases_total=2734 and docs/compiler-agent/A100_CORPUS_CASES.json.manifest (2734 rows: suite/dev 2192, suite/perf 542)",
+    "api_spec": {
+      "items": [
+        {
+          "name": "triton.jit",
+          "parameters": [
+            "fn",
+            "version",
+            "repr",
+            "launch_metadata",
+            "do_not_specialize",
+            "do_not_specialize_on_alignment",
+            "debug",
+            "noinline"
+          ],
+          "tier": "P0",
+          "corpus_calls": 500
+        },
+        {
+          "name": "tl.store",
+          "parameters": [
+            "pointer",
+            "value",
+            "mask",
+            "boundary_check",
+            "cache_modifier",
+            "eviction_policy"
+          ],
+          "tier": "P0",
+          "corpus_calls": 487
+        },
+        {
+          "name": "tl.load",
+          "parameters": [
+            "pointer",
+            "mask",
+            "other",
+            "boundary_check",
+            "padding_option",
+            "cache_modifier",
+            "eviction_policy",
+            "volatile"
+          ],
+          "tier": "P0",
+          "corpus_calls": 481
+        },
+        {
+          "name": "tl.arange",
+          "parameters": [
+            "start",
+            "end"
+          ],
+          "tier": "P0",
+          "corpus_calls": 466
+        },
+        {
+          "name": "tl.program_id",
+          "parameters": [
+            "axis"
+          ],
+          "tier": "P0",
+          "corpus_calls": 457
+        },
+        {
+          "name": "tl.constexpr",
+          "parameters": [
+            "value"
+          ],
+          "tier": "P0",
+          "corpus_calls": 450
+        },
+        {
+          "name": "tl.float32",
+          "parameters": [],
+          "tier": "P0",
+          "corpus_calls": 275
+        },
+        {
+          "name": "tl.sum",
+          "parameters": [
+            "input",
+            "axis",
+            "keep_dims",
+            "dtype"
+          ],
+          "tier": "P0",
+          "corpus_calls": 195
+        },
+        {
+          "name": "tl.where",
+          "parameters": [
+            "condition",
+            "x",
+            "y"
+          ],
+          "tier": "P0",
+          "corpus_calls": 182
+        },
+        {
+          "name": "tl.zeros",
+          "parameters": [
+            "shape",
+            "dtype"
+          ],
+          "tier": "P0",
+          "corpus_calls": 147
+        },
+        {
+          "name": "tl.int64",
+          "parameters": [],
+          "tier": "P0",
+          "corpus_calls": 139
+        },
+        {
+          "name": "tl.maximum",
+          "parameters": [
+            "x",
+            "y",
+            "propagate_nan"
+          ],
+          "tier": "P1",
+          "corpus_calls": 78
+        },
+        {
+          "name": "tl.dot",
+          "parameters": [
+            "input",
+            "other",
+            "acc",
+            "out_dtype"
+          ],
+          "tier": "P1",
+          "corpus_calls": 74,
+          "out_of_scope": "input_precision= and allow_tf32= are stripped from every kept operator by SUBSET.md principle 2 (fp32 tl.dot is exact IEEE; the harness pins TRITON_F32_DEFAULT=ieee); max_num_imprecise_acc applies to fp8 which the subset excludes entirely. Declared subset parameters: input, other, acc, out_dtype (bf16/fp16 operands with fp32 accumulation; fp32 operands IEEE)."
+        },
+        {
+          "name": "tl.exp",
+          "parameters": [
+            "x"
+          ],
+          "tier": "P1",
+          "corpus_calls": 73
+        },
+        {
+          "name": "tl.max",
+          "parameters": [
+            "input",
+            "axis",
+            "return_indices",
+            "return_indices_tie_break_left",
+            "keep_dims"
+          ],
+          "tier": "P1",
+          "corpus_calls": 70
+        },
+        {
+          "name": "tl.abs",
+          "parameters": [
+            "x"
+          ],
+          "tier": "P1",
+          "corpus_calls": 66
+        },
+        {
+          "name": "tl.cdiv",
+          "parameters": [
+            "x",
+            "div"
+          ],
+          "tier": "P1",
+          "corpus_calls": 59
+        },
+        {
+          "name": "tl.full",
+          "parameters": [
+            "shape",
+            "value",
+            "dtype"
+          ],
+          "tier": "P1",
+          "corpus_calls": 56
+        },
+        {
+          "name": "tl.int32",
+          "parameters": [],
+          "tier": "P1",
+          "corpus_calls": 54
+        },
+        {
+          "name": "tl.sqrt",
+          "parameters": [
+            "x"
+          ],
+          "tier": "P1",
+          "corpus_calls": 51
+        },
+        {
+          "name": "tl.log",
+          "parameters": [
+            "x"
+          ],
+          "tier": "P1",
+          "corpus_calls": 44
+        },
+        {
+          "name": "tl.minimum",
+          "parameters": [
+            "x",
+            "y",
+            "propagate_nan"
+          ],
+          "tier": "P1",
+          "corpus_calls": 44
+        },
+        {
+          "name": "tl.min",
+          "parameters": [
+            "input",
+            "axis",
+            "return_indices",
+            "return_indices_tie_break_left",
+            "keep_dims"
+          ],
+          "tier": "P1",
+          "corpus_calls": 30
+        },
+        {
+          "name": "tl.bfloat16",
+          "parameters": [],
+          "tier": "P1",
+          "corpus_calls": 25
+        },
+        {
+          "name": "tl.range",
+          "parameters": [
+            "arg1",
+            "arg2",
+            "step",
+            "num_stages",
+            "loop_unroll_factor",
+            "disallow_acc_multi_buffer",
+            "flatten",
+            "warp_specialize",
+            "disable_licm"
+          ],
+          "tier": "P1",
+          "corpus_calls": 25
+        },
+        {
+          "name": "tl.float16",
+          "parameters": [],
+          "tier": "P1",
+          "corpus_calls": 24
+        },
+        {
+          "name": "tl.num_programs",
+          "parameters": [
+            "axis"
+          ],
+          "tier": "P1",
+          "corpus_calls": 22
+        },
+        {
+          "name": "tl.reshape",
+          "parameters": [
+            "input",
+            "*shape",
+            "can_reorder"
+          ],
+          "tier": "P1",
+          "corpus_calls": 22
+        },
+        {
+          "name": "tl.static_range",
+          "parameters": [
+            "arg1",
+            "arg2",
+            "step"
+          ],
+          "tier": "P1",
+          "corpus_calls": 21
+        },
+        {
+          "name": "tl.multiple_of",
+          "parameters": [
+            "input",
+            "values"
+          ],
+          "tier": "P1",
+          "corpus_calls": 20
+        },
+        {
+          "name": "tl.sigmoid",
+          "parameters": [
+            "x"
+          ],
+          "tier": "P1",
+          "corpus_calls": 17
+        },
+        {
+          "name": "tl.float64",
+          "parameters": [],
+          "tier": "P1",
+          "corpus_calls": 16,
+          "out_of_scope": "no float64 tensor case exists: SUBSET.md principle 2 removes fp64 cases; the 16 suite occurrences are constexpr dtype-dispatch comparisons/branches that are dead for the declared case dtypes (verified: no operator declares a float64 case in suite/manifest.json) - the constant must parse and compare during specialization, but no fp64 tensor compute path is exercised by any case"
+        },
+        {
+          "name": "tl.rsqrt",
+          "parameters": [
+            "x"
+          ],
+          "tier": "P1",
+          "corpus_calls": 16
+        },
+        {
+          "name": "tl.trans",
+          "parameters": [
+            "input",
+            "*dims"
+          ],
+          "tier": "P1",
+          "corpus_calls": 14
+        },
+        {
+          "name": "tl.exp2",
+          "parameters": [
+            "x"
+          ],
+          "tier": "P1",
+          "corpus_calls": 12
+        },
+        {
+          "name": "tl.uint32",
+          "parameters": [],
+          "tier": "P1",
+          "corpus_calls": 12
+        },
+        {
+          "name": "tl.atomic_add",
+          "parameters": [
+            "pointer",
+            "val",
+            "mask",
+            "sem",
+            "scope"
+          ],
+          "tier": "P1",
+          "corpus_calls": 11
+        },
+        {
+          "name": "triton.autotune",
+          "parameters": [
+            "configs",
+            "key",
+            "prune_configs_by",
+            "reset_to_zero",
+            "restore_value",
+            "pre_hook",
+            "post_hook",
+            "warmup",
+            "rep",
+            "use_cuda_graph",
+            "do_bench",
+            "cache_results"
+          ],
+          "tier": "P1",
+          "corpus_calls": 11
+        },
+        {
+          "name": "tl.erf",
+          "parameters": [
+            "x"
+          ],
+          "tier": "P1",
+          "corpus_calls": 10
+        },
+        {
+          "name": "tl.int1",
+          "parameters": [],
+          "tier": "P2",
+          "corpus_calls": 9
+        },
+        {
+          "name": "tl.make_block_ptr",
+          "parameters": [
+            "base",
+            "shape",
+            "strides",
+            "offsets",
+            "block_shape",
+            "order"
+          ],
+          "tier": "P2",
+          "corpus_calls": 9
+        },
+        {
+          "name": "tl.cast",
+          "parameters": [
+            "input",
+            "dtype",
+            "fp_downcast_rounding",
+            "bitcast"
+          ],
+          "tier": "P2",
+          "corpus_calls": 8
+        },
+        {
+          "name": "tl.tensor",
+          "parameters": [],
+          "tier": "P2",
+          "corpus_calls": 8
+        },
+        {
+          "name": "tl.argmax",
+          "parameters": [
+            "input",
+            "axis",
+            "tie_break_left",
+            "keep_dims"
+          ],
+          "tier": "P2",
+          "corpus_calls": 7
+        },
+        {
+          "name": "tl.debug_barrier",
+          "parameters": [],
+          "tier": "P2",
+          "corpus_calls": 7
+        },
+        {
+          "name": "tl.floor",
+          "parameters": [
+            "x"
+          ],
+          "tier": "P2",
+          "corpus_calls": 7
+        },
+        {
+          "name": "tl.philox",
+          "parameters": [
+            "seed",
+            "c0",
+            "c1",
+            "c2",
+            "c3",
+            "n_rounds"
+          ],
+          "tier": "P2",
+          "corpus_calls": 7
+        },
+        {
+          "name": "tl.advance",
+          "parameters": [
+            "base",
+            "offsets"
+          ],
+          "tier": "P2",
+          "corpus_calls": 5
+        },
+        {
+          "name": "tl.cos",
+          "parameters": [
+            "x"
+          ],
+          "tier": "P2",
+          "corpus_calls": 5
+        },
+        {
+          "name": "tl.join",
+          "parameters": [
+            "a",
+            "b"
+          ],
+          "tier": "P2",
+          "corpus_calls": 5
+        },
+        {
+          "name": "tl.log2",
+          "parameters": [
+            "x"
+          ],
+          "tier": "P2",
+          "corpus_calls": 5
+        },
+        {
+          "name": "tl.sin",
+          "parameters": [
+            "x"
+          ],
+          "tier": "P2",
+          "corpus_calls": 5
+        },
+        {
+          "name": "tl.split",
+          "parameters": [
+            "a"
+          ],
+          "tier": "P2",
+          "corpus_calls": 5
+        },
+        {
+          "name": "tl.uint64",
+          "parameters": [],
+          "tier": "P2",
+          "corpus_calls": 5
+        },
+        {
+          "name": "tl.argmin",
+          "parameters": [
+            "input",
+            "axis",
+            "tie_break_left",
+            "keep_dims"
+          ],
+          "tier": "P2",
+          "corpus_calls": 4
+        },
+        {
+          "name": "tl.cumsum",
+          "parameters": [
+            "input",
+            "axis",
+            "reverse",
+            "dtype"
+          ],
+          "tier": "P2",
+          "corpus_calls": 4
+        },
+        {
+          "name": "tl.div_rn",
+          "parameters": [
+            "x",
+            "y"
+          ],
+          "tier": "P2",
+          "corpus_calls": 4
+        },
+        {
+          "name": "tl.int16",
+          "parameters": [],
+          "tier": "P2",
+          "corpus_calls": 4
+        },
+        {
+          "name": "tl.int8",
+          "parameters": [],
+          "tier": "P2",
+          "corpus_calls": 4
+        },
+        {
+          "name": "tl.permute",
+          "parameters": [
+            "input",
+            "*dims"
+          ],
+          "tier": "P2",
+          "corpus_calls": 4
+        },
+        {
+          "name": "tl.rand",
+          "parameters": [
+            "seed",
+            "offset",
+            "n_rounds"
+          ],
+          "tier": "P2",
+          "corpus_calls": 4
+        },
+        {
+          "name": "tl.atomic_max",
+          "parameters": [
+            "pointer",
+            "val",
+            "mask",
+            "sem",
+            "scope"
+          ],
+          "tier": "P2",
+          "corpus_calls": 3
+        },
+        {
+          "name": "tl.atomic_min",
+          "parameters": [
+            "pointer",
+            "val",
+            "mask",
+            "sem",
+            "scope"
+          ],
+          "tier": "P2",
+          "corpus_calls": 3
+        },
+        {
+          "name": "tl.broadcast_to",
+          "parameters": [
+            "input",
+            "*shape"
+          ],
+          "tier": "P2",
+          "corpus_calls": 3
+        },
+        {
+          "name": "tl.static_assert",
+          "parameters": [
+            "cond",
+            "msg"
+          ],
+          "tier": "P2",
+          "corpus_calls": 3
+        },
+        {
+          "name": "tl.zeros_like",
+          "parameters": [
+            "input"
+          ],
+          "tier": "P2",
+          "corpus_calls": 3
+        },
+        {
+          "name": "tl.atomic_xchg",
+          "parameters": [
+            "pointer",
+            "val",
+            "mask",
+            "sem",
+            "scope"
+          ],
+          "tier": "P2",
+          "corpus_calls": 2
+        },
+        {
+          "name": "tl.cat",
+          "parameters": [
+            "input",
+            "other",
+            "can_reorder",
+            "dim"
+          ],
+          "tier": "P2",
+          "corpus_calls": 2
+        },
+        {
+          "name": "tl.clamp",
+          "parameters": [
+            "x",
+            "min",
+            "max",
+            "propagate_nan"
+          ],
+          "tier": "P2",
+          "corpus_calls": 2
+        },
+        {
+          "name": "tl.cumprod",
+          "parameters": [
+            "input",
+            "axis",
+            "reverse"
+          ],
+          "tier": "P2",
+          "corpus_calls": 2
+        },
+        {
+          "name": "tl.dtype",
+          "parameters": [
+            "name"
+          ],
+          "tier": "P2",
+          "corpus_calls": 2
+        },
+        {
+          "name": "tl.fma",
+          "parameters": [
+            "x",
+            "y",
+            "z"
+          ],
+          "tier": "P2",
+          "corpus_calls": 2
+        },
+        {
+          "name": "tl.randn",
+          "parameters": [
+            "seed",
+            "offset",
+            "n_rounds"
+          ],
+          "tier": "P2",
+          "corpus_calls": 2
+        },
+        {
+          "name": "tl.ravel",
+          "parameters": [
+            "x",
+            "can_reorder"
+          ],
+          "tier": "P2",
+          "corpus_calls": 2
+        },
+        {
+          "name": "tl.squeeze",
+          "parameters": [
+            "x",
+            "dim"
+          ],
+          "tier": "P2",
+          "corpus_calls": 2
+        },
+        {
+          "name": "tl.add",
+          "parameters": [
+            "x",
+            "y",
+            "sanitize_overflow"
+          ],
+          "tier": "P2",
+          "corpus_calls": 1
+        },
+        {
+          "name": "tl.atomic_and",
+          "parameters": [
+            "pointer",
+            "val",
+            "mask",
+            "sem",
+            "scope"
+          ],
+          "tier": "P2",
+          "corpus_calls": 1
+        },
+        {
+          "name": "tl.atomic_cas",
+          "parameters": [
+            "pointer",
+            "cmp",
+            "val",
+            "sem",
+            "scope"
+          ],
+          "tier": "P2",
+          "corpus_calls": 1
+        },
+        {
+          "name": "tl.atomic_or",
+          "parameters": [
+            "pointer",
+            "val",
+            "mask",
+            "sem",
+            "scope"
+          ],
+          "tier": "P2",
+          "corpus_calls": 1
+        },
+        {
+          "name": "tl.atomic_xor",
+          "parameters": [
+            "pointer",
+            "val",
+            "mask",
+            "sem",
+            "scope"
+          ],
+          "tier": "P2",
+          "corpus_calls": 1
+        },
+        {
+          "name": "tl.broadcast",
+          "parameters": [
+            "input",
+            "other"
+          ],
+          "tier": "P2",
+          "corpus_calls": 1
+        },
+        {
+          "name": "tl.ceil",
+          "parameters": [
+            "x"
+          ],
+          "tier": "P2",
+          "corpus_calls": 1
+        },
+        {
+          "name": "tl.expand_dims",
+          "parameters": [
+            "input",
+            "axis"
+          ],
+          "tier": "P2",
+          "corpus_calls": 1
+        },
+        {
+          "name": "tl.flip",
+          "parameters": [
+            "x",
+            "dim"
+          ],
+          "tier": "P2",
+          "corpus_calls": 1
+        },
+        {
+          "name": "tl.gather",
+          "parameters": [
+            "src",
+            "index",
+            "axis"
+          ],
+          "tier": "P2",
+          "corpus_calls": 1
+        },
+        {
+          "name": "tl.histogram",
+          "parameters": [
+            "input",
+            "num_bins",
+            "mask"
+          ],
+          "tier": "P2",
+          "corpus_calls": 1
+        },
+        {
+          "name": "tl.interleave",
+          "parameters": [
+            "a",
+            "b"
+          ],
+          "tier": "P2",
+          "corpus_calls": 1
+        },
+        {
+          "name": "tl.max_contiguous",
+          "parameters": [
+            "input",
+            "values"
+          ],
+          "tier": "P2",
+          "corpus_calls": 1
+        },
+        {
+          "name": "tl.mul",
+          "parameters": [
+            "x",
+            "y",
+            "sanitize_overflow"
+          ],
+          "tier": "P2",
+          "corpus_calls": 1
+        },
+        {
+          "name": "tl.pointer_type",
+          "parameters": [
+            "element_ty",
+            "address_space",
+            "const"
+          ],
+          "tier": "P2",
+          "corpus_calls": 1
+        },
+        {
+          "name": "tl.rand4x",
+          "parameters": [
+            "seed",
+            "offsets",
+            "n_rounds"
+          ],
+          "tier": "P2",
+          "corpus_calls": 1
+        },
+        {
+          "name": "tl.randint",
+          "parameters": [
+            "seed",
+            "offset",
+            "n_rounds"
+          ],
+          "tier": "P2",
+          "corpus_calls": 1
+        },
+        {
+          "name": "tl.randint4x",
+          "parameters": [
+            "seed",
+            "offset",
+            "n_rounds"
+          ],
+          "tier": "P2",
+          "corpus_calls": 1
+        },
+        {
+          "name": "tl.randn4x",
+          "parameters": [
+            "seed",
+            "offset",
+            "n_rounds"
+          ],
+          "tier": "P2",
+          "corpus_calls": 1
+        },
+        {
+          "name": "tl.reduce_or",
+          "parameters": [
+            "input",
+            "axis",
+            "keep_dims"
+          ],
+          "tier": "P2",
+          "corpus_calls": 1
+        },
+        {
+          "name": "tl.softmax",
+          "parameters": [
+            "x",
+            "dim",
+            "keep_dims",
+            "ieee_rounding"
+          ],
+          "tier": "P2",
+          "corpus_calls": 1
+        },
+        {
+          "name": "tl.sort",
+          "parameters": [
+            "x",
+            "dim",
+            "descending"
+          ],
+          "tier": "P2",
+          "corpus_calls": 1
+        },
+        {
+          "name": "tl.sqrt_rn",
+          "parameters": [
+            "x"
+          ],
+          "tier": "P2",
+          "corpus_calls": 1
+        },
+        {
+          "name": "tl.sub",
+          "parameters": [
+            "x",
+            "y",
+            "sanitize_overflow"
+          ],
+          "tier": "P2",
+          "corpus_calls": 1
+        },
+        {
+          "name": "tl.to_tensor",
+          "parameters": [
+            "x"
+          ],
+          "tier": "P2",
+          "corpus_calls": 1
+        },
+        {
+          "name": "tl.topk",
+          "parameters": [
+            "x",
+            "k",
+            "dim",
+            "descending"
+          ],
+          "tier": "P2",
+          "corpus_calls": 1
+        },
+        {
+          "name": "tl.uint16",
+          "parameters": [],
+          "tier": "P2",
+          "corpus_calls": 1
+        },
+        {
+          "name": "tl.uint8",
+          "parameters": [],
+          "tier": "P2",
+          "corpus_calls": 1
+        },
+        {
+          "name": "tl.unsqueeze",
+          "parameters": [
+            "x",
+            "dim"
+          ],
+          "tier": "P2",
+          "corpus_calls": 1
+        },
+        {
+          "name": "tl.view",
+          "parameters": [
+            "input",
+            "*shape"
+          ],
+          "tier": "P2",
+          "corpus_calls": 1
+        },
+        {
+          "name": "tl.xor_sum",
+          "parameters": [
+            "input",
+            "axis",
+            "keep_dims"
+          ],
+          "tier": "P2",
+          "corpus_calls": 1
+        },
+        {
+          "name": "tl.swizzle2d",
+          "parameters": [
+            "i",
+            "j",
+            "size_i",
+            "size_j",
+            "size_g"
+          ],
+          "tier": "P2",
+          "corpus_calls": 0
+        }
+      ],
+      "source": "ops/docs/SUBSET.md (declared LLM-inference subset, suite-v3) with ops/docs/API_INVENTORY.md (the shipped 500-operator suite own AST inventory: construct list + per-construct operator-file counts); parameter surfaces read from the pinned Triton 3.8.0 triton.language/triton.runtime signatures (A100_REFERENCE_PYTHON triton.__version__==3.8.0); tl.dot parameter surface restricted by SUBSET.md principle 2",
+      "version": "Triton 3.8.0 / ops suite-v3 declared subset"
+    }
   },
   "regression": {},
   "regression_runs": {},
@@ -3550,6 +4572,12 @@
       "phase": "WORKLOAD_ANALYSIS",
       "event": "case-totals",
       "detail": "suite/dev=2192, suite/perf=542 (from ops corpus enumeration: cd ops && python3 harness/compiler_api/run_cases.py --manifest suite/manifest.json --dry-run --group-order (suite/dev cases=2192, suite/perf cases=542, TOTAL cases=2734); cross-checked with ops/suite/manifest.json cases_total=2734 and docs/compiler-agent/A100_CORPUS_CASES.json.manifest (2734 rows: suite/dev 2192, suite/perf 542))"
+    },
+    {
+      "at": "2026-11-04T09:10:29.346101+00:00",
+      "phase": "WORKLOAD_ANALYSIS",
+      "event": "api-spec",
+      "detail": "107 declared construct(s), 280 parameter(s) (from ops/docs/SUBSET.md (declared LLM-inference subset, suite-v3) with ops/docs/API_INVENTORY.md (the shipped 500-operator suite own AST inventory: construct list + per-construct operator-file counts); parameter surfaces read from the pinned Triton 3.8.0 triton.language/triton.runtime signatures (A100_REFERENCE_PYTHON triton.__version__==3.8.0); tl.dot parameter surface restricted by SUBSET.md principle 2 Triton 3.8.0 / ops suite-v3 declared subset)"
     }
   ]
 }
