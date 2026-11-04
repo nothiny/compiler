@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-04T08:29:05.291838+00:00",
+  "updated_at": "2026-11-04T08:29:05.483656+00:00",
   "facts": [
     {
       "id": "F001",
@@ -72,6 +72,15 @@
       "id": "F007",
       "statement": "The native runtime transport is present and usable: a100_support/native_io.py pack_case plus a100_support/run-riscv.sh plus the native_bundle.c runtime (io_fixture) plus unpack_outputs completed a full host-to-QEMU-to-host round trip for a strided-alias case with guest pointer relocation and for a bfloat16 value-storage case, both compared PASS; a100_support.native_device.make_device correctly refuses until A100_COMPILER_FACTORY is set, so there is no reference fallback for candidate execution.",
       "source": "probe: timeout 300 python3 a100_support/build/transport_probe.py -> alias comparison PASS, bf16 comparison PASS; build commands in docs/compiler-agent/ENVIRONMENT.md Native runtime transport",
+      "confidence": "RUNTIME_PROBE",
+      "status": "active",
+      "category": "runtime",
+      "origin": "input"
+    },
+    {
+      "id": "F008",
+      "statement": "Dynamic instruction observation is present and usable: the QEMU 10 plugin API works with a100_support/probes/instruction_counts.c compiled by host gcc (Ubuntu 11.4.0) against jdsk-qemu-10.0.2/include and host-runtime-bookworm glib headers; the plugin counted smt.vmadot executions=1 at pc 68508 for the int8 matrix probe and counted zero instructions for a binary without matrix instructions (control).",
+      "source": "probe: gcc -shared -fPIC ... a100_support/probes/instruction_counts.c -o instruction_counts.so; timeout 90 $A100_QEMU ... -plugin instruction_counts.so,out=ime-int8-counts.json matrix_probe int8; docs/compiler-agent/ENVIRONMENT.md Dynamic instruction observation",
       "confidence": "RUNTIME_PROBE",
       "status": "active",
       "category": "runtime",
@@ -267,6 +276,12 @@
       "phase": "ENVIRONMENT_ANALYSIS",
       "event": "fact",
       "detail": "F007 [runtime/RUNTIME_PROBE/input] probe: timeout 300 python3 a100_support/build/transport_probe.py -> alias comparison PASS, bf16 comparison PASS; build commands in docs/compiler-agent/ENVIRONMENT.md Native runtime transport"
+    },
+    {
+      "at": "2026-11-04T08:29:05.483616+00:00",
+      "phase": "ENVIRONMENT_ANALYSIS",
+      "event": "fact",
+      "detail": "F008 [runtime/RUNTIME_PROBE/input] probe: gcc -shared -fPIC ... a100_support/probes/instruction_counts.c -o instruction_counts.so; timeout 90 $A100_QEMU ... -plugin instruction_counts.so,out=ime-int8-counts.json matrix_probe int8; docs/compiler-agent/ENVIRONMENT.md Dynamic instruction observation"
     }
   ]
 }
