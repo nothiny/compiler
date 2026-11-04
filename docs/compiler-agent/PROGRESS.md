@@ -1,6 +1,6 @@
 # Progress
 
-Phase: **PLAN_REVIEW** · project: `compiler-a100-experiment-001`
+Phase: **PLANNING** · project: `compiler-a100-experiment-001`
 
 ## Task board
 
@@ -33,8 +33,6 @@ Phase: **PLAN_REVIEW** · project: `compiler-a100-experiment-001`
 
 | When | Phase | Event | Detail |
 |---|---|---|---|
-| 2026-11-04T08:51:29.294920+00:00 | CHIP_ANALYSIS | assumption | A008 The production pairing of the shared IME-2.0 matrix engines (Preview: shared by two compute cores) and the actual allowed A100 core set (official examples use core IDs 8-15) are unverified on hardware; QEMU guest threads establish neither. Resource evidence under QEMU records guest threads, work partition and dynamic instruction counts, never physical core identities. |
-| 2026-11-04T08:57:43.673909+00:00 | CHIP_ANALYSIS | task-report-out-of-contract | T002: CHIP_ANALYSIS.md |
 | 2026-11-04T08:57:43.681164+00:00 | CHIP_ANALYSIS | task-report | WTI002 COMPLETED attempt=1 [declared outputs do not exist: Fact/Assumption records in docs/compiler-agent/PROJECT_STATE.json; changes outside the declared paths: CHIP_ANALYSIS.md] |
 | 2026-11-04T08:57:43.687791+00:00 | CHIP_ANALYSIS | complete-task | T002 worker report WTI002: Chip analysis for the A100 target completed. Read chip.md in full and all 146 paths its ## Target pack declares (verified to resolve inside the project root; 25 markdown docs + 27 search.txt incl. both PDF extractions read, 2 PDFs and 94 figures verified valid and consumed through their parent documents). Recorded 41 provenance-labelled ChipFacts (F016-F056: execution_model 5, memory 6, isa 12, registers 3, toolchain 3, abi 2, runtime 4, constraints 6; 26 anchored in the declared pack, 11 RUNTIME_PROBE with commands, 4 policy/chip.md-sourced) and 6 assumptions with validation methods (A003-A008) through the engine fact/assume commands. Wrote CHIP_ANALYSIS.md covering all 8 G1 categories property-by-property, including explicit negative facts (absent Zvvm instructions, no Zvvmtls, no mixed FP16/BF16 formats, vm mask unused for matrix instructions, LMUL=1-only IME legality, the pinned QEMU BF16 IME format-control gap kept unverified, MCPM CSR not userspace-accessible, no Hypervisor in RVA23*, other-chip exclusions, unusable SpacemiT LLVM), the knowledge-profile declaration (present: k3-a100), and three reported (not averaged) documentation framing differences (IME lambda figure-caption vs tables; X100 L2 brief vs manual; Preview vs production A100 cluster composition) - none affecting codegen. Correctness_only: no performance anchors, timings or speedups recorded (the 60 TOPS INT4-sparse headline is recorded only as a qualified specification, explicitly not a target). CHIP_ANALYSIS.md exists at the task's declared output path docs/compiler-agent/CHIP_ANALYSIS.md and as an identical copy at the project root, which is where the engine's G1 check reads it (WORKFLOW_ROOT_ARTIFACTS convention).
 acceptance[0]: `set -a; . ./.env; set +a; timeout 120 python3 -m compiler_agent --root . --json gates --diagnostics` -> exit 0
@@ -87,3 +85,5 @@ acceptance[1]: `cd ops && python3 harness/compiler_api/run_cases.py --dry-run --
 | 2026-11-04T09:59:46.953907+00:00 | PLAN_REVIEW | transition | PLANNING -> PLAN_REVIEW Planning T004 DONE: architecture, constraints contract, execution model/resources and 18-task DAG submitted. |
 | 2026-11-04T09:59:52.592095+00:00 | PLAN_REVIEW | review-input | architecture phase=PLAN_REVIEW |
 | 2026-11-04T10:16:48.865327+00:00 | PLAN_REVIEW | review | architecture=REQUEST_CHANGES |
+| 2026-11-04T10:16:49.051580+00:00 | PLAN_REVIEW | review-delegate | REQUEST_CHANGES reviewer=delegated-reviewer findings=5 report=review-001.json |
+| 2026-11-04T10:17:29.232694+00:00 | PLANNING | transition | PLAN_REVIEW -> PLANNING Architecture review REQUEST_CHANGES: DAG dependency/acceptance defects to revise. |
