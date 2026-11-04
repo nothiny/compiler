@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-04T08:51:10.723993+00:00",
+  "updated_at": "2026-11-04T08:51:10.935886+00:00",
   "facts": [
     {
       "id": "F001",
@@ -477,6 +477,15 @@
       "id": "F052",
       "statement": "Corpus numeric contract: integer, index and boolean outputs remain exact; floating transformations must remain within each case's original tolerance, and neither references nor tolerances may be changed to obtain a pass; the reference service computes fp32 dot in IEEE mode (TRITON_F32_DEFAULT=ieee, no input_precision=/allow_tf32= in the subset); no operator-name dispatch, precomputed answers or reference fallback are allowed in the compiler.",
       "source": "chip.md#4 (input and numeric contract, POLICY lines 72-78); ops/README.md (declared subset); AGENTS.md Scope and state",
+      "confidence": "FACT",
+      "status": "active",
+      "category": "constraints",
+      "origin": "input"
+    },
+    {
+      "id": "F053",
+      "statement": "Resource constraints and declared limits: at most 8 A100 compute workers are supported (1/2/4/8 configurable; chip.md requires representative multi-worker cases to distribute useful work); the IME-2.0 tensor engine is shared by two compute cores, so eight workers are NOT eight independent matrix throughputs and thread count is not matrix-engine count; the 1.5MB scratchpad and 1MB L2 are per-cluster shared budgets (never assume the whole scratchpad is privately available to every worker); the advertised 60 TOPS is the INT4 sparse headline (INT4 30 dense, INT8 15 dense, BF16/FP16 7.5) - a documented specification qualifier, explicitly NOT a measured target for this correctness-only project (no performance anchors recorded).",
+      "source": "chip.md#3 (POLICY); docs/compiler-agent/target-material/sources/ff2340c355516e190769949abbfe57d2121efbe72326b5fc65b166f6cd55d90d/08_cpu.md.search.txt:52-59; docs/compiler-agent/target-material/sources/9564d4ba5ed9a64d71c0c7e5bf0c8f7d74ed717fd0aa71265328f8c1eaea8c91/K3_architecture_preview.pdf.search.txt:739-745,158-165",
       "confidence": "FACT",
       "status": "active",
       "category": "constraints",
@@ -1096,6 +1105,12 @@
       "phase": "CHIP_ANALYSIS",
       "event": "fact",
       "detail": "F052 [constraints/FACT/input] chip.md#4 (input and numeric contract, POLICY lines 72-78); ops/README.md (declared subset); AGENTS.md Scope and state"
+    },
+    {
+      "at": "2026-11-04T08:51:10.935840+00:00",
+      "phase": "CHIP_ANALYSIS",
+      "event": "fact",
+      "detail": "F053 [constraints/FACT/input] chip.md#3 (POLICY); docs/compiler-agent/target-material/sources/ff2340c355516e190769949abbfe57d2121efbe72326b5fc65b166f6cd55d90d/08_cpu.md.search.txt:52-59; docs/compiler-agent/target-material/sources/9564d4ba5ed9a64d71c0c7e5bf0c8f7d74ed717fd0aa71265328f8c1eaea8c91/K3_architecture_preview.pdf.search.txt:739-745,158-165"
     }
   ]
 }
