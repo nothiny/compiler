@@ -1,0 +1,180 @@
+{
+  "invocation_id": "WTI008",
+  "task_id": "T007",
+  "attempt": 1,
+  "context_sha256": "b6ce9c0dece8408ecafc7a10bbe4b03a9d6c46ac597b413a665912043cdf3d20",
+  "outcome": "COMPLETED",
+  "failure_kind": "implementation",
+  "summary": "End-to-end vertical slice (gate G4) implemented and executed: the elementwise operator ops/suite/dev/absolute_kernel.py compiles through every stage (AST frontend -> specialization identity -> verified TIR -> provenance-checked 1-D grid model with compile-time equality self-check -> execution plan -> verified MIR -> legalisation -> table-driven selection -> interference-based allocation with spill/split -> complete program-level assembly -> cross as+ld+precompiled runtime) into one ELF64 little-endian RISC-V executable that runs under the declared QEMU endpoint through the a100_support native device protocol and compares bit-exact against the case's expected outputs at threads 1/2/4/8 on ONE artifact per compile identity. Slice operator: out=|x| over a 128-element block with masked ragged tails. All 9 declared test commands exit 0, including the ragged-tail witness (degraded build corrupts a poisoned guard region; real build keeps it intact). Two probe-found bugs were fixed during the work: (1) branch-argument moves for the not-taken edge read registers clobbered by the taken edge's cycle-breaking (fixed with per-edge move stubs after the condition is read); (2) fp arith.mul selected the integer vmul.vv row (fixed by splitting fp/int repertoire rows; the earlier pass was accidental - the -0.0 divergence hid inside the tolerance).",
+  "files_changed": [
+    "a100c/__init__.py",
+    "a100c/target.py",
+    "a100c/ir/mir.py",
+    "a100c/plan/__init__.py",
+    "a100c/plan/partition.py",
+    "a100c/plan/grid.py",
+    "a100c/lower/__init__.py",
+    "a100c/lower/binding.py",
+    "a100c/lower/addresses.py",
+    "a100c/lower/scalar.py",
+    "a100c/lower/matrix.py",
+    "a100c/lower/vectorize.py",
+    "a100c/backend/__init__.py",
+    "a100c/backend/repertoire.py",
+    "a100c/backend/legalize.py",
+    "a100c/backend/select.py",
+    "a100c/backend/allocate.py",
+    "a100c/backend/emit.py",
+    "a100c/driver.py",
+    "tools/check_masked_tails.py",
+    "a100c/tests/test_partition.py",
+    "a100c/tests/test_lower_vector.py",
+    "a100c/tests/test_legalize.py",
+    "a100c/tests/test_select.py",
+    "a100c/tests/test_allocate.py",
+    "a100c/tests/test_mir_verifier.py",
+    "a100c/tests/test_emit.py",
+    "a100c/tests/test_e2e_slice.py"
+  ],
+  "artifacts": [
+    "a100c/cache/41da3f9af48340ebeb708152c86edb627ee11b6f613c0f10fc7c455dcf88cdf9/operator_exec",
+    "a100c/cache/41da3f9af48340ebeb708152c86edb627ee11b6f613c0f10fc7c455dcf88cdf9/program.S",
+    "a100c/cache/41da3f9af48340ebeb708152c86edb627ee11b6f613c0f10fc7c455dcf88cdf9/stage.tir.txt",
+    "a100c/cache/41da3f9af48340ebeb708152c86edb627ee11b6f613c0f10fc7c455dcf88cdf9/stage.plan.txt",
+    "a100c/cache/41da3f9af48340ebeb708152c86edb627ee11b6f613c0f10fc7c455dcf88cdf9/stage.mir.lowered.txt",
+    "a100c/cache/41da3f9af48340ebeb708152c86edb627ee11b6f613c0f10fc7c455dcf88cdf9/stage.mir.legalized.txt",
+    "a100c/cache/41da3f9af48340ebeb708152c86edb627ee11b6f613c0f10fc7c455dcf88cdf9/stage.mir.allocated.txt",
+    "a100c/cache/41da3f9af48340ebeb708152c86edb627ee11b6f613c0f10fc7c455dcf88cdf9/stage.selection.txt",
+    "a100c/cache/41da3f9af48340ebeb708152c86edb627ee11b6f613c0f10fc7c455dcf88cdf9/artifact.json",
+    "a100c/cache/05d1212439da88bd7d8a4c94514bc00d5df31550d6b064be087e3252b13ef1fe/operator_exec",
+    "a100c/cache/0e854440218aa942dfca08888b0720c0f91fcb3bbc28206da2e04351f4825d4f/operator_exec"
+  ],
+  "commands": [
+    {
+      "command": "set -a; . ./.env; set +a; timeout 600 python3 a100c/tests/test_e2e_slice.py",
+      "exit_code": 0,
+      "observed": "declared-cases-pass-at-1-2-4-8-threads PASS; one-artifact-per-identity-across-thread-counts PASS {(128,):1,(97,):1,(17,):1,(1,):1}; partition-matches-strided-model PASS (items sum 4097 at every thread count, one pool init); two-cases-one-identity-compile-once PASS (compiles=1 hits=1 for shapes 97 and 4097); artifact-is-elf64-little-riscv PASS; artifact-runs-without-python PASS; per-stage-dumps-produced PASS; dumps-carry-source-attribution PASS; same-input-reproduces-identical-artifact-bytes PASS (39a15cc3a4c7 == 39a15cc3a4c7); factory-shim-constructs-native-device PASS; factory-route-executes-and-compares PASS"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; timeout 600 python3 tools/check_masked_tails.py --witness",
+      "exit_code": 0,
+      "observed": "real artifact (013e6392ecf2): outputs compare PASS under the case policy; guard region intact (124 bytes behind the output row); witness (tail predicate removed, 8fb298d15e21): the ragged case FAILS as required -- tail lanes corrupted the guard region (0000008027f6523f != 5a5a5ada5a5a5ada)"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; for t in test_partition test_lower_vector test_legalize test_select test_allocate test_mir_verifier test_emit test_e2e_slice; do timeout 600 python3 a100c/tests/$t.py; done",
+      "exit_code": 0,
+      "observed": "all 8 declared tests exit 0 with 'all checks PASS' (full suite incl. the 7 pre-existing a100c tests also exit 0 -- no regression)"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; ${A100_CROSS_PREFIX}as -march=rv64gcv probe.S -o probe.o && ${A100_CROSS_PREFIX}ld probe.o -o probe && timeout 60 $A100_QEMU -L $A100_SYSROOT -cpu \"$A100_QEMU_CPU\" ./probe",
+      "exit_code": 0,
+      "observed": "RVV semantics probe (scratch, /tmp/rvv_probe): exit 0 -- vmerge.vvm takes vs1 on mask-set lanes; vluxei64.v with data e32m1 + index e64m2 works with e32m1->e64m2->e32m1 region switching; masked vsuxei64.v writes only active lanes; vcpop.m counts set mask bits; vwadd.vx sign-extends"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; timeout 300 python3 - (inline matrix: shapes 128/97/17/1/256/129/4097 x threads 1/2/4/8 via NativeExecutableDevice)",
+      "exit_code": 0,
+      "observed": "28/28 PASS bit-exact (maxerr 0.0) against case['expected'] under each case's comparison policy; per-worker items at n=4097: [4097], [2049,2048], [1025,1024,1024,1024], [513,512x7]; zero-work edge n=0 also executes and compares equal (grid evaluates to 0 programs)"
+    }
+  ],
+  "acceptance": [
+    {
+      "ref": "acceptance[0]",
+      "command": "set -a; . ./.env; set +a; timeout 600 python3 a100c/tests/test_e2e_slice.py",
+      "exit_code": 0,
+      "observed": "The slice operator's case kinds execute under the declared QEMU endpoint and compare PASS with the case's own comparison policy at threads 1,2,4,8 on ONE artifact: aligned extent (128,), ragged tails not a multiple of the block extent (97,) and (17,) -- the operator's declared SHAPES -- and the size-one edge (1,); identical artifact sha256 across thread counts per identity (39a15cc3a4c7...); the program computes its partition from --threads (verified per-worker items match the strided model and sum to n). Bonus: the zero-work edge n=0 (grid evaluates to 0 programs) also executes and compares equal."
+    },
+    {
+      "ref": "acceptance[1]",
+      "command": "set -a; . ./.env; set +a; timeout 600 python3 a100c/tests/test_e2e_slice.py",
+      "exit_code": 0,
+      "observed": "Two cases of one compile identity (shape 97 and 4097, both scalar class 'other') compile once: compile_count=1, second call is a cache hit returning the same executable (sha 39a15cc3a4c7); the artifact is ELF64 little-endian RISC-V (magic 7f454c460201, e_machine=0xf3) and runs without Python: the guest process is the ELF executed by run-riscv.sh under the pinned QEMU endpoint; outputs compare PASS."
+    },
+    {
+      "ref": "acceptance[2]",
+      "command": "set -a; . ./.env; set +a; timeout 600 python3 a100c/tests/test_e2e_slice.py",
+      "exit_code": 0,
+      "observed": "Per-stage dumps produced beside the artifact: stage.tir.txt, stage.plan.txt, stage.mir.lowered.txt, stage.mir.legalized.txt, stage.mir.allocated.txt, stage.selection.txt, program.S, artifact.json; all carry source attribution (TIR/MIR op lines cite absolute_kernel.py:line:col; 106 assembly lines carry [opN] + source location); the same input in a fresh cache reproduces identical artifact bytes (39a15cc3a4c7 == 39a15cc3a4c7)."
+    },
+    {
+      "ref": "acceptance[3]",
+      "command": "set -a; . ./.env; set +a; timeout 600 python3 tools/check_masked_tails.py --witness",
+      "exit_code": 0,
+      "observed": "With the tail predicate present: outputs compare PASS and the poisoned guard region (124 bytes behind the ragged output row, uint32 0xDA5A5A5A) is intact. With the predicate removed in a scratch build (compile option witness_drop_tail_predicates, a separate artifact identity 8fb298d15e21): the ragged case FAILS -- tail lanes corrupt the guard (bytes 00000080 27f6523f... != 5a5a5ada...). The witness fails as required; the tool exits nonzero if either condition is violated (the check can fail)."
+    },
+    {
+      "ref": "acceptance[4]",
+      "command": "set -a; . ./.env; set +a; timeout 300 python3 a100c/tests/test_mir_verifier.py",
+      "exit_code": 0,
+      "observed": "The MIR verifier rejects hand-built malformed modules, one per invariant class: vsetvli-region inconsistency (v64m1 op in an e32m1 region; and a vector op outside any region), masked store without inactive semantics (and a store declaring 'undef', and a masked load without a declared default), use-before-definition (in-block and cross-block), plus the v0-mask constraint, block-structure and type/unknown-op classes; and it accepts the lowering's real output for the slice operator (pre- and post-legalisation)."
+    }
+  ],
+  "tests": [
+    {
+      "ref": "tests[0]",
+      "command": "python3 a100c/tests/test_partition.py",
+      "exit_code": 0,
+      "observed": "6 checks PASS: exactly-once strided coverage at W in 1/2/4/8 x P in {0,1,2,3,5,8,17,33,128}; ragged tail owned exactly once; invalid configurations refused; exact-vl chunk plan (block 128 -> 4x32 at SEW 32); plan describe; policy range model."
+    },
+    {
+      "ref": "tests[1]",
+      "command": "python3 a100c/tests/test_lower_vector.py",
+      "exit_code": 0,
+      "observed": "17 checks PASS: slice MIR verifies; vsetvli regions e32m1 + e64m2 present; exact vl=32; masked load declares undef; masked store declares no-access; index at EEW=64; whole-tree address form with independent model check; worker loop + native grid present; grid tied to scalar n_elements with recorded self-check; witness option drops tail predicates; located refusals for fp16 element width, untied grid, matrix path, scalar core, control flow; view-extent tie lowers to a view.shape load."
+    },
+    {
+      "ref": "tests[2]",
+      "command": "python3 a100c/tests/test_legalize.py",
+      "exit_code": 0,
+      "observed": "6 checks PASS: vwiden->vwaddx0 (2) and strunc->swext (2) rewrites; post-legalize module verifies and selects fully; the control (disabled rewrite) leaves the construct and selection refuses it with a located diagnostic."
+    },
+    {
+      "ref": "tests[3]",
+      "command": "python3 a100c/tests/test_select.py",
+      "exit_code": 0,
+      "observed": "11 checks PASS: the slice MIR selects fully (32 distinct mnemonics incl. vfmul.vv for fp mul and vmul.vv for the i64 address scale); a no-row construct (vbin fdiv) is refused located; repertoire find miss/hit; fp/int mul are distinct rows; adding a table row selects a new construct with no matcher edit; a subset table refuses; 8 declared absences recorded as data."
+    },
+    {
+      "ref": "tests[4]",
+      "command": "python3 a100c/tests/test_allocate.py",
+      "exit_code": 0,
+      "observed": "14 checks PASS: every slice value has a location; no interfering pair shares a register; working masks pinned to v0; v0 never allocated; 6 vector regs / 768 B of the 4096 B file (no spill in the slice); m2 groups even-aligned; synthetic 35-value vector pressure spills (10 slots, vspill/vreload inserted, module still verifies); 40-value GPR pressure spills (19 slots, sspill/sreload, verifies); mask exhaustion is a located refusal."
+    },
+    {
+      "ref": "tests[5]",
+      "command": "python3 a100c/tests/test_mir_verifier.py",
+      "exit_code": 0,
+      "observed": "15 checks PASS: rejects one malformed module per invariant class (region inconsistency, region missing, masked store without semantics, store declaring undef, masked load without default, use-before-definition in-block and cross-block, v0 constraint, missing terminator, unknown branch target, branch arg arity, type mismatch, unknown opcode) and accepts the lowering's real output pre/post legalisation."
+    },
+    {
+      "ref": "tests[6]",
+      "command": "python3 a100c/tests/test_emit.py",
+      "exit_code": 0,
+      "observed": "15 checks PASS: workspace queries, entry + psABI prologue/epilogue, one label per MIR block, vsetvli regions, masked indexed memory with v0.t, .note.GNU-stack, per-edge brc stubs with the condition read first, 106 source-attributed instruction lines mapping to real op indices, deterministic emission, and the assembled+linked artifact is ELF64 little-endian RISC-V built by the declared cross toolchain only."
+    },
+    {
+      "ref": "tests[7]",
+      "command": "python3 a100c/tests/test_e2e_slice.py",
+      "exit_code": 0,
+      "observed": "11 checks PASS (see acceptance[0..2]): the full matrix, the strided partition observation, compile-once identity economics, the ELF/no-Python artifact, dumps with attribution, byte determinism, and the a100_support factory route (A100_COMPILER_FACTORY=a100c.driver:make_compiler)."
+    },
+    {
+      "ref": "tests[8]",
+      "command": "python3 tools/check_masked_tails.py",
+      "exit_code": 0,
+      "observed": "real artifact: outputs compare PASS under the case policy and the guard region behind the ragged output row is intact; with --witness the degraded build corrupts the guard as required (the witness fails, so the check can fail)."
+    }
+  ],
+  "evidence": "a100c/cache/41da3f9af48340ebeb708152c86edb627ee11b6f613c0f10fc7c455dcf88cdf9/ is the current-revision artifact entry for the slice operator's default identity (sha256 39a15cc3a4c7...): operator_exec (ELF64 LE RISC-V), program.S (complete program-level assembly with [opN] source attribution), stage.tir.txt / stage.plan.txt / stage.mir.lowered.txt / stage.mir.legalized.txt / stage.mir.allocated.txt / stage.selection.txt (per-stage dumps with source attribution), artifact.json (identity, compiler revision, allocation stats 6 vector regs / 768 B of 4096 B, toolchain invocations). The executed comparison evidence is the test run above: 28/28 shape x thread combinations bit-exact against case['expected'] under each case's declared comparison policy, per-worker item counts matching the strided model at 1/2/4/8, and the ragged-tail witness pair (guard intact with the predicate, corrupted without it).",
+  "design_issue": {},
+  "debug_request": {},
+  "attack": {},
+  "remaining_work": [
+    "Set A100_COMPILER_FACTORY=a100c.driver:make_compiler in .env (one line; .env is outside this task's allowed write paths -- the tests and the witness tool set it in-process and the factory route is proven)",
+    "Extend the slice's declared refusal boundaries in later tasks: non-32-bit element widths (multi-region address plan with EMUL>2 indices), conversions, masked loads with other=, kernel control flow, multi-dimensional grids, reductions/atomics, IME matrix paths (a100c/lower/matrix.py is the declared refusal point with the sourced operand contract)",
+    "The six basic optimization passes (CSE, DCE, const-fold/propagate, copy-propagate, strength reduction, LICM) as a later a100c/passes/ task on top of this general unoptimized path (the slice deliberately lowers the TIR faithfully op-by-op; e.g. the per-chunk base splat + address re-materialization is redundant and is that task's first target)",
+    "tools/run_scan.py: the full-corpus driver (compile-once-per-identity enumeration, per-case execution under bound, input-regression rows) once breadth tasks widen the slice",
+    "Mask spill is a bounded refusal (ABSENT_FORMS row); implement vsm/vlm-based mask spill only when a real kernel needs it"
+  ],
+  "end_revision": "",
+  "at": "2026-11-04T13:47:18.355344+00:00"
+}
