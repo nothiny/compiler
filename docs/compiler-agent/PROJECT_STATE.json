@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-04T08:51:11.377699+00:00",
+  "updated_at": "2026-11-04T08:51:11.587887+00:00",
   "facts": [
     {
       "id": "F001",
@@ -504,6 +504,15 @@
       "id": "F055",
       "statement": "Knowledge profile and scope declarations are present in chip.md: 'Knowledge profile: k3-a100' (line 13), 'Acceptance scope: correctness_only' (line 14) and 'Required execution evidence: resources' (line 15); the k3-a100 target-class profile matches this target (A100 AI CPU in K3). Under correctness_only no performance anchors (achievable rates, launch floor, measurement noise) are recorded or required; basic compiler optimizations (CSE, DCE, constant folding/propagation, copy propagation, strength reduction, LICM) remain ordinary implementation requirements under their legality conditions.",
       "source": "chip.md:12-29 (declarations, project scope, POLICY)",
+      "confidence": "FACT",
+      "status": "active",
+      "category": "constraints",
+      "origin": "input"
+    },
+    {
+      "id": "F056",
+      "statement": "Hardware spinlock and DMA documentation-level constraints worth carrying: the spinlock returns 0xFFFFFFFF on re-read of a locked unit's register in the documented programming model, and the DMA supports trailing-byte retrieval, descriptor branching and a flow-control bit; both are board devices behind MMIO, not available in the QEMU userspace execution path - any use requires the board porting step and verified SDK interfaces.",
+      "source": "docs/compiler-agent/target-material/sources/18ed67a57de04224793b95fab0299ba71445f1fc27dd3d0511528fd284cd232e/spinlock.md.search.txt:141-153 (16.7.5); docs/compiler-agent/target-material/sources/e3c328de09ccec8594134bfa2d29c635b7cc78578dde2cfe28de169983b9ecb7/dma.md.search.txt:21-42 (16.1.2)",
       "confidence": "FACT",
       "status": "active",
       "category": "constraints",
@@ -1141,6 +1150,12 @@
       "phase": "CHIP_ANALYSIS",
       "event": "fact",
       "detail": "F055 [constraints/FACT/input] chip.md:12-29 (declarations, project scope, POLICY)"
+    },
+    {
+      "at": "2026-11-04T08:51:11.587854+00:00",
+      "phase": "CHIP_ANALYSIS",
+      "event": "fact",
+      "detail": "F056 [constraints/FACT/input] docs/compiler-agent/target-material/sources/18ed67a57de04224793b95fab0299ba71445f1fc27dd3d0511528fd284cd232e/spinlock.md.search.txt:141-153 (16.7.5); docs/compiler-agent/target-material/sources/e3c328de09ccec8594134bfa2d29c635b7cc78578dde2cfe28de169983b9ecb7/dma.md.search.txt:21-42 (16.1.2)"
     }
   ]
 }
