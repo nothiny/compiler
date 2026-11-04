@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-04T08:50:11.801622+00:00",
+  "updated_at": "2026-11-04T08:50:33.181581+00:00",
   "facts": [
     {
       "id": "F001",
@@ -354,6 +354,15 @@
       "confidence": "FACT",
       "status": "active",
       "category": "isa",
+      "origin": "input"
+    },
+    {
+      "id": "F039",
+      "statement": "Register model: 32 general-purpose registers (RISC-V standard) plus 32 architectural vector registers v0-v31 at 128B each (VLEN=1024) per A100 hart; v0 serves the standard RVV mask-register role; the vector register file is per-core private; the IME reuses exactly these vector registers for matrix tiles with no additional architectural state, so matrix context switching carries no cost beyond ordinary RVV state.",
+      "source": "docs/compiler-agent/target-material/sources/9564d4ba5ed9a64d71c0c7e5bf0c8f7d74ed717fd0aa71265328f8c1eaea8c91/K3_architecture_preview.pdf.search.txt:727-731,739-745 (3.2.1/3.2.2); docs/compiler-agent/target-material/sources/bd69e01a6280ae5ab4493ea82b0e819fb34f093da43c264fc3be3c6291a8c6c8/ime_extension.md.search.txt:25-38 (1.1)",
+      "confidence": "FACT",
+      "status": "active",
+      "category": "registers",
       "origin": "input"
     }
   ],
@@ -886,6 +895,12 @@
       "phase": "CHIP_ANALYSIS",
       "event": "fact",
       "detail": "F038 [isa/FACT/input] docs/compiler-agent/target-material/sources/462bf27aed1712f9ca43fee5cb6302de444e4e1c66f513a08be5a8bd62b445a1/instruction.md.search.txt:26-33 (K1/A60); docs/compiler-agent/target-material/sources/83ddde6d173d633a2b89bad966f7ec23ae7ab4699185cf85989521a79c03d066/concept.md.search.txt:26-56 (K1 figures); docs/compiler-agent/target-material/sources/ff2340c355516e190769949abbfe57d2121efbe72326b5fc65b166f6cd55d90d/08_cpu.md.search.txt:22 (X100 VLEN=256); chip.md:114-116 (pack scope note)"
+    },
+    {
+      "at": "2026-11-04T08:50:33.181535+00:00",
+      "phase": "CHIP_ANALYSIS",
+      "event": "fact",
+      "detail": "F039 [registers/FACT/input] docs/compiler-agent/target-material/sources/9564d4ba5ed9a64d71c0c7e5bf0c8f7d74ed717fd0aa71265328f8c1eaea8c91/K3_architecture_preview.pdf.search.txt:727-731,739-745 (3.2.1/3.2.2); docs/compiler-agent/target-material/sources/bd69e01a6280ae5ab4493ea82b0e819fb34f093da43c264fc3be3c6291a8c6c8/ime_extension.md.search.txt:25-38 (1.1)"
     }
   ]
 }
