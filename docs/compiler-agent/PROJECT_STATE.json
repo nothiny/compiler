@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-04T08:49:50.214880+00:00",
+  "updated_at": "2026-11-04T08:49:50.413380+00:00",
   "facts": [
     {
       "id": "F001",
@@ -261,6 +261,15 @@
       "id": "F028",
       "statement": "A100 vector extension: RVV 1.0 with VLEN=1024; the Vector Unit is driven by two parallel vector pipelines performing instruction splitting, dependency handling and vector register-file reads/writes; operators are classified INT, FP, CRYPTO, FDV and IME-1.0 by instruction type and datapath; the register file provides 32 architectural vector registers v0-v31 of 128B each.",
       "source": "docs/compiler-agent/target-material/sources/ff2340c355516e190769949abbfe57d2121efbe72326b5fc65b166f6cd55d90d/08_cpu.md.search.txt:60 (8.2.2); docs/compiler-agent/target-material/sources/9564d4ba5ed9a64d71c0c7e5bf0c8f7d74ed717fd0aa71265328f8c1eaea8c91/K3_architecture_preview.pdf.search.txt:729-760 (3.2.1)",
+      "confidence": "FACT",
+      "status": "active",
+      "category": "isa",
+      "origin": "input"
+    },
+    {
+      "id": "F029",
+      "statement": "SpacemiT IME instruction set (Zvvm_spacemit profile, version 0.6 public release 2026-04-13): 46 custom AI instructions, all prefixed smt. (SMT vendor prefix); it reuses the 32 RVV vector registers for 2D matrix tiles with no dedicated matrix register file (no extra architectural state or context-switch overhead). The A100 core in K3 supports 13 sub-extensions: Xsmti4i32mm, Xsmti8i32mm, Xsmti8i32mm_slide, Xsmti4i32mm_42sp, Xsmti8i32mm_42sp, Xsmti4fp16mm_scl16f, Xsmti4bf16mm_scl16f, Xsmti8fp16mm_scl16f, Xsmti8bf16mm_scl16f, Xsmtfp16fp32mm, Xsmtbf16fp32mm, Xsmtfp16fp32mm_slide, Xsmtbf16fp32mm_slide; the toolchain names the A100 set collectively Xsmtvdotii. Chinese and English v0.6 editions in the pack agree.",
+      "source": "docs/compiler-agent/target-material/sources/bd69e01a6280ae5ab4493ea82b0e819fb34f093da43c264fc3be3c6291a8c6c8/ime_extension.md.search.txt:5-9,56,206-243 (1.6/1.7),2333-2339 (App. B); cross-checked with the Chinese edition docs/compiler-agent/target-material/sources/efb5d87ac66581c12a931698b95db2ae840a57110cf23e429142fca07662e189/ime_extension.md.search.txt:91-144",
       "confidence": "FACT",
       "status": "active",
       "category": "isa",
@@ -736,6 +745,12 @@
       "phase": "CHIP_ANALYSIS",
       "event": "fact",
       "detail": "F028 [isa/FACT/input] docs/compiler-agent/target-material/sources/ff2340c355516e190769949abbfe57d2121efbe72326b5fc65b166f6cd55d90d/08_cpu.md.search.txt:60 (8.2.2); docs/compiler-agent/target-material/sources/9564d4ba5ed9a64d71c0c7e5bf0c8f7d74ed717fd0aa71265328f8c1eaea8c91/K3_architecture_preview.pdf.search.txt:729-760 (3.2.1)"
+    },
+    {
+      "at": "2026-11-04T08:49:50.413334+00:00",
+      "phase": "CHIP_ANALYSIS",
+      "event": "fact",
+      "detail": "F029 [isa/FACT/input] docs/compiler-agent/target-material/sources/bd69e01a6280ae5ab4493ea82b0e819fb34f093da43c264fc3be3c6291a8c6c8/ime_extension.md.search.txt:5-9,56,206-243 (1.6/1.7),2333-2339 (App. B); cross-checked with the Chinese edition docs/compiler-agent/target-material/sources/efb5d87ac66581c12a931698b95db2ae840a57110cf23e429142fca07662e189/ime_extension.md.search.txt:91-144"
     }
   ]
 }
