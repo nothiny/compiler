@@ -54,8 +54,13 @@ def _features(op: mir.MOp) -> Dict[str, object]:
         features["fp"] = bool(ops and ops[0].type.kind == "float")
     elif op.opcode == "vbinx":
         features["op"] = op.attrs["op"]
+        features["fp"] = bool(ops and ops[0].type.kind == "float")
     elif op.opcode == "vunary":
         features["op"] = op.attrs["op"]
+    elif op.opcode == "vred":
+        features["kind"] = op.attrs["kind"]
+        features["fp"] = bool(ops and ops[0].type.kind == "float")
+        features["unsigned"] = bool(ops and ops[0].type.kind == "uint")
     elif op.opcode == "vcmp":
         features["pred"] = op.attrs["pred"]
         features["fp"] = bool(op.attrs.get("fp", False))

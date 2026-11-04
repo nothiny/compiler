@@ -19,6 +19,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
+from a100c.ir import mir
+
 __all__ = ["InstructionEntry", "Repertoire", "DEFAULT_REPERTOIRE",
            "ABSENT_FORMS"]
 
@@ -142,17 +144,67 @@ def _vector_rows() -> List[InstructionEntry]:
                        evidence="RVV 1.0 (F006/F026)"))
     # floating forms: the MIR arith code is the same (arith.mul on fp
     # operands); the row is selected by the operand kind
-    for code, m in (("add", "vfadd"), ("sub", "vfsub"), ("mul", "vfmul")):
+    for code, m in (("add", "vfadd"), ("sub", "vfsub"), ("mul", "vfmul"),
+                    ("fdiv", "vfdiv")):
         rows.append(_E(m + ".vv", "vbin", (("op", code), ("fp", True)),
                        f"{m}.vv {{vd}}, {{vs2}}, {{vs1}}",
                        evidence="RVV 1.0 (F006/F026)"))
     for op, m in (("add", "vadd"), ("mul", "vmul")):
-        rows.append(_E(m + ".vx", "vbinx", (("op", op),),
+        rows.append(_E(m + ".vx", "vbinx", (("op", op), ("fp", False)),
+                       f"{m}.vx {{vd}}, {{vs2}}, {{rs1}}",
+                       evidence="RVV 1.0 (F006/F026)"))
+    # floating vector-vs-scalar forms (no scalar float compare exists in
+    # the scalar core: splat-and-.vv is the alternative)
+    for op, m in (("add", "vfadd"), ("mul", "vfmul")):
+        rows.append(_E(m + ".vx", "vbinx", (("op", op), ("fp", True)),
                        f"{m}.vx {{vd}}, {{vs2}}, {{rs1}}",
                        evidence="RVV 1.0 (F006/F026)"))
     rows.append(_E("vfsgnjn.vv", "vunary", (("op", "fneg"),),
                    "vfsgnjn.vv {vd}, {vs2}, {vs2}",
                    notes="the real form behind the vfneg.vv pseudo",
+                   evidence="RVV 1.0 (F006)"))
+    rows.append(_E("vfcvt.f.x.v", "vunary", (("op", "fcvt"),),
+                   "vfcvt.f.x.v {vd}, {vs2}",
+                   notes="signed integer to float at the same SEW",
+                   evidence="RVV 1.0 (F006)"))
+    # vector reductions: vd[0] = vs1[0] combine vs2's active lanes; only
+    # lane 0 of vd is consumed (the merge accumulator convention)
+    for (kind, fp), m in sorted(mir.VRED_KINDS.items()):
+        if kind == "sum" and not fp:
+            rows.append(_E("vredsum.vs", "vred",
+                           (("kind", kind), ("fp", False)),
+                           "vredsum.vs {vd}, {vs2}, {vs1}",
+                           evidence="RVV 1.0 (F006/F026)"))
+            continue
+        if fp:
+            rows.append(_E(f"{m}.vs", "vred",
+                           (("kind", kind), ("fp", True)),
+                           f"{m}.vs {{vd}}, {{vs2}}, {{vs1}}",
+                           notes="floating reduction; the unordered-sum "
+                                 "form regroups within the case tolerance",
+                           evidence="RVV 1.0 (F006/F026)"))
+            continue
+        # both signednesses exist for the integer min/max reductions
+        # (the index lane compares block indices: signed at non-negative
+        # ranges, unsigned for the full-range forms)
+        rows.append(_E(f"{m}.vs", "vred",
+                       (("kind", kind), ("fp", False),
+                        ("unsigned", False)),
+                       f"{m}.vs {{vd}}, {{vs2}}, {{vs1}}",
+                       evidence="RVV 1.0 (F006/F026)"))
+        rows.append(_E(f"{m}u.vs", "vred",
+                       (("kind", kind), ("fp", False),
+                        ("unsigned", True)),
+                       f"{m}u.vs {{vd}}, {{vs2}}, {{vs1}}",
+                       evidence="RVV 1.0 (F006/F026)"))
+    rows.append(_E("vmv.x.s", "vextract", (),
+                   "vmv.x.s {rd}, {vs2}",
+                   notes="extract lane 0 to a GPR (raw bits for floats)",
+                   evidence="RVV 1.0 (F006)"))
+    rows.append(_E("vmand.mm", "vmand", (),
+                   "vmand.mm {vd}, {vs2}, {vs1}",
+                   notes="mask AND (the arg-merge tie condition); the .mm "
+                         "form is the mask-mask assembly suffix of RVV 1.0",
                    evidence="RVV 1.0 (F006)"))
     # integer vector compares (vv): vd = vs2 <pred> vs1
     for pred, m, swap in (("lt", "vmslt", False), ("le", "vmsle", False),

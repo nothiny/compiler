@@ -629,6 +629,14 @@ IMPLEMENTED_CONSTRUCTS = {
     # control flow and grid generality (T008): the loop forms and the
     # runtime grid-extent read
     "tl.range", "tl.static_range", "tl.num_programs",
+    # reductions, scans and their index forms (T009): the TIR reduce/scan
+    # ops carry per-op-and-dtype identities, axes, keep_dims and the
+    # declared tie-break; tl.softmax refuses with a located diagnostic
+    # naming its exp dependency (math-ops lane)
+    "tl.sum", "tl.max", "tl.min", "tl.argmax", "tl.argmin",
+    "tl.xor_sum", "tl.reduce_or", "tl.cumsum", "tl.cumprod",
+    "tl.softmax", "tl.histogram", "tl.sort", "tl.topk",
+    "tl.cast",
     # dtype constants (no parameters): parse, compare, create
     "tl.float32", "tl.int64", "tl.int32", "tl.bfloat16", "tl.float16",
     "tl.float64", "tl.uint32", "tl.int1", "tl.uint64", "tl.int16", "tl.int8",

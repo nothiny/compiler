@@ -177,6 +177,17 @@ LEGALIZE_ONLY_OPS = {"vwiden", "strunc"}
 VEC_OPS = {
     "vid", "s2v", "vbin", "vbinx", "vunary", "vcmp", "vcmpx", "vsel",
     "vwaddx0", "vwiden", "vloadix", "vstoreix",
+    "vred", "vextract", "vmand",
+}
+
+#: vector reduction kinds (vred.vs: vd[0] = identity[0] combine vs2 lanes;
+#: only lane 0 of the result is meaningful -- the merge accumulator
+#: convention reads lane 0 exclusively)
+VRED_KINDS = {
+    ("sum", False): "vredsum", ("sum", True): "vfredusum",
+    ("max", False): "vredmax", ("max", True): "vfredmax",
+    ("min", False): "vredmin", ("min", True): "vfredmin",
+    ("xor", False): "vredxor", ("or", False): "vredor",
 }
 
 #: memory ops with masks and declared inactive semantics
@@ -190,13 +201,14 @@ SBIN_OPS = {"sadd", "ssub", "smul", "sdiv", "sdivu", "sand", "sor", "sxor",
             "sshl", "ssra", "slt", "sltu"}
 
 #: vector binary op codes
-VBIN_OPS = {"add", "sub", "mul", "and", "or", "xor", "fadd", "fsub", "fmul"}
+VBIN_OPS = {"add", "sub", "mul", "and", "or", "xor", "fadd", "fsub",
+            "fmul", "fdiv"}
 
 #: vector x scalar op codes
 VBINX_OPS = {"add", "mul"}
 
 #: vector unary op codes
-VUNARY_OPS = {"fneg", "not"}
+VUNARY_OPS = {"fneg", "not", "fcvt"}
 
 #: comparison predicates (vector and scalar)
 CMP_PREDS = {"lt", "le", "gt", "ge", "eq", "ne"}
@@ -554,9 +566,51 @@ def _type_check(op: MOp, errors: List[MirError]) -> None:
             return err(f"'vbinx' scalar width {s.width} exceeds SEW {a.sew}")
         if op.attrs.get("op") not in VBINX_OPS:
             return err(f"'vbinx' op {op.attrs.get('op')!r} unknown")
+    elif code == "vred":
+        if len(ops) != 2 or len(res) != 1:
+            return err("'vred' takes (value, identity) and produces one "
+                       "vector")
+        a, ident, r = V(0), V(1), res[0].type
+        if not a or not ident or not res[0].is_vector():
+            return err("'vred' requires vector operands")
+        if a != ident or r != a:
+            return err(f"'vred' types must agree: {a!r}, {ident!r} -> {r!r}")
+        if op.attrs.get("kind") not in ("sum", "max", "min", "xor", "or"):
+            return err(f"'vred' kind {op.attrs.get('kind')!r} unknown")
+    elif code == "vextract":
+        if len(ops) != 1 or len(res) != 1 or not V(0) \
+                or not res[0].is_scalar():
+            return err("'vextract' takes one vector and produces the "
+                       "scalar in its lane 0")
+        if ops[0].type.sew != res[0].type.width:
+            return err(f"'vextract' scalar width {res[0].type.width} must "
+                       f"equal the vector SEW {ops[0].type.sew}")
+        if ops[0].type.kind == "float" and not res[0].type.float:
+            return err("'vextract' of a float vector produces a float "
+                       "scalar (raw bits)")
+        if ops[0].type.kind != "float" and res[0].type.float:
+            return err("'vextract' of an integer vector produces an "
+                       "integer scalar")
+    elif code == "vmand":
+        if len(ops) != 2 or len(res) != 1:
+            return err("'vmand' takes two masks and produces one mask")
+        if not ops[0].is_mask() or not ops[1].is_mask() \
+                or not res[0].is_mask():
+            return err("'vmand' operates on mask values")
     elif code == "vunary":
         if len(ops) != 1 or len(res) != 1 or not V(0) or not res[0].is_vector():
             return err("'vunary' takes one vector and produces one vector")
+        if op.attrs.get("op") == "fcvt":
+            # int <-> float at the same SEW/LMUL: the element kind changes
+            # by value conversion, the shape does not
+            a, r = V(0), res[0].type
+            if (a.sew, a.lmul) != (r.sew, r.lmul):
+                return err("'vunary' fcvt preserves SEW and LMUL")
+            kinds = {a.kind, r.kind}
+            if not kinds <= {"int", "uint", "float"} or a.kind == r.kind:
+                return err("'vunary' fcvt converts between integer and "
+                           "float element kinds")
+            return
         if ops[0].type != res[0].type:
             return err("'vunary' must preserve the vector type")
         if op.attrs.get("op") not in VUNARY_OPS:

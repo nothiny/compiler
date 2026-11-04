@@ -90,11 +90,18 @@ class CompileOptions:
     #: witness-only degraded build (tools/check_masked_tails.py); recorded
     #: in the artifact identity so it can never leak into the normal cache
     witness_drop_tail_predicates: bool = False
+    #: witness-only degraded build (tools/check_stage_barriers.py): the
+    #: stage barrier call is dropped from the two-phase split path so the
+    #: cross-worker visibility race becomes observable; recorded in the
+    #: artifact identity so it can never leak into the normal cache
+    witness_drop_stage_barrier: bool = False
 
     def identity_part(self) -> str:
         parts = []
         if self.witness_drop_tail_predicates:
             parts.append("witness-drop-tail-predicates")
+        if self.witness_drop_stage_barrier:
+            parts.append("witness-drop-stage-barrier")
         if not self.dumps:
             parts.append("no-dumps")      # dumps do not affect the ELF
         return ",".join(parts) if parts else "default"
@@ -249,7 +256,8 @@ class Compiler:
         layout = binding_mod.argument_layout(case, spec)
         # 6. TIR -> MIR + verification
         options = LowerOptions(
-            witness_drop_tail_predicates=self.options.witness_drop_tail_predicates)
+            witness_drop_tail_predicates=self.options.witness_drop_tail_predicates,
+            witness_drop_stage_barrier=self.options.witness_drop_stage_barrier)
         try:
             mir_module = vectorize.lower_to_mir(tir_module, plan, self.target,
                                                 layout, grid, options)

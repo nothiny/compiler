@@ -149,17 +149,47 @@ class _Emitter:
             if moved:
                 continue
             dst, src, dstv = pending[0]
-            if self.scratch_offset is None or not dstv.is_scalar():
+            if dstv.is_scalar():
+                if self.scratch_offset is None:
+                    raise EmissionError(
+                        op.loc, "branch",
+                        "a cyclic parallel move needs the GPR scratch slot; "
+                        f"the value at {dst} cannot be cycled (located "
+                        "refusal)")
+                self.emit(f"sd {dst}, {self.scratch_offset}(sp)", op)
+                self._emit_move(dst, src, dstv, op)
+                for p in pending[1:]:
+                    if p[1] == dst:
+                        p[1] = "@scratch"
+                pending.pop(0)
+                continue
+            # a vector cycle: save the destination group through a
+            # register the allocation does not own, perform the move,
+            # and let later readers of the saved value take it from the
+            # temp (the GPR scratch-slot algorithm, vector form)
+            temp = self._free_vector_reg(dstv)
+            if temp is None:
                 raise EmissionError(
                     op.loc, "branch",
-                    "a cyclic parallel move needs the GPR scratch slot; the "
-                    f"value at {dst} cannot be cycled (located refusal)")
-            self.emit(f"sd {dst}, {self.scratch_offset}(sp)", op)
+                    "a cyclic vector move needs a free scratch register; "
+                    f"the value at {dst} cannot be cycled (located "
+                    "refusal)")
+            self._emit_move(temp, dst, dstv, op)
             self._emit_move(dst, src, dstv, op)
             for p in pending[1:]:
                 if p[1] == dst:
-                    p[1] = "@scratch"
+                    p[1] = temp
             pending.pop(0)
+
+    def _free_vector_reg(self, dstv: mir.VReg) -> Optional[str]:
+        """A vector register no allocated value owns (cycle scratch)."""
+        used = set(self.alloc.assignment.values())
+        span = dstv.type.lmul if dstv.is_vector() else 1
+        for i in range(1, 32 - span + 1):
+            group = [f"v{i + k}" for k in range(span)]
+            if not any(r in used for r in group) and "v0" not in group:
+                return f"v{i}"
+        return None
 
     def _emit_move(self, dst: str, src: str, dstv: mir.VReg, op: mir.MOp) -> None:
         if dstv.is_scalar():

@@ -306,6 +306,21 @@ def _try_color(fn: mir.MFunction, target: TargetModel,
         if v.rid in fixed:
             assignment[v.rid] = fixed[v.rid]
 
+    # the full physical span of every already-assigned value (an m2 value
+    # at v2 occupies v2 and v3: a span-1 neighbour must not land on v3 --
+    # the interference graph records the base name only)
+    spans: Dict[int, int] = {v.rid: (v.type.lmul if v.is_vector() else 1)
+                             for v in values}
+
+    def _group_names(name: str, span: int) -> List[str]:
+        if span <= 1 or not name.startswith("v"):
+            return [name]
+        try:
+            base = int(name[1:])
+        except ValueError:
+            return [name]
+        return [f"v{base + k}" for k in range(span)]
+
     for reg in sorted(values, key=lambda v: (-weights[v.rid], v.rid)):
         if reg.rid in fixed:
             continue
@@ -313,7 +328,7 @@ def _try_color(fn: mir.MFunction, target: TargetModel,
         for n in graph.get(reg.rid, ()):
             name = assignment.get(n)
             if name is not None:
-                taken.add(name)
+                taken.update(_group_names(name, spans.get(n, 1)))
         blocked = avoid.get(reg.rid, set())
         span = reg.type.lmul if reg.is_vector() else 1
         chosen = None

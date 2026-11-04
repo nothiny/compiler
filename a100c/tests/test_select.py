@@ -93,7 +93,9 @@ def check_slice_selection():
 
 
 def check_refusals():
-    # a feature combination with no row (vector fdiv) is refused, located
+    # a feature combination with no row (vector frem: vfdiv gained a row
+    # when the reduction families' mean kernels needed it -- T009) is
+    # refused, located
     module = legalized_mir()
     fn = module.functions[0]
     block = fn.blocks[-1]
@@ -101,17 +103,21 @@ def check_refusals():
     bad = mir.MOp("vbin", [a, mir.VReg(mir.VectorType(32, 1, "float"),
                                        name="fb")],
                   [mir.VReg(mir.VectorType(32, 1, "float"), name="fd")],
-                  attrs={"op": "fdiv"}, loc=None)
+                  attrs={"op": "frem"}, loc=None)
     block.ops.insert(0, bad)
     try:
         select_mod.select(module)
-        check("no-row-refused", False, "selection accepted fdiv")
+        check("no-row-refused", False, "selection accepted frem")
     except select_mod.SelectionError as exc:
-        check("no-row-refused", "fdiv" in str(exc) and "vbin" in str(exc),
+        check("no-row-refused", "frem" in str(exc) and "vbin" in str(exc),
               str(exc)[:90])
     # the repertoire itself reports the miss
     check("repertoire-find-miss",
-          DEFAULT_REPERTOIRE.find("vbin", {"op": "fdiv", "fp": True}) is None)
+          DEFAULT_REPERTOIRE.find("vbin", {"op": "frem", "fp": True}) is None)
+    # vfdiv is implemented now (the mean kernels' normalize division)
+    check("repertoire-find-vfdiv",
+          (DEFAULT_REPERTOIRE.find("vbin", {"op": "fdiv", "fp": True}) or
+           InstructionEntry("", "", (), "")).mnemonic == "vfdiv.vv")
     check("repertoire-find-hit",
           (DEFAULT_REPERTOIRE.find("vbin", {"op": "mul", "fp": True}) or
            InstructionEntry("", "", (), "")).mnemonic == "vfmul.vv")

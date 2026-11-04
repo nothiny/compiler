@@ -68,6 +68,14 @@ class IgnoredParam:
     reason: str
 
 
+@dataclass
+class TupleVal:
+    """A runtime tuple value bound to one name (the inlined-function form
+    ``result = (a, b)`` ... ``(x, y) = result``); it exists only to be
+    unpacked, never consumed as a value."""
+    values: list
+
+
 #: method-call forms that map to declared constructs (``.to`` is ``tl.cast``)
 _METHOD_CONSTRUCTS = {".to": "tl.cast"}
 
@@ -85,6 +93,26 @@ _REQUIRED_PARAMS = {
     "tl.constexpr": ("value",),
     "tl.multiple_of": ("input", "values"),
     "tl.max_contiguous": ("input", "values"),
+    "tl.sum": ("input",),
+    "tl.max": ("input",),
+    "tl.min": ("input",),
+    "tl.argmax": ("input", "axis"),
+    "tl.argmin": ("input", "axis"),
+    "tl.xor_sum": ("input",),
+    "tl.reduce_or": ("input",),
+    "tl.cumsum": ("input", "axis"),
+    "tl.cumprod": ("input", "axis"),
+    "tl.histogram": ("input", "num_bins"),
+    "tl.sort": ("x",),
+    "tl.topk": ("x", "k"),
+    "tl.cast": ("input", "dtype"),
+}
+
+#: reduction constructs -> the TIR reduce kind
+_REDUCE_KINDS = {
+    "tl.sum": "sum", "tl.max": "max", "tl.min": "min",
+    "tl.argmax": "argmax", "tl.argmin": "argmin",
+    "tl.xor_sum": "xor_sum", "tl.reduce_or": "reduce_or",
 }
 
 
@@ -185,6 +213,39 @@ class Lowering:
     def _lower_stmt(self, st: ast.stmt) -> None:
         if isinstance(st, ast.Assign):
             targets = st.targets
+            # a name bound to a runtime tuple unpacks later (the inlined
+            # function form ``result = (a, b)`` ... ``(x, y) = result``)
+            if len(targets) == 1 and isinstance(targets[0], ast.Name) \
+                    and isinstance(st.value, ast.Tuple):
+                values = [self._lower_expr(e) for e in st.value.elts]
+                if any(isinstance(v, ConstVal) for v in values):
+                    raise self._err(
+                        st, "assignment",
+                        "packing compile-time values into a tuple is a "
+                        "Python-level construct the kernel path does not "
+                        "bind")
+                self.symbols[targets[0].id] = TupleVal(values)
+                self.env.values[targets[0].id] = tuple(
+                    _runtime_symbol(targets[0].id, v) for v in values)
+                return
+            if isinstance(targets[0], ast.Tuple) and len(targets) == 1 \
+                    and isinstance(st.value, ast.Name) \
+                    and isinstance(self.symbols.get(st.value.id), TupleVal):
+                values = self.symbols[st.value.id].values
+                names = [e.id for e in targets[0].elts
+                         if isinstance(e, ast.Name)]
+                if len(names) != len(targets[0].elts):
+                    raise self._err(
+                        st, "assignment",
+                        "tuple-unpack targets must be plain names")
+                if len(names) != len(values):
+                    raise self._err(
+                        st, "assignment",
+                        f"cannot unpack {len(values)} value(s) into "
+                        f"{len(names)} target(s)")
+                for name, v in zip(names, values):
+                    self._bind(name, v)
+                return
             if isinstance(st.value, ast.Tuple) and all(
                     isinstance(t, ast.Name) or
                     (isinstance(t, ast.Tuple)
@@ -203,6 +264,30 @@ class Lowering:
                             f"{len(names)} target(s)")
                     for name, v in zip(names, values):
                         self._bind(name, v)
+                return
+            if isinstance(st.value, ast.Call) and len(targets) == 1 \
+                    and isinstance(targets[0], ast.Tuple):
+                # tuple unpacking of a multi-result call (tl.max/min with
+                # return_indices=True yields (values, indices))
+                names = [e.id for e in targets[0].elts
+                         if isinstance(e, ast.Name)]
+                if len(names) != len(targets[0].elts):
+                    raise self._err(
+                        st, "assignment",
+                        "tuple-unpack targets must be plain names")
+                values = self._lower_call_multi(st.value)
+                if not isinstance(values, list):
+                    raise self._err(
+                        st, "assignment",
+                        "the call does not produce multiple values to "
+                        "unpack")
+                if len(values) != len(names):
+                    raise self._err(
+                        st, "assignment",
+                        f"cannot unpack {len(values)} value(s) into "
+                        f"{len(names)} target(s)")
+                for name, v in zip(names, values):
+                    self._bind(name, v)
                 return
             if not all(isinstance(t, ast.Name) for t in targets):
                 raise self._err(
@@ -853,7 +938,8 @@ class Lowering:
             l, r, t = self._binary_operands(lhs, rhs, loc)
             return self._emit(tir.Op.binop("arith.mul", l, r, loc), "mul")
         if isinstance(op, ast.Div):
-            l, r, t = self._binary_operands(lhs, rhs, loc, div_or_mod=True)
+            l, r, t = self._binary_operands(lhs, rhs, loc, div_or_mod=True,
+                                            preserve_order=True)
             if t.is_int():
                 lf = self._emit_convert(l, tir.FLOAT32, loc)
                 rf = self._emit_convert(r, tir.FLOAT32, loc)
@@ -861,7 +947,8 @@ class Lowering:
                                   "div")
             return self._emit(tir.Op.binop("arith.fdiv", l, r, loc), "div")
         if isinstance(op, ast.FloorDiv):
-            l, r, t = self._binary_operands(lhs, rhs, loc, div_or_mod=True)
+            l, r, t = self._binary_operands(lhs, rhs, loc, div_or_mod=True,
+                                            preserve_order=True)
             if not t.is_int():
                 raise self._err(
                     node, "//",
@@ -869,7 +956,8 @@ class Lowering:
             code = "arith.sdiv" if t.is_int_signed() else "arith.udiv"
             return self._emit(tir.Op.binop(code, l, r, loc), "fdiv")
         if isinstance(op, ast.Mod):
-            l, r, t = self._binary_operands(lhs, rhs, loc, div_or_mod=True)
+            l, r, t = self._binary_operands(lhs, rhs, loc, div_or_mod=True,
+                                            preserve_order=True)
             if t.is_int():
                 code = "arith.srem" if t.is_int_signed() else "arith.urem"
                 return self._emit(tir.Op.binop(code, l, r, loc), "rem")
@@ -921,7 +1009,7 @@ class Lowering:
                 offset = self._negate(offset, loc)
             off_v, _ = self._as_index_value(offset, loc, node)
             return self._emit(tir.Op.ptradd(ptr, off_v, loc), "padd")
-        l, r, t = self._binary_operands(lhs, rhs, loc)
+        l, r, t = self._binary_operands(lhs, rhs, loc, preserve_order=True)
         code = "arith.sub" if sub else "arith.add"
         return self._emit(tir.Op.binop(code, l, r, loc), "sub" if sub else "add")
 
@@ -1026,7 +1114,7 @@ class Lowering:
             cond_v = self._emit_convert(cond_v, tir.INT1, loc)
         x = self._lower_expr(node.body)
         y = self._lower_expr(node.orelse)
-        l, r, t = self._binary_operands(x, y, loc)
+        l, r, t = self._binary_operands(x, y, loc, preserve_order=True)
         target, _, _ = fshapes.unify_pair(cond_v.shape, l.shape, loc)
         target, _, _ = fshapes.unify_pair(target, r.shape, loc)
         cond_b = self._broadcast_to(cond_v, target, loc)
@@ -1174,6 +1262,31 @@ class Lowering:
         return operand
 
     # ------------------------------------------------------------------ calls
+    def _lower_call_multi(self, node: ast.Call) -> Union[List[tir.Value],
+                                                         None]:
+        """Lower a call that may produce multiple values (the reduction
+        index forms with return_indices=True); None when the call is
+        single-result (the caller falls back to the plain path)."""
+        construct = self._callee_construct(node)
+        if construct not in ("tl.max", "tl.min"):
+            return None
+        bound, provided = self._bind_call_args(construct, node)
+        if "return_indices" not in bound:
+            return None
+        flag = self.env.evaluate(bound["return_indices"], self.source.path)
+        if flag is NOT_CONSTEXPR or not flag:
+            return None
+        self._check_construct(construct, node)
+        for required in _REQUIRED_PARAMS.get(construct, ()):
+            if required not in provided:
+                raise self._err(
+                    node, construct,
+                    f"missing required parameter {required!r}")
+        values = self._lower_tl_maxmin(bound, node, self._loc(node),
+                                       construct, want_indices=True)
+        assert isinstance(values, list)
+        return values
+
     def _lower_call(self, node: ast.Call) -> Union[tir.Value, ConstVal,
                                                    None]:
         construct = self._callee_construct(node)
@@ -1184,7 +1297,9 @@ class Lowering:
                 "call target is not in the elementwise core (only tl.* "
                 "constructs are lowerable)")
         self._check_construct(construct, node)
-        bound, provided = self._bind_call_args(construct, node)
+        receiver = self._method_receiver(node)
+        bound, provided = self._bind_call_args(construct, node,
+                                               method_receiver=receiver)
         for required in _REQUIRED_PARAMS.get(construct, ()):
             if required not in provided:
                 raise self._err(
@@ -1214,6 +1329,17 @@ class Lowering:
             return {"min": "tl.minimum", "max": "tl.maximum"}.get(func.id)
         return None
 
+    def _method_receiver(self, node: ast.Call) -> Optional[ast.expr]:
+        """A value-method call's receiver (``x`` in ``x.to(dtype)``): None
+        for plain tl.* / triton.* calls."""
+        func = node.func
+        if not isinstance(func, ast.Attribute):
+            return None
+        base = self._dotted(func.value)
+        if base in ("tl", "triton.language", "triton"):
+            return None
+        return func.value
+
     def _dotted(self, node: ast.expr) -> Optional[str]:
         if isinstance(node, ast.Name):
             return node.id
@@ -1242,10 +1368,15 @@ class Lowering:
                 f"construct is declared in the surface but not implemented "
                 f"by the elementwise core: {reason}")
 
-    def _bind_call_args(self, construct: str, node: ast.Call):
+    def _bind_call_args(self, construct: str, node: ast.Call,
+                        method_receiver: Optional[ast.expr] = None):
         """Bind call arguments to the construct's declared parameter surface,
         consulting the classification: implemented -> bound, ignorable ->
         dropped with a record, refused -> located diagnostic.
+
+        ``method_receiver``: a value-method call (``x.to(dtype)``) binds
+        its receiver as the construct's first parameter, and the call's
+        own positional arguments start at the second.
 
         Returns ``(kept, provided)``: the arguments the handler may consume
         (ignorable ones dropped -- this is what makes the classification
@@ -1255,12 +1386,19 @@ class Lowering:
         assert entry is not None
         names = list(entry.parameters)
         bound: Dict[str, ast.expr] = {}
+        if method_receiver is not None:
+            if not names:
+                raise self._err(
+                    node, construct,
+                    "the construct takes no value receiver")
+            bound[names[0]] = method_receiver
+            names = names[1:]
         for i, arg in enumerate(node.args):
             if i >= len(names):
                 raise self._err(
                     node, construct,
                     f"too many positional arguments (declared parameters: "
-                    f"{names})")
+                    f"{list(entry.parameters)})")
             bound[names[i]] = arg
         for kw in node.keywords:
             if kw.arg is None:
@@ -1423,7 +1561,7 @@ class Lowering:
         if not cond_v.type.is_bool():
             # pinned: deprecated non-bool condition, cast to int1
             cond_v = self._emit_convert(cond_v, tir.INT1, loc)
-        l, r, t = self._binary_operands(x, y, loc)
+        l, r, t = self._binary_operands(x, y, loc, preserve_order=True)
         target, _, _ = fshapes.unify_pair(cond_v.shape, l.shape, loc)
         target, _, _ = fshapes.unify_pair(target, r.shape, loc)
         cond_b = self._broadcast_to(cond_v, target, loc)
@@ -1484,6 +1622,308 @@ class Lowering:
                 raise self._err(node, "tl.max_contiguous",
                                 "values must be compile-time")
         return inp
+
+    # -- reductions (T009) ----------------------------------------------------
+    def _reduction_operand(self, args, node, loc, construct) -> tir.Value:
+        value = self._lower_expr(args["input"] if "input" in args
+                                 else args["x"])
+        if isinstance(value, ConstVal):
+            raise self._err(
+                node, construct,
+                "a reduction over a compile-time value folds at "
+                "specialization (no runtime reduction is produced)")
+        if value.rank == 0:
+            raise self._err(
+                node, construct,
+                "a reduction requires a block (rank>0) operand")
+        return value
+
+    def _reduction_axis(self, args, node, construct, rank: int,
+                        param: str = "axis"):
+        if param not in args:
+            return None
+        axis = py_scalar(self.env.evaluate(args[param], self.source.path))
+        if axis is NOT_CONSTEXPR:
+            raise self._err(
+                node, construct,
+                f"{param} must be a compile-time integer (a runtime axis "
+                "is not a legal Triton reduction)")
+        from a100c.plan import stages as stages_mod
+        try:
+            return stages_mod.normalize_axes(axis, rank)
+        except ValueError as exc:
+            raise self._err(node, construct, exc.args[0])
+
+    def _promote_reduction_input(self, value: tir.Value, kind: str,
+                                 dtype_arg, node, loc, construct) -> tir.Value:
+        """The pinned Triton 3.8 reductions' input promotions (standard.py):
+        sum promotes integer widths < 32 to the same-sign 32-bit type
+        (overflow prevention); max/min/argmax/argmin additionally promote
+        bfloat16 to fp32 (no FMAX/FMIN/CMP for bf16 in hardware) and every
+        <32-bit type to fp32/int32.  ``dtype=`` overrides (the input
+        converts before the reduction)."""
+        ty = value.type
+        if dtype_arg is not None:
+            target = self._constexpr_dtype(dtype_arg, node, construct)
+            return self._convert_if_needed(value, target, loc)
+        target = ty
+        if kind == "sum":
+            if ty.is_int() and ty.bitwidth() < 32:
+                target = tir.INT32 if ty.is_int_signed() else tir.UINT32
+        elif kind in ("max", "min", "argmax", "argmin"):
+            if ty.name == "bf16":
+                target = tir.FLOAT32
+            elif ty.bitwidth() < 32:
+                if ty.is_float():
+                    target = tir.FLOAT32
+                elif ty.is_int():
+                    target = tir.INT32 if ty.is_int_signed() else tir.UINT32
+        return self._convert_if_needed(value, target, loc)
+
+    def _lower_tl_reduction(self, args: Dict[str, ast.expr], node: ast.Call,
+                            loc, construct: str) -> tir.Value:
+        """tl.sum / tl.max / tl.min / tl.argmax / tl.argmin / tl.xor_sum /
+        tl.reduce_or: the TIR ``reduce`` op carrying the per-op-and-dtype
+        identity, axes, keep_dims and the declared tie-break."""
+        from a100c.plan import stages as stages_mod
+        kind = _REDUCE_KINDS[construct]
+        value = self._reduction_operand(args, node, loc, construct)
+        spec = stages_mod.REDUCTION_OPS[construct]
+        value = self._promote_reduction_input(
+            value, kind, args.get("dtype"), node, loc, construct)
+        axes = self._reduction_axis(args, node, construct, value.rank)
+        if axes is None:
+            axes = tuple(range(value.rank))
+        if len(axes) != len(value.shape):
+            raise self._err(
+                node, construct,
+                "reducing every axis of a multi-axis block is not in this "
+                "path (the block forms are rank 1; partial axis sets come "
+                "with the layout lane's multi-axis blocks)")
+        if kind in ("xor_sum", "reduce_or") and not value.type.is_int():
+            raise self._err(
+                node, construct,
+                f"{construct} requires integer operands, got "
+                f"{value.type!r}")
+        keep_dims = False
+        if "keep_dims" in args:
+            kd = self.env.evaluate(args["keep_dims"], self.source.path)
+            if kd is not NOT_CONSTEXPR:
+                keep_dims = bool(kd)
+        tie_break_left = True
+        tie_param = ("tie_break_left" if kind in ("argmax", "argmin")
+                     else "return_indices_tie_break_left")
+        if tie_param in args:
+            tb = self.env.evaluate(args[tie_param], self.source.path)
+            if tb is not NOT_CONSTEXPR:
+                tie_break_left = bool(tb)
+        if kind in ("argmax", "argmin"):
+            identity = stages_mod.identity_for(kind, tir.INT32)
+            op = tir.Op.reduce(value, kind, axes, keep_dims, identity,
+                               loc=loc, tie_break_left=tie_break_left)
+            self._emit(op, "arg")
+            return op.results[0]
+        identity = stages_mod.identity_for(kind, value.type)
+        op = tir.Op.reduce(value, kind, axes, keep_dims, identity, loc=loc,
+                           tie_break_left=tie_break_left)
+        self._emit(op, "red")
+        return op.results[0]
+
+    def _lower_tl_maxmin(self, args: Dict[str, ast.expr], node: ast.Call,
+                         loc, construct: str,
+                         want_indices: bool = False):
+        """tl.max / tl.min: the value form, or the (value, index) pair when
+        return_indices=True (two TIR results on one reduce op)."""
+        from a100c.plan import stages as stages_mod
+        kind = _REDUCE_KINDS[construct]
+        value = self._reduction_operand(args, node, loc, construct)
+        value = self._promote_reduction_input(value, kind, None, node, loc,
+                                              construct)
+        axes = self._reduction_axis(args, node, construct, value.rank)
+        if axes is None:
+            axes = tuple(range(value.rank))
+        if len(axes) != len(value.shape):
+            raise self._err(
+                node, construct,
+                "reducing every axis of a multi-axis block is not in this "
+                "path (the block forms are rank 1)")
+        keep_dims = False
+        if "keep_dims" in args:
+            kd = self.env.evaluate(args["keep_dims"], self.source.path)
+            if kd is not NOT_CONSTEXPR:
+                keep_dims = bool(kd)
+        tie_break_left = True
+        if "return_indices_tie_break_left" in args:
+            tb = self.env.evaluate(args["return_indices_tie_break_left"],
+                                   self.source.path)
+            if tb is not NOT_CONSTEXPR:
+                tie_break_left = bool(tb)
+        return_indices = False
+        if "return_indices" in args:
+            ri = self.env.evaluate(args["return_indices"], self.source.path)
+            if ri is not NOT_CONSTEXPR:
+                return_indices = bool(ri)
+        if return_indices and not want_indices:
+            raise self._err(
+                node, construct,
+                "return_indices=True yields (values, indices); unpack the "
+                "two results into names")
+        if want_indices and not return_indices:
+            raise self._err(
+                node, construct,
+                "the call does not set return_indices=True (nothing to "
+                "unpack)")
+        identity = stages_mod.identity_for(kind, value.type)
+        op = tir.Op.reduce(value, kind, axes, keep_dims, identity, loc=loc,
+                           tie_break_left=tie_break_left,
+                           return_indices=return_indices)
+        if return_indices:
+            self._block.statements.append(op)
+            for i, r in enumerate(op.results):
+                r.name = self._fresh_name("red" if i == 0 else "ridx")
+            return [op.results[0], op.results[1]]
+        self._emit(op, "red")
+        return op.results[0]
+
+    def _lower_tl_scan(self, args: Dict[str, ast.expr], node: ast.Call,
+                       loc, construct: str) -> tir.Value:
+        """tl.cumsum / tl.cumprod: the TIR ``scan`` op (inclusive prefix
+        scan along one axis, with the carry identity)."""
+        from a100c.plan import stages as stages_mod
+        kind = "cumsum" if construct == "tl.cumsum" else "cumprod"
+        value = self._reduction_operand(args, node, loc, construct)
+        value = self._promote_reduction_input(
+            value, "sum", args.get("dtype"), node, loc, construct)
+        axes = self._reduction_axis(args, node, construct, value.rank)
+        if axes is None or len(axes) != 1:
+            raise self._err(
+                node, construct,
+                "a scan requires exactly one axis (cumsum/cumprod scan one "
+                "dimension)")
+        axis = axes[0]
+        reverse = False
+        if "reverse" in args:
+            rv = self.env.evaluate(args["reverse"], self.source.path)
+            if rv is not NOT_CONSTEXPR:
+                reverse = bool(rv)
+        identity = stages_mod.identity_for(kind, value.type)
+        op = tir.Op.scan(value, kind, axis, reverse, identity, loc=loc)
+        return self._emit(op, "scan")
+
+    def _lower_tl_softmax(self, args: Dict[str, ast.expr], node: ast.Call,
+                          loc, construct: str) -> tir.Value:
+        """tl.softmax: the composite is exp(x - max(x)) / sum(exp(x -
+        max(x))) -- the reduction structure (axis, keep_dims, stable max
+        subtraction) is declared in a100c/plan/stages.py, but the
+        elementwise exp is the math-ops lane's construct; refused with a
+        located diagnostic naming the dependency (never miscompiled)."""
+        raise self._err(
+            node, "tl.softmax",
+            "tl.softmax lowers to max/sum reductions over exp terms; the "
+            "elementwise exp is the math-ops lane's construct (the "
+            "reduction structure -- axis, keep_dims, the stable max "
+            "subtraction -- is declared in a100c/plan/stages.py)")
+
+    def _lower_tl_histogram(self, args: Dict[str, ast.expr], node: ast.Call,
+                            loc, construct: str) -> tir.Value:
+        value = self._reduction_operand(args, node, loc, construct)
+        num_bins = self._constexpr_int(args["num_bins"], node, construct,
+                                       "num_bins")
+        if not value.type.is_int():
+            raise self._err(
+                node, construct,
+                f"tl.histogram requires an integer input (bin membership), "
+                f"got {value.type!r}")
+        if "mask" in args:
+            raise self._err(
+                node, construct,
+                "tl.histogram's mask parameter is not in this path (the "
+                "masked form needs the memory lane's masked-block forms)")
+        op = tir.Op.histogram(value, num_bins, loc=loc)
+        return self._emit(op, "hist")
+
+    def _lower_tl_sort(self, args: Dict[str, ast.expr], node: ast.Call,
+                       loc, construct: str) -> tir.Value:
+        value = self._reduction_operand(args, node, loc, construct)
+        dim = self._scan_dim(args, node, construct, value.rank)
+        descending = False
+        if "descending" in args:
+            d = self.env.evaluate(args["descending"], self.source.path)
+            if d is not NOT_CONSTEXPR:
+                descending = bool(d)
+        op = tir.Op.sort(value, dim, descending, loc=loc)
+        return self._emit(op, "sort")
+
+    def _lower_tl_topk(self, args: Dict[str, ast.expr], node: ast.Call,
+                       loc, construct: str) -> tir.Value:
+        value = self._reduction_operand(args, node, loc, construct)
+        dim = self._scan_dim(args, node, construct, value.rank)
+        k = self._constexpr_int(args["k"], node, construct, "k")
+        if not 1 <= k <= value.shape[dim].value:
+            raise self._err(
+                node, construct,
+                f"k={k} outside 1..{value.shape[dim].value} (the block "
+                "extent along dim)")
+        descending = True
+        if "descending" in args:
+            d = self.env.evaluate(args["descending"], self.source.path)
+            if d is not NOT_CONSTEXPR:
+                descending = bool(d)
+        op = tir.Op.topk(value, k, dim, descending, loc=loc)
+        return self._emit(op, "topk")
+
+    def _scan_dim(self, args, node, construct, rank: int) -> int:
+        if "dim" not in args:
+            return rank - 1              # the pinned default: last dim
+        dim = py_scalar(self.env.evaluate(args["dim"], self.source.path))
+        if dim is NOT_CONSTEXPR or isinstance(dim, bool) \
+                or not isinstance(dim, int):
+            raise self._err(node, construct, "dim must be a compile-time "
+                            "integer")
+        d = dim + rank if dim < 0 else dim
+        if not 0 <= d < rank:
+            raise self._err(node, construct,
+                            f"dim {dim} outside rank {rank}")
+        return d
+
+    def _lower_tl_cast(self, args: Dict[str, ast.expr], node: ast.Call,
+                       loc, construct: str) -> tir.Value:
+        """tl.cast / ``.to``: value conversion, distinct from bitcast.
+
+        The identity cast folds (a same-type ``.to`` is a no-op -- the
+        pinned semantics make it one); every *real* conversion emits the
+        TIR ``convert`` op whose legalisation the conversions lane owns
+        (this path executes the int32->fp32 form the reduction families'
+        mean/normalize kernels need; the rest refuse with a located
+        diagnostic at the lowering, never a silent reinterpretation)."""
+        value = self._lower_expr(args["input"])
+        if isinstance(value, ConstVal):
+            raise self._err(
+                node, construct,
+                "a compile-time value converts at specialization (no "
+                "runtime convert is produced)")
+        if "bitcast" in args:
+            flag = self.env.evaluate(args["bitcast"], self.source.path)
+            if flag is not NOT_CONSTEXPR and flag:
+                raise self._err(
+                    node, construct,
+                    "bitcast=True is bit-level reinterpretation, a distinct "
+                    "construct (the conversions lane owns the bitcast "
+                    "matrix)")
+        if "fp_downcast_rounding" in args:
+            raise self._err(
+                node, construct,
+                "fp_downcast_rounding selects a semantic rounding mode "
+                "(the conversions lane owns the rounding forms)")
+        target = self._constexpr_dtype(args["dtype"], node, construct)
+        if target == value.type:
+            return value                 # the identity cast folds
+        if not ftypes.convert_ok(value.type, target):
+            raise self._err(
+                loc_node(loc), "convert",
+                f"cannot convert {value.type!r} to {target!r}")
+        op = tir.Op.convert(value, target, loc)
+        return self._emit(op, "cvt")
 
     # -- helpers ---------------------------------------------------------------
     def _constexpr_int(self, node: Optional[ast.expr], call: ast.Call,
@@ -1562,6 +2002,36 @@ _CONSTRUCT_HANDLERS = {
     "tl.constexpr": Lowering._lower_tl_constexpr,
     "tl.multiple_of": Lowering._lower_tl_multiple_of,
     "tl.max_contiguous": Lowering._lower_tl_max_contiguous,
+    # reductions, scans and their index forms (T009); the table carries
+    # the construct so one handler serves a family
+    "tl.sum": lambda self, a, n, l: Lowering._lower_tl_reduction(
+        self, a, n, l, "tl.sum"),
+    "tl.max": lambda self, a, n, l: Lowering._lower_tl_maxmin(
+        self, a, n, l, "tl.max"),
+    "tl.min": lambda self, a, n, l: Lowering._lower_tl_maxmin(
+        self, a, n, l, "tl.min"),
+    "tl.argmax": lambda self, a, n, l: Lowering._lower_tl_reduction(
+        self, a, n, l, "tl.argmax"),
+    "tl.argmin": lambda self, a, n, l: Lowering._lower_tl_reduction(
+        self, a, n, l, "tl.argmin"),
+    "tl.xor_sum": lambda self, a, n, l: Lowering._lower_tl_reduction(
+        self, a, n, l, "tl.xor_sum"),
+    "tl.reduce_or": lambda self, a, n, l: Lowering._lower_tl_reduction(
+        self, a, n, l, "tl.reduce_or"),
+    "tl.cumsum": lambda self, a, n, l: Lowering._lower_tl_scan(
+        self, a, n, l, "tl.cumsum"),
+    "tl.cumprod": lambda self, a, n, l: Lowering._lower_tl_scan(
+        self, a, n, l, "tl.cumprod"),
+    "tl.softmax": lambda self, a, n, l: Lowering._lower_tl_softmax(
+        self, a, n, l, "tl.softmax"),
+    "tl.histogram": lambda self, a, n, l: Lowering._lower_tl_histogram(
+        self, a, n, l, "tl.histogram"),
+    "tl.sort": lambda self, a, n, l: Lowering._lower_tl_sort(
+        self, a, n, l, "tl.sort"),
+    "tl.topk": lambda self, a, n, l: Lowering._lower_tl_topk(
+        self, a, n, l, "tl.topk"),
+    "tl.cast": lambda self, a, n, l: Lowering._lower_tl_cast(
+        self, a, n, l, "tl.cast"),
 }
 
 

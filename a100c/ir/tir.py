@@ -386,6 +386,55 @@ def _and_flags(shapes: Sequence[Shape]) -> Shape:
     return tuple(out)
 
 
+def _reduced_shape(shape: Shape, axes: Sequence[int],
+                   keep_dims: bool) -> Shape:
+    """The reduce result shape (reduced axes removed, or kept at 1)."""
+    axeset = set(axes)
+    out: list = []
+    for i, e in enumerate(shape):
+        if i in axeset:
+            if keep_dims:
+                out.append(Extent(1, False))
+        else:
+            out.append(e)
+    return tuple(out)
+
+
+def _topk_shape(shape: Shape, dim: int, k: int) -> Shape:
+    return tuple(Extent(k, False) if i == dim else e
+                 for i, e in enumerate(shape))
+
+
+def _identity_ok(got, want, ty: Type) -> bool:
+    """Compare a carried identity with the table's identity at the type:
+    ints bitwise (bool as 0/1), floats bitwise through their IEEE bits (so
+    -inf/inf/0.0 compare exactly, never numerically-loosely)."""
+    if got is None:
+        return False
+    if ty.is_float():
+        if isinstance(got, bool) or not isinstance(got, (int, float)):
+            return False
+        import math as _math
+        import struct as _struct
+        width = ty.bitwidth()
+        if width == 32:
+            a = _struct.unpack("<I", _struct.pack("<f", float(got)))[0]
+            b = _struct.unpack("<I", _struct.pack("<f", float(want)))[0]
+        elif width == 64:
+            a = _struct.unpack("<Q", _struct.pack("<d", float(got)))[0]
+            b = _struct.unpack("<Q", _struct.pack("<d", float(want)))[0]
+        else:
+            # fp16/bf16 identities compare numerically (they convert)
+            return float(got) == float(want)
+        return a == b
+    if ty.is_bool():
+        return isinstance(got, bool) and got == bool(want)
+    if isinstance(got, bool) or not isinstance(got, int):
+        return False
+    mask = (1 << ty.bitwidth()) - 1
+    return (int(got) & mask) == (int(want) & mask)
+
+
 class Op:
     """One TIR operation: operands, attributes, results, source location."""
 
@@ -527,6 +576,82 @@ class Op:
     @staticmethod
     def barrier(loc: Optional[SrcLoc] = None) -> "Op":
         return Op("debug_barrier", (), loc, None, None, results=0)
+
+    @staticmethod
+    def reduce(value: Value, kind: str, axes: Sequence[int],
+               keep_dims: bool, identity, loc: Optional[SrcLoc] = None,
+               tie_break_left: bool = True, return_indices: bool = False,
+               index_type: Optional[Type] = None,
+               accumulate_type: Optional[Type] = None) -> "Op":
+        """The reduction contract carrier (COMPILER_ARCHITECTURE.md 2.1).
+
+        Carries: the operation ``kind`` (sum/max/min/argmax/argmin/
+        xor_sum/reduce_or), the reduced ``axes``, ``keep_dims``, the
+        per-operation-and-dtype ``identity`` element (signedness-correct,
+        derived by the plan's table and checked by the verifier), the
+        index forms' declared ``tie_break_left`` and the value forms'
+        ``return_indices`` (two results: value, index).
+
+        The accumulator may be re-typed before the reduction
+        (``accumulate_type`` -- tl.sum's ``dtype=``): the operand converts
+        to it first, the identity follows it and the result carries it.
+        """
+        acc_ty = accumulate_type or value.type
+        index_ty = index_type or INT32
+        if kind in ("argmax", "argmin"):
+            rtype, results = index_ty, 1
+        elif return_indices:
+            rtype, results = acc_ty, 2
+        else:
+            rtype, results = acc_ty, 1
+        shape = _reduced_shape(value.shape, axes, keep_dims)
+        op = Op("reduce", (value,), loc, rtype, shape, attrs={
+            "kind": kind, "axes": tuple(axes), "keep_dims": keep_dims,
+            "identity": identity, "tie_break_left": tie_break_left,
+            "return_indices": return_indices, "index_type": index_ty,
+            "accumulate_type": acc_ty,
+        }, results=results)
+        if return_indices and len(op.results) == 2:
+            # the index result carries the index type (the constructor
+            # types every result with the value type)
+            op.results[1].type = index_ty
+        return op
+
+    @staticmethod
+    def scan(value: Value, kind: str, axis: int, reverse: bool, identity,
+             loc: Optional[SrcLoc] = None) -> "Op":
+        """An inclusive scan (cumsum/cumprod) along one axis: the result
+        has the operand's type and shape; the carry's identity element is
+        carried for the chunked lowering (and the empty prefix)."""
+        return Op("scan", (value,), loc, value.type, value.shape, attrs={
+            "kind": kind, "axis": axis, "reverse": reverse,
+            "identity": identity,
+        })
+
+    @staticmethod
+    def sort(value: Value, dim: int, descending: bool,
+             loc: Optional[SrcLoc] = None) -> "Op":
+        """A whole-block sort along ``dim`` (tl.sort)."""
+        return Op("sort", (value,), loc, value.type, value.shape, attrs={
+            "dim": dim, "descending": descending,
+        })
+
+    @staticmethod
+    def topk(value: Value, k: int, dim: int, descending: bool,
+             loc: Optional[SrcLoc] = None) -> "Op":
+        """The k largest values along ``dim`` (tl.topk), sorted."""
+        shape = tuple(Extent(k, False) if i == dim else e
+                      for i, e in enumerate(value.shape))
+        return Op("topk", (value,), loc, value.type, shape, attrs={
+            "k": k, "dim": dim, "descending": descending,
+        })
+
+    @staticmethod
+    def histogram(value: Value, num_bins: int,
+                  loc: Optional[SrcLoc] = None) -> "Op":
+        """out[b] = count of elements equal to b, b in [0, num_bins)."""
+        return Op("histogram", (value,), loc, INT32,
+                  real_shape([num_bins]), attrs={"num_bins": num_bins})
 
     def __repr__(self) -> str:
         return f"Op({self.op})"
@@ -1019,6 +1144,147 @@ def _type_rule_errors(op: Op, errors: list) -> None:
         if op.operands or op.results:
             return err("'debug_barrier' takes no operands and produces "
                        "nothing")
+    elif op_name == "reduce":
+        if len(ops) != 1 or not op.results:
+            return err("'reduce' takes one operand and produces a value")
+        v = ops[0]
+        if v.rank == 0:
+            return err("'reduce' cannot reduce a rank-0 value")
+        if not is_real(v.shape):
+            return err("'reduce' operand consumes a broadcast extent as "
+                       "real (an explicit realize is required first)")
+        kind = op.attrs.get("kind")
+        axes = op.attrs.get("axes")
+        if kind not in ("sum", "max", "min", "argmax", "argmin", "xor_sum",
+                        "reduce_or"):
+            return err(f"'reduce' kind {kind!r} is not declared")
+        if not isinstance(axes, tuple) or not axes:
+            return err("'reduce' requires a non-empty axes tuple")
+        rank = len(v.shape)
+        for a in axes:
+            if not isinstance(a, int) or isinstance(a, bool) \
+                    or not 0 <= a < rank:
+                return err(f"'reduce' axis {a!r} outside rank {rank}")
+        if len(set(axes)) != len(axes):
+            return err("'reduce' axes repeat")
+        keep = bool(op.attrs.get("keep_dims"))
+        expected = _reduced_shape(v.shape, axes, keep)
+        acc_ty = op.attrs.get("accumulate_type") or v.type
+        index_form = kind in ("argmax", "argmin")
+        ret_idx = bool(op.attrs.get("return_indices"))
+        if index_form:
+            if ret_idx:
+                return err("'reduce' index forms do not take "
+                           "return_indices (they are the index form)")
+            if len(op.results) != 1:
+                return err("'reduce' index forms produce one index result")
+            if not op.results[0].type.is_index():
+                return err("'reduce' argmax/argmin must produce i32/i64 "
+                           f"(the index type), got {op.results[0].type!r}")
+        elif ret_idx:
+            if kind not in ("max", "min"):
+                return err("'reduce' return_indices is declared for max/min")
+            if len(op.results) != 2:
+                return err("'reduce' return_indices produces (value, index)")
+            if op.results[0].type != acc_ty:
+                return err("'reduce' value result must carry the "
+                           "accumulator type")
+            if not op.results[1].type.is_index():
+                return err("'reduce' index result must be i32/i64")
+        else:
+            if len(op.results) != 1:
+                return err("'reduce' produces one result")
+            if op.results[0].type != acc_ty:
+                return err("'reduce' result must carry the accumulator "
+                           f"type {acc_ty!r}, got {op.results[0].type!r}")
+        if op.results[0].shape != expected:
+            return err(f"'reduce' result shape {op.results[0].shape} is not "
+                       f"the reduced shape {expected}")
+        if ret_idx and op.results[1].shape != expected:
+            return err("'reduce' index result shape must equal the value "
+                       "result shape")
+        # the identity element: per operation and dtype, signedness-correct
+        # (checked against the plan's table -- the lattice top/bottom, so a
+        # hand-written wrong constant is a rejection, never a silent pass)
+        from a100c.plan import stages as _stages
+        ident = op.attrs.get("identity")
+        id_ty = acc_ty if not index_form else \
+            op.attrs.get("index_type")
+        try:
+            want = _stages.identity_for(kind, id_ty)
+        except KeyError:
+            return err(f"'reduce' kind {kind!r} has no declared identity")
+        if not _identity_ok(ident, want, id_ty):
+            return err(f"'reduce' identity {ident!r} is not the declared "
+                       f"per-op-and-dtype identity {want!r} for "
+                       f"{id_ty!r} (signedness-correct lattice bound)")
+    elif op_name == "scan":
+        if len(ops) != 1 or len(op.results) != 1:
+            return err("'scan' takes one operand and produces one value")
+        v = ops[0]
+        kind = op.attrs.get("kind")
+        if kind not in ("cumsum", "cumprod"):
+            return err(f"'scan' kind {kind!r} is not declared")
+        axis = op.attrs.get("axis")
+        if not isinstance(axis, int) or isinstance(axis, bool) \
+                or not 0 <= axis < v.rank:
+            return err(f"'scan' axis {axis!r} outside rank {v.rank}")
+        if v.rank == 0:
+            return err("'scan' cannot scan a rank-0 value")
+        if op.results[0].type != v.type or op.results[0].shape != v.shape:
+            return err("'scan' preserves the operand's type and shape")
+        from a100c.plan import stages as _stages
+        want = _stages.identity_for(
+            "cumsum" if kind == "cumsum" else "cumprod", v.type)
+        if not _identity_ok(op.attrs.get("identity"), want, v.type):
+            return err(f"'scan' identity {op.attrs.get('identity')!r} is "
+                       f"not the declared identity {want!r} for {v.type!r}")
+    elif op_name == "sort":
+        if len(ops) != 1 or len(op.results) != 1:
+            return err("'sort' takes one operand and produces one value")
+        v = ops[0]
+        dim = op.attrs.get("dim")
+        if not isinstance(dim, int) or isinstance(dim, bool) \
+                or not 0 <= dim < v.rank:
+            return err(f"'sort' dim {dim!r} outside rank {v.rank}")
+        if op.results[0].type != v.type or op.results[0].shape != v.shape:
+            return err("'sort' preserves the operand's type and shape")
+        if not isinstance(op.attrs.get("descending"), bool):
+            return err("'sort' descending must be a bool")
+    elif op_name == "topk":
+        if len(ops) != 1 or len(op.results) != 1:
+            return err("'topk' takes one operand and produces one value")
+        v = ops[0]
+        dim = op.attrs.get("dim")
+        k = op.attrs.get("k")
+        if not isinstance(dim, int) or isinstance(dim, bool) \
+                or not 0 <= dim < v.rank:
+            return err(f"'topk' dim {dim!r} outside rank {v.rank}")
+        if not isinstance(k, int) or isinstance(k, bool) or k < 1 \
+                or k > v.shape[dim].value:
+            return err(f"'topk' k {k!r} outside 1..{v.shape[dim].value}")
+        if op.results[0].type != v.type:
+            return err("'topk' preserves the element type")
+        if value_shape(op.results[0].shape) != \
+                value_shape(_topk_shape(v.shape, dim, k)):
+            return err("'topk' result shape must replace dim's extent "
+                       "with k")
+    elif op_name == "histogram":
+        if len(ops) != 1 or len(op.results) != 1:
+            return err("'histogram' takes one operand and produces one "
+                       "value")
+        v = ops[0]
+        num_bins = op.attrs.get("num_bins")
+        if not isinstance(num_bins, int) or isinstance(num_bins, bool) \
+                or num_bins < 1:
+            return err("'histogram' num_bins must be a positive integer")
+        if not v.type.is_int():
+            return err("'histogram' requires an integer operand "
+                       f"(bin membership), got {v.type!r}")
+        if op.results[0].type != INT32:
+            return err("'histogram' produces i32 counts")
+        if op.results[0].shape != real_shape([num_bins]):
+            return err("'histogram' produces [num_bins]")
     else:
         errors.append(TirError(Invariant.MALFORMED, op.loc,
                                f"unknown op '{op_name}'"))

@@ -47,7 +47,13 @@ def broadcast_to(shape: Shape, target: Shape, loc=None) -> Shape:
     out: list = []
     for i, (s, d) in enumerate(zip(src, target)):
         if s.value == d.value:
-            out.append(Extent(d.value, s.broadcast and d.broadcast))
+            if s.is_one() and s.broadcast:
+                # a padded/replicated singleton axis stays broadcast even
+                # at an equal (extent-1) target: its lanes replicate from
+                # the source lane, they are not distinct storage
+                out.append(Extent(d.value, True))
+            else:
+                out.append(Extent(d.value, s.broadcast and d.broadcast))
         elif s.is_one():
             out.append(Extent(d.value, True))
         elif d.is_one():
