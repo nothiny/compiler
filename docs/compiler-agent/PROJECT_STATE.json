@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-04T08:49:51.024886+00:00",
+  "updated_at": "2026-11-04T08:49:51.226604+00:00",
   "facts": [
     {
       "id": "F001",
@@ -297,6 +297,15 @@
       "id": "F032",
       "statement": "Negative ISA facts - absent operations in the SpacemiT matrix extension: community Zvvm instructions vmmacc, vwmmacc, vfmmacc, vfqwmmacc and vf8wmmacc are NOT supported (functional equivalents: vqwmmacc->smt.vmadot* Int8, v8wmmacc->smt.vmadot* Int4, vfwmmacc->smt.vfwmadot, vfwimmacc->smt.vmadot.hp* Int8+scale, vfqwimmacc->smt.vmadot.hp* Int4+scale; vf8wimmacc e5m2 scale not supported); the Zvvmtls dedicated matrix load/store extension is NOT implemented (similar functionality via smt.vpack); mixed FP16/BF16 input formats within one instruction are NOT defined; the standard RVV vm mask bit is NOT used as a mask control for matrix multiplication instructions (no vector-mask semantics defined for this instruction class); Zvvm vtype.lambda / vtype.altfmt_A/B / vtype.altfmt CSR fields are not implemented (A100 uses MCPM instead).",
       "source": "docs/compiler-agent/target-material/sources/bd69e01a6280ae5ab4493ea82b0e819fb34f093da43c264fc3be3c6291a8c6c8/ime_extension.md.search.txt:329-346 (2.3),489-513 (Ch.3 differences table),1397-1404 (6.1.3)",
+      "confidence": "FACT",
+      "status": "active",
+      "category": "isa",
+      "origin": "input"
+    },
+    {
+      "id": "F033",
+      "statement": "IME illegal conditions (refusal/trap contract): LMUL != 1 in any IME instruction raises an illegal instruction exception (all other LMUL encodings reserved); when MUL_C=2 the destination vd must be even-numbered (vd and vd+1 form the group) and the destination group must not overlap vs1 or vs2; sliding-window instructions additionally require vs1 even-numbered; sparse instructions use v0/v1 as recovery masks with imm2 segment select; scale instructions use v0/v1 as scale parameter registers with imm3 group select; for smt.vfwmadot* the floating-point input format must match the MCPM.BF16 setting, else illegal.",
+      "source": "docs/compiler-agent/target-material/sources/bd69e01a6280ae5ab4493ea82b0e819fb34f093da43c264fc3be3c6291a8c6c8/ime_extension.md.search.txt:104-129 (1.5),329-352 (2.3),398-435 (2.6),670-675 (5.1.4),1424-1429 (6.1.5)",
       "confidence": "FACT",
       "status": "active",
       "category": "isa",
@@ -796,6 +805,12 @@
       "phase": "CHIP_ANALYSIS",
       "event": "fact",
       "detail": "F032 [isa/FACT/input] docs/compiler-agent/target-material/sources/bd69e01a6280ae5ab4493ea82b0e819fb34f093da43c264fc3be3c6291a8c6c8/ime_extension.md.search.txt:329-346 (2.3),489-513 (Ch.3 differences table),1397-1404 (6.1.3)"
+    },
+    {
+      "at": "2026-11-04T08:49:51.226557+00:00",
+      "phase": "CHIP_ANALYSIS",
+      "event": "fact",
+      "detail": "F033 [isa/FACT/input] docs/compiler-agent/target-material/sources/bd69e01a6280ae5ab4493ea82b0e819fb34f093da43c264fc3be3c6291a8c6c8/ime_extension.md.search.txt:104-129 (1.5),329-352 (2.3),398-435 (2.6),670-675 (5.1.4),1424-1429 (6.1.5)"
     }
   ]
 }
