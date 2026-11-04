@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-04T17:31:17.557178+00:00",
+  "updated_at": "2026-11-04T18:49:14.626035+00:00",
   "facts": [
     {
       "id": "F001",
@@ -1404,14 +1404,14 @@
       "tags": [
         "ime-slice"
       ],
-      "status": "RUNNING",
+      "status": "DONE",
       "assignee": "coder",
       "attempts": 1,
-      "evidence": "",
+      "evidence": "worker report WTI011: IME matrix slice implemented and executed with real instruction evidence. (1) a100c/plan/tiles.py: the A100 IME families as data (INT8 8x16x8->INT32 via smt.vmadot none/u/us/su signedness variants, FP16 8x8x8->FP32 via smt.vfwmadot; F030/F031/F051), the operand slot mapping (vs1 = A row-major, vs2 = B column-major), the staging layout (zero-padded M/N/K tails, 512B private workspace), the BF16 vector-FP32 route with the recorded F010/F034 gap, located refusals (int4/sparse/scale/fp8/mixed dtypes/out-dtype narrowing/fp32-ieee), and the pure tile models. (2) a100c/lower/matrix.py: tl.dot lowering to complete program-level MIR -- worker-strided output-tile loop, K loop with the MUL_C=2 m2 accumulator chained as a block parameter (the acc parameter), staging through masked unit-stride loads that perform no access at disabled lanes plus zero merge (vector path when the memory layout provides the tile's contiguous direction, scalar pack otherwise), the tile instruction with a defensive vsetvli x0,zero,e<sew>,m1 prefix (LMUL=1 at every IME instruction even after allocator-inserted reloads), masked strided C row stores with folded M/N guards, and the BF16 ordinary-RVV-FMA path at e32 (exact zext+<<16 widening through an integer staging round trip). New MIR opcodes (vmdot/vmdotu/vmdotus/vmdotsu/vfwmadot + unit-stride vector memory ops) with repertoire rows registered into DEFAULT_REPERTOIRE as data, and IME-aware MIR verification (mir.verify_module for every opcode-agnostic invariant; its UNKNOWN_OP for exactly these opcodes replaced by the IME contract: family formats, LMUL=1 regions, even vd where MUL_C=2, destination/source group overlap, v0 masks, unit-stride regions). The allocator's even-aligned m2 pairs and mixed-LMUL interference edges carry the parity/group constraints unchanged. Executed under the declared QEMU endpoint: int8 24x20x32 compares exact PASS with 18 counted smt.vmadot executions (== the tile model, 9 tiles x 2 k-steps, artifact sh",
       "last_error": "",
       "failure_kind": "",
       "start_revision": "674e4cb5305ea804f96b0ca38e018abacd9c9cff",
-      "end_revision": "",
+      "end_revision": "a525716ca17211447a238ea99fbff596e0e5b3a8",
       "completed_seq": 0,
       "debug_required": false,
       "debug_request_id": "",
@@ -6899,6 +6899,24 @@
       "phase": "IMPLEMENTATION",
       "event": "task-delegate",
       "detail": "WTI011 task=T010 attempt=1 profile=general-purpose"
+    },
+    {
+      "at": "2026-11-04T18:49:14.598482+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "task-report-out-of-contract",
+      "detail": "T010: a100c/cache/1d452dd378998af6db151155f9f4371d0fabf325b9ae9f58245009e0423ac36b/artifact.json, a100c/cache/1d452dd378998af6db151155f9f4371d0fabf325b9ae9f58245009e0423ac36b/operator_exec, a100c/cache/1d452dd378998af6db151155f9f4371d0fabf325b9ae9f58245009e0423ac36b/stage.plan.txt, a100c/cache/1d452dd378998af6db151155f9f4371d0fabf325b9ae9f58245009e0423ac36b/stage.selection.txt, a100c/cache/1d452dd378998af6db151155f9f4371d0fabf325b9ae9f58245009e0423ac36b/stage.mir.allocated.txt"
+    },
+    {
+      "at": "2026-11-04T18:49:14.604076+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "task-report",
+      "detail": "WTI011 COMPLETED attempt=1 [changes outside the declared paths: a100c/cache/1d452dd378998af6db151155f9f4371d0fabf325b9ae9f58245009e0423ac36b/artifact.json, a100c/cache/1d452dd378998af6db151155f9f4371d0fabf325b9ae9f58245009e0423ac36b/operator_exec, a100c/cache/1d452dd378998af6db151155f9f4371d0fabf325b9ae9f58245009e0423ac36b/stage.plan.txt, a100c/cache/1d452dd378998af6db151155f9f4371d0fabf325b9ae9f58245009e0423ac36b/stage.selection.txt, a100c/cache/1d452dd378998af6db151155f9f4371d0fabf325b9ae9f58245009e0423ac36b/stage.mir.allocated.txt]"
+    },
+    {
+      "at": "2026-11-04T18:49:14.626022+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "complete-task",
+      "detail": "T010 worker report WTI011: IME matrix slice implemented and executed with real instruction evidence. (1) a100c/plan/tiles.py: the A100 IME families as data (INT8 8x16x8->INT32 via smt.vmadot none/u/us/su signedness variants, FP16 8x8x8->FP32 via smt.vfwmadot; F030/F031/F051), the operand slot mapping (vs1 = A row-major, vs2 = B column-major), the staging layout (zero-padded M/N/K tails, 512B private workspace), the BF16 vector-FP32 route with the recorded F010/F034 gap, located refusals (int4/sparse/scale/fp8/mixed dtypes/out-dtype narrowing/fp32-ieee), and the pure tile models. (2) a100c/lower/matrix.py: tl.dot lowering to complete program-level MIR -- worker-strided output-tile loop, K loop with the MUL_C=2 m2 accumulator chained as a block parameter (the acc parameter), staging through masked unit-stride loads that perform no access at disabled lanes plus zero merge (vector path when the memory layout provides the tile's contiguous direction, scalar pack otherwise), the tile instruction with a defensive vsetvli x0,zero,e<sew>,m1 prefix (LMUL=1 at every IME instruction even after allocator-inserted reloads), masked strided C row stores with folded M/N guards, and the BF16 ordinary-RVV-FMA path at e32 (exact zext+<<16 widening through an integer staging round trip). New MIR opcodes (vmdot/vmdotu/vmdotus/vmdotsu/vfwmadot + unit-stride vector memory ops) with repertoire rows registered into DEFAULT_REPERTOIRE as data, and IME-aware MIR verification (mir.verify_module for every opcode-agnostic invariant; its UNKNOWN_OP for exactly these opcodes replaced by the IME contract: family formats, LMUL=1 regions, even vd where MUL_C=2, destination/source group overlap, v0 masks, unit-stride regions). The allocator's even-aligned m2 pairs and mixed-LMUL interference edges carry the parity/group constraints unchanged. Executed under the declared QEMU endpoint: int8 24x20x32 compares exact PASS with 18 counted smt.vmadot executions (== the tile model, 9 tiles x 2 k-steps, artifact sh"
     }
   ]
 }
