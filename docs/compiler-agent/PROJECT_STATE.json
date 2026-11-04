@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-04T08:49:22.547261+00:00",
+  "updated_at": "2026-11-04T08:49:22.751033+00:00",
   "facts": [
     {
       "id": "F001",
@@ -207,6 +207,15 @@
       "id": "F022",
       "statement": "A100 per-cluster memory hierarchy: 32KB L1 I-cache and 32KB L1 D-cache per core; 1MB L2 cache per cluster; 1.5MB scratchpad per cluster; L1 D-cache supports MESI and L2 supports MOESI coherence. The L2 and the 1.5MB scratchpad are cluster-shared resources, not per-thread private capacity.",
       "source": "docs/compiler-agent/target-material/sources/ff2340c355516e190769949abbfe57d2121efbe72326b5fc65b166f6cd55d90d/08_cpu.md.search.txt:54-59 (8.2.2); docs/compiler-agent/target-material/sources/69a7cd5b8836085506f53f1b02ad8aa624790eb23ca573ca584e226ee1246358/k3_ds.md.search.txt:147-153",
+      "confidence": "FACT",
+      "status": "active",
+      "category": "memory",
+      "origin": "input"
+    },
+    {
+      "id": "F023",
+      "statement": "Per-hart local storage: each A100 hart has a private vector register file of 32 vector registers x 128B = 4KB at VLEN=1024, which the architecture Preview describes as an effective 4KB ultra-fast local scratchpad for locality optimizations (e.g. holding a broadcast Scale vector or a FlashAttention accumulation in registers).",
+      "source": "docs/compiler-agent/target-material/sources/9564d4ba5ed9a64d71c0c7e5bf0c8f7d74ed717fd0aa71265328f8c1eaea8c91/K3_architecture_preview.pdf.search.txt:727-731 (3.2.1),1261-1267 (5.2.2)",
       "confidence": "FACT",
       "status": "active",
       "category": "memory",
@@ -646,6 +655,12 @@
       "phase": "CHIP_ANALYSIS",
       "event": "fact",
       "detail": "F022 [memory/FACT/input] docs/compiler-agent/target-material/sources/ff2340c355516e190769949abbfe57d2121efbe72326b5fc65b166f6cd55d90d/08_cpu.md.search.txt:54-59 (8.2.2); docs/compiler-agent/target-material/sources/69a7cd5b8836085506f53f1b02ad8aa624790eb23ca573ca584e226ee1246358/k3_ds.md.search.txt:147-153"
+    },
+    {
+      "at": "2026-11-04T08:49:22.750994+00:00",
+      "phase": "CHIP_ANALYSIS",
+      "event": "fact",
+      "detail": "F023 [memory/FACT/input] docs/compiler-agent/target-material/sources/9564d4ba5ed9a64d71c0c7e5bf0c8f7d74ed717fd0aa71265328f8c1eaea8c91/K3_architecture_preview.pdf.search.txt:727-731 (3.2.1),1261-1267 (5.2.2)"
     }
   ]
 }
