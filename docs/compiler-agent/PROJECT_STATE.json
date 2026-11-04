@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-04T10:28:25.013568+00:00",
+  "updated_at": "2026-11-04T10:28:25.333717+00:00",
   "facts": [
     {
       "id": "F001",
@@ -618,6 +618,13 @@
       "id": "D005",
       "decision": "amend task T008: acceptance, outputs",
       "evidence": "Review findings 2 and 4 (HIGH acceptance overlap, MEDIUM contract, review-001 REQUEST_CHANGES): the 146 pat.persistent_reduce operators are validated exactly once, in T009 (which owns both loop and reduction lowering and now depends on T008); T008's acceptance re-scopes to loop mechanics over its non-reduction families (flow.while 15, flow.if 160, flow.tl_range 25, flow.static_range 21, if_pid 11) with loop-bearing non-reduction operators. T008's loop lowering lands in a100c/lower/scalar.py (control flow to MIR branches per ARCHITECTURE_CONSTRAINTS.json), so that path is now declared in outputs. No acceptance weakened and no coverage removed: the persistent family's execute-and-compare validation moved to T009, which already claimed it; T008's grid-model, carried-value and multi-axis acceptance criteria are unchanged.",
+      "alternatives": "add a second task answering to the same work (the engine refuses duplicate ids) or raise a design issue and replan",
+      "consequences": "semantic contract changes require review; record-only corrections preserve approval"
+    },
+    {
+      "id": "D006",
+      "decision": "amend task T014: dependencies, consumes",
+      "evidence": "Review finding 3 (HIGH dependency, review-001 REQUEST_CHANGES): T014's attention families (11 operators incl. flash_varlen with block pointers) and grouped GEMM with pointer tables consume T011 deliverables (memory-forms-v1: make_block_ptr/advance/load/store with boundary_check and padding_option, pointer_table_relocations consumption); T011 added to dependencies and memory-forms-v1 to consumes. Goal, acceptance and tests unchanged.",
       "alternatives": "add a second task answering to the same work (the engine refuses duplicate ids) or raise a design issue and replan",
       "consequences": "semantic contract changes require review; record-only corrections preserve approval"
     }
@@ -1669,6 +1676,7 @@
         "T008",
         "T009",
         "T010",
+        "T011",
         "T012"
       ],
       "interfaces": [],
@@ -1691,7 +1699,8 @@
         "ime-lowering-v1",
         "control-flow-v1",
         "reductions-v1",
-        "layout-ops-v1"
+        "layout-ops-v1",
+        "memory-forms-v1"
       ],
       "tags": [],
       "status": "BLOCKED",
@@ -6637,6 +6646,18 @@
       "phase": "PLANNING",
       "event": "task-amend",
       "detail": "T008 changed acceptance, outputs (Review findings 2 and 4 (HIGH acceptance overlap, MEDIUM contract, review-001 REQUEST_CHANGES): the 146 pat.persistent_reduce operators are validated exactly once, in T009 (which owns both loop and reduction lowering and now depends on T008); T008's acceptance re-scopes to loop mechanics over its non-reduction families (flow.while 15, flow.if 160, flow.tl_range 25, flow.static_range 21, if_pid 11) with loop-bearing non-reduction operators. T008's loop lowering lands in a100c/lower/scalar.py (control flow to MIR branches per ARCHITECTURE_CONSTRAINTS.json), so that path is now declared in outputs. No acceptance weakened and no coverage removed: the persistent family's execute-and-compare validation moved to T009, which already claimed it; T008's grid-model, carried-value and multi-axis acceptance criteria are unchanged.)"
+    },
+    {
+      "at": "2026-11-04T10:28:25.302075+00:00",
+      "phase": "PLANNING",
+      "event": "decision",
+      "detail": "D006 amend task T014: dependencies, consumes"
+    },
+    {
+      "at": "2026-11-04T10:28:25.333691+00:00",
+      "phase": "PLANNING",
+      "event": "task-amend",
+      "detail": "T014 changed dependencies, consumes (Review finding 3 (HIGH dependency, review-001 REQUEST_CHANGES): T014's attention families (11 operators incl. flash_varlen with block pointers) and grouped GEMM with pointer tables consume T011 deliverables (memory-forms-v1: make_block_ptr/advance/load/store with boundary_check and padding_option, pointer_table_relocations consumption); T011 added to dependencies and memory-forms-v1 to consumes. Goal, acceptance and tests unchanged.)"
     }
   ]
 }
