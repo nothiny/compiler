@@ -6,13 +6,13 @@
     "ops": "ops",
     "target_scope": "k3-a100"
   },
-  "phase": "WORKLOAD_ANALYSIS",
+  "phase": "PLANNING",
   "acceptance_scope": "correctness_only",
   "return_phase": "",
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-04T09:20:04.006758+00:00",
+  "updated_at": "2026-11-04T09:20:27.997418+00:00",
   "facts": [
     {
       "id": "F001",
@@ -4596,6 +4596,12 @@
       "phase": "WORKLOAD_ANALYSIS",
       "event": "complete-task",
       "detail": "T003 worker report WTI003: Workload analysis of ops/ recorded. Followed the corpus's declared reading order (ops/AGENTS.md -> AGENT_GUIDE.md -> SUBSET.md -> API_INVENTORY.md -> SUITE_V3.md/COVERAGE_MATRIX.md). Declared the operator set from the corpus layout (suite/dev/*.py,suite/perf/*.py, 500 files of 542 py; harness excluded); ran ingest-ops (500 operators, 1068 observed tokens, operator_scope=declared). Recorded the corpus tier order (suite/dev -> suite/perf, source ops/harness/compiler_api/run_cases.py GROUP_ORDER) and per-tier case totals from the corpus's own enumeration command (dev 2192, perf 542, total 2734; cross-checked against suite/manifest.json cases_total and A100_CORPUS_CASES.json.manifest, 2734 rows). Recorded the api-spec from the specification the corpus pins: 107 constructs / 280 parameters, corpus_calls from the corpus's own API inventory (ops/docs/API_INVENTORY.md), parameter surfaces from the pinned Triton 3.8.0 signatures, tl.swizzle2d declared with 0 calls, out_of_scope reasons on tl.dot (subset-stripped input_precision/allow_tf32) and tl.float64 (no fp64 cases, dead dispatch). Wrote docs/compiler-agent/OPERATOR_INVENTORY.md: corpus size, 75-tag feature matrix in the required categories with counts/examples/P0-P1-P2, parallel shape, launch/runtime contract, dtype tolerance policy, per-operator shape x dtype matrix (500 rows, total 2734 cases) and the exclusion/gap record. G2 PASS.\nacceptance[0]: `python3 -m compiler_agent --root . operator-set --glob 'suite/dev/*.py,suite/perf/*.py' --source 'ops/README.md (corpus layout...; glob as prescribed by ops/harness/compiler_api/AGENT_GUIDE.md section 1)' && python3 -m compiler_agent --root . ingest-ops && python3 -m compiler_agent --root . operator-set` -> exit 0\nacceptance[1]: `cd ops && python3 harness/compiler_api/run_cases.py --dry-run --group-order && python3 -m compiler_agent --root . group-order --group suite/dev --group suite/perf --source 'ops/harness/compiler_api/run_cases.py (GROUP_ORDER = ("
+    },
+    {
+      "at": "2026-11-04T09:20:27.997376+00:00",
+      "phase": "PLANNING",
+      "event": "transition",
+      "detail": "WORKLOAD_ANALYSIS -> PLANNING Workload analysis T003 DONE, G2 PASS with 500 operators / 2734 cases recorded."
     }
   ]
 }

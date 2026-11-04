@@ -1,6 +1,6 @@
 # Progress
 
-Phase: **WORKLOAD_ANALYSIS** · project: `compiler-a100-experiment-001`
+Phase: **PLANNING** · project: `compiler-a100-experiment-001`
 
 ## Task board
 
@@ -14,7 +14,6 @@ Phase: **WORKLOAD_ANALYSIS** · project: `compiler-a100-experiment-001`
 
 | When | Phase | Event | Detail |
 |---|---|---|---|
-| 2026-11-04T08:49:50.413334+00:00 | CHIP_ANALYSIS | fact | F029 [isa/FACT/input] docs/compiler-agent/target-material/sources/bd69e01a6280ae5ab4493ea82b0e819fb34f093da43c264fc3be3c6291a8c6c8/ime_extension.md.search.txt:5-9,56,206-243 (1.6/1.7),2333-2339 (App. B); cross-checked with the Chinese edition docs/compiler-agent/target-material/sources/efb5d87ac66581c12a931698b95db2ae840a57110cf23e429142fca07662e189/ime_extension.md.search.txt:91-144 |
 | 2026-11-04T08:49:50.615317+00:00 | CHIP_ANALYSIS | fact | F030 [isa/FACT/input] docs/compiler-agent/target-material/sources/bd69e01a6280ae5ab4493ea82b0e819fb34f093da43c264fc3be3c6291a8c6c8/ime_extension.md.search.txt:274-317 (2.1.2),371-396 (2.5),2313-2329 (App. A) |
 | 2026-11-04T08:49:50.820466+00:00 | CHIP_ANALYSIS | fact | F031 [isa/FACT/input] docs/compiler-agent/target-material/sources/bd69e01a6280ae5ab4493ea82b0e819fb34f093da43c264fc3be3c6291a8c6c8/ime_extension.md.search.txt:67-86 (1.4),144-155 (1.5),437-479 (2.7),529-538 (4.2) |
 | 2026-11-04T08:49:51.024837+00:00 | CHIP_ANALYSIS | fact | F032 [isa/FACT/input] docs/compiler-agent/target-material/sources/bd69e01a6280ae5ab4493ea82b0e819fb34f093da43c264fc3be3c6291a8c6c8/ime_extension.md.search.txt:329-346 (2.3),489-513 (Ch.3 differences table),1397-1404 (6.1.3) |
@@ -68,3 +67,4 @@ acceptance[1]: `timeout 60 python3 -c "import json; d=json.load(open('docs/compi
 | 2026-11-04T09:20:04.006694+00:00 | WORKLOAD_ANALYSIS | complete-task | T003 worker report WTI003: Workload analysis of ops/ recorded. Followed the corpus's declared reading order (ops/AGENTS.md -> AGENT_GUIDE.md -> SUBSET.md -> API_INVENTORY.md -> SUITE_V3.md/COVERAGE_MATRIX.md). Declared the operator set from the corpus layout (suite/dev/*.py,suite/perf/*.py, 500 files of 542 py; harness excluded); ran ingest-ops (500 operators, 1068 observed tokens, operator_scope=declared). Recorded the corpus tier order (suite/dev -> suite/perf, source ops/harness/compiler_api/run_cases.py GROUP_ORDER) and per-tier case totals from the corpus's own enumeration command (dev 2192, perf 542, total 2734; cross-checked against suite/manifest.json cases_total and A100_CORPUS_CASES.json.manifest, 2734 rows). Recorded the api-spec from the specification the corpus pins: 107 constructs / 280 parameters, corpus_calls from the corpus's own API inventory (ops/docs/API_INVENTORY.md), parameter surfaces from the pinned Triton 3.8.0 signatures, tl.swizzle2d declared with 0 calls, out_of_scope reasons on tl.dot (subset-stripped input_precision/allow_tf32) and tl.float64 (no fp64 cases, dead dispatch). Wrote docs/compiler-agent/OPERATOR_INVENTORY.md: corpus size, 75-tag feature matrix in the required categories with counts/examples/P0-P1-P2, parallel shape, launch/runtime contract, dtype tolerance policy, per-operator shape x dtype matrix (500 rows, total 2734 cases) and the exclusion/gap record. G2 PASS.
 acceptance[0]: `python3 -m compiler_agent --root . operator-set --glob 'suite/dev/*.py,suite/perf/*.py' --source 'ops/README.md (corpus layout...; glob as prescribed by ops/harness/compiler_api/AGENT_GUIDE.md section 1)' && python3 -m compiler_agent --root . ingest-ops && python3 -m compiler_agent --root . operator-set` -> exit 0
 acceptance[1]: `cd ops && python3 harness/compiler_api/run_cases.py --dry-run --group-order && python3 -m compiler_agent --root . group-order --group suite/dev --group suite/perf --source 'ops/harness/compiler_api/run_cases.py (GROUP_ORDER = ( |
+| 2026-11-04T09:20:27.997376+00:00 | PLANNING | transition | WORKLOAD_ANALYSIS -> PLANNING Workload analysis T003 DONE, G2 PASS with 500 operators / 2734 cases recorded. |
