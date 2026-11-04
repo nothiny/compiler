@@ -4,7 +4,7 @@
 - phase: **PLANNING**
 - acceptance scope: `correctness_only`
 - schema: v1
-- updated: 2026-11-04T10:28:25.333717+00:00
+- updated: 2026-11-04T10:33:50.513571+00:00
 
 ## Inputs
 
@@ -31,6 +31,6 @@
 
 - facts: 56
 - assumptions: 8
-- decisions: 6
+- decisions: 7
 - tasks: 23
 - design issues: 0
