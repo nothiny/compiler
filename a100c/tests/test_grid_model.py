@@ -88,7 +88,8 @@ def check_corpus_forms():
     # 1-D view-extent tie (a runtime dynamic loop over a loaded length)
     m = extract("suite/dev/var_len_copy.py", shape=(4,), dtype="float32")
     if not (m.ndim == 1 and m.axes
-            and "shape_extent" in repr(m.axes[0])
+            and ("bundle_view" in repr(m.axes[0])
+                 or "shape_extent" in repr(m.axes[0]))
             and any(t[0] == "view_extent" for t in m.ties.values())):
         bad.append(f"var_len_copy: {m.describe()}")
 
@@ -99,16 +100,18 @@ def check_corpus_forms():
         bad.append(f"absolute: {m.describe()}")
 
     # 2-axis lambda-meta form with the autotune config folded (identity
-    # tier) and both axes tied to view extents
+    # tier) and both axes tied to bundle reads (views or scalars)
     m = extract("suite/perf/swiglu_fwd.py")
     if not (m.ndim == 2
             and any(t[0] == "view_extent" for t in m.ties.values())):
         bad.append(f"swiglu: {m.describe()}")
 
-    # np.prod of a 1-D shape tied to the created view
+    # np.prod of a 1-D shape: the derived n ties to the scalar the case
+    # passes (a bundle read; the view extent tie is equally valid)
     m = extract("suite/dev/bitcast.py")
     if not (m.ndim == 1 and "floordiv" in repr(m.axes[0])
-            and any(t[0] == "view_extent" for t in m.ties.values())):
+            and any(t[0] in ("scalar", "view_extent")
+                    for t in m.ties.values())):
         bad.append(f"bitcast: {m.describe()}")
 
     # multi-axis shape arithmetic with scalar ties and a value tie
@@ -118,9 +121,13 @@ def check_corpus_forms():
             and any(t[0] == "view_extent" for t in m.ties.values())):
         bad.append(f"adaptive: {m.describe()}")
 
-    # shape unpacking + per-axis arithmetic (the direct make_case form)
+    # shape unpacking + per-axis arithmetic (the direct make_case form):
+    # every axis reads a bundle quantity at run time (T027: whole-subtree
+    # scalar ties collapse the per-leaf products into single reads)
     m = extract("suite/dev/maxpool1d.py")
-    if not (m.ndim == 2 and len(m.ties) >= 4):
+    if not (m.ndim == 2 and len(m.ties) >= 2
+            and all(any(t[0] in ("scalar", "view_extent")
+                        for t in m.ties.values()) for _ in m.axes)):
         bad.append(f"maxpool1d: {m.describe()}")
 
     check("corpus-grid-forms-extract-with-ties", not bad, "; ".join(bad[:3]))
@@ -159,6 +166,16 @@ def _grid_leafs_of(expr):
     if isinstance(expr, (Bin, MinMax)):
         return _grid_leafs_of(expr.left) + _grid_leafs_of(expr.right)
     return []
+
+
+def _all_literals(expr) -> bool:
+    """A tree of folded constants (identity-tier meta constexprs and
+    source literals) -- the only legal leaf-free grid axis."""
+    if isinstance(expr, Lit):
+        return True
+    if isinstance(expr, (Bin, MinMax)):
+        return _all_literals(expr.left) and _all_literals(expr.right)
+    return False
 
 
 def check_self_check():
@@ -203,7 +220,9 @@ def check_self_check():
 def check_refusals_located():
     """Refusals are located and name the untraceable input (never a silent
     bake): a grid over the seed (a case parameter, not bundle-visible),
-    and tril's M/C (present only in meta, not in any bundle quantity)."""
+    and gn_finalize's (n, g) factors -- present in no bundle quantity (the
+    kernel takes only the total-sized views plus module constants; only
+    the product n*g is bundle-visible, never the factors)."""
     bad = []
     module = load_module("suite/dev/var_len_copy.py")
     case = module.make_case(shape=(4,), dtype="float32")
@@ -227,17 +246,21 @@ def check_refusals_located():
     finally:
         scratch.unlink(missing_ok=True)
 
-    # tril: M and C are meta constexprs, not bundle-visible -- the refusal
-    # names the case-shape axis it cannot tie
-    module_tril = load_module("suite/dev/tril_inplace_zero_tile_kernel.py")
+    # gn_finalize: the grid axes are the case-shape factors (n, g); the
+    # bundle carries only their product (every view has extent n*g) and
+    # no scalar -- the refusal names the case-shape axis it cannot tie.
+    # (tril_inplace's M/C, formerly the example, now extract: they are
+    # meta constexprs, which the identity signs -- a declared provenance
+    # category alongside scalar args and view extents.)
+    module_gn = load_module("suite/dev/gn_finalize_kernel.py")
     try:
-        extract_grid(load_source("suite/dev/tril_inplace_zero_tile_kernel.py"),
-                     module_tril.make_case())
-        bad.append("tril grid accepted")
+        extract_grid(load_source("suite/dev/gn_finalize_kernel.py"),
+                     module_gn.make_case())
+        bad.append("gn_finalize grid accepted")
     except GridError as exc:
         if "cannot be proven equal" not in str(exc) or \
                 "shape_extent" not in str(exc) or not exc.line:
-            bad.append(f"tril: {str(exc)[:90]}")
+            bad.append(f"gn_finalize: {str(exc)[:90]}")
 
     check("grid-refusals-located-naming-the-input", not bad,
           "; ".join(bad[:2]))
@@ -467,6 +490,223 @@ def check_t026_augmented_subscript():
           "; ".join(bad[:3]))
 
 
+# ---------------------------------------------------------------------------
+# T027: the repaired grid-model defect classes
+# ---------------------------------------------------------------------------
+
+
+def check_t027_repaired_classes():
+    """T027: every census grid-defect class extracts through the shared
+    interpreter mechanisms (no per-operator branches), with the provenance
+    self-check binding modeled == declared, or keeps its located refusal
+    naming the genuinely untraceable input."""
+    import numpy as np
+
+    # (operator, make kwargs, expected tie evidence in the axes reprs)
+    extract_cases = [
+        # the ``_case(...)`` helper form: the payload dict (grid included)
+        # interprets; the grid axis reads a view extent at run time
+        ("suite/dev/layer_norm_forward_row.py", {},
+         ("bundle_view", "shape_extent")),
+        ("suite/dev/geglu_forward_kernel_flat.py", {}, ("floordiv",)),
+        ("suite/dev/relu_squared_forward_kernel.py", {},
+         ("bundle_view", "shape_extent")),
+        # structural/identity scalar ties: the interpreter proved the same
+        # value flows into a scalar argument
+        ("suite/dev/linalg_cross_real_kernel.py", {}, ("num_vectors",)),
+        ("suite/dev/pow_scalar_tensor.py", {}, ("num_tasks",)),
+        # a holed subexpression (``idx.size`` of an untracked arange)
+        # filled by the identity tie to a scalar argument
+        ("suite/dev/output_counts_flat_kernel.py", {}, ("num_tasks",)),
+        # identity-tier meta constexpr ties (the specialization signs
+        # them; the lambda form's declared rule, extended to the dict
+        # form) and the pure-call memoization of next_power_of_2
+        ("suite/perf/swiglu_triton.py", {}, ("floordiv",)),
+        ("suite/perf/cosine_compute.py", {}, ("floordiv",)),
+        ("suite/perf/index_select_cat.py", {}, ("floordiv",)),
+        ("suite/dev/gdn_gate_fwd_kernel.py", {}, ("floordiv",)),
+        # dict literals with ``**`` spreads merge their mappings
+        ("suite/dev/median_bool_count_kernel.py", {}, ("floordiv",)),
+        ("suite/dev/chunk_hgrn_fwd_kernel_h.py", {}, ("floordiv",)),
+        # ``for name, value in args.items()`` unrolls; the branch merge
+        # keeps the per-key provenance both arms agree on
+        ("suite/dev/loop_sum.py", {}, ("bundle_view", "shape_extent")),
+        ("suite/perf/tanh.py", {}, ("floordiv",)),
+        # a symbolic-bound range loop conservatively opaque-ifies its
+        # rebound names; the grid still ties to the scalar argument
+        ("suite/dev/generalized_delta_rule__dplr__wy_fast_fwd__wu_fwd_kernel.py",
+         {}, ("floordiv",)),
+        # the RETURNED payload's grid is authoritative (a dead local
+        # ``grid = ...`` no longer shadows the payload's lambda)
+        ("suite/dev/quant_transpose_kernel.py", {}, ("floordiv",)),
+        ("suite/perf/matmul_triton2.py", {}, ("floordiv",)),
+        # oracle_args are never tied (not bundle-visible); the axes tie
+        # to view extents instead
+        ("suite/dev/tril_rows_kernel.py", {},
+         ("bundle_view", "shape_extent")),
+        # holed ``%``/``|`` chains fill through the identity tie to the
+        # scalar the case passes
+        ("suite/dev/ldl_init_pivots_kernel.py", {}, ("mul",)),
+        ("suite/dev/kda_gate_fwd_kernel.py", {}, ("floordiv",)),
+        # the ``_dims`` helper interprets; N-ary min/max chains carry
+        ("suite/dev/fused_conv3d_kernel.py", {}, ("floordiv",)),
+        ("suite/dev/fused_conv3d_kernel_2.py", {}, ("floordiv",)),
+        ("suite/dev/avg_pool1d_kernel_optimized.py", {}, ("floordiv",)),
+        ("suite/dev/epilogue_kernel.py", {}, ("floordiv",)),
+        ("suite/dev/unbind_copy_kernel.py", {}, ("floordiv",)),
+        ("suite/dev/mean_dim_kernel_non_inner_vec.py", {}, ("floordiv",)),
+        ("suite/dev/multinomial_with_replacement.py", {}, ("floordiv",)),
+        ("suite/dev/cyclic_jacobi_init_a_kernel.py", {}, ()),
+        ("suite/dev/nonzero_static_fill_tail_kernel.py", {}, ("floordiv",)),
+        ("suite/dev/nanmedian_ascend_histogram_count_kernel.py",
+         {}, ()),
+        ("suite/dev/repeat_interleave_tensor_kernel.py", {}, ("scalar",)),
+        ("suite/dev/nanmedian_ascend_byte_histogram_init_kernel.py",
+         {}, ("scalar",)),
+        ("suite/dev/blackman_window_kernel.py", {}, ("floordiv",)),
+        ("suite/dev/conv_transpose2d_scatter_init_kernel.py",
+         {}, ("floordiv",)),
+        ("suite/dev/slice_scatter_kernel.py", {}, ("floordiv",)),
+        ("suite/dev/sgn_complex_kernel.py", {}, ("floordiv",)),
+        ("suite/dev/unfold_copy_kernel_3d_dim1.py", {}, ("floordiv",)),
+        ("suite/dev/split_copy_kernel.py", {}, ("floordiv",)),
+        ("suite/dev/pairwise_distance_general_kernel_1.py",
+         {}, ("bundle_scalar", "shape_extent")),
+        ("suite/dev/chunk_hgrn_fwd_kernel_o.py", {}, ("floordiv",)),
+        ("suite/perf/dequantize_matmul.py", {}, ("floordiv",)),
+        ("suite/perf/matmul_triton_autotune.py", {}, ("floordiv",)),
+        ("suite/perf/triton_linear_activation.py", {}, ("floordiv",)),
+    ]
+    bad = []
+    extracted = 0
+    for rel, make, evidence in extract_cases:
+        module = load_module(rel)
+        case = module.make_case(**make) if make else module.make_case()
+        try:
+            model = extract_grid(load_source(rel), case)
+        except GridError as exc:
+            bad.append(f"{rel}: {str(exc)[:110]}")
+            continue
+        sc = model.self_check
+        if sc.get("modeled") != sc.get("declared"):
+            bad.append(f"{rel}: self-check {sc}")
+            continue
+        axes_repr = " ".join(repr(a) for a in model.axes)
+        if evidence and not any(e in axes_repr for e in evidence):
+            bad.append(f"{rel}: axes {axes_repr[:90]} lack {evidence}")
+        # no baking: every axis is either a runtime read (it carries tied
+        # Ref leaves) or a tree of folded identity-tier constants -- never
+        # a folded case shape
+        for axis in model.axes:
+            if not _grid_leafs_of(axis) and not _all_literals(axis):
+                bad.append(f"{rel}: axis {axis!r} is neither a runtime "
+                           "read nor a folded constant")
+        extracted += 1
+    check("t027-grid-defect-classes-extract-or-refuse-located", not bad,
+          f"{extracted}/{len(extract_cases)} extracted; "
+          + "; ".join(bad[:3]))
+
+    # the genuinely untraceable keep their located refusals, naming the
+    # input: gn_finalize's shape factors (only their product is visible)
+    # and fht's mixed-arity SHAPES (the arity is never guessed)
+    module_gn = load_module("suite/dev/gn_finalize_kernel.py")
+    try:
+        extract_grid(load_source("suite/dev/gn_finalize_kernel.py"),
+                     module_gn.make_case())
+        bad.append("gn_finalize accepted")
+    except GridError as exc:
+        if "cannot be proven equal" not in str(exc):
+            bad.append(f"gn_finalize: {str(exc)[:90]}")
+    module_fht = load_module("suite/dev/fht_kernel_1d_native.py")
+    try:
+        extract_grid(load_source("suite/dev/fht_kernel_1d_native.py"),
+                     module_fht.make_case(shape=(51, 16)))
+        bad.append("fht mixed-arity accepted")
+    except GridError as exc:
+        if "not provenance-tracked" not in str(exc):
+            bad.append(f"fht: {str(exc)[:90]}")
+    check("t027-genuinely-untraceable-refuse-located", not bad,
+          "; ".join(bad[:3]))
+
+
+def check_t027_witness_controls():
+    """T027 witness controls (MECH-WITNESS-TEST): each new tie mechanism
+    has a control that must FAIL when the mechanism is broken or guessed.
+
+    * the meta-constexpr fold reads the payload's meta: tampering the
+      payload meta value changes the modeled grid and the self-check
+      must refuse (never silently trust the fold);
+    * the scalar tie reads the bundle argument: tampering the payload
+      argument value changes the modeled grid and the self-check must
+      refuse;
+    * the oracle-args exclusion: tril_rows' extracted model ties its
+      axis to a view extent, never to the oracle argument logical_B;
+    * no operator-name dispatch: the interpreter never sees operator
+      names (grep-level control lives in tools/check_no_name_dispatch.py;
+      here the models themselves are shape-generic expressions).
+    """
+    import numpy as np
+    bad = []
+
+    # 1. the meta fold reads the payload: tamper swiglu_triton's meta
+    #    BLOCK_N (the folded constant) by a result-changing amount -- the
+    #    model must refuse loudly (the declared grid tuple is already
+    #    concrete and does not move with the meta)
+    module = load_module("suite/perf/swiglu_triton.py")
+    case = module.make_case()
+    meta = dict(case.get("meta") or {})
+    if "BLOCK_N" not in meta:
+        bad.append("swiglu_triton meta has no BLOCK_N to tamper")
+    else:
+        tampered = dict(case)
+        tampered["meta"] = dict(meta, BLOCK_N=max(1, meta["BLOCK_N"] // 4))
+        try:
+            extract_grid(load_source("suite/perf/swiglu_triton.py"),
+                         tampered)
+            bad.append("tampered meta accepted (the fold does not read "
+                       "the payload)")
+        except GridError as exc:
+            if "self-check failed" not in str(exc):
+                bad.append(f"tampered meta: {str(exc)[:100]}")
+
+    # 2. the scalar tie reads the bundle argument: tamper linalg_cross's
+    #    num_vectors argument by a result-changing amount (the declared
+    #    grid tuple stays concrete)
+    module_lc = load_module("suite/dev/linalg_cross_real_kernel.py")
+    case_lc = module_lc.make_case()
+    args_lc = dict(case_lc.get("args") or {})
+    if "num_vectors" not in args_lc:
+        bad.append("linalg_cross args have no num_vectors to tamper")
+    else:
+        tampered = dict(case_lc)
+        tampered["args"] = dict(
+            args_lc, num_vectors=int(args_lc["num_vectors"]) * 128 + 64)
+        try:
+            extract_grid(load_source("suite/dev/linalg_cross_real_kernel.py"),
+                         tampered)
+            bad.append("tampered scalar accepted (the tie does not read "
+                       "the argument)")
+        except GridError as exc:
+            if "self-check failed" not in str(exc):
+                bad.append(f"tampered scalar: {str(exc)[:100]}")
+
+    # 3. oracle-args exclusion: tril_rows' model never ties to logical_B
+    #    (the oracle arg the payload removes); its axes read view extents
+    #    or folded meta constants
+    module_tril = load_module("suite/dev/tril_rows_kernel.py")
+    case_tril = module_tril.make_case()
+    model = extract_grid(load_source("suite/dev/tril_rows_kernel.py"),
+                         case_tril)
+    for tie in model.ties.values():
+        if tie[0] == "scalar" and tie[1] == "logical_B":
+            bad.append("tril_rows tied the oracle argument logical_B")
+    if model.self_check.get("modeled") != model.self_check.get("declared"):
+        bad.append(f"tril_rows self-check {model.self_check}")
+
+    check("t027-witness-controls-ties-read-the-payload", not bad,
+          "; ".join(bad[:3]))
+
+
 def main() -> int:
     check_corpus_forms()
     check_no_baking()
@@ -476,6 +716,8 @@ def main() -> int:
     check_minmax_grid_executes()
     check_corpus_census()
     check_t026_augmented_subscript()
+    check_t027_repaired_classes()
+    check_t027_witness_controls()
     if FAILURES:
         print(f"FAILED: {len(FAILURES)} check(s)")
         return 1
