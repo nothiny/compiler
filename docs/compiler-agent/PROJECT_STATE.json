@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-05T09:19:06.162444+00:00",
+  "updated_at": "2026-11-05T09:26:23.913883+00:00",
   "facts": [
     {
       "id": "F001",
@@ -1868,14 +1868,14 @@
         "math-rng-v1"
       ],
       "tags": [],
-      "status": "RUNNING",
+      "status": "DONE",
       "assignee": "coder",
       "attempts": 1,
-      "evidence": "",
+      "evidence": "worker report WTI017: Declared-surface coverage completion and recording. FRONTEND_COVERAGE.json now has one row for each of the 107 declared constructs (280 parameters), every row implemented with per-construct executed evidence and the IR construct that carries it (51 shared carriers, 2.1 constructs per carrier: 13 dtype constants -> tir.Type, 12 math forms -> math.*, 7 reductions -> reduce, 6 reshape-family -> reshape, 6 atomics -> atomic_rmw/cas, 6 RNG -> rng.philox, 3 arith fn forms -> arith.*); recorded through the engine frontend-coverage command (evaluate ok=true) and cross-checked by a new coverage-matrix check inside the declared enumeration test. Closing the gaps required real implementation work the full-corpus census exposed: tl.static_assert (the last unimplemented construct with corpus calls: constexpr-true emits nothing, false/runtime conditions are located refusals; its 3 corpus operators now lower), tl.dtype (the pinned name-registry constructor, the f'uint{nbits}' JoinedStr form, .primitive_bitwidth folding on x.dtype and ptr.type.element_ty; its 2 corpus operators now clear the frontend), the .cast method form of tl.cast (24 cases), meta-carried live triton dtype objects in dtype= (tl.cast/tl.zeros/tl.full, 27 cases), module-level X = tl.constexpr(v) globals (10 cases), tl.fma's pinned to_tensor scalar legalization -- python-float scalars participate as fp32, which the gelu fp16 chain silently computed in 16-bit before (6 cases, now executed-and-compared PASS), .shape folding (attribute, subscript, evaluator; feeds tl.arange/tl.full constexpr shapes), and a pre-existing BoolOp leak where a runtime 'or' folded to the truthiness of the RuntimeValue objects (silently baking True; now a located refusal, the pinned visit_BoolOp logical_and/logical_or lowering left as a recorded T018 class). Evidence: the complete 30-file a100c test suite passes with 0 failed checks; end-to-end executed comparisons on the newly-enabled operators (selu_kernel_supreme [s",
       "last_error": "",
       "failure_kind": "",
       "start_revision": "ab5d455f720dab33ff9fc623a759bc2e961ab443",
-      "end_revision": "",
+      "end_revision": "fe7889d0f627702fa75107b8e59487b1f0db1743",
       "completed_seq": 0,
       "debug_required": false,
       "debug_request_id": "",
@@ -7103,6 +7103,24 @@
       "phase": "IMPLEMENTATION",
       "event": "frontend-coverage",
       "detail": "107 row(s); complete"
+    },
+    {
+      "at": "2026-11-05T09:26:23.883948+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "task-report-out-of-contract",
+      "detail": "T016: a100c/cache/45020e7e831bc80e49482151ec0e84d3a05e037caa6b809b5f3ecd850d1c2840/program.S, a100c/cache/45020e7e831bc80e49482151ec0e84d3a05e037caa6b809b5f3ecd850d1c2840/stage.selection.txt, a100c/cache/45020e7e831bc80e49482151ec0e84d3a05e037caa6b809b5f3ecd850d1c2840/stage.tir.txt, a100c/cache/45020e7e831bc80e49482151ec0e84d3a05e037caa6b809b5f3ecd850d1c2840/artifact.json, a100c/frontend/lower_tir.py"
+    },
+    {
+      "at": "2026-11-05T09:26:23.889675+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "task-report",
+      "detail": "WTI017 COMPLETED attempt=1 [acceptance[2] reports exit_code 1, not 0; nonzero command reported; verify input results before optimization, without treating record checks as coding failures; changes outside the declared paths: a100c/cache/45020e7e831bc80e49482151ec0e84d3a05e037caa6b809b5f3ecd850d1c2840/program.S, a100c/cache/45020e7e831bc80e49482151ec0e84d3a05e037caa6b809b5f3ecd850d1c2840/stage.selection.txt, a100c/cache/45020e7e831bc80e49482151ec0e84d3a05e037caa6b809b5f3ecd850d1c2840/stage.tir.txt, a100c/cache/45020e7e831bc80e49482151ec0e84d3a05e037caa6b809b5f3ecd850d1c2840/artifact.json, a100c/frontend/lower_tir.py]"
+    },
+    {
+      "at": "2026-11-05T09:26:23.913870+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "complete-task",
+      "detail": "T016 worker report WTI017: Declared-surface coverage completion and recording. FRONTEND_COVERAGE.json now has one row for each of the 107 declared constructs (280 parameters), every row implemented with per-construct executed evidence and the IR construct that carries it (51 shared carriers, 2.1 constructs per carrier: 13 dtype constants -> tir.Type, 12 math forms -> math.*, 7 reductions -> reduce, 6 reshape-family -> reshape, 6 atomics -> atomic_rmw/cas, 6 RNG -> rng.philox, 3 arith fn forms -> arith.*); recorded through the engine frontend-coverage command (evaluate ok=true) and cross-checked by a new coverage-matrix check inside the declared enumeration test. Closing the gaps required real implementation work the full-corpus census exposed: tl.static_assert (the last unimplemented construct with corpus calls: constexpr-true emits nothing, false/runtime conditions are located refusals; its 3 corpus operators now lower), tl.dtype (the pinned name-registry constructor, the f'uint{nbits}' JoinedStr form, .primitive_bitwidth folding on x.dtype and ptr.type.element_ty; its 2 corpus operators now clear the frontend), the .cast method form of tl.cast (24 cases), meta-carried live triton dtype objects in dtype= (tl.cast/tl.zeros/tl.full, 27 cases), module-level X = tl.constexpr(v) globals (10 cases), tl.fma's pinned to_tensor scalar legalization -- python-float scalars participate as fp32, which the gelu fp16 chain silently computed in 16-bit before (6 cases, now executed-and-compared PASS), .shape folding (attribute, subscript, evaluator; feeds tl.arange/tl.full constexpr shapes), and a pre-existing BoolOp leak where a runtime 'or' folded to the truthiness of the RuntimeValue objects (silently baking True; now a located refusal, the pinned visit_BoolOp logical_and/logical_or lowering left as a recorded T018 class). Evidence: the complete 30-file a100c test suite passes with 0 failed checks; end-to-end executed comparisons on the newly-enabled operators (selu_kernel_supreme [s"
     }
   ]
 }
