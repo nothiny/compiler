@@ -1,0 +1,306 @@
+{
+  "schema": "input-regression/v1",
+  "run_id": null,
+  "command": "tools/run_scan.py run --group suite/perf --limit 15 --threads 2 --report docs/compiler-agent/TASK_EVIDENCE/T017/perf-tier-slice/report.json",
+  "partial": true,
+  "missing_case_ids": [
+    "suite/perf/add_value.py#[5]#bfloat16",
+    "suite/perf/add_value.py#[5]#float32",
+    "suite/perf/add_value.py#[5]#float16",
+    "suite/perf/argmax.py#[4, 16]#bfloat16",
+    "suite/perf/argmax.py#[4, 16]#float32",
+    "suite/perf/argmax.py#[4, 16]#float16",
+    "suite/perf/argmax.py#[4, 97]#bfloat16",
+    "suite/perf/argmax.py#[4, 97]#float32",
+    "suite/perf/argmax.py#[4, 97]#float16",
+    "suite/perf/attention_forward_triton.py#[2, 2, 16, 32]#bfloat16",
+    "suite/perf/attention_forward_triton.py#[2, 2, 16, 32]#float32",
+    "suite/perf/attention_forward_triton.py#[2, 2, 16, 32]#float16",
+    "suite/perf/attention_forward_triton.py#[4, 4, 32, 64]#bfloat16",
+    "suite/perf/attention_forward_triton.py#[4, 4, 32, 64]#float32",
+    "suite/perf/attention_forward_triton.py#[4, 4, 32, 64]#float16",
+    "suite/perf/attention_forward_triton.py#[1, 1, 8, 16]#bfloat16",
+    "suite/perf/attention_forward_triton.py#[1, 1, 8, 16]#float32",
+    "suite/perf/attention_forward_triton.py#[1, 1, 8, 16]#float16",
+    "suite/perf/attention_kernel.py#[2, 2, 16, 32]#bfloat16",
+    "suite/perf/attention_kernel.py#[2, 2, 16, 32]#float32"
+  ],
+  "cases": [
+    {
+      "id": "suite/perf/add_gelu.py#[128]#bfloat16",
+      "group": "suite/perf",
+      "operator": "suite/perf/add_gelu.py",
+      "shape": [
+        128
+      ],
+      "dtype": "bfloat16",
+      "compiled": false,
+      "executed": false,
+      "compared": false,
+      "passed": false,
+      "status": "COMPILE_REFUSED",
+      "detail": "tl.erf: tl.erf requires fp32 or fp64 operands (the pinned _check_dtype); 16-bit compute goes through the fp32 lanes, got bf16 (at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/add_gelu.py:29:26)",
+      "threads": 2,
+      "identity": "491007dde51c",
+      "seconds": 0.007
+    },
+    {
+      "id": "suite/perf/add_gelu.py#[128]#float32",
+      "group": "suite/perf",
+      "operator": "suite/perf/add_gelu.py",
+      "shape": [
+        128
+      ],
+      "dtype": "float32",
+      "compiled": false,
+      "executed": false,
+      "compared": false,
+      "passed": false,
+      "status": "COMPILE_REFUSED",
+      "detail": "alpha: float scalar 'alpha' width 32 differs from its record width 64 (at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/add_gelu.py:21:1)",
+      "threads": 2,
+      "identity": "19c9f6b482ca",
+      "seconds": 0.017
+    },
+    {
+      "id": "suite/perf/add_gelu.py#[128]#float16",
+      "group": "suite/perf",
+      "operator": "suite/perf/add_gelu.py",
+      "shape": [
+        128
+      ],
+      "dtype": "float16",
+      "compiled": false,
+      "executed": false,
+      "compared": false,
+      "passed": false,
+      "status": "COMPILE_REFUSED",
+      "detail": "tl.erf: tl.erf requires fp32 or fp64 operands (the pinned _check_dtype); 16-bit compute goes through the fp32 lanes, got fp16 (at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/add_gelu.py:29:26)",
+      "threads": 2,
+      "identity": "09d8d9528ca2",
+      "seconds": 0.004
+    },
+    {
+      "id": "suite/perf/add_gelu.py#[99]#bfloat16",
+      "group": "suite/perf",
+      "operator": "suite/perf/add_gelu.py",
+      "shape": [
+        99
+      ],
+      "dtype": "bfloat16",
+      "compiled": false,
+      "executed": false,
+      "compared": false,
+      "passed": false,
+      "status": "COMPILE_REFUSED",
+      "detail": "tl.erf: tl.erf requires fp32 or fp64 operands (the pinned _check_dtype); 16-bit compute goes through the fp32 lanes, got bf16 (at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/add_gelu.py:29:26)",
+      "threads": 2,
+      "identity": "bb1d1ff22bc7",
+      "seconds": 0.004
+    },
+    {
+      "id": "suite/perf/add_gelu.py#[99]#float32",
+      "group": "suite/perf",
+      "operator": "suite/perf/add_gelu.py",
+      "shape": [
+        99
+      ],
+      "dtype": "float32",
+      "compiled": false,
+      "executed": false,
+      "compared": false,
+      "passed": false,
+      "status": "COMPILE_REFUSED",
+      "detail": "alpha: float scalar 'alpha' width 32 differs from its record width 64 (at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/add_gelu.py:21:1)",
+      "threads": 2,
+      "identity": "7c018836052e",
+      "seconds": 0.017
+    },
+    {
+      "id": "suite/perf/add_gelu.py#[99]#float16",
+      "group": "suite/perf",
+      "operator": "suite/perf/add_gelu.py",
+      "shape": [
+        99
+      ],
+      "dtype": "float16",
+      "compiled": false,
+      "executed": false,
+      "compared": false,
+      "passed": false,
+      "status": "COMPILE_REFUSED",
+      "detail": "tl.erf: tl.erf requires fp32 or fp64 operands (the pinned _check_dtype); 16-bit compute goes through the fp32 lanes, got fp16 (at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/add_gelu.py:29:26)",
+      "threads": 2,
+      "identity": "dbb0d17d1ecf",
+      "seconds": 0.004
+    },
+    {
+      "id": "suite/perf/add_mean.py#[4, 16]#bfloat16",
+      "group": "suite/perf",
+      "operator": "suite/perf/add_mean.py",
+      "shape": [
+        4,
+        16
+      ],
+      "dtype": "bfloat16",
+      "compiled": false,
+      "executed": false,
+      "compared": false,
+      "passed": false,
+      "status": "COMPILE_REFUSED",
+      "detail": "alpha: float scalar 'alpha' width 32 differs from its record width 64 (at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/add_mean.py:21:1)",
+      "threads": 2,
+      "identity": "5a9d73ce4c19",
+      "seconds": 0.017
+    },
+    {
+      "id": "suite/perf/add_mean.py#[4, 16]#float32",
+      "group": "suite/perf",
+      "operator": "suite/perf/add_mean.py",
+      "shape": [
+        4,
+        16
+      ],
+      "dtype": "float32",
+      "compiled": false,
+      "executed": false,
+      "compared": false,
+      "passed": false,
+      "status": "COMPILE_REFUSED",
+      "detail": "alpha: float scalar 'alpha' width 32 differs from its record width 64 (at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/add_mean.py:21:1)",
+      "threads": 2,
+      "identity": "f536b141c021",
+      "seconds": 0.014
+    },
+    {
+      "id": "suite/perf/add_mean.py#[4, 16]#float16",
+      "group": "suite/perf",
+      "operator": "suite/perf/add_mean.py",
+      "shape": [
+        4,
+        16
+      ],
+      "dtype": "float16",
+      "compiled": false,
+      "executed": false,
+      "compared": false,
+      "passed": false,
+      "status": "COMPILE_REFUSED",
+      "detail": "alpha: float scalar 'alpha' width 32 differs from its record width 64 (at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/add_mean.py:21:1)",
+      "threads": 2,
+      "identity": "e49c2fdb4142",
+      "seconds": 0.016
+    },
+    {
+      "id": "suite/perf/add_mean.py#[4, 97]#bfloat16",
+      "group": "suite/perf",
+      "operator": "suite/perf/add_mean.py",
+      "shape": [
+        4,
+        97
+      ],
+      "dtype": "bfloat16",
+      "compiled": false,
+      "executed": false,
+      "compared": false,
+      "passed": false,
+      "status": "COMPILE_REFUSED",
+      "detail": "alpha: float scalar 'alpha' width 32 differs from its record width 64 (at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/add_mean.py:21:1)",
+      "threads": 2,
+      "identity": "e95a511105c0",
+      "seconds": 0.015
+    },
+    {
+      "id": "suite/perf/add_mean.py#[4, 97]#float32",
+      "group": "suite/perf",
+      "operator": "suite/perf/add_mean.py",
+      "shape": [
+        4,
+        97
+      ],
+      "dtype": "float32",
+      "compiled": false,
+      "executed": false,
+      "compared": false,
+      "passed": false,
+      "status": "COMPILE_REFUSED",
+      "detail": "alpha: float scalar 'alpha' width 32 differs from its record width 64 (at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/add_mean.py:21:1)",
+      "threads": 2,
+      "identity": "72c834b2a9fd",
+      "seconds": 0.014
+    },
+    {
+      "id": "suite/perf/add_mean.py#[4, 97]#float16",
+      "group": "suite/perf",
+      "operator": "suite/perf/add_mean.py",
+      "shape": [
+        4,
+        97
+      ],
+      "dtype": "float16",
+      "compiled": false,
+      "executed": false,
+      "compared": false,
+      "passed": false,
+      "status": "COMPILE_REFUSED",
+      "detail": "alpha: float scalar 'alpha' width 32 differs from its record width 64 (at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/add_mean.py:21:1)",
+      "threads": 2,
+      "identity": "bf20edc5b5fd",
+      "seconds": 0.015
+    },
+    {
+      "id": "suite/perf/add_value.py#[4]#bfloat16",
+      "group": "suite/perf",
+      "operator": "suite/perf/add_value.py",
+      "shape": [
+        4
+      ],
+      "dtype": "bfloat16",
+      "compiled": false,
+      "executed": false,
+      "compared": false,
+      "passed": false,
+      "status": "COMPILE_REFUSED",
+      "detail": "value: float scalar 'value' width 32 differs from its record width 64 (at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/add_value.py:19:1)",
+      "threads": 2,
+      "identity": "542906570fbd",
+      "seconds": 0.012
+    },
+    {
+      "id": "suite/perf/add_value.py#[4]#float32",
+      "group": "suite/perf",
+      "operator": "suite/perf/add_value.py",
+      "shape": [
+        4
+      ],
+      "dtype": "float32",
+      "compiled": false,
+      "executed": false,
+      "compared": false,
+      "passed": false,
+      "status": "COMPILE_REFUSED",
+      "detail": "value: float scalar 'value' width 32 differs from its record width 64 (at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/add_value.py:19:1)",
+      "threads": 2,
+      "identity": "6d711d6dcafa",
+      "seconds": 0.01
+    },
+    {
+      "id": "suite/perf/add_value.py#[4]#float16",
+      "group": "suite/perf",
+      "operator": "suite/perf/add_value.py",
+      "shape": [
+        4
+      ],
+      "dtype": "float16",
+      "compiled": false,
+      "executed": false,
+      "compared": false,
+      "passed": false,
+      "status": "COMPILE_REFUSED",
+      "detail": "value: float scalar 'value' width 32 differs from its record width 64 (at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/add_value.py:19:1)",
+      "threads": 2,
+      "identity": "f0784f682b75",
+      "seconds": 0.024
+    }
+  ]
+}
