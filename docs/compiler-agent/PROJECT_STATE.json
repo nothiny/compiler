@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-05T15:16:30.937989+00:00",
+  "updated_at": "2026-11-05T18:33:38.740365+00:00",
   "facts": [
     {
       "id": "F001",
@@ -2621,14 +2621,14 @@
       "tags": [
         "compile-sweep-repair"
       ],
-      "status": "RUNNING",
+      "status": "DONE",
       "assignee": "coder",
       "attempts": 1,
-      "evidence": "",
+      "evidence": "worker report WTI022: Repaired the five control-flow frontend defect classes through the shared control-flow path in a100c/frontend/lower_tir.py: (1) early return lowers as a region terminator -- a per-function %ret.active i1 bound at entry, re-bound false at each return site, carried through every region join and loop channel, with the post-return statements relocated into the live branch arm or guarded on the flag (the returned-vs-default semantics); (2) break/continue lower as loop exits -- a per-loop stop channel ANDed into the re-evaluated condition (a counted range with an exit converts to the while form; `while True`+break terminates; exit-free `while True` still refuses located); (3) the while condition's fold marks the body-assigned names runtime FIRST, so `while j < K` with `j += 1` no longer folds to `while True` from the initial constant; (4) Python and/or lowers to the pinned Triton 3.8 semantics (values evaluated in order, constexpr short-circuit, runtime i1 operands combined right-to-left through bit.and/bit.or with broadcast -- vmor added for boolean blocks and the scalar mask/i64 bool forms normalised); (5) the if-construction restores the pre-branch snapshot between the arms, joins every value carried across a branch (one-path assignment keeps the outer binding as the not-assigned side, ConstVal sides materialise under the join name), and the loop close drops channels the body never re-binds, gives outer-defined finals a region-visible identity definition (the `prev = cur` channel copy) and fresh channel inits for values shared with loop-invariant names; plus the grid-model case-layer interpreter's subscript augmented assignment. The repair exposed and fixed five latent defects the new forms reached: constprop reading a stale loop view after its own insertions (refresh moved after each settled swap) and folding through a broadcast of a carried init; copyprop rewriting `ptradd(p, carried-init-0)` to `p` inside the loop; the TIR verifier's region-clo",
       "last_error": "",
       "failure_kind": "",
       "start_revision": "b5037feece96edcb8a05ce4da62b3db407de2c8d",
-      "end_revision": "",
+      "end_revision": "0bcca96c8c0fd3c087b40f15649fd220882c1f18",
       "completed_seq": 0,
       "debug_required": false,
       "debug_request_id": "",
@@ -7945,6 +7945,24 @@
       "phase": "IMPLEMENTATION",
       "event": "task-delegate",
       "detail": "WTI022 task=T026 attempt=1 profile=general-purpose"
+    },
+    {
+      "at": "2026-11-05T18:33:38.706897+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "task-report-out-of-contract",
+      "detail": "T026: a100c/lower/scalar.py, a100c/cache/acf6905a565fc3120ecefc8893e172db648eff8b42e98e70c05927e1e34f5f00/stage.mir.allocated.txt, a100c/cache/acf6905a565fc3120ecefc8893e172db648eff8b42e98e70c05927e1e34f5f00/artifact.json, a100c/cache/acf6905a565fc3120ecefc8893e172db648eff8b42e98e70c05927e1e34f5f00/stage.plan.txt, a100c/cache/bef86d42991492aab5a1d8f50131bda9abbc87f3047eb62756f97f772c0b59de/stage.mir.allocated.txt"
+    },
+    {
+      "at": "2026-11-05T18:33:38.713438+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "task-report",
+      "detail": "WTI022 COMPLETED attempt=1 [acceptance[0] reports exit_code 1, not 0; nonzero command reported; verify input results before optimization, without treating record checks as coding failures; changes outside the declared paths: a100c/lower/scalar.py, a100c/cache/acf6905a565fc3120ecefc8893e172db648eff8b42e98e70c05927e1e34f5f00/stage.mir.allocated.txt, a100c/cache/acf6905a565fc3120ecefc8893e172db648eff8b42e98e70c05927e1e34f5f00/artifact.json, a100c/cache/acf6905a565fc3120ecefc8893e172db648eff8b42e98e70c05927e1e34f5f00/stage.plan.txt, a100c/cache/bef86d42991492aab5a1d8f50131bda9abbc87f3047eb62756f97f772c0b59de/stage.mir.allocated.txt]"
+    },
+    {
+      "at": "2026-11-05T18:33:38.740351+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "complete-task",
+      "detail": "T026 worker report WTI022: Repaired the five control-flow frontend defect classes through the shared control-flow path in a100c/frontend/lower_tir.py: (1) early return lowers as a region terminator -- a per-function %ret.active i1 bound at entry, re-bound false at each return site, carried through every region join and loop channel, with the post-return statements relocated into the live branch arm or guarded on the flag (the returned-vs-default semantics); (2) break/continue lower as loop exits -- a per-loop stop channel ANDed into the re-evaluated condition (a counted range with an exit converts to the while form; `while True`+break terminates; exit-free `while True` still refuses located); (3) the while condition's fold marks the body-assigned names runtime FIRST, so `while j < K` with `j += 1` no longer folds to `while True` from the initial constant; (4) Python and/or lowers to the pinned Triton 3.8 semantics (values evaluated in order, constexpr short-circuit, runtime i1 operands combined right-to-left through bit.and/bit.or with broadcast -- vmor added for boolean blocks and the scalar mask/i64 bool forms normalised); (5) the if-construction restores the pre-branch snapshot between the arms, joins every value carried across a branch (one-path assignment keeps the outer binding as the not-assigned side, ConstVal sides materialise under the join name), and the loop close drops channels the body never re-binds, gives outer-defined finals a region-visible identity definition (the `prev = cur` channel copy) and fresh channel inits for values shared with loop-invariant names; plus the grid-model case-layer interpreter's subscript augmented assignment. The repair exposed and fixed five latent defects the new forms reached: constprop reading a stale loop view after its own insertions (refresh moved after each settled swap) and folding through a broadcast of a carried init; copyprop rewriting `ptradd(p, carried-init-0)` to `p` inside the loop; the TIR verifier's region-clo"
     }
   ]
 }

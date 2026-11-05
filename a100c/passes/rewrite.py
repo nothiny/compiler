@@ -112,29 +112,46 @@ def copy_aliases(removed: tir.Value, survivor: tir.Value) -> None:
 
 
 def _iter_use_sites(module: tir.Module):
-    """(container, attribute | None, index | None, path) over every value
-    use site: op operands, if conditions, loop bounds and carried inits.
-    Carried-init slots are yielded with the ``carried`` marker so the
-    rewriter can skip them."""
-    def walk(block: tir.Block, base: Pos):
+    """(container, attribute | None, index | None, path, enclosing) over
+    every value use site: op operands, if conditions, loop bounds and
+    carried inits.  Carried-init slots are yielded with the ``carried``
+    marker so the rewriter can skip them.  ``enclosing`` is the chain of
+    structured loops the site sits inside -- the position-free enclosure
+    the reinterpretation guard reads (statement indices shift under the
+    passes' own insertions; the node chain never lies)."""
+    def walk(block: tir.Block, base: Pos, chain: tuple):
         for i, st in enumerate(block.statements):
             here = base + (_child_step("op", i),)
             if isinstance(st, tir.Op):
                 for j in range(len(st.operands)):
-                    yield (st, "operands", j, here)
+                    yield (st, "operands", j, here, chain)
             elif isinstance(st, tir.If):
-                yield (st, "cond", None, here)
-                yield from walk(st.then, here + (_child_step("then", 0),))
-                yield from walk(st.els, here + (_child_step("else", 0),))
+                yield (st, "cond", None, here, chain)
+                yield from walk(st.then, here + (_child_step("then", 0),),
+                                chain)
+                yield from walk(st.els, here + (_child_step("else", 0),),
+                                chain)
             elif isinstance(st, tir.Loop):
                 for slot in ("lower", "upper", "step", "cond"):
                     if getattr(st, slot) is not None:
-                        yield (st, slot, None, here)
+                        yield (st, slot, None, here, chain)
                 for j, (_name, _init) in enumerate(st.carried):
-                    yield (st, "carried", j, here)
-                yield from walk(st.body, here + (_child_step("body", 0),))
+                    yield (st, "carried", j, here, chain)
+                yield from walk(st.body, here + (_child_step("body", 0),),
+                                chain + (st,))
     for fn in module.functions:
-        yield from walk(fn.body, ())
+        yield from walk(fn.body, (), ())
+
+
+def _site_reinterpreted(enclosing: tuple) -> set:
+    """The carried-init vids whose meaning at a site enclosed by
+    ``enclosing`` is the CURRENT iteration's value (the head-parameter
+    override): every enclosing loop's carried inits."""
+    out: set = set()
+    for loop in enclosing:
+        for _name, init in loop.carried:
+            out.add(init.vid)
+    return out
 
 
 def count_uses(module: tir.Module, value: tir.Value) -> int:
@@ -145,7 +162,7 @@ def count_uses(module: tir.Module, value: tir.Value) -> int:
     if value.producer is None:
         return 1                        # a parameter: always referenced
     n = 0
-    for holder, attr, index, _path in _iter_use_sites(module):
+    for holder, attr, index, _path, _enclosing in _iter_use_sites(module):
         if attr == "operands":
             if holder.operands[index] is value:
                 n += 1
@@ -171,11 +188,18 @@ def guarded_replace_uses(module: tir.Module, old: tir.Value,
       carried init of an enclosing loop (the site denotes the current
       iteration's value, not the fixed outside value).
 
+    The enclosure is read from the site's own loop-node chain, never
+    from the ``loops`` analysis's recorded positions: the passes mutate
+    the module between the analysis and this rewrite (their own
+    insertions shift statement indices), and a position-based answer
+    silently unguards the reinterpretation (the T026 cholesky_upper
+    miscompile).  ``loops`` is kept for signature compatibility.
+
     Returns the number of sites rewired."""
     if old is new or old.vid == new.vid:
         return 0
     n = 0
-    for holder, attr, index, path in _iter_use_sites(module):
+    for holder, attr, index, _path, enclosing in _iter_use_sites(module):
         if attr == "operands":
             value = holder.operands[index]
         elif attr == "cond":
@@ -188,7 +212,7 @@ def guarded_replace_uses(module: tir.Module, old: tir.Value,
             continue
         if value is not old:
             continue
-        reinterpreted = loops.reinterpret_inits(path)
+        reinterpreted = _site_reinterpreted(enclosing)
         if old.vid in reinterpreted or new.vid in reinterpreted:
             continue
         if attr == "operands":

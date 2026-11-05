@@ -93,16 +93,19 @@ class CopyPropPass:
         trace = ctx.trace
         changed = False
 
-        def walk_block(block: tir.Block, base: Pos) -> None:
+        def walk_block(block: tir.Block, base: Pos, chain: tuple) -> None:
             nonlocal changed
             for i, st in enumerate(block.statements):
                 here = base + (_child_step("op", i),)
                 if isinstance(st, tir.If):
-                    walk_block(st.then, here + (_child_step("then", 0),))
-                    walk_block(st.els, here + (_child_step("else", 0),))
+                    walk_block(st.then, here + (_child_step("then", 0),),
+                               chain)
+                    walk_block(st.els, here + (_child_step("else", 0),),
+                               chain)
                     continue
                 if isinstance(st, tir.Loop):
-                    walk_block(st.body, here + (_child_step("body", 0),))
+                    walk_block(st.body, here + (_child_step("body", 0),),
+                               chain + (st,))
                     continue
                 if not isinstance(st, tir.Op) or not st.results:
                     continue
@@ -112,6 +115,23 @@ class CopyPropPass:
                             "broadcast", "reshape", "select.where",
                             "ptradd", "hint", "realize"):
                         trace.record_decline(reason)
+                    continue
+                # an identity whose operand is a carried init of an
+                # enclosing loop is NOT a copy inside that loop: the
+                # operand denotes the CURRENT iteration's value there
+                # (the head-parameter override), so folding it away drops
+                # a per-iteration term (T026: ``ptradd(p, j)`` with j the
+                # while's channel lost its ``+ j`` inside the body).  The
+                # enclosure is the walk's own loop-node chain -- copyprop
+                # only rewires uses (no insertions or deletions), so the
+                # chain is exact at every statement.
+                carried_here = {init.vid
+                                for loop in chain
+                                for _n, init in loop.carried}
+                if any(o.vid in carried_here for o in st.operands):
+                    trace.record_decline(
+                        "identity operand is loop-carried at this position "
+                        "(the per-iteration meaning is not the copy)")
                     continue
                 result = st.results[0]
                 # the source must dominate the copy (an operand does, but
@@ -137,5 +157,5 @@ class CopyPropPass:
                         "name at the def; the copy itself stays for DCE)")
 
         for fn in module.functions:
-            walk_block(fn.body, ())
+            walk_block(fn.body, (), ())
         return changed

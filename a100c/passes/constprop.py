@@ -418,9 +418,20 @@ class ConstPropPass:
                             "memory_effects")
 
     def run(self, module: tir.Module, ctx) -> bool:
-        loops: LoopStructure = ctx.get("loops")
+        # the loop view is refreshed after EVERY mutation: an insertion
+        # before a loop shifts its position, and a stale enclosure answer
+        # would silently unguard the loop-carried reinterpretation (the
+        # IR-ANALYSIS-VALIDITY rule: a stale analysis result is never
+        # read -- the suite's digest check recomputes on demand)
+        state = {"loops": ctx.get("loops")}
         trace = ctx.trace
         changed = [False]
+
+        def refresh_loops() -> None:
+            # the frozen-view contract: re-bind after the mutation, then
+            # read (the suite recomputes through the digest check)
+            ctx.refresh()
+            state["loops"] = ctx.get("loops")
 
         def materialise(value, type_: tir.Type, shape: tir.Shape,
                         loc) -> Tuple[List[tir.Op], tir.Value]:
@@ -442,12 +453,15 @@ class ConstPropPass:
         def swap(block: tir.Block, index: int, new_ops: List[tir.Op],
                  old: tir.Op, new_value: tir.Value, what: str) -> int:
             """Insert the materialisation, rewire the uses, drop the old
-            op unless a region join resolves through its def.  Returns
-            the statement count consumed."""
+            op unless a region join resolves through its def.  Returns the
+            statement count consumed.  (The loop view is refreshed by the
+            CALLER once the swap fully settles -- a mid-swap refresh would
+            bind the analysis to the transient between insert and delete,
+            whose statement indices match neither state.)"""
             block.statements[index:index] = new_ops
             result = old.results[0]
             n = rewrite.guarded_replace_uses(module, result, new_value,
-                                             loops)
+                                             state["loops"])
             rewrite.copy_aliases(result, new_value)
             if n == 0:
                 # every use site was a guarded (loop-carried) meaning:
@@ -502,8 +516,25 @@ class ConstPropPass:
                     # use (DCE owns the dead def)
                     i += 1
                     continue
-                reinterpreted = loops.reinterpret_inits(here)
-                if any(o.vid in reinterpreted for o in st.operands):
+                reinterpreted = state["loops"].reinterpret_inits(here)
+
+                def _reinterpreted(o: tir.Value) -> bool:
+                    """An operand whose meaning at this position is the
+                    CURRENT iteration's value: the carried init itself,
+                    or a rank-0 broadcast of one (``_const_of`` reads
+                    through that broadcast -- folding it would treat the
+                    per-iteration channel as its initial constant)."""
+                    if o.vid in reinterpreted:
+                        return True
+                    prod = o.producer
+                    if prod is not None and prod.op == "broadcast":
+                        inner = prod.operands[0]
+                        if inner.rank == 0 \
+                                and inner.vid in reinterpreted:
+                            return True
+                    return False
+
+                if any(_reinterpreted(o) for o in st.operands):
                     if st.op in _BIN or st.op in tir.CMP_PREDS:
                         trace.record_decline(
                             "loop-carried operand: the operation is "
@@ -562,7 +593,8 @@ class ConstPropPass:
                 if kind == "identity":
                     survivor = st.operands[value]
                     n = rewrite.guarded_replace_uses(module, result,
-                                                     survivor, loops)
+                                                     survivor,
+                                                     state["loops"])
                     rewrite.copy_aliases(result, survivor)
                     if n == 0:
                         # every use site was a guarded (loop-carried)
@@ -577,6 +609,7 @@ class ConstPropPass:
                             and rewrite.count_uses(module, result) == 0:
                         del block.statements[i]
                         rewrite.drop_protected_cache(module)
+                        refresh_loops()
                         i -= 1
                     else:
                         trace.record_decline(
@@ -588,6 +621,7 @@ class ConstPropPass:
                 new_ops, new_value = materialise(
                     value, result.type, result.shape, st.loc)
                 i += swap(block, i, new_ops, st, new_value, what)
+                refresh_loops()
 
         for fn in module.functions:
             walk_block(fn.body, (), {})

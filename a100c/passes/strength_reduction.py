@@ -85,8 +85,18 @@ class StrengthReductionPass:
 
     def run(self, module: tir.Module, ctx) -> bool:
         trace = ctx.trace
-        loops: LoopStructure = ctx.get("loops")
+        # the loop view is refreshed after EVERY mutation: an insertion
+        # before a loop shifts its position, and a stale enclosure answer
+        # would silently unguard the loop-carried reinterpretation (the
+        # IR-ANALYSIS-VALIDITY rule -- the suite's digest recomputes)
+        state = {"loops": ctx.get("loops")}
         changed = [False]
+
+        def refresh_loops() -> None:
+            # the frozen-view contract: re-bind after the mutation, then
+            # read (the suite recomputes through the digest check)
+            ctx.refresh()
+            state["loops"] = ctx.get("loops")
 
         def splat(value: int, type_: tir.Type, shape: tir.Shape,
                   loc) -> Tuple[List[tir.Op], tir.Value]:
@@ -105,19 +115,24 @@ class StrengthReductionPass:
                  new_ops: List[tir.Op], what: str) -> int:
             """Insert the sequence, rewire the uses to its final result,
             drop the old op unless a region join resolves through its
-            def.  Returns the statements consumed."""
+            def.  Returns the statements consumed.  (The loop view is
+            refreshed by the CALLER once the swap settles -- a mid-swap
+            refresh would bind the analysis to the transient between
+            insert and delete.)"""
             value = new_ops[-1].result()
             if rewrite.count_uses(module, old.results[0]) == 0:
                 # a dead op is DCE's, not a strength form's
                 return 1
             block.statements[index:index] = new_ops
             result = old.results[0]
-            n = rewrite.guarded_replace_uses(module, result, value, loops)
+            n = rewrite.guarded_replace_uses(module, result, value,
+                                             state["loops"])
             rewrite.copy_aliases(result, value)
             if n == 0:
                 # every use site was a guarded (loop-carried) meaning:
                 # the sequence is unused -- take it back out
                 del block.statements[index:index + len(new_ops)]
+                refresh_loops()
                 trace.record_decline(
                     "uses remain at loop-carried sites: the rewrite "
                     "changes nothing (the def stays)")
@@ -127,12 +142,14 @@ class StrengthReductionPass:
                     and rewrite.count_uses(module, result) == 0:
                 del block.statements[index + len(new_ops)]
                 rewrite.drop_protected_cache(module)
+                refresh_loops()
                 trace.record_fired(what)
                 return len(new_ops)
             trace.record_decline(
                 "region-final binding kept: the join resolves the name "
                 "at the def")
             trace.record_fired(what)
+            refresh_loops()
             return len(new_ops) + 1
 
         def rewrite_mul(block: tir.Block, index: int, st: tir.Op) -> int:

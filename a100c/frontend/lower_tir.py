@@ -38,7 +38,7 @@ from __future__ import annotations
 
 import ast
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 from a100c.frontend import shapes as fshapes
 from a100c.frontend import types as ftypes
@@ -52,6 +52,73 @@ from a100c.frontend.surface import (CLASS_IGNORABLE, CLASS_IMPLEMENTED,
 from a100c.ir import tir
 
 __all__ = ["ConstVal", "Lowering", "lower", "IgnoredParam"]
+
+#: the early-return state's source-level name: one i1 per function, bound
+#: true at entry when the kernel has any ``return``, re-bound false at
+#: every return site and carried through every region join and loop
+#: channel (the guard semantics the terminator needs)
+_RET_ACTIVE = "%ret.active"
+
+
+class _ArmState:
+    """One lowered if-arm's post-state: the final bindings, the folding
+    env, the return state and the sequence terminator that fired (None
+    when the arm ran to completion)."""
+
+    __slots__ = ("symbols", "env_values", "ret_active", "ret_fired",
+                 "term_kind")
+
+    def __init__(self, symbols, env_values, ret_active, ret_fired,
+                 term_kind):
+        self.symbols = symbols
+        self.env_values = env_values
+        self.ret_active = ret_active
+        self.ret_fired = ret_fired
+        self.term_kind = term_kind
+
+    @property
+    def terminated(self) -> bool:
+        return self.term_kind is not None
+
+
+class _JumpScan:
+    """The region terminators a statement list contains.
+
+    ``returns`` counts every Return in the subtree (a return inside a
+    nested loop still terminates the enclosing regions); ``breaks`` and
+    ``continues`` count only the jumps that belong to THIS loop level --
+    a jump inside a nested loop belongs to that loop."""
+
+    __slots__ = ("returns", "breaks", "continues")
+
+    def __init__(self, returns: int, breaks: int, continues: int):
+        self.returns = returns
+        self.breaks = breaks
+        self.continues = continues
+
+
+def _scan_jumps(stmts) -> _JumpScan:
+    ret = brk = cont = 0
+
+    def walk(ss):
+        nonlocal ret, brk, cont
+        for st in ss:
+            if isinstance(st, ast.Return):
+                ret += 1
+            elif isinstance(st, ast.Break):
+                brk += 1
+            elif isinstance(st, ast.Continue):
+                cont += 1
+            elif isinstance(st, ast.If):
+                walk(st.body)
+                walk(st.orelse or [])
+            elif isinstance(st, (ast.For, ast.While)):
+                # a nested loop's jumps belong to it; its returns still
+                # terminate this level too
+                ret += _scan_jumps(st.body).returns
+
+    walk(stmts)
+    return _JumpScan(ret, brk, cont)
 
 
 @dataclass
@@ -287,6 +354,19 @@ class Lowering:
         self._block_stack: List[tir.Block] = [self.fn.body]
         #: names whose definition is closed inside a region (diagnostics)
         self._closed_names: Dict[str, str] = {}
+        #: the early-return state (T026): ``%ret.active`` is the i1 name
+        #: bound once at function entry when the kernel has any return;
+        #: ``_ret_active`` holds the may-have-returned binding for the
+        #: sequence being lowered (None = definitely active) and
+        #: ``_ret_fired`` records that a return site lowered in the
+        #: current arm (the join must carry the flag out of the region)
+        self._ret_active: Optional[tir.Value] = None
+        self._ret_fired = False
+        #: the stop channels of the open loops (break/return set them to
+        #: false; the loop's re-evaluated condition ANDs the channel) and
+        #: the plain loop depth (break/continue legality)
+        self._loop_stop_stack: List[str] = []
+        self._loop_depth = 0
         self.symbols: Dict[str, Union[tir.Value, ConstVal]] = {}
         self._bind_params()
 
@@ -359,15 +439,68 @@ class Lowering:
     # ------------------------------------------------------------------ entry
     def lower(self) -> tir.Module:
         assert self.source.kernel_ast is not None
-        self._lower_stmts(self.source.kernel_ast.body)
+        body = self.source.kernel_ast.body
+        if _scan_jumps(body).returns:
+            # the early-return state: one i1 bound at function entry,
+            # carried through every region join (the value visible after
+            # a branch is the join of the arms' bindings -- the return
+            # site binds false, the not-taken path keeps the outer value)
+            loc = tir.SrcLoc(self.source.path,
+                             self.source.kernel_ast.body[-1].lineno
+                             if body else 1, 1)
+            active = self._emit(tir.Op.const(True, tir.INT1, loc), "act")
+            self._bind(_RET_ACTIVE, active)
+        self._lower_stmts(body)
         return self.module
 
     # ------------------------------------------------------------------ stmts
-    def _lower_stmts(self, stmts: List[ast.stmt]) -> None:
-        for st in stmts:
-            self._lower_stmt(st)
+    def _lower_stmts(self, stmts: List[ast.stmt]) -> Optional[str]:
+        """Lower one statement sequence.
 
-    def _lower_stmt(self, st: ast.stmt) -> None:
+        Returns the terminator that ended it -- ``'return'``/``'break'``/
+        ``'continue'`` when a region terminator fired (the remaining
+        statements are dead: Triton's dead block after a return) -- or
+        None when the sequence ran to completion.  A statement may also
+        CONSUME trailing statements (the tail relocation into a branch's
+        live arm); it reports ``("consumed", k)`` and the sequence skips
+        them.  Once a return may have fired on this path, the remaining
+        statements lower inside one guard on the active flag (the guard
+        semantics the return state carries through the joins)."""
+        i = 0
+        n = len(stmts)
+        while i < n:
+            if self._ret_active is not None:
+                return self._lower_active_guard(stmts[i:])
+            result = self._lower_stmt(stmts[i], stmts[i + 1:])
+            if result is None:
+                i += 1
+            elif isinstance(result, tuple):
+                i += 1 + result[1]        # the relocation consumed the tail
+            else:
+                return result             # the sequence's terminator
+        return None
+
+    def _lower_active_guard(self, stmts: List[ast.stmt]) -> Optional[str]:
+        """``if <active>: <stmts>`` -- the region terminator's guard.
+
+        The statements after a possible return run only while the
+        function is active; the returned path falls through the empty
+        else arm.  Inside the guard's then arm the state is definitely
+        active again (a nested return site re-binds the flag and nests
+        its own guard)."""
+        if not stmts:
+            return None
+        loc = self._loc(stmts[0])
+        cond = self._ret_active
+        node, _, _ = self._emit_runtime_if(
+            cond, loc,
+            lambda: self._lower_stmts(stmts),
+            lambda: None)
+        del node
+        return None
+
+    def _lower_stmt(self, st: ast.stmt,
+                    tail: Sequence[ast.stmt] = ()):
         if isinstance(st, ast.Assign):
             targets = st.targets
             # a name bound to a runtime tuple unpacks later (the inlined
@@ -499,9 +632,12 @@ class Lowering:
                 taken = st.body if cond else (st.orelse or [])
                 self.fold.record_branch(st, cond,
                                         "body" if cond else "orelse")
-                self._lower_stmts(taken)
-            else:
-                self._lower_runtime_if(st)
+                term = self._lower_stmts(taken)
+                # the taken arm's own tail consumption is internal to it;
+                # only a terminator propagates (the fold is transparent to
+                # the enclosing sequence's tail)
+                return term if isinstance(term, str) else None
+            return self._lower_runtime_if(st, tail)
         elif isinstance(st, ast.Pass):
             pass
         elif isinstance(st, (ast.For, ast.AsyncFor)):
@@ -509,19 +645,64 @@ class Lowering:
         elif isinstance(st, ast.While):
             self._lower_while(st)
         elif isinstance(st, ast.Return):
-            raise self._err(st, "return",
-                            "early return is not lowered by the control-flow "
-                            "core (a region terminator is not in this path; "
-                            "guarded stores and constexpr dispatch cover the "
-                            "corpus forms)")
-        elif isinstance(st, (ast.Break, ast.Continue)):
-            raise self._err(st, type(st).__name__.lower(),
-                            "break/continue are not in the structured "
-                            "control-flow core")
+            return self._lower_return(st)
+        elif isinstance(st, ast.Break):
+            return self._lower_break(st)
+        elif isinstance(st, ast.Continue):
+            return self._lower_continue(st)
         else:
             raise self._err(
                 st, type(st).__name__,
                 "statement is not in the elementwise core")
+
+    # -- region terminators (T026) ------------------------------------------
+    def _lower_return(self, st: ast.Return) -> str:
+        """A bare early return: the region terminator with guard
+        semantics.  The returned value of a kernel is discarded by the
+        pinned ABI (Triton records it and the kernel entry returns void);
+        the expression still evaluates for its effects.  The return state
+        is the active flag (bound false here, joined across every region
+        the path exits) and every open loop's stop channel (the loop
+        exits rather than iterating on a returned path)."""
+        if st.value is not None:
+            self._lower_expr(st.value)
+        loc = self._loc(st)
+        for stop_name in reversed(self._loop_stop_stack):
+            f = self._emit(tir.Op.const(False, tir.INT1, loc), "stop")
+            self._bind(stop_name, f)
+        f = self._emit(tir.Op.const(False, tir.INT1, loc), "ret")
+        self._bind(_RET_ACTIVE, f)
+        self._ret_fired = True
+        return "return"
+
+    def _lower_break(self, st: ast.Break) -> str:
+        """``break`` as a loop exit: the innermost open loop's stop
+        channel goes false (the loop's re-evaluated condition ANDs it, so
+        the head test fails on the next iteration); the remaining body
+        statements are dead (the sequence terminator)."""
+        if not self._loop_depth:
+            raise self._err(st, "break",
+                            "'break' outside a loop is not a legal kernel "
+                            "statement")
+        if not self._loop_stop_stack:
+            raise self._err(st, "break",
+                            "'break' inside this loop form is not in the "
+                            "structured control-flow core")
+        loc = self._loc(st)
+        f = self._emit(tir.Op.const(False, tir.INT1, loc), "stop")
+        self._bind(self._loop_stop_stack[-1], f)
+        return "break"
+
+    def _lower_continue(self, st: ast.Continue) -> str:
+        """``continue``: the remaining body statements are dead; the
+        induction increment and the condition re-evaluation still run at
+        the body end (the back-edge values are the bindings at the
+        continue point)."""
+        if not self._loop_depth:
+            raise self._err(st, "continue",
+                            "'continue' outside a loop is not a legal "
+                            "kernel statement")
+        return "continue"
 
     def _bind(self, name: str, value: Union[tir.Value, ConstVal]) -> None:
         if isinstance(value, (BlockPtrVal, PointerTypeVal)):
@@ -598,12 +779,6 @@ class Lowering:
     def _region_desc(st: ast.stmt) -> str:
         return f"the {type(st).__name__.lower()} at line " \
                f"{getattr(st, 'lineno', 0)}"
-
-    def _check_no_jump(self, st: ast.stmt) -> None:
-        if isinstance(st, (ast.Break, ast.Continue)):
-            raise self._err(st, type(st).__name__.lower(),
-                            "break/continue are not in the structured "
-                            "control-flow core")
 
     def _region_blockptr_state(self, assigned: set):
         """Extend a region's assigned-name set with the derived term names
@@ -685,7 +860,23 @@ class Lowering:
                 self.env.values[name] = RuntimeValue(name, ty, ())
 
     # -- runtime if ---------------------------------------------------------------
-    def _lower_runtime_if(self, st: ast.If) -> None:
+    def _lower_runtime_if(self, st: ast.If,
+                          tail: Sequence[ast.stmt] = ()):
+        """The runtime if: a two-arm region with explicit join parameters.
+
+        Each arm starts from the pre-branch state (the snapshot restored
+        between the arms -- the else arm must never see the then arm's
+        bindings).  A name assigned on one path keeps the outer binding on
+        the other (Python's branch semantics): the join takes the outer
+        value as the not-assigned side, so every value carried across the
+        branch joins.  A region terminator that fires in one arm relocates
+        the enclosing sequence's remaining statements into the other arm
+        (they must not run on the terminated path) -- the caller is told
+        the tail was consumed so it does not lower it again.
+
+        Returns None (nothing consumed), ``("consumed", k)`` when the
+        first ``k`` tail statements relocated into the live arm, or the
+        sequence terminator when both arms terminated."""
         loc = self._loc(st)
         cond_v = self._lower_expr(st.test)
         if isinstance(cond_v, ConstVal):
@@ -693,8 +884,7 @@ class Lowering:
             taken = st.body if cond_v.value else (st.orelse or [])
             self.fold.record_branch(st, bool(cond_v.value),
                                     "body" if cond_v.value else "orelse")
-            self._lower_stmts(taken)
-            return
+            return self._lower_stmts(taken)
         if not cond_v.type.is_bool():
             cond_v = self._emit_convert(cond_v, tir.INT1, loc)
         if cond_v.shape != ():
@@ -702,63 +892,142 @@ class Lowering:
                 st, "if",
                 "a block-tensor condition cannot branch (Triton branches on "
                 "scalars; use tl.where for per-element selection)")
+
+        def then_fn():
+            return self._lower_stmts(st.body)
+
+        def else_fn():
+            return self._lower_stmts(st.orelse)
+
+        node, then_state, else_state = self._emit_runtime_if(
+            cond_v, loc, then_fn, else_fn, tail)
+        del node
+        if then_state.terminated and else_state.terminated:
+            return "return" if ("return" in (then_state.term_kind,
+                                             else_state.term_kind)
+                                ) else (then_state.term_kind
+                                        or else_state.term_kind)
+        if tail and then_state.terminated != else_state.terminated:
+            return ("consumed", len(tail))    # the tail relocated
+        return None
+
+    def _region_restore_arm(self, arm) -> None:
+        """Re-enter an arm's post-lowering state for the tail relocation."""
+        self.symbols = dict(arm.symbols)
+        self.env.values = dict(arm.env_values)
+        self._ret_active = arm.ret_active
+        self._ret_fired = arm.ret_fired
+
+    def _emit_runtime_if(self, cond_v: tir.Value, loc,
+                         then_fn, else_fn, tail: Sequence[ast.stmt] = ()):
+        """The shared region-if machinery: build the ``tir.If``, lower each
+        arm from the pre-branch snapshot (the else arm NEVER sees the then
+        arm's bindings), relocate the tail when a region terminator fired
+        in exactly one arm, then bind the joins.
+
+        The arm callables return their sequence terminator.  Returns the
+        node and the per-arm states."""
         node = tir.If(cond_v, loc)
         snap = self._region_snapshot()
+        saved_fired = self._ret_fired
 
         self._push_block(node.then)
-        self._lower_stmts(st.body)
-        then_syms = dict(self.symbols)
-        self._pop_block()
-
-        self._push_block(node.els)
-        self._lower_stmts(st.orelse)
-        else_syms = dict(self.symbols)
+        self._ret_active = None
+        self._ret_fired = False
+        term_then = then_fn()
+        then_state = _ArmState(dict(self.symbols), dict(self.env.values),
+                               self._ret_active, self._ret_fired,
+                               term_then)
         self._pop_block()
 
         self._region_restore(snap)
-        # joins: names an arm actually re-binds (a name bound on one path
-        # only stays closed).  ConstVal sides materialize inside their arm;
+        self._push_block(node.els)
+        self._ret_active = None
+        self._ret_fired = False
+        term_else = else_fn()
+        else_state = _ArmState(dict(self.symbols), dict(self.env.values),
+                               self._ret_active, self._ret_fired,
+                               term_else)
+        self._pop_block()
+
+        self._region_restore(snap)
+        # the tail relocation: a terminator that fired in exactly one arm
+        # means the sequence's remaining statements must run only on the
+        # other arm's path -- lower them inside that arm, after its own
+        # statements, BEFORE the joins are computed (the relocated
+        # statements' bindings join like any arm-local binding)
+        if tail and then_state.terminated != else_state.terminated:
+            arm = else_state if then_state.terminated else then_state
+            block = node.els if then_state.terminated else node.then
+            self._push_block(block)
+            self._region_restore_arm(arm)
+            self._lower_stmts(list(tail))
+            arm.symbols = dict(self.symbols)
+            arm.env_values = dict(self.env.values)
+            arm.ret_active = self._ret_active
+            arm.ret_fired = self._ret_fired
+            self._pop_block()
+            self._region_restore(snap)
+        # joins: every name a path re-binds joins (the other path's side is
+        # its own binding -- the outer value when it does not assign).
+        # ConstVal sides materialize inside their arm under the join name;
         # equal constexpr bindings stay constexpr.
         outer = snap[0]
         join_names = []
-        for name in sorted(set(then_syms) | set(else_syms)):
-            t, e = then_syms.get(name), else_syms.get(name)
+        for name in sorted(set(then_state.symbols) | set(else_state.symbols)):
+            t, e = then_state.symbols.get(name), else_state.symbols.get(name)
             o = outer.get(name)
-            if t is None or e is None:
-                self._closed_names.setdefault(name, self._region_desc(st))
+            if t is None and e is None:
                 continue
+            if t is None or e is None:
+                if o is None:
+                    # defined inside one arm only and never before it:
+                    # the closed-region diagnostic (a use after the region
+                    # is a located error, never a guess)
+                    self._closed_names.setdefault(
+                        name, f"the if at line {loc.line}")
+                    continue
+                # assigned on one path: the other path keeps the outer
+                # binding (the value carried across the branch joins)
+                if t is None:
+                    t = o
+                else:
+                    e = o
             if t is o and e is o:
                 continue            # not re-bound by either arm
             if isinstance(t, ConstVal) and isinstance(e, ConstVal) \
                     and _const_eq(t.value, e.value):
                 self._bind(name, t)
                 continue
-            if isinstance(t, (BlockPtrVal, PointerTypeVal)) \
-                    or isinstance(e, (BlockPtrVal, PointerTypeVal)):
-                raise self._err(
-                    st, "if",
-                    f"the arms re-bind '{name}' as a block pointer or a "
-                    "pointer type; re-binding a descriptor across a "
-                    "branch is not in this slice (advance it in a loop, "
-                    "or rebuild it after the branch)")
-            t_v = self._materialize_in(node.then, t, loc)
-            e_v = self._materialize_in(node.els, e, loc)
+            if isinstance(t, (BlockPtrVal, PointerTypeVal, TupleVal)) \
+                    or isinstance(e, (BlockPtrVal, PointerTypeVal, TupleVal)):
+                raise FrontendError(
+                    self.source.path, loc.line, loc.col, "if",
+                    f"the arms re-bind '{name}' as a block pointer, a "
+                    "pointer type or a runtime tuple; re-binding a "
+                    "descriptor or a tuple across a branch is not in this "
+                    "slice (advance it in a loop, or rebuild it after the "
+                    "branch)")
+            t_v = self._materialize_join_side(node.then, t, name, loc)
+            e_v = self._materialize_join_side(node.els, e, name, loc)
             if t_v.type != e_v.type:
-                raise self._err(
-                    st, "if",
+                raise FrontendError(
+                    self.source.path, loc.line, loc.col, "if",
                     f"the arms bind '{name}' with different types "
                     f"({t_v.type!r} vs {e_v.type!r}); branch unification "
                     "is not in this path")
             if tir.value_shape(t_v.shape) != tir.value_shape(e_v.shape):
-                raise self._err(
-                    st, "if",
+                raise FrontendError(
+                    self.source.path, loc.line, loc.col, "if",
                     f"the arms bind '{name}' with different extent values "
                     f"({list(t_v.shape)} vs {list(e_v.shape)})")
             join_names.append(name)
         node.join_names = tuple(join_names)
         joins = []
         for name in join_names:
-            side = then_syms[name]
+            side = self._materialize_join_side(node.then,
+                                               then_state.symbols[name],
+                                               name, loc)
             jv = tir.Value(side.type, side.shape, loc, name=name)
             jv.add_alias(name)
             joins.append(jv)
@@ -768,6 +1037,28 @@ class Lowering:
         # re-bound source variable never merges with its earlier binding)
         for name, value in zip(join_names, joins):
             self._bind(name, value)
+        # the return state: a return site in either arm re-bound the flag;
+        # the join carries it out (None when no return can have fired)
+        self._ret_fired = saved_fired or then_state.ret_fired \
+            or else_state.ret_fired
+        if then_state.ret_fired or else_state.ret_fired:
+            v = self.symbols.get(_RET_ACTIVE)
+            self._ret_active = v if isinstance(v, tir.Value) else None
+        else:
+            self._ret_active = None
+        return node, then_state, else_state
+
+    def _materialize_join_side(self, block: tir.Block, value, name: str,
+                               loc) -> tir.Value:
+        """Materialize a ConstVal join side inside its arm under the join
+        name: the arm's scope must DEFINE the name (the verifier's
+        both-arms rule) -- a bare constant op without the alias would
+        leave the arm's binding invisible."""
+        if isinstance(value, tir.Value):
+            return value
+        v = self._materialize_in(block, value, loc)
+        v.add_alias(name)
+        return v
 
     # -- for ---------------------------------------------------------------------
     def _for_form(self, st: ast.For):
@@ -847,12 +1138,20 @@ class Lowering:
         if step == 0:
             raise self._err(st, "tl.static_range", "step cannot be zero")
         name = st.target.id
+        scan = _scan_jumps(st.body)
+        if scan.breaks or scan.continues:
+            raise self._err(
+                st, "tl.static_range",
+                "break/continue inside tl.static_range is not in the "
+                "structured control-flow core (the loop unrolls at compile "
+                "time; use tl.range for a runtime loop exit)")
         k = start
         while (step > 0 and k < stop) or (step < 0 and k > stop):
             self._bind(name, ConstVal(k))
-            for s in st.body:
-                self._check_no_jump(s)
-                self._lower_stmt(s)
+            # a return inside the unrolled body lowers under the active
+            # flag's guards like any statement (the remaining iterations
+            # guard on the flag: they must not run after a return)
+            self._lower_stmts(st.body)
             k += step
         # the induction name after the loop: the last visited value, or the
         # start when the body never ran (unrolling is straight-line, so
@@ -931,6 +1230,15 @@ class Lowering:
             step_i = self._emit(tir.Op.const(1, idx_ty, loc), "st")
 
         name = st.target.id
+        jumps = _scan_jumps(st.body)
+        if jumps.returns or jumps.breaks:
+            # a break/return inside the body needs the loop-exit channel:
+            # the counted form lowers as the while form (the head test
+            # `i < upper` ANDs the stop channel, so the loop exits at the
+            # next head test after a break/return)
+            self._lower_counted_as_while(st, loc, name, lower_i, upper_i,
+                                         step_i, jumps)
+            return
         snap = self._region_snapshot()
         # carried candidates: names the body assigns that are visible
         # before the loop; their initial values materialize in the
@@ -952,6 +1260,8 @@ class Lowering:
                 continue
             if isinstance(v, ConstVal):
                 v = self._materialize_in(self._block, v, loc)
+            else:
+                v = self._fresh_channel_init(v, cname)
             preheader_inits[cname] = v
         node = tir.Loop(lower_i, upper_i, step_i, loc)
         self._push_block(node.body)
@@ -961,9 +1271,7 @@ class Lowering:
         for cname, init in preheader_inits.items():
             self._bind(cname, init)
         self._mark_region_runtime(assigned - {name})
-        for s in st.body:
-            self._check_no_jump(s)
-            self._lower_stmt(s)
+        self._lower_stmts(st.body)
         if self.symbols.get(name) is not lower_i:
             raise self._err(
                 st, "for",
@@ -992,21 +1300,11 @@ class Lowering:
                 self._closed_names.setdefault(cname, self._region_desc(st))
         node.carried = tuple(carried)
         self._block.statements.append(node)
-        # the body's final values: materialized inside the body when the
-        # body left them constexpr, then joined
-        finals = []
-        for cname, _ in carried:
-            finals.append(self._materialize_in(node.body, body_syms[cname],
-                                               loc))
-        joins = []
-        for (cname, _), final in zip(carried, finals):
-            jv = tir.Value(final.type, final.shape, loc, name=cname)
-            jv.add_alias(cname)
-            joins.append(jv)
-        node.join_results = tuple(joins)
-        for (cname, _), value in zip(carried, joins):
-            self._bind(cname, value)
-        self._rebind_blockptrs_after_region(bp_names, body_syms, carried,
+        # the shared loop close: drop channels the lowered body never
+        # re-binds, give every final a region-visible definition, join
+        live, joins = self._finish_loop_channels(node, loc, carried,
+                                                 preheader_inits, body_syms)
+        self._rebind_blockptrs_after_region(bp_names, body_syms, live,
                                             joins)
 
     # -- while -------------------------------------------------------------------
@@ -1016,25 +1314,66 @@ class Lowering:
                             "while/else is not in the structured "
                             "control-flow core")
         loc = self._loc(st)
+        jumps = _scan_jumps(st.body)
+        # the condition may depend on names the body re-assigns (``j = 0``
+        # before the loop, ``j < K`` as the test, ``j += 1`` inside): they
+        # are runtime BEFORE the first fold attempt -- folding the test
+        # against the pre-loop constant would decide ``while True`` from
+        # the first iteration's value
+        self._mark_region_runtime(self._assigned_names(st.body))
         cond = self.env.evaluate(st.test, self.source.path)
         if cond is not NOT_CONSTEXPR:
             if cond:
+                if not (jumps.breaks or jumps.returns):
+                    raise self._err(
+                        st, "while",
+                        "while True never terminates (no break exists in "
+                        "the control-flow core)")
+                # ``while True`` with a loop exit: the constant-true
+                # condition rides the while form like any other (the stop
+                # channel terminates the loop at the next head test)
+                cond_v = self._emit(tir.Op.const(True, tir.INT1, loc), "tru")
+            else:
+                self.fold.record_branch(st, False, "orelse")
+                return                  # zero-trip: the body never runs
+        else:
+            cond_v = self._lower_expr(st.test)
+            if isinstance(cond_v, ConstVal):
+                raise self._err(st, "while", "condition folded after all")
+            if not cond_v.type.is_bool():
+                cond_v = self._emit_convert(cond_v, tir.INT1, loc)
+            if cond_v.shape != ():
                 raise self._err(
                     st, "while",
-                    "while True never terminates (no break exists in the "
-                    "control-flow core)")
-            self.fold.record_branch(st, False, "orelse")
-            return                      # zero-trip: the body never runs
-        cond_v = self._lower_expr(st.test)
-        if isinstance(cond_v, ConstVal):
-            raise self._err(st, "while", "condition folded after all")
-        if not cond_v.type.is_bool():
-            cond_v = self._emit_convert(cond_v, tir.INT1, loc)
-        if cond_v.shape != ():
-            raise self._err(
-                st, "while",
-                "a block-tensor condition cannot loop (Triton loops on "
-                "scalars)")
+                    "a block-tensor condition cannot loop (Triton loops on "
+                    "scalars)")
+        stop0 = self._emit(tir.Op.const(True, tir.INT1, loc), "go")
+        self._lower_while_form(st, loc, cond_v, jumps, stop0,
+                               induction=None)
+
+    # -- the shared while-form builder ---------------------------------------
+    def _lower_counted_as_while(self, st, loc, name, lower_i, upper_i,
+                                step_i, jumps) -> None:
+        """A counted range whose body contains a break/return, lowered as
+        the while form: the head test ``i < upper`` ANDs the stop channel
+        (the induction becomes an ordinary carried channel with the
+        increment appended at the body end, exactly like the counted
+        form's)."""
+        cond0 = self._emit(tir.Op.cmp("cmp.lt", lower_i, upper_i, loc), "lpc")
+        stop0 = self._emit(tir.Op.const(True, tir.INT1, loc), "go")
+        self._lower_while_form(st, loc, cond0, jumps, stop0,
+                               induction=(name, lower_i, upper_i, step_i))
+
+    def _lower_while_form(self, st, loc, cond_v, jumps, stop0,
+                          induction) -> None:
+        """Build the while-form ``tir.Loop`` with carried values.
+
+        ``induction`` is ``(name, lower, upper, step)`` for a converted
+        counted range (None for a plain while).  The stop channel
+        (break/return) and the active flag (return) ride as carried
+        names; the condition re-evaluation at the body end is guarded by
+        the stop channel when a loop exit can have fired (the source does
+        not re-test the condition on a path that left the loop)."""
         snap = self._region_snapshot()
         # carried candidates: names the body assigns that are visible
         # before the loop (the condition rides first)
@@ -1042,6 +1381,8 @@ class Lowering:
         assigned, bp_names = self._region_blockptr_state(assigned)
         preheader_inits: Dict[str, tir.Value] = {}
         for cname in sorted(assigned):
+            if induction is not None and cname == induction[0]:
+                continue        # the induction binds explicitly below
             if cname not in self.symbols:
                 continue
             v = self.symbols[cname]
@@ -1049,7 +1390,15 @@ class Lowering:
                 continue           # the derived term names carry it
             if isinstance(v, ConstVal):
                 v = self._materialize_in(self._block, v, loc)
+            else:
+                v = self._fresh_channel_init(v, cname)
             preheader_inits[cname] = v
+        stop_name = self._fresh_name("%loop.go")
+        preheader_inits[stop_name] = stop0
+        if jumps.returns:
+            active = self.symbols.get(_RET_ACTIVE)
+            if isinstance(active, tir.Value):
+                preheader_inits[_RET_ACTIVE] = active
         node = tir.Loop(None, None, None, loc, cond=cond_v)
         cond_name = self._fresh_name("%while.cond")
         cond_v.add_alias(cond_name)      # the carried condition entry
@@ -1057,25 +1406,66 @@ class Lowering:
         self.symbols = dict(self.symbols)
         self.env.values = dict(self.env.values)
         self._bind(cond_name, cond_v)
+        if induction is not None:
+            self._bind(induction[0], induction[1])
         for cname, init in preheader_inits.items():
             self._bind(cname, init)
         self._mark_region_runtime(assigned)
-        for s in st.body:
-            self._check_no_jump(s)
-            self._lower_stmt(s)
-        # re-evaluate the condition over the body's final state; bound to
-        # the carried cond name (the back edge carries it to the head)
-        cond2 = self._lower_expr(st.test)
-        if isinstance(cond2, ConstVal):
-            cond2 = self._materialize_in(node.body, cond2, loc)
-        if not cond2.type.is_bool():
-            cond2 = self._emit_convert(cond2, tir.INT1, loc)
-        self._bind(cond_name, cond2)
+        self._loop_depth += 1
+        self._loop_stop_stack.append(stop_name)
+        try:
+            self._lower_stmts(st.body)
+            if induction is not None:
+                name, lower_i, _upper_i, step_i = induction
+                if self.symbols.get(name) is not lower_i:
+                    raise self._err(
+                        st, "for",
+                        f"the loop body rebinds the induction name "
+                        f"'{name}'; the induction is compiler-owned in the "
+                        "counted form")
+                # the induction increment (the channel's back-edge value)
+                inc = self._emit(
+                    tir.Op.binop("arith.add", lower_i, step_i, loc), "inc")
+                self._bind(name, inc)
+        finally:
+            self._loop_depth -= 1
+            self._loop_stop_stack.pop()
+        # the condition re-evaluation over the body's final state, bound
+        # to the carried cond name (the back edge carries it to the head);
+        # guarded by the stop channel when a loop exit can have fired (a
+        # while's test may carry effects -- the source does not re-test
+        # it on a path that left the loop).  The converted counted form's
+        # test ``i < upper`` is pure: no guard needed.
+        stop_v = self.symbols.get(stop_name)
+        needs_stop = jumps.returns > 0 or jumps.breaks > 0
+        if induction is not None:
+            name, lower_i, upper_i, step_i = induction
+            ind_next = self.symbols.get(name)
+            c = self._emit(tir.Op.cmp("cmp.lt", ind_next, upper_i, loc),
+                           "lpc")
+            if needs_stop and isinstance(stop_v, tir.Value):
+                c = self._emit(tir.Op.binop("bit.and", c, stop_v, loc), "go")
+            self._bind(cond_name, c)
+        elif needs_stop and isinstance(stop_v, tir.Value):
+            def then_fn():
+                c = self._lower_cond_expr(st.test, loc)
+                self._bind(cond_name, c)
+
+            def else_fn():
+                f = self._emit(tir.Op.const(False, tir.INT1, loc), "cf")
+                self._bind(cond_name, f)
+
+            self._emit_runtime_if(stop_v, loc, then_fn, else_fn)
+        else:
+            c = self._lower_cond_expr(st.test, loc)
+            self._bind(cond_name, c)
         body_syms = dict(self.symbols)
         self._pop_block()
         self._region_restore(snap)
 
         carried = [(cond_name, cond_v)]
+        if induction is not None:
+            carried.append((induction[0], induction[1]))
         for cname in sorted(preheader_inits):
             outer = self.symbols.get(cname)
             if outer is None or outer is body_syms.get(cname):
@@ -1088,22 +1478,116 @@ class Lowering:
                 self._closed_names.setdefault(cname, self._region_desc(st))
         node.carried = tuple(carried)
         self._block.statements.append(node)
+        live, joins = self._finish_loop_channels(node, loc, carried,
+                                                 preheader_inits, body_syms,
+                                                 skip_bind=(cond_name,))
+        self._rebind_blockptrs_after_region(bp_names, body_syms, live,
+                                            joins)
+        if jumps.returns and isinstance(self.symbols.get(_RET_ACTIVE),
+                                        tir.Value):
+            # a return can have fired inside: the post-loop statements
+            # guard on the flag (the channel's join)
+            self._ret_active = self.symbols[_RET_ACTIVE]
+
+    def _lower_cond_expr(self, test, loc) -> tir.Value:
+        """The loop condition as an i1 value (materializing a constexpr
+        re-evaluation like ``while True``)."""
+        c = self._lower_expr(test)
+        if isinstance(c, ConstVal):
+            c = self._materialize(c, loc)
+        if not c.type.is_bool():
+            c = self._emit_convert(c, tir.INT1, loc)
+        return c
+
+    # -- the shared loop close (T026) -----------------------------------------
+    def _fresh_channel_init(self, v: tir.Value, cname: str) -> tir.Value:
+        """A carried channel's init must not share its value with a name
+        that stays loop-invariant: inside the body, uses of the INIT
+        value denote the current iteration (the lowering's head-parameter
+        override) -- ``t_cur = x`` before the loop would reinterpret
+        every body use of ``x`` as the carried value.  A shared init gets
+        a fresh identity copy (one value per meaning)."""
+        if any(n != cname for n in v.aliases):
+            return self._identity_value(self._block, v, self._loc_of(v))
+        return v
+
+    @staticmethod
+    def _loc_of(v: tir.Value):
+        return v.loc
+
+    def _identity_value(self, block: tir.Block, value: tir.Value,
+                        loc) -> tir.Value:
+        """A fresh value equal to ``value``: the identity select
+        ``where(true, v, v)`` (both branches the same value).  The passes
+        keep it as a region-final binding (copyprop/LICM's protected set)
+        while folding its ordinary uses; the lowering reinterprets its
+        operand per-iteration under the head-parameter override."""
+        saved = self._block
+        self._block = block
+        try:
+            c = self._emit(tir.Op.const(True, tir.INT1, loc), "idc")
+            if value.shape:
+                target = tuple(tir.Extent(e.value, True)
+                               for e in value.shape)
+                c = self._emit(tir.Op.broadcast(c, target, loc), "idb")
+            return self._emit(tir.Op.where(c, value, value, loc), "id")
+        finally:
+            self._block = saved
+
+    def _collect_region_vids(self, block: tir.Block, out: set) -> None:
+        """Every value vid defined inside a region (op results and nested
+        region joins, transitively)."""
+        for stmt in block.statements:
+            if isinstance(stmt, tir.Op):
+                out.update(r.vid for r in stmt.results)
+            elif isinstance(stmt, tir.If):
+                self._collect_region_vids(stmt.then, out)
+                self._collect_region_vids(stmt.els, out)
+                out.update(r.vid for r in stmt.join_results)
+            elif isinstance(stmt, tir.Loop):
+                self._collect_region_vids(stmt.body, out)
+                out.update(r.vid for r in stmt.join_results)
+
+    def _finish_loop_channels(self, node: tir.Loop, loc, carried,
+                              preheader_inits, body_syms,
+                              skip_bind=()):
+        """The shared loop close: drop the channels the lowered body never
+        re-binds (every assignment folded away -- the name keeps its outer
+        binding), give every remaining final a definition the region
+        replay can see (a ConstVal final materializes under the carried
+        name; a final whose value is defined OUTSIDE the body -- a channel
+        copy ``prev = cur`` or a re-assigned outer value -- gets the
+        identity select), then bind the joins."""
+        inits = dict(preheader_inits)
+        body_defs: set = set()
+        self._collect_region_vids(node.body, body_defs)
+        live = []
+        for cname, init in carried:
+            if cname in inits and body_syms.get(cname) is inits[cname]:
+                continue
+            live.append((cname, init))
+        node.carried = tuple(live)
         finals = []
-        for cname, _ in carried:
-            finals.append(self._materialize_in(node.body, body_syms[cname],
-                                               loc))
+        for cname, _init in live:
+            final = body_syms[cname]
+            if isinstance(final, ConstVal):
+                final = self._materialize_in(node.body, final, loc)
+                final.add_alias(cname)
+            elif isinstance(final, tir.Value) and final.vid not in body_defs:
+                final = self._identity_value(node.body, final, loc)
+                final.add_alias(cname)
+            finals.append(final)
         joins = []
-        for (cname, _), final in zip(carried, finals):
+        for (cname, _init), final in zip(live, finals):
             jv = tir.Value(final.type, final.shape, loc, name=cname)
             jv.add_alias(cname)
             joins.append(jv)
         node.join_results = tuple(joins)
-        for (cname, _), value in zip(carried, joins):
-            if cname == cond_name:
-                continue            # internal: not visible after the loop
+        for (cname, _init), value in zip(live, joins):
+            if cname in skip_bind:
+                continue        # internal: not visible after the loop
             self._bind(cname, value)
-        self._rebind_blockptrs_after_region(bp_names, body_syms, carried,
-                                            joins)
+        return live, joins
 
     # ------------------------------------------------------------------ exprs
     def _lower_expr(self, node: ast.expr) -> Union[tir.Value, ConstVal]:
@@ -1124,10 +1608,7 @@ class Lowering:
         if isinstance(node, ast.Compare):
             return self._lower_compare(node)
         if isinstance(node, ast.BoolOp):
-            raise self._err(
-                node, f"'{type(node.op).__name__.lower()}'",
-                "Python and/or on runtime values is not supported (Triton "
-                "uses & and | on boolean tensors)")
+            return self._lower_boolop(node)
         if isinstance(node, ast.IfExp):
             return self._lower_ifexp(node)
         if isinstance(node, ast.Call):
@@ -1237,6 +1718,71 @@ class Lowering:
             return self._emit(tir.Op.binop(code, l, r, loc), "shr")
         raise self._err(node, type(op).__name__,
                         "binary operator is not in the elementwise core")
+
+    def _lower_boolop(self, node: ast.BoolOp) -> Union[tir.Value, ConstVal]:
+        """Python ``and``/``or`` over runtime values, with the semantics
+        the pinned Triton 3.8 pins for them (code_generator.visit_BoolOp
+        + semantic.logical_and/logical_or):
+
+        * the values evaluate IN ORDER (side effects execute even when a
+          constexpr value short-circuits the decision);
+        * a constexpr value short-circuits: a falsey ``and`` operand is
+          the result, a truthy ``or`` operand is the result; every other
+          constexpr drops out of the combination;
+        * with no runtime value left, the final value is the result (the
+          disjunction of falsey values / conjunction of truthy values);
+        * the runtime values combine right-to-left pairwise through
+          ``logical_and``/``logical_or`` -- the i1 (``&``/``|``) forms
+          with the operand broadcast -- exactly the bitwise path the
+          boundary conditions already use.
+        """
+        is_and = isinstance(node.op, ast.And)
+        construct = f"'{'and' if is_and else 'or'}'"
+        loc = self._loc(node)
+        values: List[tir.Value] = []
+        last = None
+        for sub in node.values:
+            v = self._lower_expr(sub)     # side effects execute, in order
+            if isinstance(v, ConstVal):
+                try:
+                    truth = bool(_py_scalar(v.value))
+                except Exception:                          # noqa: BLE001
+                    truth = True
+                if (not truth) and is_and:
+                    return v              # a falsey and-operand is the result
+                if truth and not is_and:
+                    return v              # a truthy or-operand is the result
+                # no effect on the combination: dropped
+            else:
+                values.append(v)
+            last = v
+        if not values:
+            # every value was a non-short-circuiting constexpr: the final
+            # value is the result
+            assert last is not None
+            return last
+        while len(values) >= 2:
+            rhs = values.pop()
+            lhs = values.pop()
+            values.append(self._logical_combine(lhs, rhs, loc, construct,
+                                                is_and))
+        return values[0]
+
+    def _logical_combine(self, lhs: tir.Value, rhs: tir.Value, loc,
+                         construct: str, is_and: bool) -> tir.Value:
+        """``logical_and``/``logical_or`` over two runtime values: both
+        operands must be i1 (the pinned bitcast to int1 accepts nothing
+        wider), then the bitwise op with the operand broadcast."""
+        for side in (lhs, rhs):
+            if not side.type.is_bool():
+                raise FrontendError(
+                    self.source.path, loc.line, loc.col, construct,
+                    f"logical {construct.strip(chr(39))} requires boolean "
+                    f"operands, got {side.type!r} (the pinned Triton "
+                    "bitcasts each operand to int1, which accepts only i1)")
+        l, r, _t = self._binary_operands(lhs, rhs, loc)
+        code = "bit.and" if is_and else "bit.or"
+        return self._emit(tir.Op.binop(code, l, r, loc), "log")
 
     def _emit_addsub(self, lhs, rhs, loc, node, sub: bool):
         """ptr + int / int + ptr / ptr - int, else plain add/sub."""
