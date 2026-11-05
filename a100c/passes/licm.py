@@ -11,11 +11,21 @@ before the loop.  Legality:
   trapping/undefined classes even when their operands are invariant;
 * every operand must be defined OUTSIDE the loop and not be one of the
   loop's carried inits (inside the body an init use denotes the CURRENT
-  iteration's value -- the MIR head-parameter override; hoisting such
-  an operation would freeze the initial value, the classic
+  iteration's value -- the MIR head-parameter override; hoisting such an
+  operation would freeze the initial value, the classic
   loop-invariant-hoisting miscompile).  Cascading hoists arrive with
   the pipeline's next round (the analysis is recomputed after every
   mutation);
+* no result of the hoisted operation may have a scope name that the loop
+  body (re)binds -- TIR scoping is NAME-BASED (the verifier's lexical
+  rule: a use is legal while one of the value's names still maps to it).
+  A body-defined value that shadows one of the result's names sits ABOVE
+  the remaining in-body uses once the definition moves to the preheader,
+  and those uses resolve against the shadow -- use-before-definition
+  (implicit_conv2d's reshape ``rs`` vs the source variable ``rs`` riding
+  the srem's alias, the T024 census class).  A result whose name the body
+  rebinds is declined this round; the fixpoint may still hoist it later
+  once the shadowing def itself leaves the body;
 * a statement that is a region-final name binding (an if-arm join name
   or a carried name's body-end definition) is never moved: the join
   resolves the name at the def and the lowering's carried
@@ -31,7 +41,7 @@ is used because it is deterministic.
 """
 from __future__ import annotations
 
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Set, Tuple
 
 from a100c.ir import tir
 from a100c.passes import rewrite
@@ -69,6 +79,58 @@ def _hoistable(op: tir.Op) -> Tuple[bool, Optional[str]]:
     return True, None
 
 
+def _body_name_owners(body: tir.Block) -> Dict[str, Set[int]]:
+    """name -> vids of the values the loop body binds it to.
+
+    Everything that can shadow a name inside the body counts: op results
+    (under every scope name), if/loop join results, and each nested
+    loop's CARRIED names (a carried entry rebinds its name at the body's
+    entry -- the verifier defines ``body_scope[name] = init`` -- so a
+    hoisted result aliased to a carried name would be shadowed from the
+    very first body statement)."""
+    owners: Dict[str, Set[int]] = {}
+
+    def add(name: str, vid: int) -> None:
+        owners.setdefault(name, set()).add(vid)
+
+    def walk(block: tir.Block) -> None:
+        for st in block.statements:
+            if isinstance(st, tir.Op):
+                for r in st.results:
+                    for n in r.scope_names():
+                        add(n, r.vid)
+            elif isinstance(st, tir.If):
+                walk(st.then)
+                walk(st.els)
+                for name, jv in zip(st.join_names, st.join_results):
+                    add(name, jv.vid)
+                    for n in jv.scope_names():
+                        add(n, jv.vid)
+            elif isinstance(st, tir.Loop):
+                for name, init in st.carried:
+                    add(name, init.vid)
+                walk(st.body)
+                for name, jv in zip([n for n, _ in st.carried],
+                                    st.join_results):
+                    add(name, jv.vid)
+                    for n in jv.scope_names():
+                        add(n, jv.vid)
+
+    walk(body)
+    return owners
+
+
+def _result_name_rebound(op: tir.Op, owners: Dict[str, Set[int]]) -> bool:
+    """Does the body bind one of ``op``'s result names to another value?"""
+    own = {r.vid for r in op.results}
+    for r in op.results:
+        for name in r.scope_names():
+            for vid in owners.get(name, ()):
+                if vid not in own:
+                    return True
+    return False
+
+
 class LICMPass:
     name = "licm"
     ANALYSES_CONSUMED = ("dominance", "loops")
@@ -104,11 +166,11 @@ class LICMPass:
                     return False
             return True
 
-        def collect(block: tir.Block, info) -> None:
+        def collect(block: tir.Block, info, owners: Dict[str, Set[int]]) -> None:
             for st in block.statements:
                 if isinstance(st, tir.If):
-                    collect(st.then, info)
-                    collect(st.els, info)
+                    collect(st.then, info, owners)
+                    collect(st.els, info, owners)
                     continue
                 if isinstance(st, tir.Loop):
                     continue            # nested loops: their own entries
@@ -124,13 +186,23 @@ class LICMPass:
                         "region-final binding: the join resolves the name "
                         "at the def (never moved)")
                     continue
+                if _result_name_rebound(st, owners):
+                    # the name-based scope rule: a body binding of one of
+                    # this result's names would sit between the preheader
+                    # and the remaining in-body uses (use-before-definition
+                    # -- the verifier is the control, never a weakened one)
+                    trace.record_decline(
+                        "result name re-bound inside the loop body (the "
+                        "name-based scope rule: the remaining in-body uses "
+                        "would resolve against the body's binding)")
+                    continue
                 if loop_invariant(st, info):
                     hoists.append((info.node, st))
 
         # decide on one snapshot, innermost loops first (a hoist out of
         # an inner loop can enable the outer one next round)
         for info in sorted(loops.loops, key=lambda li: -len(li.path)):
-            collect(info.node.body, info)
+            collect(info.node.body, info, _body_name_owners(info.node.body))
         if not hoists:
             return False
 

@@ -225,10 +225,26 @@ class Compiler:
     def _load_source(self, case: dict):
         kernel = case.get("kernel")
         path = None
-        fn = getattr(kernel, "fn", None) or kernel
-        code = getattr(fn, "__code__", None)
-        if code is not None and code.co_filename:
-            path = code.co_filename
+        # unwrap the kernel wrapper chain: a bare @triton.jit hands the
+        # raw function (its __code__ names the operator file); an
+        # @triton.autotune operator hands an Autotuner whose .fn is the
+        # JITFunction whose .fn is the raw function -- ONE unwrap level
+        # never reached the source, so the 11 autotune operators could
+        # not load their compile unit at all (the T024 'case' class).
+        # The chosen config is the specialization's deterministic pick
+        # (frontend.specialize.chosen_autotune_config: the FIRST declared
+        # config; correctness-neutral, part of the identity, never
+        # re-tuned per key), so the unwrap only needs the source file.
+        fn = kernel
+        for _ in range(8):
+            code = getattr(fn, "__code__", None)
+            if code is not None and code.co_filename:
+                path = code.co_filename
+                break
+            nxt = getattr(fn, "fn", None)
+            if nxt is None or nxt is fn:
+                break
+            fn = nxt
         if path is None:
             raise PipelineError(
                 None, "case",

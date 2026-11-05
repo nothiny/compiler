@@ -338,6 +338,16 @@ def _vector_rows() -> List[InstructionEntry]:
                    notes="mask AND (the arg-merge tie condition); the .mm "
                          "form is the mask-mask assembly suffix of RVV 1.0",
                    evidence="RVV 1.0 (F006)"))
+    rows.append(_E("vmnand.mm", "vmnot", (),
+                   "vmnand.mm {vd}, {vs2}, {vs2}",
+                   notes="mask complement (the boolean block's ~m: "
+                         "logical.not / bit.invert on an i1 block, T024); "
+                         "the pinned toolchain's binutils has no vmnot.mm "
+                         "pseudo (probed: unrecognized opcode), so the "
+                         "complement is vmnand(m, m) = ~(m & m) -- exact "
+                         "for the 0/1 mask lanes",
+                   evidence="RVV 1.0 (F006); as -march=rv64gcv probe: "
+                            "vmnand.mm accepted, vmnot.mm unrecognized"))
     # integer vector compares (vv): vd = vs2 <pred> vs1.  The ORDERED
     # signed rows constrain unsigned=False (T013: a uint-kind operand must
     # select the unsigned form -- before the constraint the matcher saw

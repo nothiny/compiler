@@ -873,9 +873,15 @@ class _Interpreter:
         index = self._eval(node.slice) if not isinstance(node.slice, ast.Slice) \
             else None
         if isinstance(base, SymTuple):
+            if isinstance(index, SymTuple):
+                # a multi-dimensional index over a tuple-shaped value: an
+                # element access, never an extent (x[1, -1] on a shape-
+                # carrying value -- untracked, never int() over a tuple)
+                return _opaque("multi-index element access")
             if index is None or index.concrete is None:
                 return _opaque("symbolic tuple index")
-            if not isinstance(index.concrete, int):
+            if not isinstance(index.concrete, int) \
+                    or isinstance(index.concrete, bool):
                 return _opaque("non-integer tuple index")
             if not (0 <= index.concrete < len(base.items)):
                 raise self._err(node, "subscript", "tuple index out of range")
@@ -887,8 +893,17 @@ class _Interpreter:
                 return _opaque(f"key {index.concrete!r} not tracked")
             return base.mapping[index.concrete]
         if isinstance(base, SymArray):
-            if index is None or index.concrete is None:
-                return _opaque("symbolic array extent index")
+            if isinstance(index, SymTuple):
+                # a multi-dimensional element access (x[1, -1] in the
+                # case layer): the ELEMENT is not a bundle-visible
+                # quantity -- untracked (a grid axis consuming it refuses,
+                # located, at the tie stage; never int() over a tuple,
+                # the T024 interpreter gap)
+                return _opaque("multi-index element access")
+            if index is None or index.concrete is None \
+                    or not isinstance(index.concrete, int) \
+                    or isinstance(index.concrete, bool):
+                return _opaque("array element access")
             return base.extents[int(index.concrete)]
         return _opaque("subscript")
 
