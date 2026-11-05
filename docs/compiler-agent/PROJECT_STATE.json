@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-05T06:36:18.745939+00:00",
+  "updated_at": "2026-11-05T08:03:11.101217+00:00",
   "facts": [
     {
       "id": "F001",
@@ -1786,14 +1786,14 @@
         "reductions-v1"
       ],
       "tags": [],
-      "status": "RUNNING",
+      "status": "DONE",
       "assignee": "coder",
       "attempts": 1,
-      "evidence": "",
+      "evidence": "worker report WTI016: Implemented a100c/passes/ (the six basic passes on TIR as ordinary coding/input work under the correctness-only scope) and a100c/tests/test_passes_basic.py. analyses.py is the single shared analysis owner (dominance over the structured region tree, liveness with the region-final name bindings, loop structure with the carried-init reinterpretation sets, memory effects with the constant-offset alias proof) under a declared invalidation contract: results carry the structural module digest, get() never serves a stale result (recompute on mismatch), freeze() binds a digest-bound view that raises StaleAnalysisError once the module moves (the pass-refusal half), and the pipeline re-freezes between passes. rewrite.py holds the shared mechanics: guarded use replacement that never rewrites a carried-init slot or a use site reinterpreted by the MIR head-parameter override, region-final protected defs (join/carried name bindings), alias copying so name-based joins keep resolving, and use counting. The six passes: constprop (exact width/signedness/overflow/rounding folds, int identity elimination, float 0*x/x+0 REFUSED -- absolute_kernel's guard is the corpus witness, path-condition where folding), copyprop (identity broadcast/reshape/where(x,x)/ptradd(p,0); hint and realize refused by policy), strength_reduction (mul by 2^k and 2-term sums -> shifts/adds, unsigned div/rem -> lsr/and, signed div/rem -> the exact sign-correction sequences; non-power-of-two and the whole floating class declined, declared), cse (scoped availability + the effect/alias proof for load reuse -- the proof covers writes from PREVIOUS loop iterations, found and fixed through an executed miscompile on the licm witness), dce (effect roots, region-final roots, transitive use marking; dead runtime-divisor divisions retained), licm (invariant pure expressions only; memory accesses and trapping classes never hoisted; zero-trip safe). Each pass has a real switch (A100C_PASS_<NAME>=off), fir",
       "last_error": "",
       "failure_kind": "",
       "start_revision": "4d9077f63e0cbe335c697fdba3d6b71ee656fb69",
-      "end_revision": "",
+      "end_revision": "a1fe011022a416620e5b066bcdfa220e2b201e8b",
       "completed_seq": 0,
       "debug_required": false,
       "debug_request_id": "",
@@ -7055,6 +7055,24 @@
       "phase": "IMPLEMENTATION",
       "event": "task-delegate",
       "detail": "WTI016 task=T015 attempt=1 profile=general-purpose"
+    },
+    {
+      "at": "2026-11-05T08:03:11.072933+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "task-report-out-of-contract",
+      "detail": "T015: a100c/cache/2318288b996b78bfbf9b065c34c6a85e56ea66922e3b5a8eacac59f6a929fc93/stage.mir.lowered.txt, a100c/cache/2318288b996b78bfbf9b065c34c6a85e56ea66922e3b5a8eacac59f6a929fc93/program.S, a100c/cache/2318288b996b78bfbf9b065c34c6a85e56ea66922e3b5a8eacac59f6a929fc93/stage.mir.legalized.txt, a100c/cache/build/program-7ba660268eb68271.o, a100c/cache/2318288b996b78bfbf9b065c34c6a85e56ea66922e3b5a8eacac59f6a929fc93/stage.mir.allocated.txt"
+    },
+    {
+      "at": "2026-11-05T08:03:11.078677+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "task-report",
+      "detail": "WTI016 COMPLETED attempt=1 [changes outside the declared paths: a100c/cache/2318288b996b78bfbf9b065c34c6a85e56ea66922e3b5a8eacac59f6a929fc93/stage.mir.lowered.txt, a100c/cache/2318288b996b78bfbf9b065c34c6a85e56ea66922e3b5a8eacac59f6a929fc93/program.S, a100c/cache/2318288b996b78bfbf9b065c34c6a85e56ea66922e3b5a8eacac59f6a929fc93/stage.mir.legalized.txt, a100c/cache/build/program-7ba660268eb68271.o, a100c/cache/2318288b996b78bfbf9b065c34c6a85e56ea66922e3b5a8eacac59f6a929fc93/stage.mir.allocated.txt]"
+    },
+    {
+      "at": "2026-11-05T08:03:11.101203+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "complete-task",
+      "detail": "T015 worker report WTI016: Implemented a100c/passes/ (the six basic passes on TIR as ordinary coding/input work under the correctness-only scope) and a100c/tests/test_passes_basic.py. analyses.py is the single shared analysis owner (dominance over the structured region tree, liveness with the region-final name bindings, loop structure with the carried-init reinterpretation sets, memory effects with the constant-offset alias proof) under a declared invalidation contract: results carry the structural module digest, get() never serves a stale result (recompute on mismatch), freeze() binds a digest-bound view that raises StaleAnalysisError once the module moves (the pass-refusal half), and the pipeline re-freezes between passes. rewrite.py holds the shared mechanics: guarded use replacement that never rewrites a carried-init slot or a use site reinterpreted by the MIR head-parameter override, region-final protected defs (join/carried name bindings), alias copying so name-based joins keep resolving, and use counting. The six passes: constprop (exact width/signedness/overflow/rounding folds, int identity elimination, float 0*x/x+0 REFUSED -- absolute_kernel's guard is the corpus witness, path-condition where folding), copyprop (identity broadcast/reshape/where(x,x)/ptradd(p,0); hint and realize refused by policy), strength_reduction (mul by 2^k and 2-term sums -> shifts/adds, unsigned div/rem -> lsr/and, signed div/rem -> the exact sign-correction sequences; non-power-of-two and the whole floating class declined, declared), cse (scoped availability + the effect/alias proof for load reuse -- the proof covers writes from PREVIOUS loop iterations, found and fixed through an executed miscompile on the licm witness), dce (effect roots, region-final roots, transitive use marking; dead runtime-divisor divisions retained), licm (invariant pure expressions only; memory accesses and trapping classes never hoisted; zero-trip safe). Each pass has a real switch (A100C_PASS_<NAME>=off), fir"
     }
   ]
 }

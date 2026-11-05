@@ -1,0 +1,101 @@
+{
+  "invocation_id": "WTI016",
+  "task_id": "T015",
+  "attempt": 1,
+  "context_sha256": "8f9b31a93cd2f81f8af3500ceb7163f6c3ca69f1fab4f29a7b387a51c24abf30",
+  "outcome": "COMPLETED",
+  "failure_kind": "implementation",
+  "summary": "Implemented a100c/passes/ (the six basic passes on TIR as ordinary coding/input work under the correctness-only scope) and a100c/tests/test_passes_basic.py. analyses.py is the single shared analysis owner (dominance over the structured region tree, liveness with the region-final name bindings, loop structure with the carried-init reinterpretation sets, memory effects with the constant-offset alias proof) under a declared invalidation contract: results carry the structural module digest, get() never serves a stale result (recompute on mismatch), freeze() binds a digest-bound view that raises StaleAnalysisError once the module moves (the pass-refusal half), and the pipeline re-freezes between passes. rewrite.py holds the shared mechanics: guarded use replacement that never rewrites a carried-init slot or a use site reinterpreted by the MIR head-parameter override, region-final protected defs (join/carried name bindings), alias copying so name-based joins keep resolving, and use counting. The six passes: constprop (exact width/signedness/overflow/rounding folds, int identity elimination, float 0*x/x+0 REFUSED -- absolute_kernel's guard is the corpus witness, path-condition where folding), copyprop (identity broadcast/reshape/where(x,x)/ptradd(p,0); hint and realize refused by policy), strength_reduction (mul by 2^k and 2-term sums -> shifts/adds, unsigned div/rem -> lsr/and, signed div/rem -> the exact sign-correction sequences; non-power-of-two and the whole floating class declined, declared), cse (scoped availability + the effect/alias proof for load reuse -- the proof covers writes from PREVIOUS loop iterations, found and fixed through an executed miscompile on the licm witness), dce (effect roots, region-final roots, transitive use marking; dead runtime-divisor divisions retained), licm (invariant pure expressions only; memory accesses and trapping classes never hoisted; zero-trip safe). Each pass has a real switch (A100C_PASS_<NAME>=off), fired/declined trace counters with recorded unmet conditions, and declared consumed/invalidated analyses; the pipeline iterates to a bounded fixpoint and verifies TIR after every mutating pass. The test drives the real driver stage sequence with the pass seam between TIR verification and the lowering (driver.py is not in this task's write surface; the seam is what a100c/factory.py/T017 adopts) and executes through QEMU with the cases' own references and policies: 40/40 checks PASS, including a 10-operator corpus subset + a dot probe at 1 and 4 workers with passes enabled and disabled, all-off artifacts byte-identical to the plain driver's, per-pass emitted-code differences, and no silent cache reuse across configurations.",
+  "files_changed": [
+    "a100c/passes/__init__.py",
+    "a100c/passes/analyses.py",
+    "a100c/passes/rewrite.py",
+    "a100c/passes/pipeline.py",
+    "a100c/passes/constprop.py",
+    "a100c/passes/copyprop.py",
+    "a100c/passes/strength_reduction.py",
+    "a100c/passes/cse.py",
+    "a100c/passes/licm.py",
+    "a100c/passes/dce.py",
+    "a100c/tests/test_passes_basic.py"
+  ],
+  "artifacts": [
+    "a100c/tests/test_passes_basic.py",
+    "a100c/passes/pipeline.py",
+    "a100c/passes/analyses.py",
+    "a100c/passes/rewrite.py",
+    "a100c/passes/cse.py",
+    "a100c/passes/dce.py",
+    "a100c/passes/constprop.py",
+    "a100c/passes/copyprop.py",
+    "a100c/passes/strength_reduction.py",
+    "a100c/passes/licm.py"
+  ],
+  "commands": [
+    {
+      "command": "timeout 580 python3 a100c/tests/test_passes_basic.py",
+      "exit_code": 0,
+      "observed": "40 checks PASS, 0 FAIL (12.3s wall): 11 legality-* checks (each pass fires on a witness operator, the executed result compares PASS under the case's own policy, and the unsafe candidates are declined with recorded reasons), 5 invalidation-* checks, 9 switch-* checks, 11 corpus-subset-* + 4 acceptance-summary checks. Repeated runs identical; determinism across fresh compiles verified separately (two fresh all-on compiles of vdot_kernel_complex produce the same artifact sha256 d3cd71f34e4652a8)."
+    },
+    {
+      "command": "timeout 300 python3 a100c/tests/test_e2e_slice.py",
+      "exit_code": 0,
+      "observed": "all checks PASS -- the existing end-to-end slice is unaffected (the passes package is new code; no existing file was modified)."
+    },
+    {
+      "command": "timeout 300 python3 a100c/tests/test_tir_verifier.py",
+      "exit_code": 0,
+      "observed": "all checks PASS (the TIR contract the passes must preserve is intact)."
+    },
+    {
+      "command": "timeout 580 python3 /tmp/broad_sweep.py  (scratch driver: every 5th frontend-green dev operator, first case, plain-driver-green filter, executed and compared with passes ENABLED and DISABLED at 1 worker)",
+      "exit_code": 0,
+      "observed": "22 plain-driver-green operators executed both ways: 19 compare PASS both ways; fused_l1_norm_and_divide_kernel_2d6d4854 and tv_distance compare FAIL identically with passes OFF and ON (pre-existing general-path failures, outside this task); thin_reorthogonalize fails in its own case layer. Zero pass-caused differences."
+    }
+  ],
+  "acceptance": [
+    {
+      "ref": "acceptance[0]",
+      "command": "timeout 580 python3 a100c/tests/test_passes_basic.py",
+      "exit_code": 0,
+      "observed": "Every pass has a legality witness that is rewritten (structural trace: fired counters, e.g. cse:3 on cse_disjoint, dce:6, constprop:2, copyprop:2, strength_reduction:3, licm:2) and executes+compares PASS against the case's independent numpy reference; unsafe cases decline with the unmet condition recorded: float identity folding declined (cp_float_witness with -inf/NaN data AND the real absolute_kernel), load reuse across an intervening write refused without an alias proof (cse_overlap: reusing the first load would fail the compare), dead division/remainder retained (runtime divisor), memory access 'load' is never hoisted (licm_witness: hoisting the invariant-address load across the crossing store would read the pre-loop value and fail the compare), division/remainder by 100 (not a power of two)."
+    },
+    {
+      "ref": "acceptance[1]",
+      "command": "timeout 580 python3 a100c/tests/test_passes_basic.py",
+      "exit_code": 0,
+      "observed": "invalidation-mutation-forces-recomputation: removing a use site drops the observed use count (3 -> 2) through get(); invalidation-frozen-view-refuses-after-mutation: freeze() then mutate raises StaleAnalysisError; invalidation-pass-refuses-on-stale-view: LICM invoked with a stale frozen view raises StaleAnalysisError instead of reading it; the IR-ANALYSIS-VALIDITY controls: a forced-empty loops analysis drops LICM from 6 fires to 0 and a forced all-live liveness drops DCE from 6 fires to 0 (the passes consume what they declare)."
+    },
+    {
+      "ref": "acceptance[2]",
+      "command": "timeout 580 python3 a100c/tests/test_passes_basic.py",
+      "exit_code": 0,
+      "observed": "For each of the six passes a matching input shows: enabled run fires (constprop 2, copyprop 2, strength_reduction 1, cse 28, licm 6, dce 6) and compares PASS; the pass-off run reports enabled=False/fired=None AND produces a different artifact sha256 AND different program.S; fired-zero-times (cse/licm on absolute_kernel: enabled=True, fired=0) is distinct from disabled; the pass configuration is part of the artifact identity (same config twice = one compile + cache hit with identical bytes, one switched-off config = a fresh compile with different bytes); A100C_PASS_STRENGTH_REDUCTION=off is read from the environment into the identity."
+    },
+    {
+      "ref": "acceptance[3]",
+      "command": "timeout 580 python3 a100c/tests/test_passes_basic.py",
+      "exit_code": 0,
+      "observed": "A representative corpus subset covering each feature class -- absolute_kernel (elementwise/mask/where), var_len_copy (flow.loop/dynamic-range), reduce_kernel (red.sum + if_pid), row_reduce_min_kernel (red.maxmin/axis), bincount_kernel (atomics), asinh_kernel (math.transcendental), complex_pack (layout split/join), bitcast (dtype conversions), vdot_kernel_complex (persistent reduce), mean.py (red.sum, perf tier) plus a dot/matrix probe with its own numpy reference (the corpus dot operators sit behind the recorded dots-in-runtime-loops boundary) -- executes and compares PASS at threads 1 and 4 with the passes ENABLED and DISABLED; with all passes disabled every artifact is byte-identical to the plain driver's (the general path is intact). No timing, speedup or counter quota is claimed anywhere."
+    }
+  ],
+  "tests": [
+    {
+      "ref": "tests[0]",
+      "command": "timeout 580 python3 a100c/tests/test_passes_basic.py",
+      "exit_code": 0,
+      "observed": "test_passes_basic: all checks PASS (40 PASS / 0 FAIL, repeated runs identical)."
+    }
+  ],
+  "evidence": "The executed-and-compared record: python3 a100c/tests/test_passes_basic.py runs the real stage sequence (frontend -> TIR -> verify -> a100c.passes.pipeline.run -> verify -> grid -> plan -> layout -> MIR -> verify -> legalise -> select -> allocate -> emit -> cross as + ld -> ELF -> QEMU via a100_support) on 9 witness operators, 10 corpus operators and 1 dot probe, comparing under each case's own reference and declared policy (array_equal exact for integer/index outputs, the declared rtol/atol/equal_nan for floats). The corpus subset passes both configurations at 1 and 4 workers; the all-off configuration is byte-identical to the plain driver (the general path is intact). Two defects were found through executed comparison during development and fixed before delivery: (1) the CSE load-reuse proof missed writes from previous loop iterations (an in-loop load was wrongly replaced by a pre-loop load -- licm_witness miscompiled, now refused with the alias/iteration proof); (2) rewrites removed defs whose remaining uses were loop-carried reinterpretation sites (broke the TIR contract on vdot_kernel_complex -- now guarded by use counting). A 22-operator broad sweep (scratch driver) showed zero pass-caused comparison differences; two operators fail identically with passes off (pre-existing general-path findings, recorded in remaining_work).",
+  "design_issue": {},
+  "debug_request": {},
+  "attack": {},
+  "remaining_work": [
+    "T017 should wire the seam: a100c/factory.py can construct the compiler with a100c.passes.Pipeline(config).run inserted between TIR verification and vectorize.lower_to_mir, and add config.identity_part() to the driver's artifact key exactly as CompileOptions.identity_part() is used today (test_passes_basic.py's PassesCompiler is the reference implementation of that composition; driver.py was not in this task's write surface).",
+    "T018's census will record (pre-existing, unrelated to the passes): the corpus dot operators are behind the dots-in-runtime-loops gate and the LMUL>2 allocation boundary; fused_l1_norm_and_divide_kernel_2d6d4854 and tv_distance compare-fail on the general path (verified failing identically with every pass disabled).",
+    "Optional follow-up for a later correctness round: strength reduction declines division by non-power-of-two constants (magic numbers) and the whole floating class by declared policy; both refusals are recorded and countable."
+  ],
+  "end_revision": "",
+  "at": "2026-11-05T08:03:11.035288+00:00"
+}
