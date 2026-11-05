@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-05T20:09:10.948477+00:00",
+  "updated_at": "2026-11-05T20:09:50.106041+00:00",
   "facts": [
     {
       "id": "F001",
@@ -2760,13 +2760,13 @@
       "tags": [
         "compile-sweep-repair"
       ],
-      "status": "READY",
-      "assignee": "",
-      "attempts": 0,
+      "status": "RUNNING",
+      "assignee": "coder",
+      "attempts": 1,
       "evidence": "",
       "last_error": "",
       "failure_kind": "",
-      "start_revision": "",
+      "start_revision": "a8da8fdec3e5897be54717b56fbbd3b2094fff83",
       "end_revision": "",
       "completed_seq": 0,
       "debug_required": false,
@@ -2776,7 +2776,7 @@
       "debug_pending_failures": 0,
       "worker_debug_request": {},
       "coding_failures": 0,
-      "started_at": "",
+      "started_at": "2026-11-05T20:09:50.102361+00:00",
       "deferrals": 0,
       "debug_verified_patterns": [],
       "replan_baseline": {},
@@ -7993,6 +7993,12 @@
       "phase": "IMPLEMENTATION",
       "event": "complete-task",
       "detail": "T027 worker report WTI023: Repaired the census grid-model defect classes through the shared interpreter path in a100c/frontend/gridmodel.py (no per-operator branches). Mechanisms added: (1) interpretation of module-level helper functions (_case/_aligned/_dims/ref, step- and depth-budgeted, degrading to opaque) so grids assigned through helper-computed locals and view extents through _aligned extract; (2) dict literals with ** spreads merge mappings; (3) the RETURNED payload's grid is authoritative over a dead local 'grid' (the quant_transpose/matmul_triton2 dead-local class); (4) holed grid expressions: arithmetic over values the model cannot see keeps the tree shape with identity-carrying Hole leaves instead of collapsing; (5) tie registries that rewrite each axis top-down -- a subtree or hole the interpreter proved equal (same SymVal or structurally equal gexpr) to a scalar kernel argument or a view extent becomes a runtime bundle read, and one equal to a meta/launch_meta constexpr (identity-signed, the lambda form's declared rule) folds to a constant; (6) triton.next_power_of_2 memoized per argument identity (pure call) so a meta occurrence ties an inline occurrence; (7) for-loops over concrete ranges (capped), tracked tuples, concrete lists and dict.items()/.keys()/.values() unroll, with continue/break; symbolic-bound range loops conservatively opaque-ify the names they rebind (arrays keep extents); (8) branch merges keep per-key provenance both arms agree on; decidable isinstance(x, np.ndarray) and BoolOp short-circuit make the corpus dtype-normalization idiom survive; (9) oracle_args and non-kernel/constexpr args are excluded from ties (the tril_rows/N_pre false-friend class); (10) mixed-arity SHAPES without a payload shape echo leave the arity unknown (never guessed -- the fht/cholesky wrong-model class); (11) rng.uniform added to the size-tailed draw set; array .sum() no longer mis-modeled as the extent product; (12) the np.ceil(a/b) realization uses the positive"
+    },
+    {
+      "at": "2026-11-05T20:09:50.106031+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "start-task",
+      "detail": "T028 agent=coder"
     }
   ]
 }
