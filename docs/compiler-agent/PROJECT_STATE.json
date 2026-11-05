@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-05T10:34:34.517487+00:00",
+  "updated_at": "2026-11-05T10:35:19.461659+00:00",
   "facts": [
     {
       "id": "F001",
@@ -2026,13 +2026,13 @@
         "basic-passes-v1"
       ],
       "tags": [],
-      "status": "READY",
-      "assignee": "",
-      "attempts": 0,
+      "status": "RUNNING",
+      "assignee": "coder",
+      "attempts": 1,
       "evidence": "",
       "last_error": "",
       "failure_kind": "",
-      "start_revision": "",
+      "start_revision": "f32f493debcac96ea57bf378df6d43ab82d73a5c",
       "end_revision": "",
       "completed_seq": 0,
       "debug_required": false,
@@ -2042,7 +2042,7 @@
       "debug_pending_failures": 0,
       "worker_debug_request": {},
       "coding_failures": 0,
-      "started_at": "",
+      "started_at": "2026-11-05T10:35:19.458542+00:00",
       "deferrals": 0,
       "debug_verified_patterns": [],
       "replan_baseline": {},
@@ -7151,6 +7151,12 @@
       "phase": "IMPLEMENTATION",
       "event": "complete-task",
       "detail": "T017 worker report WTI018: Implemented the driver, artifact cache, factory wiring and generality checks. a100c/factory.py: make_compiler() returns FactoryCompiler(Compiler) with the T015 basic-pass seam (constprop/copyprop/strength_reduction/cse/licm/dce between TIR verification and lowering), the compile_case(case)->artifact protocol consumed by a100_support/native_device.py with arguments ('--bundle','{bundle}','--threads','{threads}'), an artifact cache key = the driver's identity + pass configuration (A100C_PASS_<NAME>=off switches honored; all-off is byte-identical to the plain driver), A100C_CACHE_DIR isolation and per-pass trace recorded in the artifact marker; .env wires A100_COMPILER_FACTORY=a100c.factory:make_compiler so a100_support.native_device.make_device() constructs the native device. tools/run_scan.py: enumerates cases with the corpus's own harness (manifest paths -> manifest_specs -> golden.load_or_build_spec = load_operator + make_case), groups by the corpus meta-tier compile identity, stages/executes/compares through the native device protocol under A100_EXECUTION_TIMEOUT with a SIGALRM case budget (timeout rows, never waits; per-case fault isolation), compares with opslib.compare.compare_case reading comparator/rtol/atol/equal_nan/quantized_interval/allclose_sign_invariant and the reference from the case (integer/index/boolean exact, never widened), writes input-regression/v1 manifest (regression-prepare) and report rows (regression-record) with resource_evidence flags on representative rows and full QEMU-plugin resource capture (instruction counts, worker observation, listing/artifact bindings), supports journal/resume without recompiling, and emits the acceptance summary (compile count vs identity census, cache-hit speed). tools/check_no_name_dispatch.py: static scan (file-identity literals; name-shaped branch positions) over the pipeline below the frontend plus tools/run_scan.py, behavioral name-generality probe (one operator under two names -> id"
+    },
+    {
+      "at": "2026-11-05T10:35:19.461647+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "start-task",
+      "detail": "T018 agent=coder"
     }
   ]
 }
