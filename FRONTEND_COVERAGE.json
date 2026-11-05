@@ -136,7 +136,7 @@
         "propagate_nan"
       ],
       "evidence": "python3 a100c/tests/test_math_ops.py (exit 0): 24/24 declared forms executed on QEMU and compared against numpy oracles (NaN policies executed with NaN inputs)",
-      "ir_construct": "tir maximum/minimum (the propagate_nan policy carried by the op code)"
+      "ir_construct": "tir arith.maxnumf/maximumf and minnumf/minimumf (the propagate_nan policy carried by the op code)"
     },
     {
       "item": "tl.dot",
@@ -181,7 +181,7 @@
         "x"
       ],
       "evidence": "python3 a100c/tests/test_math_ops.py (exit 0): 24/24 declared forms executed on QEMU and compared against numpy oracles (int abs executed)",
-      "ir_construct": "tir fabs / iabs (unsigned identity)"
+      "ir_construct": "tir math.fabs / math.iabs (unsigned identity)"
     },
     {
       "item": "tl.cdiv",
@@ -238,7 +238,7 @@
         "propagate_nan"
       ],
       "evidence": "python3 a100c/tests/test_math_ops.py (exit 0): 24/24 declared forms executed on QEMU and compared against numpy oracles (NaN policies executed with NaN inputs)",
-      "ir_construct": "tir maximum/minimum (the propagate_nan policy carried by the op code)"
+      "ir_construct": "tir arith.maxnumf/maximumf and minnumf/minimumf (the propagate_nan policy carried by the op code)"
     },
     {
       "item": "tl.min",
@@ -729,7 +729,7 @@
         "propagate_nan"
       ],
       "evidence": "python3 a100c/tests/test_math_ops.py (exit 0): 24/24 declared forms executed on QEMU and compared against numpy oracles (clamp form executed)",
-      "ir_construct": "the minimum/maximum composition"
+      "ir_construct": "the arith.maxnumf/maximumf and minnumf/minimumf composition"
     },
     {
       "item": "tl.cumprod",
@@ -761,7 +761,7 @@
         "z"
       ],
       "evidence": "python3 a100c/tests/test_math_ops.py (exit 0): 24/24 declared forms executed on QEMU and compared against numpy oracles (fma bit-exact vs the single-rounding oracle); python3 a100c/tests/test_frontend_surface.py (exit 0) (fma-scalar-participates-as-fp32)",
-      "ir_construct": "tir fma op (single rounding; the pinned to_tensor-then-legalize scalar order: python-float scalars participate as fp32)"
+      "ir_construct": "tir math.fma op (single rounding; the pinned to_tensor-then-legalize scalar order: python-float scalars participate as fp32)"
     },
     {
       "item": "tl.randn",

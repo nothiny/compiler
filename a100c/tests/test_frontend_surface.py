@@ -748,7 +748,7 @@ tl.store(y_ptr + tl.arange(0, BLOCK), s.to(tl.float16))
                                           {"BLOCK": 8})
         errs = tir.verify_module(module)
         fmas = [st for st in module.functions[0].body.statements
-                if isinstance(st, tir.Op) and st.op == "fma"]
+                if isinstance(st, tir.Op) and st.op == "math.fma"]
         wide = all(r.type.name == "fp32" for f in fmas for r in f.results)
         check("fma-scalar-participates-as-fp32",
               not errs and fmas and wide,
