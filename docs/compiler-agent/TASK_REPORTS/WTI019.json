@@ -1,0 +1,103 @@
+{
+  "invocation_id": "WTI019",
+  "task_id": "T018",
+  "attempt": 1,
+  "context_sha256": "aa511ea9baba8702346811dce16c0ec9e4361b397a9a275d11f754c7fd285794",
+  "outcome": "FAILED",
+  "failure_kind": "implementation",
+  "summary": "Implemented and ran the full compile sweep (a100c/tests/test_compile_sweep.py): one cold pass over the whole corpus through the enabled pipeline (FactoryCompiler, passes=default, isolated temporary artifact cache), enumerating cases exactly as tools/run_scan.py does, compiling each of the 2116 recomputed identities exactly once under a 120s per-identity SIGALRM bound, recompiling every repeat case of an artifact identity as the no-baking control, and recording the compile census to docs/compiler-agent/COMPILE_CENSUS.json. Full run (500 operators, 2734 cases, 2116 identities): 416 artifacts + 1677 located-mostly refusals (57 construct classes) + 22 crashes + 1 over-budget. Economics hold (2053 compiles <= 1.25x2161=2701; 120/120 repeat cases reused one artifact via cache hit; per-pass fired totals prove the enabled pipeline ran), but 23 identities are neither an artifact nor a located refusal and 141 of 1677 refusals carry no source location, so acceptance[0] and acceptance[2] do not hold -- the census is the recorded repair backlog, never a pass and never a narrowed corpus. Both violations are compiler defects outside this task's allowed write path (a100c/tests/test_compile_sweep.py only): the LICM pass crashes on 6 identities, an AttributeError on MaskType.sew crashes 15 more, an OverflowError crashes 1, and three refusal sites raise without a location (driver._load_source autotune unwrap 63, lower/vectorize.py:1055 67, allocation/const 11).",
+  "files_changed": [
+    "a100c/tests/test_compile_sweep.py",
+    "docs/compiler-agent/COMPILE_CENSUS.json"
+  ],
+  "artifacts": [
+    "docs/compiler-agent/COMPILE_CENSUS.json"
+  ],
+  "commands": [
+    {
+      "command": "set -a; . ./.env; set +a; timeout 7000 python3 a100c/tests/test_compile_sweep.py",
+      "exit_code": 1,
+      "observed": "full-corpus sweep in 1115.8s: 2734/2734 cases classified, 500/500 operators covered, 2116 identities; partition 416 artifacts + 1677 refusals + 22 crashes + 1 over-budget; 2053 compiles <= 2701 bound (median 84.4ms, slowest completed 84.4s); 120 repeat-case recompiles all cache-hit the same artifact (0 violations); 416/416 artifact markers passes=default with fired totals constprop 343 / copyprop 23 / strength_reduction 825 / cse 3692 / licm 925 / dce 744. 7 checks PASS; partition-sums-to-identity-census and refusals-located-and-countable FAIL; census written to docs/compiler-agent/COMPILE_CENSUS.json. A second full run reproduced the same partition and counts."
+    },
+    {
+      "command": "set -a; . ./.env; set +a; A100C_PASS_LICM=off timeout 300 python3 - (compile ops/suite/dev/implicit_conv2d.py make_case(shape=[1,4,5,7,7], dtype='float32') through FactoryCompiler)",
+      "exit_code": 0,
+      "observed": "pass attribution probe: with A100C_PASS_LICM=off the case no longer crashes and reaches the located refusal 'tl.dot: a dot inside a runtime loop is not enabled on this build'; with LICM on (default) the same case dies with ValueError: pass 'licm' broke the TIR contract: use-before-definition: op 'broadcast' operand 0 uses value 'rs' before its definition (at ops/suite/dev/implicit_conv2d.py:47) -- the crash is the LICM hoist alone"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; timeout 120 python3 - (load ops/suite/dev/fused_layernorm_triton.py, make_case(shape=[4,64], dtype='float32'), inspect case['kernel'])",
+      "exit_code": 0,
+      "observed": "case['kernel'] is triton.runtime.autotuner.Autotuner; kernel.fn is a JITFunction with no __code__; the raw function carrying co_filename sits at kernel.fn.fn -- a100c/driver.py _load_source unwraps only one .fn level, so all 11 @triton.autotune operators refuse with the unlocated 'case: the case carries no kernel function with a source file' diagnostic (63 identities)"
+    }
+  ],
+  "acceptance": [
+    {
+      "ref": "acceptance[0]",
+      "command": "set -a; . ./.env; set +a; timeout 7000 python3 a100c/tests/test_compile_sweep.py",
+      "exit_code": 1,
+      "observed": "NOT MET. The census covers all 500 operators and 2734 cases and classifies all 2116 identities, but the artifact/refusal partition does not sum: 416 artifacts + 1677 refusals = 2093 of 2116; 22 identities crash (AttributeError 'MaskType' object has no attribute 'sew' x15, ValueError pass 'licm' broke the TIR contract x6, OverflowError cannot convert float infinity to integer x1) and 1 identity exceeds the compile budget (suite/dev/matmul_k32_splitn2_kernel_af4f712c.py [128] float16) -- neither an artifact nor a located refusal. All 416 artifacts are ELF64-little-RISC-V executables."
+    },
+    {
+      "ref": "acceptance[1]",
+      "command": "set -a; . ./.env; set +a; timeout 7000 python3 a100c/tests/test_compile_sweep.py",
+      "exit_code": 1,
+      "observed": "MET (this check PASSes inside the failing run). 2053 cold compiles <= 1.25 x the declared 2161 identities = 2701 (run census 2116 identities, 120 cache hits, compile_count <= identities by construction: one attempt per identity). No baking: all 120 repeat cases of artifact identities (same corpus identity, different shape/grid/scalar values) recompiled to a cache hit on the very same executable, 0 violations."
+    },
+    {
+      "ref": "acceptance[2]",
+      "command": "set -a; . ./.env; set +a; timeout 7000 python3 a100c/tests/test_compile_sweep.py",
+      "exit_code": 1,
+      "observed": "NOT MET. Refusals are countable and recorded for repair: 1677 refusals classified across 57 construct classes (top: tl.sum 271, grid 215, reduce 138, return 129, scalar-lowering 102, tir-verifier 68, tl.dot 68) and by operator in docs/compiler-agent/COMPILE_CENSUS.json; the by-construct classification sums to the refusal count. But 141 refusals name no source location: tl.arange 67 (a100c/lower/vectorize.py:1055 raises with loc=None), case 63 (a100c/driver.py _load_source one-level unwrap misses @triton.autotune kernels), allocation 8 (allocation non-convergence refusals carry no loc), const 3 (i1 constant typing carries no loc)."
+    },
+    {
+      "ref": "acceptance[3]",
+      "command": "set -a; . ./.env; set +a; timeout 7000 python3 a100c/tests/test_compile_sweep.py",
+      "exit_code": 1,
+      "observed": "MET (this check PASSes inside the failing run). Every identity's compile ran under a 120s SIGALRM bound: 2116 attempts for 2116 identities (exactly one attempt per identity -- over-budget identities are never retried), slowest completed cold compile 84.4s, and the single over-budget identity (matmul_k32_splitn2_kernel_af4f712c [128] float16) is recorded in the census with its bound rather than silently retried."
+    }
+  ],
+  "tests": [
+    {
+      "ref": "tests[0]",
+      "command": "python3 a100c/tests/test_compile_sweep.py",
+      "exit_code": 1,
+      "observed": "exit 1 with 2 of 9 checks failing: partition-sums-to-identity-census (416 artifacts + 1677 refusals != 2116 identities: 22 crashes + 1 over-budget are neither) and refusals-located-and-countable (141 of 1677 refusals carry no source location). The 7 passing checks: census-covers-every-case (2734/2734), census-covers-all-operators (500/500), artifacts-are-riscv64-elf (416/416), compile-count-within-economics (2053 <= 2701), repeat-cases-reuse-one-artifact (120/120, 0 violations), compile-budget-respected (one attempt per identity, bound enforced, 1 over-budget recorded), enabled-pipeline-passes-on (416/416 markers passes=default, rewrites fired)."
+    }
+  ],
+  "evidence": "docs/compiler-agent/COMPILE_CENSUS.json (schema a100-compile-census/v1, compiler revision c20d0697e293e238, seed 30, pass_config passes=default, isolated cold cache, 120s/identity budget): all 2116 identity rows with status, artifact key + sha256 + compile_ms, or refusal construct/location/detail; 1677 refusals classified by construct (57 classes) and by operator; 22 crash rows with exception classes; the over-budget row; 120 repeat-case artifact-reuse checks (0 violations); per-pass fired totals (constprop 343, copyprop 23, strength_reduction 825, cse 3692, licm 925, dce 744); wall times (1115.8s total, 1112.6s compile).",
+  "design_issue": {},
+  "debug_request": {
+    "reproduction": "set -a; . ./.env; set +a; timeout 300 python3 a100c/tests/test_compile_sweep.py --operator suite/dev/implicit_conv2d.py",
+    "exit_code": 1,
+    "observed": "crash rows: ValueError: pass 'licm' broke the TIR contract: use-before-definition: op 'broadcast' operand 0 uses value 'rs' before its definition (at ops/suite/dev/implicit_conv2d.py:47) -- 6 identities of this operator; the same sweep on suite/dev/amp_foreach_non_finite_check_and_unscale_kernel.py shows the second crash class AttributeError: 'MaskType' object has no attribute 'sew' (15 identities), and suite/dev/hidden__argmax_kernel_2.py the third OverflowError: cannot convert float infinity to integer (1 identity)",
+    "ruled_out": [
+      {
+        "hypothesis": "the implicit_conv2d crash comes from the tl.dot-in-runtime-loop matrix path",
+        "command": "set -a; . ./.env; set +a; A100C_PASS_LICM=off timeout 300 python3 - (compile implicit_conv2d [1,4,5,7,7] float32 through FactoryCompiler)",
+        "observed": "with LICM off the case reaches the located tl.dot refusal instead of crashing, so the crash is the LICM hoist alone; the hoist moves a use of 'rs' (defined inside the k0 loop) above its definition and the post-pass TIR verifier refuses -- a pass-legality defect, not the matrix lane"
+      },
+      {
+        "hypothesis": "the 63 unlocated 'case' refusals are malformed case payloads",
+        "command": "set -a; . ./.env; set +a; timeout 120 python3 - (inspect case['kernel'] of fused_layernorm_triton make_case([4,64],'float32'))",
+        "observed": "the payload is well-formed: kernel is an Autotuner, kernel.fn is a JITFunction (no __code__), the raw function with co_filename is at kernel.fn.fn; a100c/driver.py _load_source unwraps only one level, so the 11 @triton.autotune operators can never load their compile unit"
+      },
+      {
+        "hypothesis": "artifact sharing bakes shape/grid/values (acceptance[1] violated)",
+        "command": "set -a; . ./.env; set +a; timeout 7000 python3 a100c/tests/test_compile_sweep.py",
+        "observed": "120/120 repeat cases of artifact identities recompiled to a cache hit on the identical executable and compile_count (2053) <= identities (2116); no baking -- acceptance[1] holds, so the failures are confined to the crash and unlocated-refusal classes"
+      }
+    ],
+    "suspected_stage": "the basic-pass pipeline (a100c/passes/licm.py hoisting legality) for the 6 ValueError crashes; a100c/driver.py _load_source kernel unwrap for the 63 unlocated autotune 'case' refusals; a100c/lower/vectorize.py:1055 for the 67 unlocated tl.arange refusals; the AttributeError/OverflowError crash sites are named per row in the census"
+  },
+  "attack": {},
+  "remaining_work": [
+    "Fix the LICM hoisting legality defect (a100c/passes/licm.py): it hoists a use above its definition on loop-local values (implicit_conv2d 'rs'); the post-pass verifier currently turns it into a census crash -- with the pass fixed the operator reaches a located tl.dot refusal",
+    "Fix the MaskType.sew AttributeError (15 identities, e.g. amp_foreach_non_finite_check_and_unscale_kernel) and the float-infinity-to-integer OverflowError (hidden__argmax_kernel_2): both are crashes, neither artifact nor located refusal",
+    "Fix a100c/driver.py _load_source to unwrap @triton.autotune kernels (Autotuner.fn is a JITFunction; the raw function is one level deeper at .fn.fn) so the 11 autotune operators (63 identities) load their compile unit instead of refusing unlocated",
+    "Add source locations to the refusal sites that currently raise with loc=None: a100c/lower/vectorize.py:1055 (tl.arange, 67 identities), the allocation non-convergence refusals (8), the i1 const typing refusals (3)",
+    "Repair loop over the 1677 recorded refusals, class by class (census refusals.by_construct ranks them: tl.sum 271, grid 215, reduce 138, return 129, scalar-lowering 102, tir-verifier 68, tl.dot 68, tl.arange 67, case 63, tl.max 62, 'and' 54, ptradd 47 ...), re-running this sweep after each class batch",
+    "The over-budget identity (matmul_k32_splitn2_kernel_af4f712c [128] float16, >120s) needs either a compile-time fix or a reviewed budget change; it is recorded, not retried"
+  ],
+  "end_revision": "",
+  "at": "2026-11-05T11:44:00.750549+00:00"
+}
