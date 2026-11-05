@@ -440,6 +440,21 @@ class ConstexprEnv:
                 right = self._eval(comparator, path)
                 if right is NOT_CONSTEXPR:
                     return NOT_CONSTEXPR
+                if isinstance(op, (ast.Is, ast.IsNot)) \
+                        and (left is None or right is None):
+                    # ``x is [not] None`` folds on the traced object's
+                    # PRESENCE (the pinned semantics: a passed argument's
+                    # symbol object is never None) -- decided before the
+                    # runtime guard below, which object identity would
+                    # otherwise silently answer for == and != alike
+                    both_none = left is None and right is None
+                    result = both_none if isinstance(op, ast.Is) \
+                        else not both_none
+                    self.fold.record_comparison(node, left, right, result)
+                    if not result:
+                        return False
+                    left = right
+                    continue
                 # a runtime value must never fold a comparison: object
                 # identity would silently answer == and != (probe-found on
                 # 'if pid == 0:', which folded False and dropped the arm)
@@ -581,7 +596,20 @@ class ConstexprEnv:
             return left > right
         if isinstance(op, ast.GtE):
             return left >= right
-        if isinstance(op, (ast.In, ast.NotIn, ast.Is, ast.IsNot)):
+        if isinstance(op, (ast.Is, ast.IsNot)):
+            # ``x is [not] None`` folds on the traced object's PRESENCE
+            # (the pinned semantics: the tracer's symbol object for a
+            # passed argument -- pointer or scalar -- is never Python
+            # None; an absent optional argument binds the constexpr
+            # None).  Identity between two runtime symbols stays
+            # NOT_CONSTEXPR (object identity of two traced values is
+            # not a source-level fact).
+            if left is None or right is None:
+                both_none = left is None and right is None
+                return both_none if isinstance(op, ast.Is) \
+                    else not both_none
+            return NOT_CONSTEXPR
+        if isinstance(op, (ast.In, ast.NotIn)):
             return NOT_CONSTEXPR
         raise ValueError(f"unsupported comparison {op}")
 

@@ -997,6 +997,7 @@ class SliceLowering:
                     "vid": op.results[0].vid,
                     "kind": op.attrs["kind"],
                     "vtype": self._vtype(op.results[0].type),
+                    "tir_type": op.results[0].type,
                     "loc": op.loc,
                 })
 
@@ -2223,6 +2224,7 @@ class SliceLowering:
                 "kind": acc["kind"], "vid": acc["vid"], "pair_vid": None,
                 "vtype": acc["vtype"], "index": False,
                 "source": "scan", "acc": None,
+                "tir_type": acc.get("tir_type"),
             })
         # T012: the region lowers as segments (scalar groups, per-extent
         # passes, layout staging loops); a single-segment kernel keeps
@@ -2408,14 +2410,17 @@ class SliceLowering:
                     "min" if f["kind"] == stages_mod.MERGE_MIN_INDEX
                     else "max", f["partial"].dtype)
                 ident_idx = stages_mod._index_identity(tir.INT32)
-                inits.append(self._splat_const(ctx, ident_val, f["vtype"], loc))
+                inits.append(self._splat_const(ctx, ident_val, f["vtype"],
+                                               loc,
+                                               tir_type=f["partial"].dtype))
                 inits.append(self._splat_const(ctx, ident_idx,
                                                mir.VectorType(32, 1, "int"),
                                                loc))
             else:
                 ident = stages_mod.identity_for(
                     self._merge_op_kind(f["kind"]), f["partial"].dtype)
-                inits.append(self._splat_const(ctx, ident, f["vtype"], loc))
+                inits.append(self._splat_const(ctx, ident, f["vtype"], loc,
+                                               tir_type=f["partial"].dtype))
         # the loop over workers w' = 0 .. worker_count-1
         zero = ctx.const(0, mir.I64, loc)
         wcnt64 = ctx.emit(mir.MOp(
@@ -2539,13 +2544,46 @@ class SliceLowering:
                 "pass": "sum"}[merge]
 
     def _splat_const(self, ctx: _Ctx, value, vtype: mir.VectorType,
-                     loc) -> mir.VReg:
+                     loc, tir_type: "tir.Type" = None) -> mir.VReg:
+        """Splat one constant at a vector type: float identities travel as
+        their raw IEEE bits (``li`` the bit pattern, ``vmv.v.x`` the
+        splat) -- ``int(value)`` on a non-finite float raises and on a
+        16-bit float would encode the VALUE, not the bits (the T024
+        overflow class: the fp64 max-index identity is -inf)."""
         sty = mir.ScalarType(vtype.sew, signed=vtype.kind != "uint",
                              float=vtype.kind == "float")
         if sty.float:
             import struct as _struct
-            bits = _struct.unpack("<I", _struct.pack("<f", float(value)))[0] \
-                if vtype.sew == 32 else int(value)
+            if vtype.sew == 32:
+                bits = _struct.unpack("<I",
+                                      _struct.pack("<f", float(value)))[0]
+            elif vtype.sew == 64:
+                bits = _struct.unpack("<Q",
+                                      _struct.pack("<d", float(value)))[0]
+            elif vtype.sew == 16:
+                if tir_type is not None and tir_type.name == "bf16":
+                    # bf16: the top 16 bits of the IEEE single word
+                    # (round-to-nearest-even on the truncated half; the
+                    # identities -- 0, 1, +/-inf -- are exact under it)
+                    f32 = _struct.unpack("<I",
+                                         _struct.pack("<f", float(value)))[0]
+                    bits = (f32 >> 16) & 0xFFFF
+                elif tir_type is not None:
+                    bits = _struct.unpack("<H",
+                                          _struct.pack("<e", float(value)))[0]
+                elif float(value) == 0.0:
+                    # +0.0 is 0x0000 in every 16-bit float format: the
+                    # one format-agnostic constant
+                    bits = 0
+                else:
+                    raise self._err(
+                        loc, "splat",
+                        f"a 16-bit float identity {value!r} without its "
+                        "TIR type (fp16 and bf16 encode different bits; "
+                        "refused, not guessed)")
+            else:
+                raise self._err(loc, "splat",
+                                f"no float bit encoding at SEW {vtype.sew}")
             kreg = ctx.const(bits, sty, loc)
         else:
             mask = (1 << vtype.sew) - 1
@@ -2842,7 +2880,8 @@ class SliceLowering:
                     p.dtype)
                 ident_idx = stages_mod._index_identity(tir.INT32)
                 merge_inits.append(self._splat_const(ctx, ident_val,
-                                                     frame["vtype"], loc))
+                                                     frame["vtype"], loc,
+                                                     tir_type=p.dtype))
                 merge_inits.append(self._splat_const(
                     ctx, ident_idx, mir.VectorType(32, 1, "int"), loc))
             else:
@@ -2850,7 +2889,8 @@ class SliceLowering:
                 ident = stages_mod.identity_for(self._merge_op_kind(p.merge),
                                                 p.dtype)
                 merge_inits.append(self._splat_const(ctx, ident,
-                                                     frame["vtype"], loc))
+                                                     frame["vtype"], loc,
+                                                     tir_type=p.dtype))
 
         # unique per pass: the multi-pass lane opens one chunk loop per
         # extent-homogeneous pass (the name collision would merge the CFG)
@@ -3570,7 +3610,8 @@ class SliceLowering:
         floats -- scalar float arithmetic runs through the vector path)."""
         vtype = frame["vtype"]
         if vtype.kind == "float":
-            return self._splat_const(ctx, ident, vtype, loc)
+            return self._splat_const(ctx, ident, vtype, loc,
+                                     tir_type=frame.get("tir_type"))
         sty = mir.ScalarType(vtype.sew, signed=vtype.kind != "uint")
         mask = (1 << vtype.sew) - 1
         kreg = ctx.const(int(ident) & mask, sty, loc)
@@ -4724,6 +4765,16 @@ class SliceLowering:
                         loc=loc))
                     self._restore_region(ctx, loc)
                 else:
+                    if lreg.is_mask() or rreg.is_mask():
+                        # a boolean-block comparison (i1 vs i1): the mask
+                        # register forms are and/or/complement only -- an
+                        # eq/ne over masks is not in the slice (a located
+                        # refusal, never a .sew read off a MaskType)
+                        raise self._err(
+                            loc, code,
+                            "a boolean block comparison is not in the slice "
+                            "(mask values have no element width; only "
+                            "and/or/complement combine them)")
                     switched = self._open_region(
                         ctx, lreg.type if lreg.is_vector() else rreg.type,
                         loc)
@@ -4759,6 +4810,26 @@ class SliceLowering:
                 raise self._err(loc, code,
                                 "scalar unary op is not in the slice's "
                                 "scalar core")
+            if operand.is_mask():
+                # a boolean block operand (an i1 block value lives in a
+                # mask register): the complement is the mask-register
+                # form -- the vmnot MIR op, emitted vmnand.mm m, m (the
+                # pinned binutils has no vmnot.mm pseudo, probed); one
+                # mask in and one mask out, no element width and no
+                # region switch (the T024 crash class: this path must
+                # never read .sew)
+                if code not in ("logical.not", "bit.invert"):
+                    raise self._err(
+                        loc, code,
+                        f"a unary '{code}' on a boolean block is not in "
+                        "the slice (masks complement; arithmetic negation "
+                        "of i1 is not a source construct)")
+                reg = ctx.emit(mir.MOp(
+                    "vmnot", [operand],
+                    [ctx.vreg(mir.MaskType(), hint="mnot", loc=loc)],
+                    loc=loc))
+                self._bind_result(op, reg)
+                return
             vop = {"arith.fneg": "fneg", "arith.neg": "sub0",
                    "logical.not": "not", "bit.invert": "not"}.get(code)
             if vop == "sub0":
@@ -6996,6 +7067,16 @@ class SliceLowering:
         """Open the region one vector op needs (no-op when it is the data
         region); returns whether :meth:`_restore_region` must follow (the
         materialize_address switch/restore pattern, generalized)."""
+        if not isinstance(vtype, mir.VectorType):
+            # a mask-typed value has no element width: the mask paths
+            # (complement, and/or) are region-independent, so a mask
+            # reaching here is a lowering bug -- refuse located, never
+            # read .sew off a MaskType (the T024 crash class)
+            raise self._err(
+                loc, "region",
+                f"a {vtype!r} value has no vsetvli region (mask values are "
+                "region-independent; the path that reaches here must "
+                "handle masks before the region switch)")
         if (vtype.sew, vtype.lmul) == (self._sew, 1):
             return False
         avl = ctx.const(self._vl, mir.I32, loc)

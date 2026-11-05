@@ -186,6 +186,9 @@ VEC_OPS = {
     # call per element inside the region's lane count), the fused
     # multiply-add and the mask OR
     "vmath", "vfmacc", "vmor",
+    # T024: the boolean block complement (``~mask`` -- logical.not /
+    # bit.invert on an i1 block): one mask in, one mask out
+    "vmnot",
 }
 
 #: atomic op codes (T011, lower/scalar.py): the RVWMO-ordered forms.
@@ -658,6 +661,11 @@ def _type_check(op: MOp, errors: List[MirError]) -> None:
         if not ops[0].is_mask() or not ops[1].is_mask() \
                 or not res[0].is_mask():
             return err("'vmor' operates on mask values")
+    elif code == "vmnot":
+        if len(ops) != 1 or len(res) != 1:
+            return err("'vmnot' takes one mask and produces one mask")
+        if not ops[0].is_mask() or not res[0].is_mask():
+            return err("'vmnot' operates on mask values")
     elif code == "vmath":
         # T013: one libm-backed transcendent applied per element at the
         # region's lane count (the call clobbers every caller-saved GPR,

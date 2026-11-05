@@ -1355,15 +1355,31 @@ class Lowering:
             raise self._err(
                 node, "comparison",
                 "chained comparisons are not in the elementwise core")
+        op = node.ops[0]
+        if isinstance(op, (ast.Is, ast.IsNot)):
+            # identity must have folded at specialization (``x is [not]
+            # None`` on an argument's presence); typing the None literal
+            # here was the T024 'literal' class -- refuse naming the
+            # construct instead, never the literal's absent type
+            raise self._err(
+                node, "is" if isinstance(op, ast.Is) else "is not",
+                "an identity comparison did not fold at specialization "
+                "(only ``x is [not] None`` on an argument's presence "
+                "folds; a runtime identity comparison is not in the "
+                "elementwise core)")
+        if isinstance(op, (ast.In, ast.NotIn)):
+            raise self._err(
+                node, "in" if isinstance(op, ast.In) else "not in",
+                "membership tests are not in the elementwise core")
         lhs = self._lower_expr(node.left)
         rhs = self._lower_expr(node.comparators[0])
         loc = self._loc(node)
         l, r, t = self._binary_operands(lhs, rhs, loc, preserve_order=True)
         pred = {ast.Lt: "cmp.lt", ast.LtE: "cmp.le", ast.Gt: "cmp.gt",
                 ast.GtE: "cmp.ge", ast.Eq: "cmp.eq",
-                ast.NotEq: "cmp.ne"}.get(type(node.ops[0]))
+                ast.NotEq: "cmp.ne"}.get(type(op))
         if pred is None:
-            raise self._err(node, type(node.ops[0]).__name__,
+            raise self._err(node, type(op).__name__,
                             "comparison operator is not in the elementwise "
                             "core")
         return self._emit(tir.Op.cmp(pred, l, r, loc), "cmp")

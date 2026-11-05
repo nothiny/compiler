@@ -1,0 +1,3186 @@
+{
+  "schema": "a100-compile-census/v1",
+  "generator": "a100c/tests/test_compile_sweep.py",
+  "command": "a100c/tests/test_compile_sweep.py --operator suite/dev/amp_foreach_non_finite_check_and_unscale_kernel.py --operator suite/dev/backends__ascend__ops__grpo_loss__selective_log_softmax_kernel.py --operator suite/dev/fused_layernorm_triton.py --operator suite/dev/grpo_loss__selective_log_softmax_kernel.py --operator suite/dev/hidden__argmax_kernel_2.py --operator suite/dev/implicit_conv2d.py --operator suite/dev/max_reduction.py --operator suite/dev/median_int_lastdim_select_kernel.py --operator suite/dev/nanmedian_select_kernel.py --operator suite/dev/quant_transpose_kernel.py --operator suite/dev/reversed_cumsum.py --operator suite/dev/rowwise_quantization_triton.py --operator suite/perf/argmax.py --operator suite/perf/dequantize_matmul.py --operator suite/perf/gelu_std.py --operator suite/perf/matmul_triton2.py --operator suite/perf/matmul_triton_autotune.py --operator suite/perf/matrix_vector_multip.py --operator suite/perf/max.py --operator suite/perf/min.py --operator suite/perf/sigmoid_argmax.py --operator suite/perf/std.py --operator suite/perf/swiglu_fwd.py --operator suite/perf/triton_linear_activation.py --census-out /tmp/owned_census.json",
+  "seed": 30,
+  "manifest": "ops/suite/manifest.json",
+  "compiler_revision": "d86905af251e0a96",
+  "pass_config": "passes=default",
+  "restricted": true,
+  "cache": {
+    "root": "/tmp/a100-compile-sweep-_9_s7jmi",
+    "isolated_temporary": true
+  },
+  "budget_s_per_identity": 120.0,
+  "census": {
+    "operators": 24,
+    "cases": 134,
+    "cases_classified": 134,
+    "identities": 116,
+    "cases_per_identity": 1.155,
+    "declared_full_corpus": {
+      "cases": 2734,
+      "identities": 2161
+    },
+    "identities_with_multiple_cases": 18
+  },
+  "partition": {
+    "artifacts": 10,
+    "refused": 106,
+    "over_budget": 0,
+    "crash": 0,
+    "case_build_failures": 0,
+    "sums_to_identity_census": true
+  },
+  "compile": {
+    "count": 116,
+    "cache_hits": 4,
+    "attempts_one_per_identity": 116,
+    "cold_ms": [
+      76.3,
+      78.3,
+      79.6,
+      79.9,
+      101.7,
+      153.3,
+      223.3,
+      442.6,
+      5508.4,
+      5790.6
+    ],
+    "cold_ms_median": 153.3,
+    "cold_ms_max": 5790.6,
+    "declared_identity_bound_1_25x": 2701,
+    "within_declared_economics": true
+  },
+  "artifact_reuse": {
+    "repeat_case_checks": 4,
+    "all_reused_one_artifact": true,
+    "violations": []
+  },
+  "passes": {
+    "totals_fired": {
+      "constprop": 7,
+      "copyprop": 0,
+      "strength_reduction": 69,
+      "cse": 332,
+      "licm": 12,
+      "dce": 12
+    },
+    "markers_read": 10,
+    "markers_with_enabled_config": 10
+  },
+  "refusals": {
+    "count": 106,
+    "by_construct": {
+      "reduce": 30,
+      "grid": 30,
+      "range": 9,
+      "bit.and": 8,
+      "eps": 6,
+      "return": 6,
+      "scalar-lowering": 4,
+      "cmp.eq": 4,
+      "mir-verifier": 3,
+      "tir-verifier": 3,
+      "tl.dot": 2,
+      "bit.or": 1
+    },
+    "by_operator": {
+      "suite/dev/reversed_cumsum.py": 9,
+      "suite/dev/fused_layernorm_triton.py": 6,
+      "suite/dev/grpo_loss__selective_log_softmax_kernel.py": 6,
+      "suite/dev/implicit_conv2d.py": 6,
+      "suite/dev/nanmedian_select_kernel.py": 6,
+      "suite/dev/quant_transpose_kernel.py": 6,
+      "suite/perf/argmax.py": 6,
+      "suite/perf/dequantize_matmul.py": 6,
+      "suite/perf/matmul_triton2.py": 6,
+      "suite/perf/matmul_triton_autotune.py": 6,
+      "suite/perf/max.py": 6,
+      "suite/perf/min.py": 6,
+      "suite/perf/triton_linear_activation.py": 6,
+      "suite/dev/max_reduction.py": 4,
+      "suite/perf/matrix_vector_multip.py": 4,
+      "suite/dev/backends__ascend__ops__grpo_loss__selective_log_softmax_kernel.py": 3,
+      "suite/dev/hidden__argmax_kernel_2.py": 3,
+      "suite/dev/rowwise_quantization_triton.py": 3,
+      "suite/dev/amp_foreach_non_finite_check_and_unscale_kernel.py": 2,
+      "suite/perf/gelu_std.py": 2,
+      "suite/perf/sigmoid_argmax.py": 2,
+      "suite/perf/std.py": 2
+    },
+    "rows": [
+      {
+        "identity": "cc209ef4d15f",
+        "operator": "suite/dev/amp_foreach_non_finite_check_and_unscale_kernel.py",
+        "cases": 2,
+        "first_case": {
+          "shape": [
+            17
+          ],
+          "dtype": "float16"
+        },
+        "construct": "mir-verifier",
+        "location": null,
+        "detail": "mir-verifier: vsetvli-region-inconsistency: vector width v32m1 does not match the active region e16m1 (at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amp_foreach_non_finite_check_and_unscale_kernel.py:19:18)"
+      },
+      {
+        "identity": "ae01add5f551",
+        "operator": "suite/dev/amp_foreach_non_finite_check_and_unscale_kernel.py",
+        "cases": 2,
+        "first_case": {
+          "shape": [
+            17
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "mir-verifier",
+        "location": null,
+        "detail": "mir-verifier: vsetvli-region-inconsistency: vector width v32m1 does not match the active region e16m1 (at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amp_foreach_non_finite_check_and_unscale_kernel.py:19:18)"
+      },
+      {
+        "identity": "e2b2cd821915",
+        "operator": "suite/dev/backends__ascend__ops__grpo_loss__selective_log_softmax_kernel.py",
+        "cases": 2,
+        "first_case": {
+          "shape": [
+            2,
+            7,
+            17
+          ],
+          "dtype": "float32"
+        },
+        "construct": "tir-verifier",
+        "location": null,
+        "detail": "tir-verifier: carried-value-without-join: join 'INPUT_IDS_local' of the if at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/backends__ascend__ops__grpo_loss__selective_log_softmax_kernel.py:29:9 is not defined by both arms (at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/backends__ascend__ops__grpo_loss__selective_log_softmax_kernel.py:29:9)"
+      },
+      {
+        "identity": "4cb6e72f5e38",
+        "operator": "suite/dev/backends__ascend__ops__grpo_loss__selective_log_softmax_kernel.py",
+        "cases": 2,
+        "first_case": {
+          "shape": [
+            2,
+            7,
+            17
+          ],
+          "dtype": "float16"
+        },
+        "construct": "tir-verifier",
+        "location": null,
+        "detail": "tir-verifier: carried-value-without-join: join 'INPUT_IDS_local' of the if at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/backends__ascend__ops__grpo_loss__selective_log_softmax_kernel.py:29:9 is not defined by both arms (at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/backends__ascend__ops__grpo_loss__selective_log_softmax_kernel.py:29:9)"
+      },
+      {
+        "identity": "ac866eb55331",
+        "operator": "suite/dev/backends__ascend__ops__grpo_loss__selective_log_softmax_kernel.py",
+        "cases": 2,
+        "first_case": {
+          "shape": [
+            2,
+            7,
+            17
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "tir-verifier",
+        "location": null,
+        "detail": "tir-verifier: carried-value-without-join: join 'INPUT_IDS_local' of the if at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/backends__ascend__ops__grpo_loss__selective_log_softmax_kernel.py:29:9 is not defined by both arms (at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/backends__ascend__ops__grpo_loss__selective_log_softmax_kernel.py:29:9)"
+      },
+      {
+        "identity": "ec94d750af27",
+        "operator": "suite/dev/fused_layernorm_triton.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            4,
+            64
+          ],
+          "dtype": "float32"
+        },
+        "construct": "eps",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/fused_layernorm_triton.py:27:1",
+        "detail": "eps: float scalar 'eps' width 32 differs from its record width 64"
+      },
+      {
+        "identity": "029a6f0873f0",
+        "operator": "suite/dev/fused_layernorm_triton.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            4,
+            64
+          ],
+          "dtype": "float16"
+        },
+        "construct": "eps",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/fused_layernorm_triton.py:27:1",
+        "detail": "eps: float scalar 'eps' width 32 differs from its record width 64"
+      },
+      {
+        "identity": "8983255289fe",
+        "operator": "suite/dev/fused_layernorm_triton.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            4,
+            64
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "eps",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/fused_layernorm_triton.py:27:1",
+        "detail": "eps: float scalar 'eps' width 32 differs from its record width 64"
+      },
+      {
+        "identity": "850963402854",
+        "operator": "suite/dev/fused_layernorm_triton.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            7,
+            67
+          ],
+          "dtype": "float32"
+        },
+        "construct": "eps",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/fused_layernorm_triton.py:27:1",
+        "detail": "eps: float scalar 'eps' width 32 differs from its record width 64"
+      },
+      {
+        "identity": "ab1901bb2d68",
+        "operator": "suite/dev/fused_layernorm_triton.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            7,
+            67
+          ],
+          "dtype": "float16"
+        },
+        "construct": "eps",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/fused_layernorm_triton.py:27:1",
+        "detail": "eps: float scalar 'eps' width 32 differs from its record width 64"
+      },
+      {
+        "identity": "fc0a64e77885",
+        "operator": "suite/dev/fused_layernorm_triton.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            7,
+            67
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "eps",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/fused_layernorm_triton.py:27:1",
+        "detail": "eps: float scalar 'eps' width 32 differs from its record width 64"
+      },
+      {
+        "identity": "8489e1c5a084",
+        "operator": "suite/dev/grpo_loss__selective_log_softmax_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            2,
+            7,
+            17
+          ],
+          "dtype": "float32"
+        },
+        "construct": "return",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grpo_loss__selective_log_softmax_kernel.py:21:13",
+        "detail": "return: early return is not lowered by the control-flow core (a region terminator is not in this path; guarded stores and constexpr dispatch cover the corpus forms)"
+      },
+      {
+        "identity": "23a48d2a0873",
+        "operator": "suite/dev/grpo_loss__selective_log_softmax_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            2,
+            7,
+            17
+          ],
+          "dtype": "float16"
+        },
+        "construct": "return",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grpo_loss__selective_log_softmax_kernel.py:21:13",
+        "detail": "return: early return is not lowered by the control-flow core (a region terminator is not in this path; guarded stores and constexpr dispatch cover the corpus forms)"
+      },
+      {
+        "identity": "8e8ea4e3b20e",
+        "operator": "suite/dev/grpo_loss__selective_log_softmax_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            2,
+            7,
+            17
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "return",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grpo_loss__selective_log_softmax_kernel.py:21:13",
+        "detail": "return: early return is not lowered by the control-flow core (a region terminator is not in this path; guarded stores and constexpr dispatch cover the corpus forms)"
+      },
+      {
+        "identity": "fe3d1a002dda",
+        "operator": "suite/dev/grpo_loss__selective_log_softmax_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            3,
+            11,
+            67
+          ],
+          "dtype": "float32"
+        },
+        "construct": "return",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grpo_loss__selective_log_softmax_kernel.py:21:13",
+        "detail": "return: early return is not lowered by the control-flow core (a region terminator is not in this path; guarded stores and constexpr dispatch cover the corpus forms)"
+      },
+      {
+        "identity": "144104b2c270",
+        "operator": "suite/dev/grpo_loss__selective_log_softmax_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            3,
+            11,
+            67
+          ],
+          "dtype": "float16"
+        },
+        "construct": "return",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grpo_loss__selective_log_softmax_kernel.py:21:13",
+        "detail": "return: early return is not lowered by the control-flow core (a region terminator is not in this path; guarded stores and constexpr dispatch cover the corpus forms)"
+      },
+      {
+        "identity": "b11f905468ba",
+        "operator": "suite/dev/grpo_loss__selective_log_softmax_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            3,
+            11,
+            67
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "return",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grpo_loss__selective_log_softmax_kernel.py:21:13",
+        "detail": "return: early return is not lowered by the control-flow core (a region terminator is not in this path; guarded stores and constexpr dispatch cover the corpus forms)"
+      },
+      {
+        "identity": "e349ae2da444",
+        "operator": "suite/dev/hidden__argmax_kernel_2.py",
+        "cases": 2,
+        "first_case": {
+          "shape": [
+            17
+          ],
+          "dtype": "float32"
+        },
+        "construct": "mir-verifier",
+        "location": null,
+        "detail": "mir-verifier: vsetvli-region-inconsistency: vector width v32m1 does not match the active region e64m1 (at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/hidden__argmax_kernel_2.py:22:1)"
+      },
+      {
+        "identity": "631a7695f126",
+        "operator": "suite/dev/hidden__argmax_kernel_2.py",
+        "cases": 2,
+        "first_case": {
+          "shape": [
+            17
+          ],
+          "dtype": "float16"
+        },
+        "construct": "reduce",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/hidden__argmax_kernel_2.py:42:17",
+        "detail": "reduce: reduction operand SEW 32 is not the data SEW 16 (multi-width blocks are a later path)"
+      },
+      {
+        "identity": "2a8a651aa7ad",
+        "operator": "suite/dev/hidden__argmax_kernel_2.py",
+        "cases": 2,
+        "first_case": {
+          "shape": [
+            17
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "reduce",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/hidden__argmax_kernel_2.py:42:17",
+        "detail": "reduce: reduction operand SEW 32 is not the data SEW 16 (multi-width blocks are a later path)"
+      },
+      {
+        "identity": "a8c0107e4358",
+        "operator": "suite/dev/implicit_conv2d.py",
+        "cases": 2,
+        "first_case": {
+          "shape": [
+            1,
+            4,
+            5,
+            7,
+            7
+          ],
+          "dtype": "float16"
+        },
+        "construct": "scalar-lowering",
+        "location": null,
+        "detail": "scalar-lowering: scalar lowering: const: float width 16 is not in the scalar core (at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/implicit_conv2d.py:48:13)"
+      },
+      {
+        "identity": "58f39ccdb1a6",
+        "operator": "suite/dev/implicit_conv2d.py",
+        "cases": 2,
+        "first_case": {
+          "shape": [
+            1,
+            4,
+            5,
+            7,
+            7
+          ],
+          "dtype": "float32"
+        },
+        "construct": "tl.dot",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/implicit_conv2d.py:40:5",
+        "detail": "tl.dot: a dot inside a runtime loop is not enabled on this build: the restructured loop's staged regions lose chunks beyond the first 256 bytes (the reproduced wrong-answer defect recorded with the task) -- a located refusal, never a silent miscompile"
+      },
+      {
+        "identity": "959d5456570d",
+        "operator": "suite/dev/implicit_conv2d.py",
+        "cases": 2,
+        "first_case": {
+          "shape": [
+            1,
+            4,
+            5,
+            7,
+            7
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "scalar-lowering",
+        "location": null,
+        "detail": "scalar-lowering: scalar lowering: const: float width 16 is not in the scalar core (at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/implicit_conv2d.py:48:13)"
+      },
+      {
+        "identity": "c4b966bec227",
+        "operator": "suite/dev/implicit_conv2d.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            2,
+            8,
+            6,
+            5,
+            19
+          ],
+          "dtype": "float16"
+        },
+        "construct": "scalar-lowering",
+        "location": null,
+        "detail": "scalar-lowering: scalar lowering: const: float width 16 is not in the scalar core (at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/implicit_conv2d.py:48:13)"
+      },
+      {
+        "identity": "901f080c0d49",
+        "operator": "suite/dev/implicit_conv2d.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            2,
+            8,
+            6,
+            5,
+            19
+          ],
+          "dtype": "float32"
+        },
+        "construct": "tl.dot",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/implicit_conv2d.py:40:5",
+        "detail": "tl.dot: a dot inside a runtime loop is not enabled on this build: the restructured loop's staged regions lose chunks beyond the first 256 bytes (the reproduced wrong-answer defect recorded with the task) -- a located refusal, never a silent miscompile"
+      },
+      {
+        "identity": "5fe8f4a1f5f3",
+        "operator": "suite/dev/implicit_conv2d.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            2,
+            8,
+            6,
+            5,
+            19
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "scalar-lowering",
+        "location": null,
+        "detail": "scalar-lowering: scalar lowering: const: float width 16 is not in the scalar core (at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/implicit_conv2d.py:48:13)"
+      },
+      {
+        "identity": "6912760cd3e4",
+        "operator": "suite/dev/max_reduction.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            128
+          ],
+          "dtype": "float16"
+        },
+        "construct": "reduce",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/max_reduction.py:34:19",
+        "detail": "reduce: reduction operand SEW 32 is not the data SEW 16 (multi-width blocks are a later path)"
+      },
+      {
+        "identity": "714c6935e22a",
+        "operator": "suite/dev/max_reduction.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            128
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "reduce",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/max_reduction.py:34:19",
+        "detail": "reduce: reduction operand SEW 32 is not the data SEW 16 (multi-width blocks are a later path)"
+      },
+      {
+        "identity": "7299fd35b82a",
+        "operator": "suite/dev/max_reduction.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            99
+          ],
+          "dtype": "float16"
+        },
+        "construct": "reduce",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/max_reduction.py:34:19",
+        "detail": "reduce: reduction operand SEW 32 is not the data SEW 16 (multi-width blocks are a later path)"
+      },
+      {
+        "identity": "e7451ec8a2ff",
+        "operator": "suite/dev/max_reduction.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            99
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "reduce",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/max_reduction.py:34:19",
+        "detail": "reduce: reduction operand SEW 32 is not the data SEW 16 (multi-width blocks are a later path)"
+      },
+      {
+        "identity": "c7eced5c4122",
+        "operator": "suite/dev/nanmedian_select_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            17
+          ],
+          "dtype": "float32"
+        },
+        "construct": "reduce",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_select_kernel.py:103:20",
+        "detail": "reduce: a scalar computation between the reduction and a later block statement would read the per-chunk partial (its value is only correct after the region closes); restructure the kernel or wait for the multi-region path"
+      },
+      {
+        "identity": "13caae0e45d4",
+        "operator": "suite/dev/nanmedian_select_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            17
+          ],
+          "dtype": "float16"
+        },
+        "construct": "reduce",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_select_kernel.py:103:20",
+        "detail": "reduce: a scalar computation between the reduction and a later block statement would read the per-chunk partial (its value is only correct after the region closes); restructure the kernel or wait for the multi-region path"
+      },
+      {
+        "identity": "eb26dfcff0dc",
+        "operator": "suite/dev/nanmedian_select_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            17
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "reduce",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_select_kernel.py:103:20",
+        "detail": "reduce: a scalar computation between the reduction and a later block statement would read the per-chunk partial (its value is only correct after the region closes); restructure the kernel or wait for the multi-region path"
+      },
+      {
+        "identity": "ddf235a3ba5e",
+        "operator": "suite/dev/nanmedian_select_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            97
+          ],
+          "dtype": "float32"
+        },
+        "construct": "reduce",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_select_kernel.py:103:20",
+        "detail": "reduce: a scalar computation between the reduction and a later block statement would read the per-chunk partial (its value is only correct after the region closes); restructure the kernel or wait for the multi-region path"
+      },
+      {
+        "identity": "478b714bd660",
+        "operator": "suite/dev/nanmedian_select_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            97
+          ],
+          "dtype": "float16"
+        },
+        "construct": "reduce",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_select_kernel.py:103:20",
+        "detail": "reduce: a scalar computation between the reduction and a later block statement would read the per-chunk partial (its value is only correct after the region closes); restructure the kernel or wait for the multi-region path"
+      },
+      {
+        "identity": "afa64e159958",
+        "operator": "suite/dev/nanmedian_select_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            97
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "reduce",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_select_kernel.py:103:20",
+        "detail": "reduce: a scalar computation between the reduction and a later block statement would read the per-chunk partial (its value is only correct after the region closes); restructure the kernel or wait for the multi-region path"
+      },
+      {
+        "identity": "528750e93ed5",
+        "operator": "suite/dev/quant_transpose_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            128,
+            128
+          ],
+          "dtype": "float32"
+        },
+        "construct": "grid",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/quant_transpose_kernel.py:82:1",
+        "detail": "grid: grid self-check failed: the extracted model evaluates to (4,) but the case declares (16,)"
+      },
+      {
+        "identity": "45aed6bf787a",
+        "operator": "suite/dev/quant_transpose_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            128,
+            128
+          ],
+          "dtype": "float16"
+        },
+        "construct": "grid",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/quant_transpose_kernel.py:82:1",
+        "detail": "grid: grid self-check failed: the extracted model evaluates to (4,) but the case declares (16,)"
+      },
+      {
+        "identity": "7acb8945cd73",
+        "operator": "suite/dev/quant_transpose_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            128,
+            128
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "grid",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/quant_transpose_kernel.py:82:1",
+        "detail": "grid: grid self-check failed: the extracted model evaluates to (4,) but the case declares (16,)"
+      },
+      {
+        "identity": "00f974273285",
+        "operator": "suite/dev/quant_transpose_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            99,
+            99
+          ],
+          "dtype": "float32"
+        },
+        "construct": "grid",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/quant_transpose_kernel.py:82:1",
+        "detail": "grid: grid self-check failed: the extracted model evaluates to (4,) but the case declares (16,)"
+      },
+      {
+        "identity": "f8230af32967",
+        "operator": "suite/dev/quant_transpose_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            99,
+            99
+          ],
+          "dtype": "float16"
+        },
+        "construct": "grid",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/quant_transpose_kernel.py:82:1",
+        "detail": "grid: grid self-check failed: the extracted model evaluates to (4,) but the case declares (16,)"
+      },
+      {
+        "identity": "c23b21305807",
+        "operator": "suite/dev/quant_transpose_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            99,
+            99
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "grid",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/quant_transpose_kernel.py:82:1",
+        "detail": "grid: grid self-check failed: the extracted model evaluates to (4,) but the case declares (16,)"
+      },
+      {
+        "identity": "8c95509d2c75",
+        "operator": "suite/dev/reversed_cumsum.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            1,
+            1,
+            8,
+            8
+          ],
+          "dtype": "float32"
+        },
+        "construct": "range",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/reversed_cumsum.py:33:5",
+        "detail": "range: step -1 is not positive; a descending range is not in the control-flow core"
+      },
+      {
+        "identity": "5433deb84fe4",
+        "operator": "suite/dev/reversed_cumsum.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            1,
+            1,
+            8,
+            8
+          ],
+          "dtype": "float16"
+        },
+        "construct": "range",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/reversed_cumsum.py:33:5",
+        "detail": "range: step -1 is not positive; a descending range is not in the control-flow core"
+      },
+      {
+        "identity": "0e32162c9281",
+        "operator": "suite/dev/reversed_cumsum.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            1,
+            1,
+            8,
+            8
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "range",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/reversed_cumsum.py:33:5",
+        "detail": "range: step -1 is not positive; a descending range is not in the control-flow core"
+      },
+      {
+        "identity": "11b12c92e471",
+        "operator": "suite/dev/reversed_cumsum.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            2,
+            2,
+            9,
+            9
+          ],
+          "dtype": "float32"
+        },
+        "construct": "range",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/reversed_cumsum.py:33:5",
+        "detail": "range: step -1 is not positive; a descending range is not in the control-flow core"
+      },
+      {
+        "identity": "433ce3ba9325",
+        "operator": "suite/dev/reversed_cumsum.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            2,
+            2,
+            9,
+            9
+          ],
+          "dtype": "float16"
+        },
+        "construct": "range",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/reversed_cumsum.py:33:5",
+        "detail": "range: step -1 is not positive; a descending range is not in the control-flow core"
+      },
+      {
+        "identity": "fd4bffe3f8b6",
+        "operator": "suite/dev/reversed_cumsum.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            2,
+            2,
+            9,
+            9
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "range",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/reversed_cumsum.py:33:5",
+        "detail": "range: step -1 is not positive; a descending range is not in the control-flow core"
+      },
+      {
+        "identity": "9e4db545bec6",
+        "operator": "suite/dev/reversed_cumsum.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            1,
+            2,
+            16,
+            8
+          ],
+          "dtype": "float32"
+        },
+        "construct": "range",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/reversed_cumsum.py:33:5",
+        "detail": "range: step -1 is not positive; a descending range is not in the control-flow core"
+      },
+      {
+        "identity": "01c91fbb6895",
+        "operator": "suite/dev/reversed_cumsum.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            1,
+            2,
+            16,
+            8
+          ],
+          "dtype": "float16"
+        },
+        "construct": "range",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/reversed_cumsum.py:33:5",
+        "detail": "range: step -1 is not positive; a descending range is not in the control-flow core"
+      },
+      {
+        "identity": "e623fd8d6d6b",
+        "operator": "suite/dev/reversed_cumsum.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            1,
+            2,
+            16,
+            8
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "range",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/reversed_cumsum.py:33:5",
+        "detail": "range: step -1 is not positive; a descending range is not in the control-flow core"
+      },
+      {
+        "identity": "bf426ed3cc37",
+        "operator": "suite/dev/rowwise_quantization_triton.py",
+        "cases": 2,
+        "first_case": {
+          "shape": [
+            4,
+            8
+          ],
+          "dtype": "float32"
+        },
+        "construct": "bit.or",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/rowwise_quantization_triton.py:37:18",
+        "detail": "bit.or: boolean block logic beyond and is not in the slice (the boundary conditions combine with &)"
+      },
+      {
+        "identity": "cef1877bc599",
+        "operator": "suite/dev/rowwise_quantization_triton.py",
+        "cases": 2,
+        "first_case": {
+          "shape": [
+            4,
+            8
+          ],
+          "dtype": "float16"
+        },
+        "construct": "reduce",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/rowwise_quantization_triton.py:32:15",
+        "detail": "reduce: reduction operand SEW 32 is not the data SEW 16 (multi-width blocks are a later path)"
+      },
+      {
+        "identity": "3ce05868c231",
+        "operator": "suite/dev/rowwise_quantization_triton.py",
+        "cases": 2,
+        "first_case": {
+          "shape": [
+            4,
+            8
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "reduce",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/rowwise_quantization_triton.py:32:15",
+        "detail": "reduce: reduction operand SEW 32 is not the data SEW 16 (multi-width blocks are a later path)"
+      },
+      {
+        "identity": "29cc09d549f1",
+        "operator": "suite/perf/argmax.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            4,
+            16
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "reduce",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/argmax.py:33:43",
+        "detail": "reduce: reduction operand SEW 32 is not the data SEW 16 (multi-width blocks are a later path)"
+      },
+      {
+        "identity": "ce1392ff770f",
+        "operator": "suite/perf/argmax.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            4,
+            16
+          ],
+          "dtype": "float32"
+        },
+        "construct": "bit.and",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/argmax.py:37:38",
+        "detail": "bit.and: vector operand types differ: vm vs i64"
+      },
+      {
+        "identity": "b610e2015b26",
+        "operator": "suite/perf/argmax.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            4,
+            16
+          ],
+          "dtype": "float16"
+        },
+        "construct": "reduce",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/argmax.py:33:43",
+        "detail": "reduce: reduction operand SEW 32 is not the data SEW 16 (multi-width blocks are a later path)"
+      },
+      {
+        "identity": "d9b96383628f",
+        "operator": "suite/perf/argmax.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            4,
+            97
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "reduce",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/argmax.py:33:43",
+        "detail": "reduce: reduction operand SEW 32 is not the data SEW 16 (multi-width blocks are a later path)"
+      },
+      {
+        "identity": "9c6b21a5eb97",
+        "operator": "suite/perf/argmax.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            4,
+            97
+          ],
+          "dtype": "float32"
+        },
+        "construct": "bit.and",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/argmax.py:37:38",
+        "detail": "bit.and: vector operand types differ: vm vs i64"
+      },
+      {
+        "identity": "f021997f4728",
+        "operator": "suite/perf/argmax.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            4,
+            97
+          ],
+          "dtype": "float16"
+        },
+        "construct": "reduce",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/argmax.py:33:43",
+        "detail": "reduce: reduction operand SEW 32 is not the data SEW 16 (multi-width blocks are a later path)"
+      },
+      {
+        "identity": "a09dbb66748b",
+        "operator": "suite/perf/dequantize_matmul.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            32,
+            32
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "grid",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/dequantize_matmul.py:54:1",
+        "detail": "grid: grid self-check failed: the extracted model evaluates to (1, 1) but the case declares (2, 1)"
+      },
+      {
+        "identity": "a11bf8459d12",
+        "operator": "suite/perf/dequantize_matmul.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            32,
+            32
+          ],
+          "dtype": "float32"
+        },
+        "construct": "grid",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/dequantize_matmul.py:54:1",
+        "detail": "grid: grid self-check failed: the extracted model evaluates to (1, 1) but the case declares (2, 1)"
+      },
+      {
+        "identity": "eeca2d8f97d3",
+        "operator": "suite/perf/dequantize_matmul.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            32,
+            32
+          ],
+          "dtype": "float16"
+        },
+        "construct": "grid",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/dequantize_matmul.py:54:1",
+        "detail": "grid: grid self-check failed: the extracted model evaluates to (1, 1) but the case declares (2, 1)"
+      },
+      {
+        "identity": "d9f8b868513c",
+        "operator": "suite/perf/dequantize_matmul.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            33,
+            33
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "grid",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/dequantize_matmul.py:54:1",
+        "detail": "grid: grid self-check failed: the extracted model evaluates to (2, 2) but the case declares (3, 2)"
+      },
+      {
+        "identity": "62220740c2ef",
+        "operator": "suite/perf/dequantize_matmul.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            33,
+            33
+          ],
+          "dtype": "float32"
+        },
+        "construct": "grid",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/dequantize_matmul.py:54:1",
+        "detail": "grid: grid self-check failed: the extracted model evaluates to (2, 2) but the case declares (3, 2)"
+      },
+      {
+        "identity": "37d297cb3cec",
+        "operator": "suite/perf/dequantize_matmul.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            33,
+            33
+          ],
+          "dtype": "float16"
+        },
+        "construct": "grid",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/dequantize_matmul.py:54:1",
+        "detail": "grid: grid self-check failed: the extracted model evaluates to (2, 2) but the case declares (3, 2)"
+      },
+      {
+        "identity": "2f5c983ec2e4",
+        "operator": "suite/perf/gelu_std.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            4,
+            16
+          ],
+          "dtype": "float32"
+        },
+        "construct": "cmp.eq",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/gelu_std.py:38:28",
+        "detail": "cmp.eq: a boolean block comparison is not in the slice (mask values have no element width; only and/or/complement combine them)"
+      },
+      {
+        "identity": "b4cc5c9f789b",
+        "operator": "suite/perf/gelu_std.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            4,
+            97
+          ],
+          "dtype": "float32"
+        },
+        "construct": "cmp.eq",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/gelu_std.py:38:28",
+        "detail": "cmp.eq: a boolean block comparison is not in the slice (mask values have no element width; only and/or/complement combine them)"
+      },
+      {
+        "identity": "156774cf8e11",
+        "operator": "suite/perf/matmul_triton2.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            32,
+            32,
+            32
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "grid",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/matmul_triton2.py:63:1",
+        "detail": "grid: grid self-check failed: the extracted model evaluates to (1, 1) but the case declares (2, 2)"
+      },
+      {
+        "identity": "d5c1d769e3fc",
+        "operator": "suite/perf/matmul_triton2.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            32,
+            32,
+            32
+          ],
+          "dtype": "float32"
+        },
+        "construct": "grid",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/matmul_triton2.py:63:1",
+        "detail": "grid: grid self-check failed: the extracted model evaluates to (1, 1) but the case declares (2, 2)"
+      },
+      {
+        "identity": "d6ea198fbd1b",
+        "operator": "suite/perf/matmul_triton2.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            32,
+            32,
+            32
+          ],
+          "dtype": "float16"
+        },
+        "construct": "grid",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/matmul_triton2.py:63:1",
+        "detail": "grid: grid self-check failed: the extracted model evaluates to (1, 1) but the case declares (2, 2)"
+      },
+      {
+        "identity": "aa5f157ea654",
+        "operator": "suite/perf/matmul_triton2.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            33,
+            33,
+            33
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "grid",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/matmul_triton2.py:63:1",
+        "detail": "grid: grid self-check failed: the extracted model evaluates to (2, 2) but the case declares (3, 3)"
+      },
+      {
+        "identity": "0192fff2f056",
+        "operator": "suite/perf/matmul_triton2.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            33,
+            33,
+            33
+          ],
+          "dtype": "float32"
+        },
+        "construct": "grid",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/matmul_triton2.py:63:1",
+        "detail": "grid: grid self-check failed: the extracted model evaluates to (2, 2) but the case declares (3, 3)"
+      },
+      {
+        "identity": "4f98b13a8e11",
+        "operator": "suite/perf/matmul_triton2.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            33,
+            33,
+            33
+          ],
+          "dtype": "float16"
+        },
+        "construct": "grid",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/matmul_triton2.py:63:1",
+        "detail": "grid: grid self-check failed: the extracted model evaluates to (2, 2) but the case declares (3, 3)"
+      },
+      {
+        "identity": "2189a517cba1",
+        "operator": "suite/perf/matmul_triton_autotune.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            32,
+            32,
+            32
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "grid",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/matmul_triton_autotune.py:64:1",
+        "detail": "grid: grid self-check failed: the extracted model evaluates to (1, 1) but the case declares (2, 2)"
+      },
+      {
+        "identity": "08d06b53bdbf",
+        "operator": "suite/perf/matmul_triton_autotune.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            32,
+            32,
+            32
+          ],
+          "dtype": "float32"
+        },
+        "construct": "grid",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/matmul_triton_autotune.py:64:1",
+        "detail": "grid: grid self-check failed: the extracted model evaluates to (1, 1) but the case declares (2, 2)"
+      },
+      {
+        "identity": "17c42f85bcf8",
+        "operator": "suite/perf/matmul_triton_autotune.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            32,
+            32,
+            32
+          ],
+          "dtype": "float16"
+        },
+        "construct": "grid",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/matmul_triton_autotune.py:64:1",
+        "detail": "grid: grid self-check failed: the extracted model evaluates to (1, 1) but the case declares (2, 2)"
+      },
+      {
+        "identity": "5cb8c2d2d38c",
+        "operator": "suite/perf/matmul_triton_autotune.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            33,
+            33,
+            33
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "grid",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/matmul_triton_autotune.py:64:1",
+        "detail": "grid: grid self-check failed: the extracted model evaluates to (2, 2) but the case declares (3, 3)"
+      },
+      {
+        "identity": "54168e564e1f",
+        "operator": "suite/perf/matmul_triton_autotune.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            33,
+            33,
+            33
+          ],
+          "dtype": "float32"
+        },
+        "construct": "grid",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/matmul_triton_autotune.py:64:1",
+        "detail": "grid: grid self-check failed: the extracted model evaluates to (2, 2) but the case declares (3, 3)"
+      },
+      {
+        "identity": "d3e91951a517",
+        "operator": "suite/perf/matmul_triton_autotune.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            33,
+            33,
+            33
+          ],
+          "dtype": "float16"
+        },
+        "construct": "grid",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/matmul_triton_autotune.py:64:1",
+        "detail": "grid: grid self-check failed: the extracted model evaluates to (2, 2) but the case declares (3, 3)"
+      },
+      {
+        "identity": "4184a4435988",
+        "operator": "suite/perf/matrix_vector_multip.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            8,
+            16
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "reduce",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/matrix_vector_multip.py:32:35",
+        "detail": "reduce: reduction operand SEW 32 is not the data SEW 16 (multi-width blocks are a later path)"
+      },
+      {
+        "identity": "c9e0dab556fc",
+        "operator": "suite/perf/matrix_vector_multip.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            8,
+            16
+          ],
+          "dtype": "float16"
+        },
+        "construct": "reduce",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/matrix_vector_multip.py:32:35",
+        "detail": "reduce: reduction operand SEW 32 is not the data SEW 16 (multi-width blocks are a later path)"
+      },
+      {
+        "identity": "4145289b6928",
+        "operator": "suite/perf/matrix_vector_multip.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            11,
+            19
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "reduce",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/matrix_vector_multip.py:32:35",
+        "detail": "reduce: reduction operand SEW 32 is not the data SEW 16 (multi-width blocks are a later path)"
+      },
+      {
+        "identity": "2e42955efeb3",
+        "operator": "suite/perf/matrix_vector_multip.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            11,
+            19
+          ],
+          "dtype": "float16"
+        },
+        "construct": "reduce",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/matrix_vector_multip.py:32:35",
+        "detail": "reduce: reduction operand SEW 32 is not the data SEW 16 (multi-width blocks are a later path)"
+      },
+      {
+        "identity": "ae3377d08c2e",
+        "operator": "suite/perf/max.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            4,
+            16
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "reduce",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/max.py:33:43",
+        "detail": "reduce: reduction operand SEW 32 is not the data SEW 16 (multi-width blocks are a later path)"
+      },
+      {
+        "identity": "1488b07195eb",
+        "operator": "suite/perf/max.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            4,
+            16
+          ],
+          "dtype": "float32"
+        },
+        "construct": "bit.and",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/max.py:37:38",
+        "detail": "bit.and: vector operand types differ: vm vs i64"
+      },
+      {
+        "identity": "1635363dc9ef",
+        "operator": "suite/perf/max.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            4,
+            16
+          ],
+          "dtype": "float16"
+        },
+        "construct": "reduce",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/max.py:33:43",
+        "detail": "reduce: reduction operand SEW 32 is not the data SEW 16 (multi-width blocks are a later path)"
+      },
+      {
+        "identity": "d5b46bcad4d8",
+        "operator": "suite/perf/max.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            4,
+            97
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "reduce",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/max.py:33:43",
+        "detail": "reduce: reduction operand SEW 32 is not the data SEW 16 (multi-width blocks are a later path)"
+      },
+      {
+        "identity": "e467c8bddc70",
+        "operator": "suite/perf/max.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            4,
+            97
+          ],
+          "dtype": "float32"
+        },
+        "construct": "bit.and",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/max.py:37:38",
+        "detail": "bit.and: vector operand types differ: vm vs i64"
+      },
+      {
+        "identity": "cd158c7caafd",
+        "operator": "suite/perf/max.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            4,
+            97
+          ],
+          "dtype": "float16"
+        },
+        "construct": "reduce",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/max.py:33:43",
+        "detail": "reduce: reduction operand SEW 32 is not the data SEW 16 (multi-width blocks are a later path)"
+      },
+      {
+        "identity": "cfd2e75018e0",
+        "operator": "suite/perf/min.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            4,
+            16
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "reduce",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/min.py:33:43",
+        "detail": "reduce: reduction operand SEW 32 is not the data SEW 16 (multi-width blocks are a later path)"
+      },
+      {
+        "identity": "a4bd0cda2441",
+        "operator": "suite/perf/min.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            4,
+            16
+          ],
+          "dtype": "float32"
+        },
+        "construct": "bit.and",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/min.py:37:38",
+        "detail": "bit.and: vector operand types differ: vm vs i64"
+      },
+      {
+        "identity": "2880025aa79e",
+        "operator": "suite/perf/min.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            4,
+            16
+          ],
+          "dtype": "float16"
+        },
+        "construct": "reduce",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/min.py:33:43",
+        "detail": "reduce: reduction operand SEW 32 is not the data SEW 16 (multi-width blocks are a later path)"
+      },
+      {
+        "identity": "ebf07513da0a",
+        "operator": "suite/perf/min.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            4,
+            97
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "reduce",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/min.py:33:43",
+        "detail": "reduce: reduction operand SEW 32 is not the data SEW 16 (multi-width blocks are a later path)"
+      },
+      {
+        "identity": "0b1cafbb1cce",
+        "operator": "suite/perf/min.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            4,
+            97
+          ],
+          "dtype": "float32"
+        },
+        "construct": "bit.and",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/min.py:37:38",
+        "detail": "bit.and: vector operand types differ: vm vs i64"
+      },
+      {
+        "identity": "6a110ad0d1dd",
+        "operator": "suite/perf/min.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            4,
+            97
+          ],
+          "dtype": "float16"
+        },
+        "construct": "reduce",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/min.py:33:43",
+        "detail": "reduce: reduction operand SEW 32 is not the data SEW 16 (multi-width blocks are a later path)"
+      },
+      {
+        "identity": "964cb9c6b7a2",
+        "operator": "suite/perf/sigmoid_argmax.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            4,
+            16
+          ],
+          "dtype": "float32"
+        },
+        "construct": "bit.and",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/sigmoid_argmax.py:36:38",
+        "detail": "bit.and: vector operand types differ: vm vs i64"
+      },
+      {
+        "identity": "e505a3f046cc",
+        "operator": "suite/perf/sigmoid_argmax.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            4,
+            97
+          ],
+          "dtype": "float32"
+        },
+        "construct": "bit.and",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/sigmoid_argmax.py:36:38",
+        "detail": "bit.and: vector operand types differ: vm vs i64"
+      },
+      {
+        "identity": "4391ec50b76c",
+        "operator": "suite/perf/std.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            4,
+            16
+          ],
+          "dtype": "float32"
+        },
+        "construct": "cmp.eq",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/std.py:39:28",
+        "detail": "cmp.eq: a boolean block comparison is not in the slice (mask values have no element width; only and/or/complement combine them)"
+      },
+      {
+        "identity": "6d01c89af4b2",
+        "operator": "suite/perf/std.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            4,
+            97
+          ],
+          "dtype": "float32"
+        },
+        "construct": "cmp.eq",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/std.py:39:28",
+        "detail": "cmp.eq: a boolean block comparison is not in the slice (mask values have no element width; only and/or/complement combine them)"
+      },
+      {
+        "identity": "e7377aa67e71",
+        "operator": "suite/perf/triton_linear_activation.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            32,
+            32,
+            32
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "grid",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/triton_linear_activation.py:65:1",
+        "detail": "grid: grid self-check failed: the extracted model evaluates to (1, 1) but the case declares (2, 2)"
+      },
+      {
+        "identity": "ddec4ca5d797",
+        "operator": "suite/perf/triton_linear_activation.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            32,
+            32,
+            32
+          ],
+          "dtype": "float32"
+        },
+        "construct": "grid",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/triton_linear_activation.py:65:1",
+        "detail": "grid: grid self-check failed: the extracted model evaluates to (1, 1) but the case declares (2, 2)"
+      },
+      {
+        "identity": "556906eb2fdb",
+        "operator": "suite/perf/triton_linear_activation.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            32,
+            32,
+            32
+          ],
+          "dtype": "float16"
+        },
+        "construct": "grid",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/triton_linear_activation.py:65:1",
+        "detail": "grid: grid self-check failed: the extracted model evaluates to (1, 1) but the case declares (2, 2)"
+      },
+      {
+        "identity": "b1f760cbc4d6",
+        "operator": "suite/perf/triton_linear_activation.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            42,
+            32,
+            32
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "grid",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/triton_linear_activation.py:65:1",
+        "detail": "grid: grid self-check failed: the extracted model evaluates to (2, 1) but the case declares (3, 2)"
+      },
+      {
+        "identity": "0deda734aee0",
+        "operator": "suite/perf/triton_linear_activation.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            42,
+            32,
+            32
+          ],
+          "dtype": "float32"
+        },
+        "construct": "grid",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/triton_linear_activation.py:65:1",
+        "detail": "grid: grid self-check failed: the extracted model evaluates to (2, 1) but the case declares (3, 2)"
+      },
+      {
+        "identity": "89e2e8fb5e19",
+        "operator": "suite/perf/triton_linear_activation.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            42,
+            32,
+            32
+          ],
+          "dtype": "float16"
+        },
+        "construct": "grid",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/triton_linear_activation.py:65:1",
+        "detail": "grid: grid self-check failed: the extracted model evaluates to (2, 1) but the case declares (3, 2)"
+      }
+    ]
+  },
+  "over_budget_rows": [],
+  "crash_rows": [],
+  "crashes": {
+    "count": 0,
+    "by_exception_class": {}
+  },
+  "case_build_failures": [],
+  "wall": {
+    "total_s": 58.7,
+    "build_s": 0.1,
+    "compile_s": 58.6
+  },
+  "identities": [
+    {
+      "identity": "08dce38c4492",
+      "operator": "suite/dev/amp_foreach_non_finite_check_and_unscale_kernel.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "4da37223f533da3167d2932600cc99498344dea4cc9cf4ffe37c2d1b4ea8d7eb",
+      "sha256": "12b6e09bad1d4d205ab3ced0a439f0d52436e2c71858edc9c0961c6b68f4c675",
+      "compile_ms": 442.6,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "cc209ef4d15f",
+      "operator": "suite/dev/amp_foreach_non_finite_check_and_unscale_kernel.py",
+      "cases": 2,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "mir-verifier",
+      "location": null
+    },
+    {
+      "identity": "ae01add5f551",
+      "operator": "suite/dev/amp_foreach_non_finite_check_and_unscale_kernel.py",
+      "cases": 2,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "mir-verifier",
+      "location": null
+    },
+    {
+      "identity": "e2b2cd821915",
+      "operator": "suite/dev/backends__ascend__ops__grpo_loss__selective_log_softmax_kernel.py",
+      "cases": 2,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "tir-verifier",
+      "location": null
+    },
+    {
+      "identity": "4cb6e72f5e38",
+      "operator": "suite/dev/backends__ascend__ops__grpo_loss__selective_log_softmax_kernel.py",
+      "cases": 2,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "tir-verifier",
+      "location": null
+    },
+    {
+      "identity": "ac866eb55331",
+      "operator": "suite/dev/backends__ascend__ops__grpo_loss__selective_log_softmax_kernel.py",
+      "cases": 2,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "tir-verifier",
+      "location": null
+    },
+    {
+      "identity": "ec94d750af27",
+      "operator": "suite/dev/fused_layernorm_triton.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "eps",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/fused_layernorm_triton.py:27:1"
+    },
+    {
+      "identity": "029a6f0873f0",
+      "operator": "suite/dev/fused_layernorm_triton.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "eps",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/fused_layernorm_triton.py:27:1"
+    },
+    {
+      "identity": "8983255289fe",
+      "operator": "suite/dev/fused_layernorm_triton.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "eps",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/fused_layernorm_triton.py:27:1"
+    },
+    {
+      "identity": "850963402854",
+      "operator": "suite/dev/fused_layernorm_triton.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "eps",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/fused_layernorm_triton.py:27:1"
+    },
+    {
+      "identity": "ab1901bb2d68",
+      "operator": "suite/dev/fused_layernorm_triton.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "eps",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/fused_layernorm_triton.py:27:1"
+    },
+    {
+      "identity": "fc0a64e77885",
+      "operator": "suite/dev/fused_layernorm_triton.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "eps",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/fused_layernorm_triton.py:27:1"
+    },
+    {
+      "identity": "8489e1c5a084",
+      "operator": "suite/dev/grpo_loss__selective_log_softmax_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "return",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grpo_loss__selective_log_softmax_kernel.py:21:13"
+    },
+    {
+      "identity": "23a48d2a0873",
+      "operator": "suite/dev/grpo_loss__selective_log_softmax_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "return",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grpo_loss__selective_log_softmax_kernel.py:21:13"
+    },
+    {
+      "identity": "8e8ea4e3b20e",
+      "operator": "suite/dev/grpo_loss__selective_log_softmax_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "return",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grpo_loss__selective_log_softmax_kernel.py:21:13"
+    },
+    {
+      "identity": "fe3d1a002dda",
+      "operator": "suite/dev/grpo_loss__selective_log_softmax_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "return",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grpo_loss__selective_log_softmax_kernel.py:21:13"
+    },
+    {
+      "identity": "144104b2c270",
+      "operator": "suite/dev/grpo_loss__selective_log_softmax_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "return",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grpo_loss__selective_log_softmax_kernel.py:21:13"
+    },
+    {
+      "identity": "b11f905468ba",
+      "operator": "suite/dev/grpo_loss__selective_log_softmax_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "return",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grpo_loss__selective_log_softmax_kernel.py:21:13"
+    },
+    {
+      "identity": "e349ae2da444",
+      "operator": "suite/dev/hidden__argmax_kernel_2.py",
+      "cases": 2,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "mir-verifier",
+      "location": null
+    },
+    {
+      "identity": "631a7695f126",
+      "operator": "suite/dev/hidden__argmax_kernel_2.py",
+      "cases": 2,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "reduce",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/hidden__argmax_kernel_2.py:42:17"
+    },
+    {
+      "identity": "2a8a651aa7ad",
+      "operator": "suite/dev/hidden__argmax_kernel_2.py",
+      "cases": 2,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "reduce",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/hidden__argmax_kernel_2.py:42:17"
+    },
+    {
+      "identity": "a8c0107e4358",
+      "operator": "suite/dev/implicit_conv2d.py",
+      "cases": 2,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "scalar-lowering",
+      "location": null
+    },
+    {
+      "identity": "58f39ccdb1a6",
+      "operator": "suite/dev/implicit_conv2d.py",
+      "cases": 2,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "tl.dot",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/implicit_conv2d.py:40:5"
+    },
+    {
+      "identity": "959d5456570d",
+      "operator": "suite/dev/implicit_conv2d.py",
+      "cases": 2,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "scalar-lowering",
+      "location": null
+    },
+    {
+      "identity": "c4b966bec227",
+      "operator": "suite/dev/implicit_conv2d.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "scalar-lowering",
+      "location": null
+    },
+    {
+      "identity": "901f080c0d49",
+      "operator": "suite/dev/implicit_conv2d.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "tl.dot",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/implicit_conv2d.py:40:5"
+    },
+    {
+      "identity": "5fe8f4a1f5f3",
+      "operator": "suite/dev/implicit_conv2d.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "scalar-lowering",
+      "location": null
+    },
+    {
+      "identity": "d996309b5840",
+      "operator": "suite/dev/max_reduction.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "1d02080722947b92a287d1e68df351d80fccc58e95a6e08de4c15402345f3ac8",
+      "sha256": "8ef4adb07bf33217111d8cc4a116bb067447a9610c9b6d564f148a256fe40c37",
+      "compile_ms": 78.3,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "6912760cd3e4",
+      "operator": "suite/dev/max_reduction.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "reduce",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/max_reduction.py:34:19"
+    },
+    {
+      "identity": "714c6935e22a",
+      "operator": "suite/dev/max_reduction.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "reduce",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/max_reduction.py:34:19"
+    },
+    {
+      "identity": "7489407fc961",
+      "operator": "suite/dev/max_reduction.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "c2ac79ffb233a16ddc2d2255e5dd2ccceeef40155f17c88203f0c57b96f1f3a4",
+      "sha256": "946cccf9e56481e1e666553e15996f42cdf877aaae5ff55e8ba101744f65848f",
+      "compile_ms": 79.6,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "7299fd35b82a",
+      "operator": "suite/dev/max_reduction.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "reduce",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/max_reduction.py:34:19"
+    },
+    {
+      "identity": "e7451ec8a2ff",
+      "operator": "suite/dev/max_reduction.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "reduce",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/max_reduction.py:34:19"
+    },
+    {
+      "identity": "aeb84a4597c9",
+      "operator": "suite/dev/median_int_lastdim_select_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "e38e94092908b5fd5bae7b165b7e276360d657d0152406841cb840270bc30a03",
+      "sha256": "607b3f7db9afa10de499ef0daa22024276a7569e970f857031eb66d6e3264e3a",
+      "compile_ms": 5790.6,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "c59fbf0dbd3e",
+      "operator": "suite/dev/median_int_lastdim_select_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "725899f0f95c1838d259c9f467f843568c01a0aa876ca7c1e458fd160d398a81",
+      "sha256": "409a9e211a7cfdbf16471cf8f795a74e98ab1128b3b36c05e7eb577bfb1d2481",
+      "compile_ms": 5508.4,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "c7eced5c4122",
+      "operator": "suite/dev/nanmedian_select_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "reduce",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_select_kernel.py:103:20"
+    },
+    {
+      "identity": "13caae0e45d4",
+      "operator": "suite/dev/nanmedian_select_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "reduce",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_select_kernel.py:103:20"
+    },
+    {
+      "identity": "eb26dfcff0dc",
+      "operator": "suite/dev/nanmedian_select_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "reduce",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_select_kernel.py:103:20"
+    },
+    {
+      "identity": "ddf235a3ba5e",
+      "operator": "suite/dev/nanmedian_select_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "reduce",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_select_kernel.py:103:20"
+    },
+    {
+      "identity": "478b714bd660",
+      "operator": "suite/dev/nanmedian_select_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "reduce",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_select_kernel.py:103:20"
+    },
+    {
+      "identity": "afa64e159958",
+      "operator": "suite/dev/nanmedian_select_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "reduce",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_select_kernel.py:103:20"
+    },
+    {
+      "identity": "528750e93ed5",
+      "operator": "suite/dev/quant_transpose_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "grid",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/quant_transpose_kernel.py:82:1"
+    },
+    {
+      "identity": "45aed6bf787a",
+      "operator": "suite/dev/quant_transpose_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "grid",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/quant_transpose_kernel.py:82:1"
+    },
+    {
+      "identity": "7acb8945cd73",
+      "operator": "suite/dev/quant_transpose_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "grid",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/quant_transpose_kernel.py:82:1"
+    },
+    {
+      "identity": "00f974273285",
+      "operator": "suite/dev/quant_transpose_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "grid",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/quant_transpose_kernel.py:82:1"
+    },
+    {
+      "identity": "f8230af32967",
+      "operator": "suite/dev/quant_transpose_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "grid",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/quant_transpose_kernel.py:82:1"
+    },
+    {
+      "identity": "c23b21305807",
+      "operator": "suite/dev/quant_transpose_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "grid",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/quant_transpose_kernel.py:82:1"
+    },
+    {
+      "identity": "8c95509d2c75",
+      "operator": "suite/dev/reversed_cumsum.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "range",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/reversed_cumsum.py:33:5"
+    },
+    {
+      "identity": "5433deb84fe4",
+      "operator": "suite/dev/reversed_cumsum.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "range",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/reversed_cumsum.py:33:5"
+    },
+    {
+      "identity": "0e32162c9281",
+      "operator": "suite/dev/reversed_cumsum.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "range",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/reversed_cumsum.py:33:5"
+    },
+    {
+      "identity": "11b12c92e471",
+      "operator": "suite/dev/reversed_cumsum.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "range",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/reversed_cumsum.py:33:5"
+    },
+    {
+      "identity": "433ce3ba9325",
+      "operator": "suite/dev/reversed_cumsum.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "range",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/reversed_cumsum.py:33:5"
+    },
+    {
+      "identity": "fd4bffe3f8b6",
+      "operator": "suite/dev/reversed_cumsum.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "range",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/reversed_cumsum.py:33:5"
+    },
+    {
+      "identity": "9e4db545bec6",
+      "operator": "suite/dev/reversed_cumsum.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "range",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/reversed_cumsum.py:33:5"
+    },
+    {
+      "identity": "01c91fbb6895",
+      "operator": "suite/dev/reversed_cumsum.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "range",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/reversed_cumsum.py:33:5"
+    },
+    {
+      "identity": "e623fd8d6d6b",
+      "operator": "suite/dev/reversed_cumsum.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "range",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/reversed_cumsum.py:33:5"
+    },
+    {
+      "identity": "bf426ed3cc37",
+      "operator": "suite/dev/rowwise_quantization_triton.py",
+      "cases": 2,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "bit.or",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/rowwise_quantization_triton.py:37:18"
+    },
+    {
+      "identity": "cef1877bc599",
+      "operator": "suite/dev/rowwise_quantization_triton.py",
+      "cases": 2,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "reduce",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/rowwise_quantization_triton.py:32:15"
+    },
+    {
+      "identity": "3ce05868c231",
+      "operator": "suite/dev/rowwise_quantization_triton.py",
+      "cases": 2,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "reduce",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/rowwise_quantization_triton.py:32:15"
+    },
+    {
+      "identity": "29cc09d549f1",
+      "operator": "suite/perf/argmax.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "reduce",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/argmax.py:33:43"
+    },
+    {
+      "identity": "ce1392ff770f",
+      "operator": "suite/perf/argmax.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "bit.and",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/argmax.py:37:38"
+    },
+    {
+      "identity": "b610e2015b26",
+      "operator": "suite/perf/argmax.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "reduce",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/argmax.py:33:43"
+    },
+    {
+      "identity": "d9b96383628f",
+      "operator": "suite/perf/argmax.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "reduce",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/argmax.py:33:43"
+    },
+    {
+      "identity": "9c6b21a5eb97",
+      "operator": "suite/perf/argmax.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "bit.and",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/argmax.py:37:38"
+    },
+    {
+      "identity": "f021997f4728",
+      "operator": "suite/perf/argmax.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "reduce",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/argmax.py:33:43"
+    },
+    {
+      "identity": "a09dbb66748b",
+      "operator": "suite/perf/dequantize_matmul.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "grid",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/dequantize_matmul.py:54:1"
+    },
+    {
+      "identity": "a11bf8459d12",
+      "operator": "suite/perf/dequantize_matmul.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "grid",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/dequantize_matmul.py:54:1"
+    },
+    {
+      "identity": "eeca2d8f97d3",
+      "operator": "suite/perf/dequantize_matmul.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "grid",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/dequantize_matmul.py:54:1"
+    },
+    {
+      "identity": "d9f8b868513c",
+      "operator": "suite/perf/dequantize_matmul.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "grid",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/dequantize_matmul.py:54:1"
+    },
+    {
+      "identity": "62220740c2ef",
+      "operator": "suite/perf/dequantize_matmul.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "grid",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/dequantize_matmul.py:54:1"
+    },
+    {
+      "identity": "37d297cb3cec",
+      "operator": "suite/perf/dequantize_matmul.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "grid",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/dequantize_matmul.py:54:1"
+    },
+    {
+      "identity": "2f5c983ec2e4",
+      "operator": "suite/perf/gelu_std.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "cmp.eq",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/gelu_std.py:38:28"
+    },
+    {
+      "identity": "b4cc5c9f789b",
+      "operator": "suite/perf/gelu_std.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "cmp.eq",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/gelu_std.py:38:28"
+    },
+    {
+      "identity": "156774cf8e11",
+      "operator": "suite/perf/matmul_triton2.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "grid",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/matmul_triton2.py:63:1"
+    },
+    {
+      "identity": "d5c1d769e3fc",
+      "operator": "suite/perf/matmul_triton2.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "grid",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/matmul_triton2.py:63:1"
+    },
+    {
+      "identity": "d6ea198fbd1b",
+      "operator": "suite/perf/matmul_triton2.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "grid",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/matmul_triton2.py:63:1"
+    },
+    {
+      "identity": "aa5f157ea654",
+      "operator": "suite/perf/matmul_triton2.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "grid",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/matmul_triton2.py:63:1"
+    },
+    {
+      "identity": "0192fff2f056",
+      "operator": "suite/perf/matmul_triton2.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "grid",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/matmul_triton2.py:63:1"
+    },
+    {
+      "identity": "4f98b13a8e11",
+      "operator": "suite/perf/matmul_triton2.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "grid",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/matmul_triton2.py:63:1"
+    },
+    {
+      "identity": "2189a517cba1",
+      "operator": "suite/perf/matmul_triton_autotune.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "grid",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/matmul_triton_autotune.py:64:1"
+    },
+    {
+      "identity": "08d06b53bdbf",
+      "operator": "suite/perf/matmul_triton_autotune.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "grid",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/matmul_triton_autotune.py:64:1"
+    },
+    {
+      "identity": "17c42f85bcf8",
+      "operator": "suite/perf/matmul_triton_autotune.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "grid",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/matmul_triton_autotune.py:64:1"
+    },
+    {
+      "identity": "5cb8c2d2d38c",
+      "operator": "suite/perf/matmul_triton_autotune.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "grid",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/matmul_triton_autotune.py:64:1"
+    },
+    {
+      "identity": "54168e564e1f",
+      "operator": "suite/perf/matmul_triton_autotune.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "grid",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/matmul_triton_autotune.py:64:1"
+    },
+    {
+      "identity": "d3e91951a517",
+      "operator": "suite/perf/matmul_triton_autotune.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "grid",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/matmul_triton_autotune.py:64:1"
+    },
+    {
+      "identity": "4184a4435988",
+      "operator": "suite/perf/matrix_vector_multip.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "reduce",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/matrix_vector_multip.py:32:35"
+    },
+    {
+      "identity": "9a63067e590b",
+      "operator": "suite/perf/matrix_vector_multip.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "bcd2921509cfdc1e64a299ca3cef3fe89f6a262d0c7a6b1598df75333b3ee1a0",
+      "sha256": "52fbaf1fb5efbb15991be36487c4660a696a51c8480da0590455d1f8915a9b8c",
+      "compile_ms": 79.9,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "c9e0dab556fc",
+      "operator": "suite/perf/matrix_vector_multip.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "reduce",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/matrix_vector_multip.py:32:35"
+    },
+    {
+      "identity": "4145289b6928",
+      "operator": "suite/perf/matrix_vector_multip.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "reduce",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/matrix_vector_multip.py:32:35"
+    },
+    {
+      "identity": "21b669977645",
+      "operator": "suite/perf/matrix_vector_multip.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "90ec6355854643658337ee9efe6037e2cb048173cbb1cfb9ebef4a8bbfdab692",
+      "sha256": "8a4bf0ceb2a1654eba602b978b94f23a93c493b96828e8286f8171f088f565d7",
+      "compile_ms": 76.3,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "2e42955efeb3",
+      "operator": "suite/perf/matrix_vector_multip.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "reduce",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/matrix_vector_multip.py:32:35"
+    },
+    {
+      "identity": "ae3377d08c2e",
+      "operator": "suite/perf/max.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "reduce",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/max.py:33:43"
+    },
+    {
+      "identity": "1488b07195eb",
+      "operator": "suite/perf/max.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "bit.and",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/max.py:37:38"
+    },
+    {
+      "identity": "1635363dc9ef",
+      "operator": "suite/perf/max.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "reduce",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/max.py:33:43"
+    },
+    {
+      "identity": "d5b46bcad4d8",
+      "operator": "suite/perf/max.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "reduce",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/max.py:33:43"
+    },
+    {
+      "identity": "e467c8bddc70",
+      "operator": "suite/perf/max.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "bit.and",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/max.py:37:38"
+    },
+    {
+      "identity": "cd158c7caafd",
+      "operator": "suite/perf/max.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "reduce",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/max.py:33:43"
+    },
+    {
+      "identity": "cfd2e75018e0",
+      "operator": "suite/perf/min.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "reduce",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/min.py:33:43"
+    },
+    {
+      "identity": "a4bd0cda2441",
+      "operator": "suite/perf/min.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "bit.and",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/min.py:37:38"
+    },
+    {
+      "identity": "2880025aa79e",
+      "operator": "suite/perf/min.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "reduce",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/min.py:33:43"
+    },
+    {
+      "identity": "ebf07513da0a",
+      "operator": "suite/perf/min.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "reduce",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/min.py:33:43"
+    },
+    {
+      "identity": "0b1cafbb1cce",
+      "operator": "suite/perf/min.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "bit.and",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/min.py:37:38"
+    },
+    {
+      "identity": "6a110ad0d1dd",
+      "operator": "suite/perf/min.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "reduce",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/min.py:33:43"
+    },
+    {
+      "identity": "964cb9c6b7a2",
+      "operator": "suite/perf/sigmoid_argmax.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "bit.and",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/sigmoid_argmax.py:36:38"
+    },
+    {
+      "identity": "e505a3f046cc",
+      "operator": "suite/perf/sigmoid_argmax.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "bit.and",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/sigmoid_argmax.py:36:38"
+    },
+    {
+      "identity": "4391ec50b76c",
+      "operator": "suite/perf/std.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "cmp.eq",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/std.py:39:28"
+    },
+    {
+      "identity": "6d01c89af4b2",
+      "operator": "suite/perf/std.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "cmp.eq",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/std.py:39:28"
+    },
+    {
+      "identity": "17d1697b1ed2",
+      "operator": "suite/perf/swiglu_fwd.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "ff0c1e867864c9c5980eee49ac7df742c315b802fadf691293f9448acfdf6605",
+      "sha256": "d29cbc2c2d4c0a888b6f6a90b9dc17a9503269a48b50b808d3a5b48359f48364",
+      "compile_ms": 223.3,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "55e8990ca275",
+      "operator": "suite/perf/swiglu_fwd.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "15b582a693c00ff2c6cf1006124fe5e18d587a4d9c1cb9da5cea0b7372beac1d",
+      "sha256": "7c5506ed81a6ae3407642ec3152095ed6902cdd832988a51a79b9aadcf9454ca",
+      "compile_ms": 101.7,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "133e5abfdb8a",
+      "operator": "suite/perf/swiglu_fwd.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "c0faf8d241e9da946e1be6b12feefc1595e03e02abe022e9ffca0a2db1bdbd2c",
+      "sha256": "10d3ea9c55971254009237a7bce30e458cfc1d53593cedc5eef6ce3ac8f42ed7",
+      "compile_ms": 153.3,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "e7377aa67e71",
+      "operator": "suite/perf/triton_linear_activation.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "grid",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/triton_linear_activation.py:65:1"
+    },
+    {
+      "identity": "ddec4ca5d797",
+      "operator": "suite/perf/triton_linear_activation.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "grid",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/triton_linear_activation.py:65:1"
+    },
+    {
+      "identity": "556906eb2fdb",
+      "operator": "suite/perf/triton_linear_activation.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "grid",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/triton_linear_activation.py:65:1"
+    },
+    {
+      "identity": "b1f760cbc4d6",
+      "operator": "suite/perf/triton_linear_activation.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "grid",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/triton_linear_activation.py:65:1"
+    },
+    {
+      "identity": "0deda734aee0",
+      "operator": "suite/perf/triton_linear_activation.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "grid",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/triton_linear_activation.py:65:1"
+    },
+    {
+      "identity": "89e2e8fb5e19",
+      "operator": "suite/perf/triton_linear_activation.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "grid",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/triton_linear_activation.py:65:1"
+    }
+  ],
+  "expected_operators": [
+    "suite/dev/amp_foreach_non_finite_check_and_unscale_kernel.py",
+    "suite/dev/backends__ascend__ops__grpo_loss__selective_log_softmax_kernel.py",
+    "suite/dev/fused_layernorm_triton.py",
+    "suite/dev/grpo_loss__selective_log_softmax_kernel.py",
+    "suite/dev/hidden__argmax_kernel_2.py",
+    "suite/dev/implicit_conv2d.py",
+    "suite/dev/max_reduction.py",
+    "suite/dev/median_int_lastdim_select_kernel.py",
+    "suite/dev/nanmedian_select_kernel.py",
+    "suite/dev/quant_transpose_kernel.py",
+    "suite/dev/reversed_cumsum.py",
+    "suite/dev/rowwise_quantization_triton.py",
+    "suite/perf/argmax.py",
+    "suite/perf/dequantize_matmul.py",
+    "suite/perf/gelu_std.py",
+    "suite/perf/matmul_triton2.py",
+    "suite/perf/matmul_triton_autotune.py",
+    "suite/perf/matrix_vector_multip.py",
+    "suite/perf/max.py",
+    "suite/perf/min.py",
+    "suite/perf/sigmoid_argmax.py",
+    "suite/perf/std.py",
+    "suite/perf/swiglu_fwd.py",
+    "suite/perf/triton_linear_activation.py"
+  ]
+}
