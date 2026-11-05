@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-05T10:35:19.926345+00:00",
+  "updated_at": "2026-11-05T11:44:00.786941+00:00",
   "facts": [
     {
       "id": "F001",
@@ -2026,12 +2026,12 @@
         "basic-passes-v1"
       ],
       "tags": [],
-      "status": "RUNNING",
-      "assignee": "coder",
+      "status": "READY",
+      "assignee": "",
       "attempts": 1,
       "evidence": "",
-      "last_error": "",
-      "failure_kind": "",
+      "last_error": "Implemented and ran the full compile sweep (a100c/tests/test_compile_sweep.py): one cold pass over the whole corpus through the enabled pipeline (FactoryCompiler, passes=default, isolated temporary artifact cache), enumerating cases exactly as tools/run_scan.py does, compiling each of the 2116 reco\u2026",
+      "failure_kind": "implementation",
       "start_revision": "f32f493debcac96ea57bf378df6d43ab82d73a5c",
       "end_revision": "",
       "completed_seq": 0,
@@ -2040,8 +2040,30 @@
       "debug_pending_revision": "",
       "debug_pending_attempts": -1,
       "debug_pending_failures": 0,
-      "worker_debug_request": {},
-      "coding_failures": 0,
+      "worker_debug_request": {
+        "reproduction": "set -a; . ./.env; set +a; timeout 300 python3 a100c/tests/test_compile_sweep.py --operator suite/dev/implicit_conv2d.py",
+        "exit_code": 1,
+        "observed": "crash rows: ValueError: pass 'licm' broke the TIR contract: use-before-definition: op 'broadcast' operand 0 uses value 'rs' before its definition (at ops/suite/dev/implicit_conv2d.py:47) -- 6 identities of this operator; the same sweep on suite/dev/amp_foreach_non_finite_check_and_unscale_kernel.py shows the second crash class AttributeError: 'MaskType' object has no attribute 'sew' (15 identities), and suite/dev/hidden__argmax_kernel_2.py the third OverflowError: cannot convert float infinity to integer (1 identity)",
+        "ruled_out": [
+          {
+            "hypothesis": "the implicit_conv2d crash comes from the tl.dot-in-runtime-loop matrix path",
+            "command": "set -a; . ./.env; set +a; A100C_PASS_LICM=off timeout 300 python3 - (compile implicit_conv2d [1,4,5,7,7] float32 through FactoryCompiler)",
+            "observed": "with LICM off the case reaches the located tl.dot refusal instead of crashing, so the crash is the LICM hoist alone; the hoist moves a use of 'rs' (defined inside the k0 loop) above its definition and the post-pass TIR verifier refuses -- a pass-legality defect, not the matrix lane"
+          },
+          {
+            "hypothesis": "the 63 unlocated 'case' refusals are malformed case payloads",
+            "command": "set -a; . ./.env; set +a; timeout 120 python3 - (inspect case['kernel'] of fused_layernorm_triton make_case([4,64],'float32'))",
+            "observed": "the payload is well-formed: kernel is an Autotuner, kernel.fn is a JITFunction (no __code__), the raw function with co_filename is at kernel.fn.fn; a100c/driver.py _load_source unwraps only one level, so the 11 @triton.autotune operators can never load their compile unit"
+          },
+          {
+            "hypothesis": "artifact sharing bakes shape/grid/values (acceptance[1] violated)",
+            "command": "set -a; . ./.env; set +a; timeout 7000 python3 a100c/tests/test_compile_sweep.py",
+            "observed": "120/120 repeat cases of artifact identities recompiled to a cache hit on the identical executable and compile_count (2053) <= identities (2116); no baking -- acceptance[1] holds, so the failures are confined to the crash and unlocated-refusal classes"
+          }
+        ],
+        "suspected_stage": "the basic-pass pipeline (a100c/passes/licm.py hoisting legality) for the 6 ValueError crashes; a100c/driver.py _load_source kernel unwrap for the 63 unlocated autotune 'case' refusals; a100c/lower/vectorize.py:1055 for the 67 unlocated tl.arange refusals; the AttributeError/OverflowError crash sites are named per row in the census"
+      },
+      "coding_failures": 1,
       "started_at": "2026-11-05T10:35:19.458542+00:00",
       "deferrals": 0,
       "debug_verified_patterns": [],
@@ -5688,7 +5710,9 @@
       "version": "Triton 3.8.0 / ops suite-v3 declared subset"
     }
   },
-  "regression": {},
+  "regression": {
+    "invalidated": "input failure in T018: Implemented and ran the full compile sweep (a100c/tests/test_compile_sweep.py): one cold pass over the whole corpus through the enabled pipeline (FactoryCompiler, passes=default, isolated temporary artifact cache), enumerating cases exactly as tools/run_scan.py does, compiling each of the 2116 reco\u2026"
+  },
   "regression_runs": {},
   "repair_submissions": {
     "6ad5e0cf6d121595154af70f88d4e18591978ef234d0e30dc045ebf4ca9af3b9": {
@@ -7163,6 +7187,18 @@
       "phase": "IMPLEMENTATION",
       "event": "task-delegate",
       "detail": "WTI019 task=T018 attempt=1 profile=general-purpose"
+    },
+    {
+      "at": "2026-11-05T11:44:00.784363+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "task-report",
+      "detail": "WTI019 FAILED attempt=1"
+    },
+    {
+      "at": "2026-11-05T11:44:00.786934+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "fail-task",
+      "detail": "T018 [implementation] Implemented and ran the full compile sweep (a100c/tests/test_compile_sweep.py): one cold pass over the whole corpus through the enabled pipeline (FactoryCompiler, passes=default, isolated temporary artifact cache), enumerating cases exactly as tools/run_scan.py does, compiling each of the 2116 reco\u2026"
     }
   ]
 }
