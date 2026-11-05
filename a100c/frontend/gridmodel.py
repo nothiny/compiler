@@ -1,4 +1,4 @@
-"""The provenance-tracking case-layer grid model (frontend, T008).
+"""The provenance-tracking case-layer grid model (frontend, T008/T027).
 
 The bundle carries views and scalars but not the grid (a100-native-io/v1,
 F046/F047) and the identity contract excludes it (the corpus's own
@@ -9,18 +9,36 @@ interpreting its AST under a provenance-tracking evaluator:
 
   - the case parameters (``shape``, ``dtype``, ``seed``) enter symbolically;
   - every value the grid expression consumes must be proven equal to a
-    bundle-visible quantity -- a scalar argument (by symbolic-origin
-    equality through the interpreted ``args`` construction) or a view
-    extent (an array whose tracked extent flows into ``args``);
-  - a compile-time equality self-check re-evaluates every axis expression
-    with the compiling case's concrete values and requires it to equal the
+    bundle-visible quantity -- a scalar argument or a view extent -- by the
+    interpreter's own equality (a shared ``SymVal`` object or a structurally
+    equal grid-expression tree), or to an identity-tier constant (a
+    ``meta``/``launch_meta``/chosen-config constexpr, which the
+    specialization identity signs, exactly like the ``lambda meta:`` form
+    folds them);
+  - values the interpreter cannot see stay as ``Hole`` leaves carrying the
+    operand's identity, so a scalar argument, a view extent or a meta
+    constant that provably equals the holed value fills it at run time
+    (or as the folded constant); an unfilled hole refuses, located,
+    naming it;
+  - a compile-time equality self-check re-evaluates every *rewritten* axis
+    expression (the exact tree the native routine computes) with the
+    compiling case's concrete bundle values and requires it to equal the
     case's own declared ``grid``.
 
 Corpus grid forms covered: multi-axis tuples, ``triton.cdiv`` products,
 the ``lambda meta:`` form (meta constexpr leaves are identity-tier
 constants, like every other constexpr the specialization folds), shape
-derived locals (``n = int(shape[0])``, ``np.prod``), view extents
-(``x.shape[0]``, arrays created from tracked sizes) and scalar arguments.
+derived locals (``n = int(shape[0])``, ``np.prod``, unpacking,
+``map(int, shape)``), view extents (``x.shape[0]``, arrays created from
+tracked sizes, the two-pass binding of opaque arrays), scalar arguments,
+``min``/``max`` chains (any arity) and ``np.ceil(a / b)``; module-level
+helper functions the case layer calls (``_case``, ``_aligned``,
+``_dims``, ...) are interpreted in the same domain under a step budget;
+dict literals with ``**`` spreads merge their mappings; ``for`` loops
+over concrete ranges, tracked tuples, concrete lists and ``dict.items()``
+unroll, and loops with symbolic bounds conservatively opaque-ify the
+names they rebind (an unfillable hole, never a guess); branch merges keep
+the provenance both arms agree on.
 
 A grid input that cannot be tied to a bundle-visible quantity is refused
 with a located diagnostic (MECH-DIAGNOSTIC-REFUSAL), never baked; the
@@ -34,8 +52,9 @@ from typing import Dict, Iterable, List, Optional, Tuple
 
 from a100c.frontend.source import OperatorSource
 
-__all__ = ["GridError", "GridExpr", "Lit", "Ref", "Bin", "GridModel",
-           "extract_grid", "evaluate_expr", "census", "grid_of_case"]
+__all__ = ["GridError", "GridExpr", "Lit", "Ref", "Bin", "MinMax", "Hole",
+           "GridModel", "extract_grid", "evaluate_expr", "census",
+           "grid_of_case"]
 
 
 class GridError(Exception):
@@ -99,6 +118,39 @@ class MinMax:
         return f"{self.op}({self.left!r}, {self.right!r})"
 
 
+class Hole:
+    """An untracked subexpression, kept by the *identity* of the interpreted
+    value that produced it (T027).
+
+    Arithmetic the interpreter cannot see no longer collapses the whole
+    expression to an opaque value: the tree keeps its shape with holes at
+    the untracked operands.  A hole is fillable by anything the interpreter
+    proved EQUAL to its owner -- the same ``SymVal`` flowing into a scalar
+    argument (``tiles = cdiv(n, blk); args = {"num_tasks": tiles}``), into a
+    view extent, or into a meta constexpr the identity signs.  Equality of
+    two holes is equality of their owners (one interpreted value), never of
+    their descriptions.
+    """
+
+    __slots__ = ("owner", "desc")
+
+    def __init__(self, owner, desc: str):
+        self.owner = owner      # the SymVal whose value the hole stands for
+        self.desc = desc
+
+    def __eq__(self, other):
+        return isinstance(other, Hole) and other.owner is self.owner
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    def __hash__(self):
+        return id(self.owner)
+
+    def __repr__(self):
+        return f"?({self.desc})"
+
+
 GridExpr = object
 
 
@@ -125,6 +177,8 @@ def evaluate_expr(expr, values: Dict):
         lhs = evaluate_expr(expr.left, values)
         rhs = evaluate_expr(expr.right, values)
         return max(lhs, rhs) if expr.op == "max" else min(lhs, rhs)
+    if isinstance(expr, Hole):
+        raise ValueError(f"unfilled grid hole: {expr!r}")
     raise ValueError(f"not a grid expression: {expr!r}")
 
 
@@ -206,6 +260,31 @@ class SymLambda(SymVal):
         self.closure = closure
 
 
+class SymFunc(SymVal):
+    """A module-level helper function of the operator file (``_case``,
+    ``_aligned``, ``_dims``, ...), callable in the provenance domain under
+    the interpreter's step budget.  The jit kernel is never a SymFunc (it
+    is the compile unit, not case-layer code)."""
+
+    __slots__ = ("node",)
+
+    def __init__(self, node: ast.FunctionDef):
+        super().__init__(opaque=f"function {node.name}")
+        self.node = node
+
+
+class SymIter(SymVal):
+    """A bound ``dict.items()`` / ``.keys()`` / ``.values()`` view over a
+    tracked dict -- enumerable by a case-layer ``for`` loop."""
+
+    __slots__ = ("base", "mode")
+
+    def __init__(self, base: SymVal, mode: str):
+        super().__init__(opaque=f".{mode}")
+        self.base = base
+        self.mode = mode
+
+
 def _lit(value) -> SymVal:
     # integer literals carry a grid expression so arithmetic can mix them
     # with symbolic leaves (n + 128 - 1) // 128
@@ -236,24 +315,108 @@ _NP_SCALAR_CASTS = {"bool_", "int8", "int16", "int32", "int64",
                     "uint8", "uint16", "uint32", "uint64",
                     "float16", "float32", "float64", "int_", "float_"}
 
-#: rng methods whose last positional argument is the size
-_RNG_SIZE_METHODS = {"standard_normal", "normal", "integers", "random",
-                     "rand", "randn", "choice", "permutation"}
+#: rng methods whose last positional argument is the size (the corpus's
+#: observed draw surface: standard_normal/normal/integers/uniform/random/
+#: permutation/choice -- plus the common aliases)
+_RNG_SIZE_METHODS = {"standard_normal", "normal", "integers", "uniform",
+                     "random", "rand", "randn", "choice", "permutation",
+                     "beta", "gamma", "poisson", "exponential", "laplace",
+                     "logistic", "triangular", "weibull", "multinomial"}
+
+#: pure functions whose call result is memoized per *argument identity*:
+#: one interpreted value always yields one result, so two textual
+#: occurrences of ``triton.next_power_of_2(x)`` over the same ``x`` are the
+#: SAME value (the tie the grid model needs -- one occurrence flowing into
+#: ``meta`` and one into the grid expression)
+_PURE_CALLS = {"triton.next_power_of_2"}
+
+#: interpretation bounds (a helper beyond them is opaque, never a hang):
+_HELPER_STEP_BUDGET = 4000     # statements per helper-function invocation
+_HELPER_DEPTH = 6              # helper-call nesting
+_LOOP_ITERATION_CAP = 10000    # concrete loop unrolling per statement
+
+
+class _HelperBudget(Exception):
+    """Internal: a helper-function interpretation exceeded its budget."""
+
+
+class _LoopContinue(Exception):
+    """Internal: a ``continue`` inside an unrolling case-layer loop."""
+
+
+class _LoopBreak(Exception):
+    """Internal: a ``break`` inside an unrolling case-layer loop."""
+
+
+def _loop_effect_names(stmt: ast.For) -> Tuple[List[str], List[str]]:
+    """Statically collect the names a loop body affects: (rebound, stored).
+
+    ``rebound``: names assigned/aug-assigned/imported (or bound by a nested
+    loop/comprehension) anywhere in the body -- their values depend on the
+    unknown iteration count.  ``stored``: names element-stored into via a
+    subscript (``args[name] = ...``) -- their containers mutated.
+    """
+    rebound: List[str] = []
+    stored: List[str] = []
+
+    def _target_name(t: ast.expr):
+        return t.id if isinstance(t, ast.Name) else None
+
+    def _walk(node: ast.AST) -> None:
+        for child in ast.iter_child_nodes(node):
+            if isinstance(child, (ast.Assign, ast.AnnAssign, ast.AugAssign)):
+                targets = child.targets if isinstance(child, ast.Assign) \
+                    else [child.target]
+                for t in targets:
+                    if isinstance(t, ast.Subscript):
+                        n = _target_name(t.value)
+                        if n is not None:
+                            stored.append(n)
+                    else:
+                        for n in ast.walk(t):
+                            name = _target_name(n) if isinstance(n, ast.Name) \
+                                else None
+                            if name is not None:
+                                rebound.append(name)
+            elif isinstance(child, (ast.Import, ast.ImportFrom)):
+                for alias in child.names:
+                    rebound.append(alias.asname or alias.name.split(".")[0])
+            elif isinstance(child, (ast.FunctionDef, ast.ClassDef)):
+                rebound.append(child.name)
+            _walk(child)
+
+    _walk(stmt)
+    # the loop's own induction variable(s) are rebound per iteration
+    for n in ast.walk(stmt.target):
+        name = _target_name(n) if isinstance(n, ast.Name) else None
+        if name is not None:
+            rebound.append(name)
+    return rebound, stored
 
 
 class _Interpreter:
     """Evaluates ``_make_case``'s statements in the provenance domain."""
 
     def __init__(self, source: OperatorSource,
-                 module_constants: Dict[str, object]):
+                 module_constants: Dict[str, object],
+                 module_functions: Optional[Dict[str, ast.FunctionDef]] = None):
         self.source = source
         self.constants = module_constants
         self.env: Dict[str, SymVal] = {}
         self.path = source.path
+        #: module-level helper functions (name -> def), budget-interpreted
+        self.module_functions: Dict[str, ast.FunctionDef] = \
+            module_functions or {}
         #: the args-literal entries: arg name -> the SymVal object flowing in
         self.arg_values: Dict[str, SymVal] = {}
         #: the returned payload dict (grid may live there as a lambda)
         self.returned: Optional[SymDict] = None
+        #: the raw return value of the interpreted function
+        self.retval: Optional[SymVal] = None
+        #: interpretation bookkeeping (budgets, depth, pure-call memo)
+        self._steps = 0
+        self._depth = 0
+        self._pure_memo: Dict[tuple, SymVal] = {}
 
     # -- helpers --------------------------------------------------------------
     def _err(self, node, construct: str, message: str) -> GridError:
@@ -286,6 +449,7 @@ class _Interpreter:
         for stmt in fn.body:
             if isinstance(stmt, ast.Return):
                 value = self._eval(stmt.value)
+                self.retval = value
                 if isinstance(value, SymDict):
                     self.returned = value
                 break
@@ -293,6 +457,7 @@ class _Interpreter:
         return self.env
 
     def _stmt(self, stmt: ast.stmt) -> None:
+        self._steps += 1
         if isinstance(stmt, ast.Assign):
             value = self._eval(stmt.value)
             for target in stmt.targets:
@@ -337,6 +502,14 @@ class _Interpreter:
                     self.env[alias.asname] = _opaque(f"module {alias.name}")
         elif isinstance(stmt, ast.Expr):
             self._eval(stmt.value)
+        elif isinstance(stmt, ast.Pass):
+            return
+        elif isinstance(stmt, ast.Continue):
+            # only meaningful inside an unrolling loop driver; a bare
+            # continue outside one is a case-layer form the model refuses
+            raise _LoopContinue()
+        elif isinstance(stmt, ast.Break):
+            raise _LoopBreak()
         elif isinstance(stmt, ast.If):
             cond = self._eval(stmt.test)
             if cond.concrete is None:
@@ -356,11 +529,15 @@ class _Interpreter:
                     for s in stmt.body:
                         self._stmt(s)
                 else:
-                    # real work on both arms: interpret BOTH and keep only
-                    # the bindings that agree (a branch-dependent value is
-                    # untracked -- a grid axis consuming it refuses,
-                    # located, at the axis check; post-grid mutations of
-                    # opaque case dicts simply happen)
+                    # real work on both arms: interpret BOTH and keep the
+                    # provenance the arms agree on -- the same object, or
+                    # structurally equal grid expressions, or arrays whose
+                    # per-axis extents agree, or dicts merged per key by the
+                    # same rule (the corpus's dtype-normalization idiom
+                    # rewrites every array entry extent-preserving, so the
+                    # views survive the branch).  A genuinely
+                    # branch-dependent value is untracked -- a grid axis
+                    # consuming it refuses, located, at the axis check.
                     snap = dict(self.env)
                     for s in stmt.body:
                         self._stmt(s)
@@ -372,7 +549,11 @@ class _Interpreter:
                     merged = dict(snap)
                     for key in set(then_env) | set(else_env):
                         t, e = then_env.get(key), else_env.get(key)
-                        merged[key] = t if t is e else _opaque(
+                        if t is None or e is None:
+                            merged[key] = _opaque("branch-dependent value")
+                            continue
+                        v = self._merge_branch_values(t, e)
+                        merged[key] = v if v is not None else _opaque(
                             "branch-dependent value")
                     self.env = merged
             elif cond.concrete:
@@ -382,42 +563,11 @@ class _Interpreter:
                 for s in stmt.orelse:
                     self._stmt(s)
         elif isinstance(stmt, ast.For):
-            rng = stmt.iter
-            if not (isinstance(rng, ast.Call)
-                    and isinstance(rng.func, ast.Name)
-                    and rng.func.id == "range"):
-                raise self._err(stmt, "for",
-                                "loops in the case layer are outside the "
-                                "grid model (only concrete range() loops "
-                                "unroll)")
-            vals = []
-            for a in rng.args:
-                v = self._eval(a)
-                if v.concrete is None or not isinstance(v.concrete, int) \
-                        or isinstance(v.concrete, bool):
-                    raise self._err(stmt, "for",
-                                    "a case-layer loop with a symbolic "
-                                    "bound is outside the grid model "
-                                    "(refused, not guessed)")
-                vals.append(v.concrete)
-            start = vals[0] if len(vals) > 1 else 0
-            stop = vals[1] if len(vals) > 1 else vals[0]
-            step = vals[2] if len(vals) > 2 else 1
-            if not isinstance(stmt.target, ast.Name):
-                raise self._err(stmt, "for",
-                                "the loop target must be a plain name")
-            name = stmt.target.id
-            saved = self.env.get(name)
-            k = start
-            while (step > 0 and k < stop) or (step < 0 and k > stop):
-                self.env[name] = _lit(k)
-                for s in stmt.body:
-                    self._stmt(s)
-                k += step
-            if saved is not None:
-                self.env[name] = saved
-            else:
-                self.env.pop(name, None)
+            self._for(stmt)
+        elif isinstance(stmt, (ast.While, ast.AsyncFor)):
+            raise self._err(stmt, type(stmt).__name__.lower(),
+                            "loops in the case layer are outside the grid "
+                            "model")
         elif isinstance(stmt, (ast.While, ast.AsyncFor)):
             raise self._err(stmt, type(stmt).__name__.lower(),
                             "loops in the case layer are outside the grid "
@@ -425,6 +575,199 @@ class _Interpreter:
         else:
             raise self._err(stmt, type(stmt).__name__,
                             "statement is outside the grid model")
+
+    # -- for loops ---------------------------------------------------------------
+    def _for(self, stmt: ast.For) -> None:
+        """A case-layer ``for`` loop.
+
+        * ``range(...)`` with concrete bounds, tracked tuples, concrete
+          lists/tuples and ``dict.items()/.keys()/.values()`` unroll: the
+          body runs per iteration with the real interpreted values (the
+          corpus's dtype-normalization idiom).
+        * ``range(...)`` with a symbolic bound cannot be enumerated: every
+          name the body rebinds (and every dict it element-stores into)
+          becomes opaque -- the loop ran an unknown number of times, so a
+          grid value depending on its bindings is unfillable, never a
+          guess.  Arrays keep their extents (numpy element stores never
+          reshape).
+        * anything else the model cannot enumerate refuses, located.
+        """
+        rng = stmt.iter
+        # -- range() loops ------------------------------------------------------
+        if isinstance(rng, ast.Call) and isinstance(rng.func, ast.Name) \
+                and rng.func.id == "range":
+            vals = []
+            symbolic = False
+            for a in rng.args:
+                v = self._eval(a)
+                if v.concrete is None or not isinstance(v.concrete, int) \
+                        or isinstance(v.concrete, bool):
+                    symbolic = True
+                    break
+                vals.append(v.concrete)
+            if not symbolic:
+                start = vals[0] if len(vals) > 1 else 0
+                stop = vals[1] if len(vals) > 1 else vals[0]
+                step = vals[2] if len(vals) > 2 else 1
+                count = abs((stop - start) // step) if step else 0
+                if count > _LOOP_ITERATION_CAP:
+                    # a concrete but unbounded-in-practice loop: the same
+                    # conservative treatment as a symbolic bound
+                    self._opaque_loop_effects(stmt)
+                    return
+                self._unroll(stmt, lambda k: _lit(k), start, stop, step)
+                return
+            self._opaque_loop_effects(stmt)
+            return
+        # -- enumerable values (tracked tuples, dict views, concrete lists) ----
+        iterated = self._eval(rng)
+        items: Optional[List[SymVal]] = None
+        if isinstance(iterated, SymTuple):
+            items = list(iterated.items)
+        elif isinstance(iterated, SymIter) \
+                and isinstance(iterated.base, SymDict):
+            mapping = iterated.base.mapping
+            if iterated.mode == "items":
+                items = [SymTuple([_lit(k), v])
+                         for k, v in mapping.items()]
+            elif iterated.mode == "keys":
+                items = [_lit(k) for k in mapping]
+            else:
+                items = list(mapping.values())
+        elif iterated.concrete is not None \
+                and isinstance(iterated.concrete, (list, tuple)) \
+                and not isinstance(iterated.concrete, str):
+            items = [self._from_concrete(v) for v in iterated.concrete]
+        if items is None:
+            raise self._err(stmt, "for",
+                            "loops in the case layer are outside the "
+                            "grid model (only concrete range() loops, "
+                            "tracked tuples and dict views unroll)")
+        if len(items) > _LOOP_ITERATION_CAP:
+            self._opaque_loop_effects(stmt)
+            return
+        try:
+            for item in items:
+                self._bind_loop_target(stmt.target, item)
+                try:
+                    for s in stmt.body:
+                        self._stmt(s)
+                except _LoopContinue:
+                    pass
+        except _LoopBreak:
+            pass
+        finally:
+            self._restore_loop_target(stmt.target)
+
+    def _unroll(self, stmt: ast.For, value_of, start, stop, step) -> None:
+        if not isinstance(stmt.target, ast.Name):
+            raise self._err(stmt, "for",
+                            "the loop target must be a plain name")
+        name = stmt.target.id
+        saved = self.env.get(name)
+        k = start
+        try:
+            while (step > 0 and k < stop) or (step < 0 and k > stop):
+                self.env[name] = value_of(k)
+                try:
+                    for s in stmt.body:
+                        self._stmt(s)
+                except _LoopContinue:
+                    pass
+                k += step
+        except _LoopBreak:
+            pass
+        finally:
+            if saved is not None:
+                self.env[name] = saved
+            else:
+                self.env.pop(name, None)
+
+    def _bind_loop_target(self, target: ast.expr, item: SymVal) -> None:
+        if isinstance(target, ast.Name):
+            self.env[target.id] = item
+        elif isinstance(target, (ast.Tuple, ast.List)):
+            if isinstance(item, SymTuple) \
+                    and len(target.elts) == len(item.items):
+                for t, v in zip(target.elts, item.items):
+                    self._bind_loop_target(t, v)
+            else:
+                for t in target.elts:
+                    self._bind_loop_target(t, _opaque("unpacked"))
+
+    def _restore_loop_target(self, target: ast.expr) -> None:
+        if isinstance(target, ast.Name):
+            self.env.pop(target.id, None)
+        elif isinstance(target, (ast.Tuple, ast.List)):
+            for t in target.elts:
+                self._restore_loop_target(t)
+
+    def _opaque_loop_effects(self, stmt: ast.For) -> None:
+        """Conservatively apply a loop whose iteration count the model
+        cannot see: every rebound name, and every dict element-stored into,
+        becomes opaque (an unfillable hole if the grid consumes it)."""
+        rebound, stored = _loop_effect_names(stmt)
+        for name in rebound:
+            self.env[name] = _opaque(f"loop-dependent value ({name})")
+        for name in stored:
+            base = self.env.get(name)
+            if base is None or isinstance(base, SymArray):
+                # an array's extents provably survive element stores; an
+                # unbound name stays unbound
+                if base is None:
+                    self.env.pop(name, None)
+                continue
+            self.env[name] = _opaque(f"loop-dependent dict ({name})")
+
+    # -- branch merging -----------------------------------------------------------
+    def _merge_branch_values(self, t: SymVal, e: SymVal) -> Optional[SymVal]:
+        """The provenance both branch arms agree on: the same object, or
+        structurally equal grid expressions, or equal-provenance composites
+        (arrays per-extent, dicts per-key, tuples per-item).  None when the
+        arms genuinely disagree."""
+        if t is e:
+            return t
+        if isinstance(t, SymArray) and isinstance(e, SymArray) \
+                and len(t.extents) == len(e.extents) \
+                and all(self._same_provenance(a, b)
+                        for a, b in zip(t.extents, e.extents)):
+            return t
+        if isinstance(t, SymDict) and isinstance(e, SymDict):
+            # per-key: the provenance both arms agree on survives; a key
+            # only one arm added carries an untracked value; two untracked
+            # (opaque) values keep the pre-branch object -- the two-pass
+            # view binding rebinds the local holding it to the payload's
+            # actual view, so the entry stays tieable
+            merged = {}
+            for k in sorted(set(t.mapping) | set(e.mapping)):
+                tv, ev = t.mapping.get(k), e.mapping.get(k)
+                if tv is None or ev is None:
+                    merged[k] = _opaque("branch-dependent value")
+                    continue
+                v = self._merge_branch_values(tv, ev)
+                if v is not None:
+                    merged[k] = v
+                elif tv.opaque is not None and ev.opaque is not None:
+                    merged[k] = ev
+                else:
+                    merged[k] = _opaque("branch-dependent value")
+            return SymDict(merged)
+        if isinstance(t, SymTuple) and isinstance(e, SymTuple) \
+                and len(t.items) == len(e.items):
+            items = []
+            for a, b in zip(t.items, e.items):
+                v = self._merge_branch_values(a, b)
+                if v is None:
+                    return None
+                items.append(v)
+            return SymTuple(items)
+        if t.gexpr is not None and t.gexpr == e.gexpr:
+            return t
+        return None
+
+    @staticmethod
+    def _same_provenance(a: SymVal, b: SymVal) -> bool:
+        return a is b or (a.gexpr is not None and a.gexpr == b.gexpr)
 
     def _assign(self, target: ast.expr, value: SymVal) -> None:
         if isinstance(target, ast.Name):
@@ -450,6 +793,22 @@ class _Interpreter:
             if isinstance(base, SymArray):
                 # an element store into a tracked array: extents are
                 # provably unchanged (numpy element stores never reshape)
+                return
+            if isinstance(base, SymDict) and isinstance(target.value, ast.Name):
+                # an element store into a tracked dict: copy-on-write so a
+                # branch arm's stores never leak into the other arm's view
+                # of the same dict (the if-merge then recombines per key)
+                index = self._eval(target.slice) \
+                    if not isinstance(target.slice, ast.Slice) else None
+                if index is not None and isinstance(index.concrete, str) \
+                        and index.concrete:
+                    new_dict = SymDict(dict(base.mapping))
+                    new_dict.mapping[index.concrete] = value
+                    self.env[target.value.id] = new_dict
+                    return
+                # a symbolic or slice key: the dict as a whole is untracked
+                self.env[target.value.id] = _opaque(
+                    "dict store with a symbolic key")
                 return
             # a store into an opaque object (e.g. x[::11] = -0.0): untracked
         else:
@@ -480,16 +839,27 @@ class _Interpreter:
             module_value = self._module_value(node.id)
             if module_value is not None:
                 return module_value
-            # an unknown module-level name (a function, the jit kernel, an
-            # imported helper): untracked.  If the grid expression depended
-            # on it, the expression would be untracked and the extraction
-            # refuses -- conservative, never a guess.
+            if node.id in self.module_functions:
+                return SymFunc(self.module_functions[node.id])
+            # an unknown module-level name (an imported helper): untracked.
+            # If the grid expression depended on it, the expression would
+            # be untracked and the extraction refuses -- conservative,
+            # never a guess.
             return _opaque(f"name {node.id}")
         if isinstance(node, (ast.Tuple, ast.List)):
             return SymTuple([self._eval(e) for e in node.elts])
         if isinstance(node, ast.Dict):
             mapping: Dict[str, SymVal] = {}
             for k, v in zip(node.keys, node.values):
+                if k is None:
+                    # a ``**spread`` entry: merge the spread mapping (later
+                    # explicit keys win, exactly like Python dict literals)
+                    spread = self._eval(v)
+                    if not isinstance(spread, SymDict):
+                        return _opaque("dict with an untracked **spread")
+                    for sk, sv in spread.mapping.items():
+                        mapping[sk] = sv
+                    continue
                 if not isinstance(k, ast.Constant):
                     # computed keys: the dict as a whole stays untracked
                     # (the args/meta ties it would carry are lost -- a grid
@@ -536,19 +906,28 @@ class _Interpreter:
                 return _opaque("symbolic conditional expression")
             return self._eval(node.body if cond.concrete else node.orelse)
         if isinstance(node, ast.BoolOp):
-            # and/or over case values: folds when every side is concrete;
-            # otherwise untracked (a guard consuming it still proves
-            # itself; a grid axis consuming it refuses later)
-            sides = [self._eval(v) for v in node.values]
-            if all(s.concrete is not None for s in sides):
-                out = bool(sides[0].concrete)
-                for s in sides[1:]:
-                    if isinstance(node.op, ast.And):
-                        out = out and bool(s.concrete)
-                    else:
-                        out = out or bool(s.concrete)
-                return _lit(out)
-            return _opaque("boolop")
+            # and/or over case values with Python's short-circuit: a
+            # concrete-falsy ``and`` operand (a decidable isinstance over
+            # a scalar) decides the chain without the later sides -- the
+            # corpus's dtype-normalization guard
+            # (``isinstance(value, np.ndarray) and value.dtype.kind == "f"``)
+            # is False for scalar entries, so their args binding survives
+            out = None
+            for v in node.values:
+                s = self._eval(v)
+                if s.concrete is None:
+                    return _opaque("boolop")
+                if isinstance(node.op, ast.And):
+                    if not bool(s.concrete):
+                        out = False
+                        break
+                else:
+                    if bool(s.concrete):
+                        out = True
+                        break
+            if out is None:
+                out = isinstance(node.op, ast.And)
+            return _lit(out)
         if isinstance(node, ast.Call):
             return self._call(node)
         if isinstance(node, ast.Subscript):
@@ -601,6 +980,11 @@ class _Interpreter:
 
     def _attribute(self, node: ast.Attribute) -> SymVal:
         base = self._eval(node.value)
+        if isinstance(base, SymDict) \
+                and node.attr in ("items", "keys", "values"):
+            # an enumerable view over a tracked dict (the corpus's
+            # dtype-normalization loop: ``for name, value in args.items()``)
+            return SymIter(base, node.attr)
         if isinstance(base, SymArray):
             if node.attr == "shape":
                 return SymTuple(list(base.extents))
@@ -617,75 +1001,121 @@ class _Interpreter:
         return _opaque(f"attribute .{node.attr}")
 
     def _product(self, items: List[SymVal], node) -> SymVal:
-        """A tracked product (np.prod / .size): folds when concrete."""
+        """A tracked product (np.prod / .size): folds when concrete, holed
+        otherwise (an untracked extent fills from a scalar/view/meta tie)."""
         if all(i.concrete is not None for i in items):
             out = 1
             for i in items:
                 out = out * i.concrete
             return _lit(out)
-        if any(i.gexpr is None for i in items):
-            raise self._err(node, "product",
-                            "product over an untracked extent (the grid "
-                            "input cannot be tied; refused, not guessed)")
-        gexpr = items[0].gexpr
-        for i in items[1:]:
-            gexpr = Bin("mul", gexpr, i.gexpr)
+        gexpr = None
+        for i in items:
+            term = self._scalar_gexpr_of(i)
+            if term is None:
+                return _opaque("product over a non-scalar extent")
+            gexpr = term if gexpr is None else Bin("mul", gexpr, term)
         return SymVal(gexpr=gexpr)
+
+    @staticmethod
+    def _why(v: SymVal) -> str:
+        if v.opaque:
+            return v.opaque
+        if v.origin is not None:
+            return repr(v.origin)
+        return "untracked"
+
+    def _scalar_gexpr_of(self, v: SymVal):
+        """The grid-expression tree of one scalar operand: its tracked
+        expression, or a Hole carrying the value's identity when the model
+        cannot see it.  None when the value is not scalar-shaped at all
+        (an array, a tuple, a dict -- those never enter grid arithmetic)."""
+        if isinstance(v, (SymArray, SymTuple, SymDict, SymIter, SymFunc,
+                          SymLambda)):
+            return None
+        if v.gexpr is not None:
+            return v.gexpr
+        return Hole(v, self._why(v))
 
     def _binop(self, node: ast.BinOp) -> SymVal:
         lhs = self._eval(node.left)
         rhs = self._eval(node.right)
         opname = {ast.Add: "add", ast.Sub: "sub", ast.Mult: "mul",
                   ast.FloorDiv: "floordiv", ast.Div: "div", ast.Mod: "mod",
-                  ast.Pow: "pow"}.get(type(node.op))
+                  ast.Pow: "pow", ast.BitOr: "bitor", ast.BitAnd: "bitand",
+                  ast.BitXor: "bitxor", ast.LShift: "lshift",
+                  ast.RShift: "rshift"}.get(type(node.op))
         if opname is None:
             return _opaque(f"operator {type(node.op).__name__}")
         if lhs.concrete is not None and rhs.concrete is not None:
             import operator as _op
             fn = {"add": _op.add, "sub": _op.sub, "mul": _op.mul,
                   "div": _op.truediv, "floordiv": _op.floordiv,
-                  "mod": _op.mod, "pow": _op.pow}[opname]
+                  "mod": _op.mod, "pow": _op.pow, "bitor": _op.or_,
+                  "bitand": _op.and_, "bitxor": _op.xor,
+                  "lshift": _op.lshift, "rshift": _op.rshift}[opname]
             return _lit(fn(lhs.concrete, rhs.concrete))
-        # symbolic arithmetic: both sides must carry grid expressions
-        # (integer literals already carry Lit leaves from _lit; a value
-        # with a concrete payload but no grid expression -- a case
-        # parameter like the seed, which is not an identity input -- is
-        # untracked: baking it would break case-to-artifact reuse); a
-        # grid axis consuming an untracked value refuses at the axis
-        # check -- conservative, never a guess
-        if lhs.gexpr is None or rhs.gexpr is None:
-            def _why(v):
-                if v.opaque:
-                    return v.opaque
-                if v.origin is not None:
-                    return repr(v.origin)
-                return "untracked"
-            return _opaque(f"{opname}({_why(lhs)}, {_why(rhs)})")
+        # symbolic arithmetic over scalars: the tree keeps its shape, with
+        # Holes at the operands the model cannot see (integer literals
+        # already carry Lit leaves from _lit).  A holed subtree fills from
+        # a scalar argument, a view extent or a meta constant the
+        # interpreter proved equal; an unfilled hole refuses, located.
+        # Only add/sub/mul/floordiv carry as runtime-computable grid
+        # arithmetic; the other operators stay holes at the operand level
+        # (the whole binop becomes one hole tied by the operand identity).
+        ltree = self._scalar_gexpr_of(lhs)
+        rtree = self._scalar_gexpr_of(rhs)
+        if ltree is None or rtree is None:
+            return _opaque(f"{opname}({self._why(lhs)}, {self._why(rhs)})")
         if opname not in ("add", "sub", "mul", "floordiv"):
+            # mod/bitwise/shift/div/power over scalars: not runtime grid
+            # arithmetic -- the result is an untracked scalar (a hole at
+            # its consumers, fillable by an identity/structural tie)
             return _opaque(f"operator {opname}")
-        return SymVal(gexpr=Bin(opname, lhs.gexpr, rhs.gexpr))
+        return SymVal(gexpr=Bin(opname, ltree, rtree))
 
     # -- calls ----------------------------------------------------------------
     def _cdiv(self, node: ast.Call, args: List[SymVal]) -> SymVal:
-        """triton.cdiv(a, b) = (a + b - 1) // b -- the exact pinned form."""
+        """triton.cdiv(a, b) = (a + b - 1) // b -- the exact pinned form
+        (holed when an operand is untracked, so a tie can fill it)."""
         if len(args) != 2:
             raise self._err(node, "triton.cdiv", "cdiv takes two arguments")
         a, b = args
         if a.concrete is not None and b.concrete is not None:
             return _lit((a.concrete + b.concrete - 1) // b.concrete)
-        if a.gexpr is None or b.gexpr is None:
-            def _why2(v):
-                if v.opaque:
-                    return v.opaque
-                if v.origin is not None:
-                    return repr(v.origin)
-                return "untracked"
-            return _opaque(f"triton.cdiv({_why2(a)}, {_why2(b)})")
+        atree = self._scalar_gexpr_of(a)
+        btree = self._scalar_gexpr_of(b)
+        if atree is None or btree is None:
+            return _opaque(f"triton.cdiv({self._why(a)}, {self._why(b)})")
         return SymVal(gexpr=Bin(
             "floordiv",
-            Bin("add", a.gexpr,
-                Bin("sub", b.gexpr, Lit(1))),
-            b.gexpr))
+            Bin("add", atree,
+                Bin("sub", btree, Lit(1))),
+            btree))
+
+    def _next_power_of_2(self, node: ast.Call, args: List[SymVal]) -> SymVal:
+        """triton.next_power_of_2 -- a PURE function: one argument value has
+        exactly one result, so the call is memoized per argument identity.
+        Two textual occurrences over the same value are then the same
+        interpreted value, and a ``meta`` entry carrying one of them ties
+        the other (the identity-tier constant the specialization signs)."""
+        if len(args) != 1:
+            return _opaque("triton.next_power_of_2")
+        a = args[0]
+        if a.concrete is not None and isinstance(a.concrete, int) \
+                and not isinstance(a.concrete, bool):
+            x = int(a.concrete)
+            if x < 1:
+                return _opaque("triton.next_power_of_2")
+            p = 1
+            while p < x:
+                p <<= 1
+            return _lit(p)
+        key = ("triton.next_power_of_2", a)
+        if key in self._pure_memo:
+            return self._pure_memo[key]
+        out = _opaque(f"triton.next_power_of_2({self._why(a)})")
+        self._pure_memo[key] = out
+        return out
 
     def _np_ctor(self, node: ast.Call, name: str,
                  args: List[SymVal]) -> SymVal:
@@ -732,6 +1162,8 @@ class _Interpreter:
     def _method_call(self, node: ast.Call, base: SymVal,
                      args: List[SymVal]) -> SymVal:
         method = node.func.attr
+        if isinstance(base, SymDict) and method in ("items", "keys", "values"):
+            return SymIter(base, method)
         if isinstance(base, SymArray):
             if method == "astype":
                 return SymArray(list(base.extents))     # extents preserved
@@ -742,7 +1174,10 @@ class _Interpreter:
                     return SymArray([args[0]])
                 return _opaque("reshape")
             if method == "sum" and not args:
-                return self._product(base.extents, node)
+                # the VALUE sum of an array's contents -- value-dependent,
+                # never the extent product (``lens.sum()`` is not
+                # ``lens.size``); untracked, fillable only by a tie
+                return _opaque("array .sum()")
             if method in _RNG_SIZE_METHODS:
                 return self._rng_method(node, method, args)
             return _opaque(f".{method}")
@@ -751,6 +1186,102 @@ class _Interpreter:
         if base.opaque is not None and method in _RNG_SIZE_METHODS:
             return self._rng_method(node, method, args)
         return _opaque(f".{method}")
+
+    def _minmax(self, name: str, args: List[SymVal]) -> SymVal:
+        """min/max over scalar operands, any arity (the corpus's
+        ``min(n, ci, d, h, w, co, kd, kh, kw)`` guard chains): folds when
+        every operand is concrete; otherwise a left-associated MinMax
+        chain (the native routine realizes each node with the declared
+        compare/mask/select sequence) with holes at the operands the model
+        cannot see."""
+        if all(a.concrete is not None for a in args):
+            fn = min if name == "min" else max
+            try:
+                return _lit(fn(a.concrete for a in args))
+            except TypeError:
+                return _opaque(f"{name}(...)")
+        chain = None
+        for a in args:
+            tree = self._scalar_gexpr_of(a)
+            if tree is None:
+                return _opaque(f"{name}({self._why(a)})")
+            chain = tree if chain is None else MinMax(name, chain, tree)
+        return SymVal(gexpr=chain)
+
+    # -- module-level helper calls ---------------------------------------------
+    def _call_function(self, node: ast.Call, fn: ast.FunctionDef) -> SymVal:
+        """Interpret one call to a module-level helper function of the
+        operator file in the provenance domain, under the step budget and
+        depth bound.  Any failure degrades to an opaque value (the grid
+        consuming it refuses, located) -- never a guess, never a hang."""
+        if self._depth >= _HELPER_DEPTH:
+            return _opaque(f"call {fn.name} (depth)")
+        for a in node.args:
+            if isinstance(a, ast.Starred):
+                self._eval(a.value)
+                return _opaque(f"call {fn.name} (star-args)")
+        for k in node.keywords:
+            if k.arg is None:
+                self._eval(k.value)
+                return _opaque(f"call {fn.name} (**kwargs)")
+        pos_args = [self._eval(a) for a in node.args if isinstance(a, ast.expr)]
+        kw_args = {k.arg: self._eval(k.value) for k in node.keywords}
+
+        # bind parameters: positional, then keyword, then defaults
+        # (defaults are evaluated in the caller's environment, i.e. the
+        # module scope the file wrote them in)
+        params = [a.arg for a in fn.args.args]
+        defaults = fn.args.defaults
+        kwonly = {a.arg for a in fn.args.kwonlyargs}
+        if len(pos_args) > len(params) or kwonly - set(kw_args):
+            return _opaque(f"call {fn.name} (arity)")
+        bound: Dict[str, SymVal] = {}
+        for pname, v in zip(params, pos_args):
+            bound[pname] = v
+        n_default = len(defaults)
+        first_default = len(params) - n_default
+        for i, pname in enumerate(params):
+            if pname in bound:
+                continue
+            if pname in kw_args:
+                bound[pname] = kw_args.pop(pname)
+                continue
+            if i >= first_default:
+                bound[pname] = self._eval(defaults[i - first_default])
+                continue
+            return _opaque(f"call {fn.name} (unbound {pname})")
+
+        saved_env = self.env
+        saved_retval = self.retval
+        entry_steps = self._steps
+        self._depth += 1
+        self.env = dict(bound)
+        result: Optional[SymVal] = None
+        try:
+            for stmt in fn.body:
+                if isinstance(stmt, ast.Return):
+                    if stmt.value is not None:
+                        result = self._eval(stmt.value)
+                    break
+                self._stmt(stmt)
+                if self._steps - entry_steps > _HELPER_STEP_BUDGET:
+                    raise _HelperBudget()
+            if result is None:
+                result = _opaque(f"call {fn.name} (no return)")
+        except _HelperBudget:
+            result = _opaque(f"call {fn.name} (budget)")
+        except GridError as exc:
+            result = _opaque(f"call {fn.name} ({exc.construct})")
+        except RecursionError:
+            result = _opaque(f"call {fn.name} (recursion)")
+        except Exception as exc:            # interpretation beyond the model
+            result = _opaque(f"call {fn.name} ({type(exc).__name__})")
+        finally:
+            self.env = saved_env
+            self.retval = saved_retval
+            self._depth -= 1
+        assert result is not None
+        return result
 
     def _call(self, node: ast.Call) -> SymVal:
         func = node.func
@@ -761,6 +1292,10 @@ class _Interpreter:
         # triton.cdiv -- the pinned ceiling division
         if dotted == "triton.cdiv":
             return self._cdiv(node, [self._eval(a) for a in node.args])
+        # triton.next_power_of_2 -- pure, memoized per argument identity
+        if dotted in _PURE_CALLS:
+            return getattr(self, "_" + dotted.split(".", 1)[1])(
+                node, [self._eval(a) for a in node.args])
         # np.<ctor> with a shape argument
         if dotted and dotted.split(".", 1)[0] in ("np", "numpy"):
             tail = dotted.split(".", 1)[1]
@@ -785,11 +1320,19 @@ class _Interpreter:
                     a = self._eval(arg.left)
                     b = self._eval(arg.right)
                     if a.gexpr is not None and b.gexpr is not None:
-                        # ceil(a / b) = -((-a) // b) for the positive
-                        # extents the grid expression set carries
-                        neg = Bin("sub", Lit(0), a.gexpr)
+                        # ceil(a / b) over the NON-NEGATIVE quantities the
+                        # grid domain carries (extents, element counts) is
+                        # exactly (a + b - 1) // b -- the cdiv form.  The
+                        # negation form -((-a)//b) is wrong here: the
+                        # lowering realizes floordiv as UNSIGNED division
+                        # (positive-domain convention), and its negative
+                        # intermediate (-a) wraps (the tanh SIGILL-class
+                        # zero-program launch)
                         return SymVal(gexpr=Bin(
-                            "sub", Lit(0), Bin("floordiv", neg, b.gexpr)))
+                            "floordiv",
+                            Bin("add", a.gexpr,
+                                Bin("sub", b.gexpr, Lit(1))),
+                            b.gexpr))
                 return _opaque("np.ceil")
             return _opaque(dotted)
         if dotted == "math.prod":
@@ -801,13 +1344,44 @@ class _Interpreter:
         # rng.integers(...).astype(...) evaluates the inner call first)
         if isinstance(func, ast.Attribute):
             base = self._eval(func.value)
-            if isinstance(base, SymArray) or base.opaque is not None:
+            if isinstance(base, (SymArray, SymDict)) \
+                    or base.opaque is not None:
                 args = [self._eval(a) for a in node.args]
                 for k in node.keywords:
                     self._eval(k.value)
                 return self._method_call(node, base, args)
+        if name == "isinstance" and len(node.args) == 2:
+            # decidable in the domain for the corpus's guard idiom
+            # (``isinstance(value, np.ndarray)`` -- 227 occurrences): an
+            # array-shaped value IS one, a scalar-shaped value is NOT,
+            # anything the model cannot see stays unknown
+            target = self._eval(node.args[0])
+            cls = node.args[1]
+            is_ndarray = isinstance(cls, ast.Attribute) \
+                and isinstance(cls.value, ast.Name) \
+                and cls.value.id in ("np", "numpy") \
+                and cls.attr == "ndarray"
+            if is_ndarray:
+                if isinstance(target, SymArray):
+                    return _lit(True)
+                if target.concrete is not None:
+                    return _lit(hasattr(target.concrete, "shape"))
+                if isinstance(target, (SymTuple, SymDict, SymIter, SymFunc,
+                                       SymLambda)):
+                    return _lit(False)
+                if target.opaque is None:
+                    # a scalar-shaped value (a tracked leaf): not an array
+                    return _lit(False)
+            return _opaque("isinstance")
+        if name == "hasattr" and len(node.args) == 2:
+            # hasattr(value, 'size') guards: an array-shaped value has one
+            self._eval(node.args[0])
+            self._eval(node.args[1])
+            return _opaque("hasattr")
         if name in _TRACE_BUILTINS:
             args = [self._eval(a) for a in node.args]
+            if name in ("min", "max") and len(args) >= 2:
+                return self._minmax(name, args)
             if any(a.concrete is None for a in args):
                 # int()/tuple()/dict() wrapping a symbolic value: the value
                 # passes through unchanged (its tracked-ness is what
@@ -822,17 +1396,6 @@ class _Interpreter:
                         return _lit(len(args[0].items))
                     if isinstance(args[0], SymArray):
                         return args[0].extents[0]
-                if name in ("min", "max") and len(args) == 2 \
-                        and args[0].gexpr is not None \
-                        and args[1].gexpr is not None:
-                    # min/max over tracked values: one MinMax node (the
-                    # native routine realizes it with the declared
-                    # compare/mask/select scalar sequence)
-                    return SymVal(gexpr=MinMax(name, args[0].gexpr,
-                                               args[1].gexpr))
-                if name in ("min", "max") and len(args) == 2:
-                    why = args[0].opaque or args[1].opaque or "untracked"
-                    return _opaque(f"{name}({why})")
                 return _opaque(f"{name}() on a symbolic value")
             vals = [a.concrete for a in args]
             if name == "int":
@@ -853,19 +1416,6 @@ class _Interpreter:
                 return _lit({  # type: ignore[misc]
                     "abs": abs, "round": round,
                     "float": float, "bool": bool}[name](*vals))
-            if name in ("min", "max"):
-                # min/max over tracked values carries as one MinMax node
-                # (the native routine realizes it with the declared
-                # compare/mask/select scalar sequence); an untracked
-                # operand stays untracked (a grid axis consuming it
-                # refuses, located, at the axis check)
-                if len(args) == 2 and args[0].gexpr is not None \
-                        and args[1].gexpr is not None:
-                    return SymVal(gexpr=MinMax(name, args[0].gexpr,
-                                               args[1].gexpr))
-                why = (args[0].opaque or args[1].opaque
-                       if len(args) == 2 else "untracked")
-                return _opaque(f"{name}({why})")
         if name == "map":
             # map(int, shape): the per-item passthrough of a tracked tuple
             if len(node.args) == 2 and isinstance(node.args[0], ast.Name) \
@@ -876,6 +1426,17 @@ class _Interpreter:
                         self._int_passthrough(item, node.args[0].id)
                         for item in seq.items])
             return _opaque("map")
+        # a module-level helper function of the operator file (``_case``,
+        # ``_aligned``, ``_dims``, ...): interpreted in the same provenance
+        # domain under the step budget -- the payload dict it returns and
+        # the arrays it builds carry their tracked extents onward
+        if name is not None:
+            local = self.env.get(name)
+            fn_node = local.node if isinstance(local, SymFunc) else \
+                (self.module_functions.get(name)
+                 if local is None and name in self.module_functions else None)
+            if fn_node is not None:
+                return self._call_function(node, fn_node)
         # any other call (fast_rng, _aligned, np.*, _case): untracked
         for a in node.args:
             if isinstance(a, ast.expr):
@@ -1012,6 +1573,22 @@ def _module_constants(source: OperatorSource) -> Dict[str, object]:
     return out
 
 
+def _module_functions(tree: ast.Module,
+                      kernel_name: str) -> Dict[str, ast.FunctionDef]:
+    """Module-level plain ``def`` functions of the operator file, excluding
+    the jit kernel (the compile unit -- FE-SOURCE-CONTRACT) and every
+    decorated definition (the corpus's case-layer helpers carry no
+    decorators).  These are the helper functions the case layer may call
+    (``_case``, ``_aligned``, ``_dims``, ``ref``, ...) -- interpreted in
+    the provenance domain under the budget."""
+    out: Dict[str, ast.FunctionDef] = {}
+    for node in tree.body:
+        if isinstance(node, ast.FunctionDef) and not node.decorator_list \
+                and node.name != kernel_name:
+            out[node.name] = node
+    return out
+
+
 def _read_source(source: OperatorSource) -> str:
     with open(source.path, "r", encoding="utf-8", errors="replace") as fh:
         return fh.read()
@@ -1074,18 +1651,50 @@ def _grid_leafs(expr) -> Iterable[Ref]:
         yield from _grid_leafs(expr.right)
 
 
+def _grid_holes(expr) -> Iterable["Hole"]:
+    """Every unfilled hole in a grid expression tree (deduplicated)."""
+    seen = set()
+    for hole in _iter_holes(expr):
+        if id(hole) not in seen:
+            seen.add(id(hole))
+            yield hole
+
+
+def _iter_holes(expr) -> Iterable["Hole"]:
+    if isinstance(expr, Hole):
+        yield expr
+    elif isinstance(expr, Bin):
+        yield from _iter_holes(expr.left)
+        yield from _iter_holes(expr.right)
+    elif isinstance(expr, MinMax):
+        yield from _iter_holes(expr.left)
+        yield from _iter_holes(expr.right)
+
+
 def _shape_arity(source: OperatorSource, case: dict) -> Tuple[Tuple, Tuple]:
     """The case's shape as (payload-shape, interpreted-shape).
 
     Schema-3 payloads echo ``shape``; older payloads do not, and the arity
-    comes from the operator's own SHAPES table (the runner passes shapes of
-    that arity -- a different arity is refused by the operator itself).
-    Returns (concrete-shape-tuple, arity)."""
+    comes from the operator's own SHAPES table when every entry of it
+    agrees (the runner passes shapes of that arity).  A SHAPES table with
+    MIXED arities and no payload echo leaves the arity UNKNOWN (None): the
+    ``shape`` parameter binds to an untracked value -- ``len(shape)`` and
+    unpacking refuse conservatively instead of guessing an arity whose
+    IfExp branch produces a wrong model (the fht/cholesky self-check
+    class).  Returns (concrete-shape-tuple, arity-or-None)."""
     shape = case.get("shape") or ()
     if len(shape):
         return tuple(int(v) for v in shape), len(shape)
     shapes_table = source.case_literals.get("SHAPES") or ()
     if shapes_table:
+        try:
+            arities = {len(s) for s in shapes_table}
+        except TypeError:
+            arities = set()
+        if len(arities) == 1:
+            return (), arities.pop()
+        if len(arities) > 1:
+            return (), None          # mixed arities: unknown, never guessed
         try:
             first = shapes_table[0]
             return (), len(first)
@@ -1097,6 +1706,7 @@ def _shape_arity(source: OperatorSource, case: dict) -> Tuple[Tuple, Tuple]:
 def _interp_once(source: OperatorSource, case: dict,
                  view_bindings: Dict[str, SymArray],
                  module_constants: Dict[str, object],
+                 module_functions: Dict[str, ast.FunctionDef],
                  make_case: ast.FunctionDef) -> Tuple[_Interpreter, Dict[str, SymVal]]:
     shape, ndim = _shape_arity(source, case)
     # The shape axes stay SYMBOLIC in the expression (their concrete values
@@ -1108,7 +1718,9 @@ def _interp_once(source: OperatorSource, case: dict,
         "shape": SymTuple([
             SymVal(origin=Ref("shape_extent", (i,)),
                    gexpr=Ref("shape_extent", (i,)))
-            for i in range(ndim)]),
+            for i in range(ndim)])
+        if ndim is not None else
+        _opaque("shape (unknown arity: mixed SHAPES, no payload echo)"),
         "dtype": SymVal(origin=Ref("case_param", ("dtype",))),
         "seed": SymVal(origin=Ref("case_param", ("seed",))),
     }
@@ -1120,7 +1732,7 @@ def _interp_once(source: OperatorSource, case: dict,
     if isinstance(seed_payload, int) and not isinstance(seed_payload, bool):
         params["seed"] = SymVal(origin=Ref("case_param", ("seed",)),
                                 concrete=seed_payload)
-    interp = _Interpreter(source, module_constants)
+    interp = _Interpreter(source, module_constants, module_functions)
     try:
         env = interp.run(make_case, params,
                          prelude=view_bindings or None)
@@ -1156,10 +1768,29 @@ def extract_grid(source: OperatorSource, case: dict) -> GridModel:
                         "the case layer has no _make_case function; the grid "
                         "form cannot be extracted (FE-SOURCE-CONTRACT)")
     module_constants = _module_constants(source)
+    module_functions = _module_functions(tree, source.kernel_name)
     arrays = _array_args(case)
+    args_payload = case.get("args") or {}
+    import numbers as _numbers
+
+    def _integral(value) -> bool:
+        return not isinstance(value, bool) \
+            and isinstance(value, _numbers.Integral)
+
+    # which case arguments the bundle can actually serve at run time: the
+    # kernel's own non-constexpr parameters (extra case arguments and
+    # oracle_args are identity-signed but never bound -- tying them would
+    # move the read to a quantity the emitted program cannot reach)
+    oracle_args = set((case.get("oracle_args") or {}).keys())
+    kernel_params = {p.name for p in source.params if not p.is_constexpr}
+    pointer_params = {n for n in kernel_params if n in arrays}
+    scalar_params = {n for n in kernel_params
+                     if n not in arrays and n not in oracle_args
+                     and _integral(args_payload.get(n))}
 
     # -- pass 1: find which locals flow into the array args -------------------
-    interp, env = _interp_once(source, case, {}, module_constants, make_case)
+    interp, env = _interp_once(source, case, {}, module_constants,
+                               module_functions, make_case)
     args_value = env.get("args")
     if not isinstance(args_value, SymDict) and isinstance(interp.returned,
                                                           SymDict):
@@ -1181,7 +1812,7 @@ def extract_grid(source: OperatorSource, case: dict) -> GridModel:
     view_bindings: Dict[str, SymArray] = {}
     if array_locals:
         interp, env = _interp_once(source, case, {}, module_constants,
-                                   make_case)
+                                   module_functions, make_case)
         for argname in sorted(array_locals):
             shape = arrays[argname]
             # the view extents stay symbolic in the expression (the
@@ -1201,12 +1832,18 @@ def extract_grid(source: OperatorSource, case: dict) -> GridModel:
                 view_bindings[local] = sym
         if view_bindings:
             interp, env = _interp_once(source, case, view_bindings,
-                                       module_constants, make_case)
+                                       module_constants, module_functions,
+                                       make_case)
 
-    # -- the grid value ---------------------------------------------------------
-    grid_value = env.get("grid")
-    if grid_value is None and isinstance(interp.returned, SymDict):
+    # -- the grid value: the RETURNED payload is authoritative (the local
+    # ``grid`` name is a fallback -- a dead local must never shadow the
+    # payload's own grid, the quant_transpose/matmul_triton2 class)
+    grid_value = None
+    if isinstance(interp.returned, SymDict) \
+            and interp.returned.mapping.get("grid") is not None:
         grid_value = interp.returned.mapping.get("grid")
+    if grid_value is None:
+        grid_value = env.get("grid")
     if isinstance(grid_value, SymLambda):
         grid_value = _run_grid_lambda(source, grid_value, case, make_case)
     if grid_value is None or not isinstance(grid_value, SymTuple):
@@ -1214,37 +1851,75 @@ def extract_grid(source: OperatorSource, case: dict) -> GridModel:
                         "grid",
                         "the case layer never assigns a trackable 'grid' "
                         "(the grid form cannot be extracted)")
-    axis_exprs = []
-    for item in grid_value.items:
-        if item.gexpr is None:
-            why = item.opaque or repr(item.concrete)
-            raise GridError(source.path, make_case.lineno,
-                            make_case.col_offset + 1, "grid",
-                            "a grid axis is not provenance-tracked (it "
-                            "depends on values the model cannot see: "
-                            f"{why})")
-        axis_exprs.append(item.gexpr)
-    if not axis_exprs:
-        raise GridError(source.path, make_case.lineno, make_case.col_offset + 1,
-                        "grid", "the grid is empty")
-    if len(axis_exprs) > 3:
-        raise GridError(source.path, make_case.lineno, make_case.col_offset + 1,
-                        "grid",
-                        f"the grid has {len(axis_exprs)} axes; Triton grids "
-                        "are at most 3-D")
 
-    # -- ties: every leaf must be a literal or a bundle-visible quantity -------
+    # -- the tie registries: what the interpreter proved equal to what --------
     args_sym = env.get("args")
     if not isinstance(args_sym, SymDict) and isinstance(interp.returned,
                                                         SymDict):
         candidate = interp.returned.mapping.get("args")
         if isinstance(candidate, SymDict):
             args_sym = candidate
+
+    #: bundle scalar reads: the interpreter's own equality between a grid
+    #: subtree and a scalar kernel argument (the same SymVal, or a
+    #: structurally equal grid expression -- "tie scalars the case passes
+    #: as grid inputs")
+    scalar_by_id: Dict[int, str] = {}
+    scalar_by_gexpr: Dict[object, str] = {}
+    #: view-extent reads: a grid subtree equal to a view axis's extent
+    view_by_id: Dict[int, Tuple[str, int]] = {}
+    view_by_gexpr: Dict[object, Tuple[str, int]] = {}
+    #: identity-tier constants: meta/launch_meta entries the specialization
+    #: identity signs (folded exactly like the lambda-meta form)
+    meta_by_id: Dict[int, int] = {}
+    meta_by_gexpr: Dict[object, int] = {}
+    meta_names: Dict[int, str] = {}
+
+    if isinstance(args_sym, SymDict):
+        for argname in sorted(args_sym.mapping):
+            value = args_sym.mapping.get(argname)
+            if value is None:
+                continue
+            if argname in pointer_params and isinstance(value, SymArray):
+                shape = arrays.get(argname) or ()
+                for axis, extent in enumerate(value.extents):
+                    if axis >= len(shape):
+                        break
+                    view_by_id.setdefault(id(extent), (argname, axis))
+                    if extent.gexpr is not None:
+                        view_by_gexpr.setdefault(extent.gexpr,
+                                                 (argname, axis))
+            elif argname in scalar_params:
+                scalar_by_id.setdefault(id(value), argname)
+                if value.gexpr is not None:
+                    scalar_by_gexpr.setdefault(value.gexpr, argname)
+
+    if isinstance(interp.returned, SymDict):
+        for table in ("meta", "launch_meta"):
+            sym_table = interp.returned.mapping.get(table)
+            payload_table = case.get(table) or {}
+            if not isinstance(sym_table, SymDict) \
+                    or not isinstance(payload_table, dict):
+                continue
+            for mname in sorted(sym_table.mapping):
+                mvalue = payload_table.get(mname)
+                if not _integral(mvalue):
+                    continue
+                sv = sym_table.mapping[mname]
+                if sv is None:
+                    continue
+                if id(sv) not in meta_by_id:
+                    meta_by_id[id(sv)] = int(mvalue)
+                    meta_names[id(sv)] = f"{table}.{mname}"
+                if sv.gexpr is not None:
+                    meta_by_gexpr.setdefault(sv.gexpr, int(mvalue))
+
+    # -- the leaf-tie tables (runtime reads for bare shape leaves) ------------
     scalar_ties: Dict[Tuple, str] = {}
     view_ties: Dict[Tuple, Tuple[str, int]] = {}
     if isinstance(args_sym, SymDict):
         for argname, value in args_sym.mapping.items():
-            if isinstance(value, SymArray):
+            if argname in pointer_params and isinstance(value, SymArray):
                 for axis, extent in enumerate(value.extents):
                     # a view extent whose tracked expression IS one leaf
                     # (by structural equality -- origin or a single-axis
@@ -1257,7 +1932,8 @@ def extract_grid(source: OperatorSource, case: dict) -> GridModel:
                             extent.origin.kind == "shape_extent":
                         view_ties.setdefault(extent.origin.key,
                                              (argname, axis))
-            elif value is not None and value.origin is not None \
+            elif argname in scalar_params and value is not None \
+                    and value.origin is not None \
                     and value.origin.kind == "shape_extent":
                 # a scalar argument whose value shares the origin (args =
                 # {"n": shape[0]}): the grid leaf reads it at run time
@@ -1273,11 +1949,94 @@ def extract_grid(source: OperatorSource, case: dict) -> GridModel:
     value_view_ties: Dict[Tuple, Tuple[str, int]] = {}
     if len(payload_shape):
         for view, shape in sorted(arrays.items()):
+            if view not in pointer_params:
+                continue
             for axis, extent in enumerate(shape):
                 for i, want in enumerate(payload_shape):
                     if int(extent) == int(want):
                         value_view_ties.setdefault((i,), (view, axis))
                         break
+
+    def _leaf_tied(expr: Ref) -> bool:
+        """A shape leaf with a runtime leaf tie keeps its Ref (the tie
+        stage binds it); the identity-tier constant is the fallback."""
+        return expr.kind == "shape_extent" and (
+            expr.key in scalar_ties or expr.key in view_ties
+            or expr.key in value_view_ties)
+
+    # -- rewrite each axis: fill what is provably equal to a bundle read or
+    # an identity-tier constant; keep everything else for the tie/refusal
+    # stage (top-down: the largest provable subtree becomes one read)
+    def _rewrite(expr):
+        if isinstance(expr, Hole):
+            owner = id(expr.owner)
+            if owner in scalar_by_id:
+                return Ref("bundle_scalar", (scalar_by_id[owner],))
+            if owner in view_by_id:
+                return Ref("bundle_view", view_by_id[owner])
+            if owner in meta_by_id:
+                return Lit(meta_by_id[owner])
+            return expr
+        if isinstance(expr, (Bin, MinMax)):
+            if expr in scalar_by_gexpr:
+                return Ref("bundle_scalar", (scalar_by_gexpr[expr],))
+            if expr in view_by_gexpr:
+                return Ref("bundle_view", view_by_gexpr[expr])
+            if expr in meta_by_gexpr:
+                return Lit(meta_by_gexpr[expr])
+            left = _rewrite(expr.left)
+            right = _rewrite(expr.right)
+            if isinstance(expr, Bin):
+                return Bin(expr.op, left, right)
+            return MinMax(expr.op, left, right)
+        if isinstance(expr, Ref):
+            # a bare leaf: prefer a runtime read (a tied scalar argument,
+            # a tied view extent), then the identity-tier constant
+            # (``meta = {"N": n}`` signs n for this identity)
+            if expr in scalar_by_gexpr:
+                return Ref("bundle_scalar", (scalar_by_gexpr[expr],))
+            if expr in view_by_gexpr:
+                return Ref("bundle_view", view_by_gexpr[expr])
+            if _leaf_tied(expr):
+                return expr
+            if expr in meta_by_gexpr:
+                return Lit(meta_by_gexpr[expr])
+        return expr
+
+    axis_exprs = []
+    for item in grid_value.items:
+        if item.gexpr is None:
+            # an axis the model cannot see as an expression: still
+            # extractable when the interpreter proves the very same value
+            # flows into a bundle scalar, a view extent or a meta constant
+            owner = id(item)
+            if owner in scalar_by_id:
+                axis_exprs.append(Ref("bundle_scalar",
+                                      (scalar_by_id[owner],)))
+                continue
+            if owner in view_by_id:
+                axis_exprs.append(Ref("bundle_view", view_by_id[owner]))
+                continue
+            if owner in meta_by_id:
+                axis_exprs.append(Lit(meta_by_id[owner]))
+                continue
+            why = item.opaque or repr(item.concrete)
+            raise GridError(source.path, make_case.lineno,
+                            make_case.col_offset + 1, "grid",
+                            "a grid axis is not provenance-tracked (it "
+                            "depends on values the model cannot see: "
+                            f"{why})")
+        axis_exprs.append(_rewrite(item.gexpr))
+    if not axis_exprs:
+        raise GridError(source.path, make_case.lineno, make_case.col_offset + 1,
+                        "grid", "the grid is empty")
+    if len(axis_exprs) > 3:
+        raise GridError(source.path, make_case.lineno, make_case.col_offset + 1,
+                        "grid",
+                        f"the grid has {len(axis_exprs)} axes; Triton grids "
+                        "are at most 3-D")
+
+    # -- ties: every leaf must be a literal or a bundle-visible quantity -------
 
     def tie_leaf(ref: Ref):
         if ref.kind == "shape_extent":
@@ -1299,8 +2058,11 @@ def extract_grid(source: OperatorSource, case: dict) -> GridModel:
                 "be proven equal to a bundle-visible quantity (no scalar "
                 "argument and no view extent shares its origin); refusing "
                 "to bake a launch geometry")
-        if ref.kind == "view_extent":
+        if ref.kind in ("view_extent", "bundle_view"):
             ties[ref.key] = ("view_extent", ref.key[0], ref.key[1])
+            return
+        if ref.kind == "bundle_scalar":
+            ties[ref.key] = ("scalar", ref.key[0])
             return
         if ref.kind == "case_param":
             raise GridError(
@@ -1313,15 +2075,27 @@ def extract_grid(source: OperatorSource, case: dict) -> GridModel:
         for ref in _grid_leafs(axis_expr):
             tie_leaf(ref)
 
-    # -- compile-time equality self-check --------------------------------------
+    # an unfilled hole names the genuinely untraceable input (MECH-
+    # DIAGNOSTIC-REFUSAL): counted, never silently baked
+    for axis_expr in axis_exprs:
+        holes = list(_grid_holes(axis_expr))
+        if holes:
+            why = ", ".join(repr(h) for h in holes[:4])
+            raise GridError(source.path, make_case.lineno,
+                            make_case.col_offset + 1, "grid",
+                            "a grid axis is not provenance-tracked (it "
+                            "depends on values the model cannot see: "
+                            f"{why})")
+
+    # -- compile-time equality self-check: the REWRITTEN axes are exactly
+    # what the native routine computes at run time -- evaluate them with
+    # the compiling case's concrete bundle values
     concrete: Dict[Tuple, int] = {}
     for key, tie in ties.items():
         kind = tie[0]
         if kind == "scalar":
             value = (case.get("args") or {}).get(tie[1])
-            import numbers as _numbers
-            if isinstance(value, bool) \
-                    or not isinstance(value, _numbers.Integral):
+            if not _integral(value):
                 raise GridError(
                     source.path, make_case.lineno, make_case.col_offset + 1,
                     "grid",
@@ -1338,10 +2112,13 @@ def extract_grid(source: OperatorSource, case: dict) -> GridModel:
                     f"tied view {view!r} axis {axis} is not an array "
                     "argument of the case")
             concrete[key] = shape[int(axis)]
-    shape = case.get("shape") or ()
-    for i, extent in enumerate(shape):
-        concrete.setdefault(("shape_extent", (i,)), int(extent))
-    modeled = [evaluate_expr(a, concrete) for a in axis_exprs]
+    try:
+        modeled = [evaluate_expr(a, concrete) for a in axis_exprs]
+    except (KeyError, ValueError) as exc:
+        raise GridError(source.path, make_case.lineno, make_case.col_offset + 1,
+                        "grid",
+                        f"the rewritten grid model cannot be evaluated "
+                        f"against the case payload: {exc}") from None
     declared = _declared_grid(case, source)
     if declared is None or len(declared) != len(modeled):
         raise GridError(source.path, make_case.lineno, make_case.col_offset + 1,
@@ -1395,9 +2172,11 @@ def _run_grid_lambda(source: OperatorSource, lam: SymLambda, case: dict,
             from None
     if isinstance(value, SymTuple):
         return value
-    if value.tracked or value.concrete is not None:
-        return SymTuple([value])
-    return None
+    # a single (possibly untracked) value: keep it as a one-axis grid -- an
+    # untracked axis still extracts when the interpreter proves the same
+    # value flows into a bundle scalar / view extent / meta constant, and
+    # refuses naming it otherwise
+    return SymTuple([value])
 
 
 def grid_of_case(module, shape=None, dtype=None, seed=None) -> Tuple[dict, dict]:

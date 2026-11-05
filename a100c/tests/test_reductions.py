@@ -696,11 +696,14 @@ def check_remaining_boundaries_refuse_located(compiler):
     from a100c.driver import PipelineError
     bad = []
     cases = [
-        # argmin_kernel_contiguous: the grid input N_pre is not
-        # bundle-visible (the grid model refuses to bake it)
+        # argmin_kernel_contiguous: T027 tied its grid (the n_pre*s_post
+        # subtree reads the out_ptr view extent at run time), so the
+        # float32 case compiles and executes PASS now (verified in
+        # T027's execution probe); the fp16 case refuses deeper, at the
+        # multi-width reduction lane
         ("ops/suite/dev/argmin_kernel_contiguous.py",
-         {"shape": (128, 128, 2), "dtype": "float32"},
-         ("grid", "bundle-visible")),
+         {"shape": (128, 128, 2), "dtype": "float16"},
+         ("SEW", "multi-width", "reduce")),
         # loop_sum: the identity .to(float32) folds, but the int64
         # median family refuses on the element width
         # T012 widened the conversion matrix, so the int64 element path

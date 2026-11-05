@@ -622,12 +622,16 @@ def check_refusals_located(compiler):
     with other=) and prelu_kernel.py moved past this boundary in T011
     (the other-merge, the scalar converts and the fp compare rows landed;
     both compile and execute PASS now -- verified by the probe runs in
-    T011's evidence), so they are no longer refusal cases."""
+    T011's evidence), so they are no longer refusal cases.  T027 moved
+    tril_inplace past the GRID boundary (its M/C are meta constexprs the
+    specialization identity signs -- a declared provenance category): the
+    refusal now sits deeper, at the extent-homogeneous region lane."""
     from a100c.driver import PipelineError
     bad = []
     cases = [
         ("ops/suite/dev/tril_inplace_zero_tile_kernel.py",
-         {}, ("subscript", "return", "program_id axis", "grid")),
+         {}, ("subscript", "return", "program_id axis", "grid",
+              "block extents", "extent-homogeneous")),
     ]
     for rel, kwargs, needles in cases:
         module = _load(ROOT / rel)
