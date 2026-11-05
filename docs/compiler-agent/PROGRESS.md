@@ -34,7 +34,6 @@ Phase: **IMPLEMENTATION** · project: `compiler-a100-experiment-001`
 
 | When | Phase | Event | Detail |
 |---|---|---|---|
-| 2026-11-04T12:20:04.322901+00:00 | IMPLEMENTATION | start-task | T007 agent=coder |
 | 2026-11-04T12:20:04.935114+00:00 | IMPLEMENTATION | task-delegate | WTI008 task=T007 attempt=1 profile=general-purpose |
 | 2026-11-04T13:47:18.397890+00:00 | IMPLEMENTATION | task-report-out-of-contract | T007: a100c/cache/05d1212439da88bd7d8a4c94514bc00d5df31550d6b064be087e3352b13ef1fe/stage.mir.lowered.txt, a100c/cache/41da3f9af48340ebeb708152c86edb627ee11b6f613c0f10fc7c455dcf88cdf9/stage.plan.txt, a100c/cache/41da3f9af48340ebeb708152c86edb627ee11b6f613c0f10fc7c455dcf88cdf9/stage.mir.lowered.txt, a100c/cache/05d1212439da88bd7d8a4c94514bc00d5df31550d6b064be087e3352b13ef1fe/stage.tir.txt, a100c/cache/05d1212439da88bd7d8a4c94514bc00d5df31550d6b064be087e3352b13ef1fe/artifact.json |
 | 2026-11-04T13:47:18.404251+00:00 | IMPLEMENTATION | task-report | WTI008 COMPLETED attempt=1 [changes outside the declared paths: a100c/cache/05d1212439da88bd7d8a4c94514bc00d5df31550d6b064be087e3352b13ef1fe/stage.mir.lowered.txt, a100c/cache/41da3f9af48340ebeb708152c86edb627ee11b6f613c0f10fc7c455dcf88cdf9/stage.plan.txt, a100c/cache/41da3f9af48340ebeb708152c86edb627ee11b6f613c0f10fc7c455dcf88cdf9/stage.mir.lowered.txt, a100c/cache/05d1212439da88bd7d8a4c94514bc00d5df31550d6b064be087e3352b13ef1fe/stage.tir.txt, a100c/cache/05d1212439da88bd7d8a4c94514bc00d5df31550d6b064be087e3352b13ef1fe/artifact.json] |
@@ -91,3 +90,4 @@ tests[1]: `python3 a100c/tests/test_lowe |
 | 2026-11-05T08:04:05.018930+00:00 | IMPLEMENTATION | task-delegate | WTI017 task=T016 attempt=1 profile=general-purpose |
 | 2026-11-05T09:16:55.363128+00:00 | IMPLEMENTATION | frontend-coverage | 107 row(s); complete |
 | 2026-11-05T09:18:10.951325+00:00 | IMPLEMENTATION | frontend-coverage | 107 row(s); complete |
+| 2026-11-05T09:19:06.162415+00:00 | IMPLEMENTATION | frontend-coverage | 107 row(s); complete |
