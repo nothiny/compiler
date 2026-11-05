@@ -1887,6 +1887,11 @@ class _Composed:
         rty = mir.VectorType(16, 1, "float") if is16 else \
             mir.VectorType(32, 1, ty16.kind if not ty16.is_float()
                            else "float")
+        # the zero the masked rows select from opens its OWN region at the
+        # row type (the tile loop's 16-bit loads leave their region active;
+        # the e32 acc splat would run there -- the vsetvli-region
+        # consistency invariant, matmul_kernel's fp16 form)
+        self.if_.region(rty.sew, rty.lmul, 8, loc)
         zero = self._splat(self._k32(0), rty, "az")
         for i in range(self.tm):
             mi = self._sadd(m0, self._k(i), f"ami{i}")

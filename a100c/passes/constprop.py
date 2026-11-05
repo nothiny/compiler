@@ -439,6 +439,11 @@ class ConstPropPass:
             extent values, realised where the folded result had real
             extents (a real extent is always consumable where a broadcast
             one was expected; the reverse is the verifier's rejection)."""
+            # an i1 const requires a BOOL value (the TIR verifier's
+            # contract): a folded comparison/logical may hand back an
+            # int-valued truth (complex_svd's where-mask fold found it)
+            if type_.is_bool():
+                value = bool(value)
             c = tir.Op.const(value, type_, loc)
             if not shape:
                 return [c], c.result()

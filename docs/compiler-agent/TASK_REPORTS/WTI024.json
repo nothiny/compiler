@@ -1,0 +1,109 @@
+{
+  "invocation_id": "WTI024",
+  "task_id": "T028",
+  "attempt": 1,
+  "context_sha256": "ea087af2d7b3296d13344bd801298a7a46eb15e19f9827f02739f917cc26cdf0",
+  "outcome": "COMPLETED",
+  "failure_kind": "implementation",
+  "summary": "Generalized the block model in the shared vector/layout lane. Five of the six owned defect classes are at zero in the filtered compile sweep over all 157 owned operators (715 identities): the 354 tl.sum/tl.max/tl.min multi-axis rows (the frontend refusal removed; partial-axis reductions lower through a new staging-lane segment that materializes the reduced block -- chunked vred along the last axis, a scalar walk for other axis sets, index forms with the declared tie-break), the 139 multi-width reduce rows (the reduction runs at the operand's own SEW with per-op vsetvli regions; 16-bit float sums ride the declared fp32-lane policy with one rounding at the exit), the 15 per-chunk-partial rows (the pass splits at the first rank-0 partial consumer; the merged value binds at the pass exit), all vsetvli-region-inconsistency rows including 28 newly exposed ones (active-region tracking in the emission context; region discipline in the merge/back-edge/scalar-float/convert/maxmin/abs paths; the dot emitter's accumulator splat), and the 67 no-arange rows (scalar-only kernels and block-extent kernels lower without the legacy arange default; the default pass params come from the first real pass). 302 of the 715 owned identities now produce artifacts. The sixth class (mixed-extent runtime regions) was implemented as a segment-level restructure (group_norm_forward_affine executes PASS 12/12 at 1/4 workers) but is DISABLED after reproducing staging-path hangs under QEMU on two other shapes (a staged block carry; a masked 2-D access with a ragged row tail): the boundary keeps its located refusal with the reproductions recorded in vectorize._is_mixed_extent_region's docstring, and the restructure predicate is kept behind the switch for the repair loop that owns the staging-path defect. Of the 159 original (operator, class) pairs, 155 moved to artifacts or different-construct refusals; 4 operators (15 rows) keep the mixed-extent boundary. All pre-existing test files pass (including the ragged-tail witness, stage-barrier, IME evidence and matrix-breadth tests) and executed comparisons at 1 and 4 workers pass for the new lanes and for representative corpus operators (mean_dim fp16/bf16, reduce_kernel fp16/bf16 sums, fused_max_bincount exact int, argmin_kernel_contiguous, linalg_cross_complex).",
+  "files_changed": [
+    "a100c/lower/vectorize.py",
+    "a100c/frontend/lower_tir.py",
+    "a100c/lower/matrix.py",
+    "a100c/passes/constprop.py",
+    "a100c/tests/test_reductions.py",
+    "a100c/tests/test_mir_verifier.py",
+    "a100c/tests/test_layout_ops.py",
+    "a100c/tests/test_control_flow.py",
+    "docs/compiler-agent/T028_owned_census.json"
+  ],
+  "artifacts": [
+    "docs/compiler-agent/T028_owned_census.json",
+    "/tmp/t028probe/exec1.log",
+    "/tmp/t028probe/owned_sweep3.log"
+  ],
+  "commands": [
+    {
+      "command": "set -a; . ./.env; set +a; python3 a100c/tests/test_compile_sweep.py --operator <157 owned operators> --census-out docs/compiler-agent/T028_owned_census.json",
+      "exit_code": 1,
+      "observed": "936/936 cases classified, 157/157 operators, 715 identities: 302 artifacts + 371 refusals + 5 over-budget + 37 crashes. Class analysis: 'reducing every axis of a multi-axis block' 0, 'reduction operand SEW' 0, 'a scalar computation between the reduction' 0, 'vsetvli-region-inconsistency' 0, 'no tl.arange in the kernel body' 0, 'a runtime region mixes block extents' 255 (the 15 original rows of 4 operators plus ~240 rows newly exposed at this boundary after the earlier classes cleared -- for those the boundary is a different construct than their original class). Exit 1 comes from the sweep's partition check (5 over-budget matmul/svd compile-economics rows and 36 EmissionError 'vmath: no free caller-saved GPR pair' crashes, the math-ops emission lane's located boundary exposed by the cleared classes) and one unlocated allocation refusal; neither is one of the six owned classes."
+    },
+    {
+      "command": "set -a; . ./.env; set +a; python3 a100c/tests/test_reductions.py",
+      "exit_code": 0,
+      "observed": "all checks PASS including the new t028-block-forms-execute-1-4-workers check: partial-axis sum (axis=1/axis=0, fp32/fp16/bf16/int32 exact), max/argmax partial axis, the 2-D softmax composition, the multi-width reduce (fp16/bf16 data reduced at fp32), the pass-split form (a scalar atomic consumer of the reduction between block statements, int exact) and a scalar-only no-arange kernel all execute and compare PASS at 1 and 4 workers against independent numpy references; the mixed-extent form asserts the located boundary refusal."
+    },
+    {
+      "command": "set -a; . ./.env; set +a; python3 a100c/tests/test_mir_verifier.py",
+      "exit_code": 0,
+      "observed": "all checks PASS: the hand-built vsetvli-region-inconsistency control still rejects, the real lowerings verify, and the new mixed-SEW acceptance check verifies the fp16-pass/fp32-reduce lowering (sews seen [16, 32])."
+    },
+    {
+      "command": "set -a; . ./.env; set +a; for t in a100c/tests/test_*.py; do python3 $t; done (each file individually)",
+      "exit_code": 0,
+      "observed": "every pre-existing test file passes: test_lower_vector, test_lower_scalar, test_lower_matrix, test_layout_ops, test_control_flow, test_conversions, test_math_ops, test_memory_forms, test_atomics, test_select, test_allocate, test_legalize, test_emit, test_build, test_passes_basic, test_frontend_surface, test_frontend_types, test_frontend_shapes, test_tir_verifier, test_scalar_binding, test_grid_model, test_specialize, test_stage_plan, test_partition, test_rng, test_driver_cache, test_compile_regressions, test_e2e_slice, test_runtime_smoke, test_ime_evidence, test_matrix_breadth, test_reductions, test_mir_verifier."
+    },
+    {
+      "command": "set -a; . ./.env; set +a; python3 tools/check_masked_tails.py && python3 tools/check_stage_barriers.py && python3 tools/check_numeric_policy.py && python3 tools/check_no_name_dispatch.py",
+      "exit_code": 0,
+      "observed": "the ragged-tail witness PASSes (outputs compare PASS, guard region intact), the stage-barrier witness PASSes at 4 and 8 threads over 16 repeats, the numeric-policy and no-name-dispatch checks PASS."
+    },
+    {
+      "command": "python3 <execution probe> suite/dev/mean_dim_kernel_inner.py suite/dev/reduce_kernel.py suite/dev/fused_max_bincount_kernel.py (NativeExecutableDevice at 1 and 4 threads, case's own comparison policy)",
+      "exit_code": 0,
+      "observed": "mean_dim (multi-width fp16/bf16/fp32): PASS at 1 and 4 workers for shapes [17] and [97]; reduce_kernel (fp16/bf16/fp32 sums incl. the fp32-lane policy for 16-bit floats): PASS; fused_max_bincount (int32, array_equal exact, the pass-split form): PASS. argmin_kernel_contiguous (fp16/bf16 past the multi-width boundary), linalg_cross_complex_contiguous (partial-axis staging lane) and group_norm_forward_affine (the restructure, before the disable) also executed PASS at 1 and 4 workers."
+    }
+  ],
+  "acceptance": [
+    {
+      "ref": "acceptance[0]",
+      "command": "set -a; . ./.env; set +a; python3 a100c/tests/test_compile_sweep.py --operator <157 owned operators> --census-out docs/compiler-agent/T028_owned_census.json",
+      "exit_code": 1,
+      "observed": "Five of the six classes at zero across all 715 owned identities: multi-axis 0 (was 354), multi-width 0 (was 139), per-chunk partial 0 (was 15), vsetvli-region 0 (was 32 plus 28 newly exposed, all cleared), no-arange 0 (was 67). The mixed-extent class: the restructure was implemented and executed-verified (group_norm 12/12 PASS at 1/4 workers) then disabled after reproduced staging-path hangs; its 15 original rows (adaptive_avg_pool2d, deconv3d_leaky_pool, group_norm_forward_affine, matmul_kernel_5766d29c) keep the located boundary refusal and ~240 rows newly exposed at that boundary carry a different construct than their original class. 155 of the 159 original (operator, class) pairs moved to artifacts or different-construct refusals. The sweep's own exit 1 records 5 over-budget compile-economics identities and 36 EmissionError rows (the math-ops emission boundary) -- exposed next blockers, not owned classes."
+    },
+    {
+      "ref": "acceptance[1]",
+      "command": "python3 <execution probe> on mean_dim_kernel_inner, reduce_kernel, fused_max_bincount (plus argmin_kernel_contiguous, linalg_cross_complex_contiguous, group_norm_forward_affine and the T028 probe forms in test_reductions.py)",
+      "exit_code": 0,
+      "observed": "Owned reduction operators execute and compare PASS at 1 and 4 workers under each case's declared policy: mean_dim (multi-width, fp16/bf16/fp32), reduce_kernel (16-bit float sums under the fp32-lane policy), fused_max_bincount (integer outputs exact via array_equal), argmin_kernel_contiguous (fp16/bf16), linalg_cross_complex (partial-axis). The T028 regression forms cover multi-axis sum/max/argmax on both axes, the softmax composition, the multi-width reduce, the pass-split and a scalar-only kernel, with integer forms exact."
+    },
+    {
+      "ref": "acceptance[2]",
+      "command": "set -a; . ./.env; set +a; python3 a100c/tests/test_mir_verifier.py",
+      "exit_code": 0,
+      "observed": "The hand-built vsetvli-region-inconsistency control still rejects (rejects-vsetvli-region-inconsistency PASS) and the new mixed-SEW lowering is accepted (accepts-the-mixed-sew-lowering PASS, sews [16, 32]; mixed-sew-lowering-mixes-regions PASS)."
+    },
+    {
+      "ref": "acceptance[3]",
+      "command": "for t in a100c/tests/test_*.py; do python3 $t; done; python3 tools/check_masked_tails.py; python3 tools/check_stage_barriers.py",
+      "exit_code": 0,
+      "observed": "All pre-existing test files pass, including the ragged-tail witness (check_masked_tails: outputs compare PASS, guard region intact), the stage-barrier witness (4 and 8 threads, 16 repeats PASS), the IME slice evidence tests (test_ime_evidence, test_matrix_breadth all PASS) and the whole remaining suite."
+    }
+  ],
+  "tests": [
+    {
+      "ref": "tests[0]",
+      "command": "set -a; . ./.env; set +a; python3 a100c/tests/test_compile_sweep.py --operator <157 owned operators> --census-out docs/compiler-agent/T028_owned_census.json",
+      "exit_code": 1,
+      "observed": "The filtered sweep over every owned operator: five classes at zero (multi-axis, multi-width, per-chunk, vsetvli-region, no-arange); the mixed-extent class retains its 15 original rows behind the recorded boundary; 302 artifacts; exit 1 from the sweep's partition check recording 5 over-budget and 36 EmissionError rows (exposed next blockers outside the owned classes)."
+    },
+    {
+      "ref": "tests[1]",
+      "command": "set -a; . ./.env; set +a; python3 a100c/tests/test_lower_vector.py; python3 a100c/tests/test_mir_verifier.py; python3 a100c/tests/test_reductions.py; <and the full a100c test suite>",
+      "exit_code": 0,
+      "observed": "test_lower_vector, test_mir_verifier and test_reductions all PASS (test_reductions now carries the T028 block-forms regression); every other file in a100c/tests passes, as do the witness tools."
+    }
+  ],
+  "evidence": "docs/compiler-agent/T028_owned_census.json (the final filtered compile sweep over all 157 owned operators: 715 identities, 302 artifacts, the six owned classes at zero except the recorded mixed-extent boundary) plus the executed comparisons: mean_dim/reduce_kernel/fused_max_bincount/argmin_kernel_contiguous/linalg_cross_complex PASS at 1 and 4 workers under their own case policies (logs /tmp/t028probe/exec1.log and the exec_probe run), and the t028-block-forms check in a100c/tests/test_reductions.py executing the partial-axis, multi-width, softmax, pass-split and no-arange forms at 1 and 4 workers against independent numpy references.",
+  "design_issue": {},
+  "debug_request": {},
+  "attack": {},
+  "remaining_work": [
+    "Re-enable the mixed-extent region restructure (vectorize._is_mixed_extent_region): the staging path hangs under QEMU on (a) a staged block carry across the restructured back edge (the layout_in_loop probe) and (b) a masked 2-D access with a ragged row tail at otherwise-verified extents (a 4x8-block probe with R=3: (20,17) executes PASS, (3,97) hangs; group_norm_forward_affine's own 12 cases pass). The reproductions are recorded in the predicate's docstring and the enabled predicate is kept as _is_mixed_extent_region_enabled; the repair belongs to the staging-path owner (the T014 'chunks beyond the first 256 bytes' defect family). Until then the 15 original mixed-extent rows keep the located refusal and ~240 newly exposed rows sit at that boundary.",
+    "The 36 EmissionError 'vmath: no free caller-saved GPR pair' rows (attention/retention kernels whose reductions now lower past the owned classes): the math-ops emission lane's register boundary, a different construct exposed by this task.",
+    "The 5 over-budget compile-economics identities (matmul_kernel fp16/bf16 at 128^3 and 17x33x100, median_fp32_strided_key_select, small4_square_svd): compile-time/allocation-convergence limits of the now-reached unrolled bodies, recorded by the sweep.",
+    "The allocation and grid refusal classes newly reached by the owned operators (allocation: LMUL/spill convergence; grid: provenance) belong to their own census classes."
+  ],
+  "end_revision": "",
+  "at": "2026-11-05T23:17:17.909501+00:00"
+}
