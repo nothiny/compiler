@@ -1,0 +1,120 @@
+{
+  "invocation_id": "WTI017",
+  "task_id": "T016",
+  "attempt": 1,
+  "context_sha256": "3fa1728f804a5c501a11c698cd512e84334114076702f0adb10ced87b099618d",
+  "outcome": "COMPLETED",
+  "failure_kind": "implementation",
+  "summary": "Declared-surface coverage completion and recording. FRONTEND_COVERAGE.json now has one row for each of the 107 declared constructs (280 parameters), every row implemented with per-construct executed evidence and the IR construct that carries it (51 shared carriers, 2.1 constructs per carrier: 13 dtype constants -> tir.Type, 12 math forms -> math.*, 7 reductions -> reduce, 6 reshape-family -> reshape, 6 atomics -> atomic_rmw/cas, 6 RNG -> rng.philox, 3 arith fn forms -> arith.*); recorded through the engine frontend-coverage command (evaluate ok=true) and cross-checked by a new coverage-matrix check inside the declared enumeration test. Closing the gaps required real implementation work the full-corpus census exposed: tl.static_assert (the last unimplemented construct with corpus calls: constexpr-true emits nothing, false/runtime conditions are located refusals; its 3 corpus operators now lower), tl.dtype (the pinned name-registry constructor, the f'uint{nbits}' JoinedStr form, .primitive_bitwidth folding on x.dtype and ptr.type.element_ty; its 2 corpus operators now clear the frontend), the .cast method form of tl.cast (24 cases), meta-carried live triton dtype objects in dtype= (tl.cast/tl.zeros/tl.full, 27 cases), module-level X = tl.constexpr(v) globals (10 cases), tl.fma's pinned to_tensor scalar legalization -- python-float scalars participate as fp32, which the gelu fp16 chain silently computed in 16-bit before (6 cases, now executed-and-compared PASS), .shape folding (attribute, subscript, evaluator; feeds tl.arange/tl.full constexpr shapes), and a pre-existing BoolOp leak where a runtime 'or' folded to the truthiness of the RuntimeValue objects (silently baking True; now a located refusal, the pinned visit_BoolOp logical_and/logical_or lowering left as a recorded T018 class). Evidence: the complete 30-file a100c test suite passes with 0 failed checks; end-to-end executed comparisons on the newly-enabled operators (selu_kernel_supreme [static_assert] and gelu_kernel_nomask [fma] all cases PASS at 1 and 4 threads under the case policies); the tl.dtype corpus operator refuses located at the lowering's i64-offset/i32-SEW width boundary (frontend complete, deeper stage owned by T018). Final full-corpus frontend census: 1873/2734 cases lower to verified TIR (1832 at task start); the 861 remaining refusals are 19 recorded shape-form/non-construct classes handed to T018. tl.swizzle2d (0 corpus calls) is implemented with executed evidence rather than declared-unsupported.",
+  "files_changed": [
+    "a100c/frontend/surface.py",
+    "a100c/frontend/specialize.py",
+    "a100c/frontend/lower_tir.py",
+    "a100c/frontend/source.py",
+    "a100c/tests/test_frontend_surface.py",
+    "a100c/tests/test_reductions.py",
+    "a100c/tests/test_math_ops.py",
+    "FRONTEND_COVERAGE.json",
+    "docs/compiler-agent/A100_SELECTED_REFERENCE_AUDIT.json",
+    "docs/compiler-agent/A100_SELECTED_REFERENCE_AUDIT/20261105T082354Z-3026735/",
+    "docs/compiler-agent/A100_SELECTED_REFERENCE_AUDIT/20261105T084733Z-3311136/",
+    "docs/compiler-agent/A100_SELECTED_REFERENCE_AUDIT/20261105T084744Z-3311670/"
+  ],
+  "artifacts": [
+    "FRONTEND_COVERAGE.json (107 rows, 280 parameters, 51 carriers; written by the engine frontend-coverage command)",
+    "docs/compiler-agent/PROJECT_STATE.json (frontend-coverage-v1 event: '107 row(s); complete')",
+    "docs/compiler-agent/A100_REFERENCE_AUDIT.json (untouched primary 500-operator/2734-case reference record used to verify the pinned 16-bit math boundary)",
+    "/tmp/wti017-census-final.json (the final full-corpus frontend census classification handed to T018)"
+  ],
+  "commands": [
+    {
+      "command": "set -a; . ./.env; set +a; timeout 580 python3 /tmp/wti017-census.py 540 (every case of every one of the 500 operators through source -> specialize -> lower -> TIR verify)",
+      "exit_code": 0,
+      "observed": "BEFORE (task start): 2734 cases, 902 failing, 158 operators with a refusal; construct-level gaps: tl.static_assert 7 cases, tl.dtype/.primitive_bitwidth 4, .cast method 24, meta-carried dtype objects 28, module tl.constexpr globals 10, tl.exp2-fma 6. AFTER (final): 2734 cases, 861 failing, 148 operators; 1873 cases lower to verified TIR (was 1832); every remaining class is a shape-form or non-construct finding: tl.sum/tl.max/tl.min partial-axis multi-block 413, early return 153, tir-verifier join defects 98, Python and/or on runtime values 101 (now located refusals after the BoolOp-leak fix; the pinned visit_BoolOp lowers them via logical_and/logical_or), descending plain range 21, tl.arange end from method-call .shape 15, None literal 12, while True 12, tl.reshape 9, tl.dot rank-1 6, 16-bit math operands upstream of the pinned _check_dtype 18, i1 const 3"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; timeout 120 python3 -m compiler_agent --root . frontend-coverage --file /tmp/wti017-coverage-rows.json --source 'ops/docs/SUBSET.md ... API_INVENTORY.md ... pinned Triton 3.8.0 signatures; evidence: the a100c lane tests executed 2026-11-05 (T016)' --version 'Triton 3.8.0 / ops suite-v3 declared subset'",
+      "exit_code": 0,
+      "observed": "{\"declared\": true, \"ok\": true, \"errors\": [], \"summary\": {\"declared\": 107, \"implemented\": 107, \"declared_unsupported\": 0, \"parameters\": 280, \"ir_constructs\": 51, \"constructs_per_ir_construct\": 2.1}}"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; timeout 600 python3 a100c/tests/test_frontend_surface.py",
+      "exit_code": 0,
+      "observed": "26 PASS / 0 FAIL including the new checks: static_assert-true-emits-nothing, static_assert-false-refuses-with-message ('static_assert failed: BLOCK must be 16'), static_assert-runtime-cond-refuses, static_assert-dead-branch-not-evaluated, tl.dtype-primitive-bitwidth-cast-method, shape-attr-folds-into-constexpr-uses, cast-method-equals-to, tl.dtype-unknown-name-refuses, tl.dtype-runtime-name-refuses, meta-dtype-object-folds (a live tl.float32 from meta), module-constexpr-global-call-form, fma-scalar-participates-as-fp32 (math.fma result fp32), coverage-matrix-enumerates-declared-surface (107 rows, 107 implemented, 0 declared-unsupported of 107 declared)"
+    },
+    {
+      "command": "the complete a100c test suite (30 files), each 'set -a; . ./.env; set +a; timeout <400-580> python3 a100c/tests/<t>.py'",
+      "exit_code": 0,
+      "observed": "0 failed checks in all 30 files: test_specialize 12, test_frontend_types 12, test_frontend_shapes 7, test_tir_verifier 16, test_mir_verifier 15, test_allocate 14, test_partition 6, test_grid_model 7, test_stage_plan 32, test_select 11, test_legalize 6, test_control_flow 10, test_layout_ops 25, test_conversions 13, test_rng 17, test_lower_scalar 7, test_lower_vector 18, test_emit 15, test_build 7, test_math_ops 11 (24/24 declared math forms executed on QEMU and compared, incl. the new arith_add/arith_sub/arith_mul explicit forms and cdiv_desugar), test_memory_forms 15, test_atomics 11 (all eight atomic operators + debug_barrier executed at 1/2/4/8), test_reductions 16 (incl. the new topk-emits-tir-op and histogram-emits-tir-op), test_e2e_slice 11, test_lower_matrix 65, test_ime_evidence 25, test_matrix_breadth 14, test_runtime_smoke 61, test_passes_basic 40, test_frontend_surface 26"
+    },
+    {
+      "command": "acceptance[2] control 1: remove the tl.erf entry from IMPLEMENTED_CONSTRUCTS in a100c/frontend/surface.py, run test_frontend_surface.py",
+      "exit_code": 1,
+      "observed": "FAIL coverage-matrix-enumerates-declared-surface | tl.erf: row says implemented, table refuses (the only failing check); surface.py restored bit-identically afterwards (sha256 1f8867b5568cab6156ed6ebe4d87f0ad298ece3371e81d2d66809a4bb30dfc8e before and after)"
+    },
+    {
+      "command": "acceptance[2] control 2: remove the tl.softmax row from FRONTEND_COVERAGE.json, run test_frontend_surface.py",
+      "exit_code": 1,
+      "observed": "FAIL coverage-matrix-enumerates-declared-surface | 106 rows ... of 107 declared; tl.softmax: no coverage row; restored bit-identically (sha256 d9e3342f75d6f06c14ff5ff9fd9371539b6ddd1bdef3993c67489df45cea7bae)"
+    },
+    {
+      "command": "acceptance[2] control 3: mark the tl.view row unimplemented in FRONTEND_COVERAGE.json, run test_frontend_surface.py",
+      "exit_code": 1,
+      "observed": "FAIL coverage-matrix-enumerates-declared-surface | tl.view: unimplemented; restored, final run exit 0 (all checks PASS)"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; A100_COMPILER_FACTORY=a100c.driver:make_compiler timeout 580 python3 - (end-to-end executed comparison of the newly-enabled corpus operators through the Compiler + declared QEMU endpoint, every case at 1 and 4 threads, compared under each case's own policy)",
+      "exit_code": 0,
+      "observed": "selu_kernel_supreme [tl.static_assert]: ALL PASS (2 cases x [1,4] threads); gelu_kernel_nomask [tl.fma scalar legalization, fp16/bf16 via the fp32 lanes]: ALL PASS (6 cases x [1,4] threads); nanmedian_ascend_byte_histogram_find_index_kernel [tl.dtype/order-key]: clears the frontend, refuses located at the lowering: 'ptradd: scalar offset width 64 exceeds the vector index SEW 32 (at ...:22:16)' -- a T018 width-legalisation finding, never a silent wrong answer"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; timeout 240 $A100_REFERENCE_PYTHON /tmp/wti017-refprobe/probe*.py (pinned-reference boundary probes: tl.exp2/tl.sqrt on fp16, tl.sum fp16 accumulation, fma chain types via static_assert)",
+      "exit_code": 0,
+      "observed": "pinned Triton 3.8.0 REFUSES tl.exp2/tl.sqrt on fp16 tensors ('Expected dtype [fp32, fp64] but got fp16'), tl.sum accumulates fp16 in fp16 (overflow to inf), fma(KC, x2, K) legalizes to fp32 (to_tensor-then-legalize); our refusals/promotions now match. Re-ran a100_support.reference_audit for gelu_kernel_nomask (6 cases PASS) and blocked_jacobi_pair_svals_kernel (3 cases PASS) to confirm the corpus's fp16 cases pass the reference (the remaining 18 census 16-bit-math cases fail on upstream operand-typing chains, recorded for T018)"
+    }
+  ],
+  "acceptance": [
+    {
+      "ref": "acceptance[0]",
+      "command": "set -a; . ./.env; set +a; timeout 120 python3 -m compiler_agent --root . frontend-coverage --file /tmp/wti017-coverage-rows.json --source '...' --version 'Triton 3.8.0 / ops suite-v3 declared subset'",
+      "exit_code": 0,
+      "observed": "evaluate ok=true: 107 of 107 declared constructs have a row, 0 unimplemented, 280 parameters accounted for, every implemented row names its evidence (a passing a100c lane test, executed 2026-11-05) and its IR construct; the surface test's coverage-matrix-enumerates-declared-surface check independently re-derives this against PROJECT_STATE.json's api_spec and surface.py's table (PASS)"
+    },
+    {
+      "ref": "acceptance[1]",
+      "command": "(no declared-unsupported rows exist: all 107 constructs are implemented)",
+      "exit_code": 0,
+      "observed": "vacuously satisfied; the construct the goal singled out, tl.swizzle2d (0 corpus calls), is implemented with executed evidence: test_layout_ops 'construct-swizzle2d-executes-1-2-4-8' PASS and 'refusal-swizzle_float' PASS (non-integer operands refuse located); no construct is silently accepted outside its contract"
+    },
+    {
+      "ref": "acceptance[2]",
+      "command": "acceptance[2] controls 1-3 (see commands): remove tl.erf from IMPLEMENTED_CONSTRUCTS / remove the tl.softmax row / mark tl.view unimplemented, run python3 a100c/tests/test_frontend_surface.py each time",
+      "exit_code": 1,
+      "observed": "each mutation makes the enumeration test FAIL exactly on the coverage-matrix check (row-vs-table contradiction, missing row, unimplemented row); the pristine tree passes (exit 0) and both files were restored bit-identically (sha256 verified before/after)"
+    },
+    {
+      "ref": "acceptance[3]",
+      "command": "set -a; . ./.env; set +a; timeout 120 python3 -m compiler_agent --root . frontend-coverage --file ... ; python3 -m compiler_agent --root . --json gates",
+      "exit_code": 0,
+      "observed": "recorded through the engine command (PROJECT_STATE.json logs 'frontend-coverage ... 107 row(s); complete', schema frontend-coverage-v1); the G5 check 'declared API surface is covered' now reads '107 implemented, 0 declared-unsupported of 107 declared construct(s), 280 parameter(s) accounted for; 51 IR construct(s) carry them (2.1 construct(s) per carrier)'"
+    }
+  ],
+  "tests": [
+    {
+      "ref": "tests[0]",
+      "command": "set -a; . ./.env; set +a; timeout 600 python3 a100c/tests/test_frontend_surface.py",
+      "exit_code": 0,
+      "observed": "26 PASS / 0 FAIL: the table equals the recorded api_spec (107/280), every parameter classified (implemented=251 ignorable=29 refused=0), implemented constructs lower, decorators consumed, excluded constructs refused with locations, ignorable params semantics-neutral, both ignorable-param controls fail correctness as required, source-contract refusals located, the four new static_assert checks, the six new tl.dtype/.shape/.cast/meta-object checks, module constexpr global, fma fp32 legalization, and the coverage matrix enumerating the declared surface"
+    }
+  ],
+  "evidence": "FRONTEND_COVERAGE.json (engine-recorded, evaluate ok=true: 107/107 constructs, 280/280 parameters, 51 shared IR carriers) backed by executed evidence: 30 a100c test files with 0 failed checks (the per-row evidence strings name the specific passing test and what it executes); end-to-end executed comparisons of the newly-enabled corpus operators (selu 2 cases and gelu 6 cases, each at 1 and 4 threads, under the case policies) through the declared QEMU endpoint; the three enumeration controls each make the declared test fail and the restored tree passes; the final full-corpus census (1873/2734 to verified TIR) with the 19 remaining refusal classes classified by construct and count for T018",
+  "design_issue": {},
+  "debug_request": {},
+  "attack": {},
+  "remaining_work": [
+    "T018 (full compile sweep) owns the 19 recorded census refusal classes (861 cases / 148 operators), in size order: partial-axis multi-block reductions tl.sum/tl.max/tl.min (413 cases; the message's 'layout lane' never landed multi-axis blocks), early return (153), tir-verifier join defects (98 -- lowering bugs caught by the verifier, e.g. add_base_max_kernel's if-join), Python and/or on runtime values (101 -- the pinned visit_BoolOp lowers these via logical_and/logical_or with constexpr short-circuit; our located refusal is the honest interim), 16-bit math operands upstream of the pinned _check_dtype (18 -- operand-typing chains in tl.sum/tl.where/masked-load other; the constructs themselves correctly refuse 16-bit as the pinned source does), descending plain range (21), tl.arange end from a method-call .shape (15), None literal / 'is not None' (12), while True without break (12), tl.reshape non-constant shapes (9), tl.dot rank-1 gemv form (6), i1 const (3), and the nanmedian tl.dtype operator's lowering width boundary (i64 scalar offset vs i32 vector SEW)",
+    "the engine's ARCHITECTURE_VERIFICATION.json (architecture-check --run) and the T017 deliverables (a100c/factory.py, tools/run_scan.py, the six not-yet-existing declared test files) are what still fails G5 beyond the now-passing declared-API-surface check"
+  ],
+  "end_revision": "",
+  "at": "2026-11-05T09:26:23.842311+00:00"
+}
