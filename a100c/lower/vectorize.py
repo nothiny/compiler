@@ -779,22 +779,20 @@ class SliceLowering:
         if self._body_split is not None and self._body_split[1] \
                 and self._body_split[2]:
             region, suffix = self._body_split[1], self._body_split[2]
-            region_defined = set()
-            for st in region:
-                if isinstance(st, tir.Op):
-                    region_defined.update(r.vid for r in st.results)
+            # every value the region defines, nested regions included: a
+            # loop's join (a scalar a suffix consumes) is chunk-invariant
+            # live-out state exactly like a top-level op result (T026: the
+            # while-loop join `status` reaching the trailing store)
+            region_defined = self._pass_defined_vids(region)
             partial_vids = {p.value_id for p in
                             (self.stage_plan.partials
                              if self.stage_plan else [])}
             partial_vids.update(p.pair_value_id for p in
                                 (self.stage_plan.partials
                                  if self.stage_plan else [])
-                            if p.pair_value_id is not None)
+                                if p.pair_value_id is not None)
             partial_vids.update(f["vid"] for f in self._scan_accs)
-            prefix_defined = set()
-            for st in self._body_split[0]:
-                if isinstance(st, tir.Op):
-                    prefix_defined.update(r.vid for r in st.results)
+            prefix_defined = self._pass_defined_vids(self._body_split[0])
 
             def consumed(statements):
                 out = set()
@@ -2511,6 +2509,12 @@ class SliceLowering:
                 for name, v in self._names.stack[-1].items():
                     if v.vid == vid:
                         self._names.define(name, v)
+        # the suffix's live-out scalars (chunk-invariant region values,
+        # e.g. a loop join the suffix consumes) rebind to registers in
+        # this merge block: the chunk-body registers the back edge stored
+        # from do not dominate it (the normal path reloads at the chunk
+        # exit; the split path runs the suffix here)
+        self._reload_liveouts(ctx, loc)
         self._lower_statements(ctx, suffix, fn, view_regs)
 
     def _load_partial(self, ctx: _Ctx, base: mir.VReg, off: int,
@@ -4718,6 +4722,23 @@ class SliceLowering:
             if lreg.is_scalar() and rreg.is_scalar():
                 if lreg.type.float or rreg.type.float:
                     reg = self._scalar_float_binop(ctx, op, lreg, rreg, loc)
+                elif (code in tir.BIN_BITWISE
+                      and op.results[0].type.is_bool()
+                      and (lreg.is_mask() != rreg.is_mask())):
+                    # a scalar boolean combines from both MIR bool forms
+                    # (the mask of a floating comparison, the i64 0/1 of an
+                    # integer comparison or constant): normalise the GPR
+                    # side to the mask form so the scalar core sees one
+                    # type (T026: the stop channel's `&`)
+                    if lreg.is_mask():
+                        rreg = self._mask_of_bool(ctx, rreg, loc)
+                    else:
+                        lreg = self._mask_of_bool(ctx, lreg, loc)
+                    reg = ctx.emit(mir.MOp(
+                        "vmand" if code == "bit.and" else "vmor",
+                        [lreg, rreg],
+                        [ctx.vreg(mir.MaskType(), hint="sand", loc=loc)],
+                        loc=loc))
                 else:
                     reg = scalar_mod.lower_binop(ctx, op, lreg, rreg, loc)
             else:
@@ -6328,7 +6349,9 @@ class SliceLowering:
         code = op.op
         if lreg.is_mask() and rreg.is_mask():
             # boolean block logic: the mask-register forms (the block
-            # pointer's per-axis boundary conditions combine with and)
+            # pointer's per-axis boundary conditions combine with and;
+            # Python and/or over runtime booleans lowers to the same
+            # bit.and/bit.or forms, T026)
             if code == "bit.and":
                 reg = ctx.emit(mir.MOp(
                     "vmand", [lreg, rreg],
@@ -6336,10 +6359,41 @@ class SliceLowering:
                     loc=loc))
                 self._bind_result(op, reg)
                 return reg
+            if code == "bit.or":
+                reg = ctx.emit(mir.MOp(
+                    "vmor", [lreg, rreg],
+                    [ctx.vreg(mir.MaskType(), hint="mor", loc=loc)],
+                    loc=loc))
+                self._bind_result(op, reg)
+                return reg
             raise self._err(loc, code,
-                            "boolean block logic beyond and is not in the "
-                            "slice (the boundary conditions combine with "
-                            "&)")
+                            "boolean block logic beyond and/or is not in "
+                            "the slice (the boundary conditions combine "
+                            "with & and |)")
+        if (lreg.is_mask() or rreg.is_mask()) and op.results \
+                and op.results[0].type.is_bool() and op.results[0].rank == 0:
+            # a scalar boolean combines from both MIR bool forms -- the
+            # mask (a floating comparison) and the GPR 0/1 (an integer
+            # comparison): normalise the GPR side to the mask form (T026:
+            # good_diag & (bad_vals == 0))
+            if lreg.is_mask():
+                rreg = self._mask_of_bool(ctx, rreg, loc)
+            else:
+                lreg = self._mask_of_bool(ctx, lreg, loc)
+            if code == "bit.and":
+                reg = ctx.emit(mir.MOp(
+                    "vmand", [lreg, rreg],
+                    [ctx.vreg(mir.MaskType(), hint="mand", loc=loc)],
+                    loc=loc))
+                self._bind_result(op, reg)
+                return reg
+            if code == "bit.or":
+                reg = ctx.emit(mir.MOp(
+                    "vmor", [lreg, rreg],
+                    [ctx.vreg(mir.MaskType(), hint="mor", loc=loc)],
+                    loc=loc))
+                self._bind_result(op, reg)
+                return reg
         if lreg.type != rreg.type:
             raise self._err(loc, code,
                             f"vector operand types differ: {lreg.type!r} vs "

@@ -644,6 +644,359 @@ def check_refusals_located(compiler):
           "; ".join(bad[:2]))
 
 
+# -- T026: the control-flow frontend repair classes ---------------------------
+#
+# Every shape below reproduced a 'carried-value-without-join' or
+# 'return'/'while'/'and' refusal row in the compile census before the
+# control-flow core repair: the census operators l1_fused_* (join 'mask'),
+# fast_ce_loss (join 'loss'/'x'), unique_dim_row_single_chunk_first (join
+# 'cur'), chebyshev_polynomial_t (loop carries 't_prev'), kldiv (loop
+# carries 'loss_sum'), cholesky_upper (while j < K), amax/any_kernel_dim
+# (Python and/or), chunk_gdn2_* (early return).
+
+
+def _t026_lower(body, params=None):
+    """Lower one probe kernel body and return (module, errors)."""
+    import textwrap
+    indented = textwrap.indent(body.strip("\n"), "    ")
+    text = TEMPLATE % ("t026", "t026", "t026",
+                       params or ("x_ptr, y_ptr, n, flag, "
+                                  "BLOCK: tl.constexpr, "
+                                  "ITERS: tl.constexpr"),
+                       indented, CASE_LAYER_INT)
+    src = source.load_operator_text(text, "<t026>", "t026.py")
+    case = {"args": {"x_ptr": np.zeros(16, np.int32),
+                     "y_ptr": np.zeros(16, np.int32),
+                     "n": 16, "flag": 3},
+            "meta": {"BLOCK": 16, "ITERS": 4}, "launch_meta": {}}
+    spec = specialize.specialize(src, case)
+    module = lower_tir.lower(src, spec)
+    return module, tir.verify_module(module)
+
+
+def check_t026_carried_join_shapes():
+    """acceptance[2]: each join shape that previously failed as a
+    carried-value-without-join row lowers to a module the TIR verifier
+    ACCEPTS, with the join the construction must create.
+
+    * one-path assignment: a name defined before the branch and assigned
+      on one path joins (the other path's side is the outer binding);
+    * an arm-only name (never defined before, used only inside its arm)
+      creates NO join -- the other arm must not see the then arm's
+      bindings (the l1_fused 'mask' class);
+    * a re-assigned variable joins on both arms;
+    * a conditionally-assigned pointer joins (an i64 domain value);
+    * a ConstVal arm side materializes inside its arm under the join name
+      (the fast_ce_loss 'loss' class);
+    * a loop channel copy (``prev = cur``, the chebyshev 't_prev' class)
+      gets a region-visible body definition;
+    * a carried candidate whose only assignment a specialization folds
+      away keeps its outer binding (the kldiv 'loss_sum' class)."""
+    bad = []
+
+    # one-path assignment + arm-only name + ConstVal side, one module
+    m, errs = _t026_lower("""
+i = tl.arange(0, BLOCK)
+m = i < n
+x = tl.load(x_ptr + i, mask=m)
+y = x
+if flag > 0:
+    y = x + 1
+    arm_only = x * 3
+    z = flag + 1
+else:
+    z = 0
+tl.store(y_ptr + i, y + z, mask=m)
+""")
+    if errs:
+        bad.append(f"one-path/const: {errs[0]}")
+    ifs = [s for s in m.functions[0].body.statements if isinstance(s, tir.If)]
+    if len(ifs) != 1:
+        bad.append(f"one-path: {len(ifs)} ifs")
+    else:
+        names = ifs[0].join_names
+        for wanted in ("y", "z"):
+            if wanted not in names:
+                bad.append(f"one-path: join '{wanted}' missing {names}")
+        if "arm_only" in names:
+            bad.append(f"arm-only name joined: {names}")
+
+    # re-assigned variable on both arms + conditionally-assigned pointer
+    m2, errs2 = _t026_lower("""
+i = tl.arange(0, BLOCK)
+m = i < n
+p = x_ptr + 4
+w = tl.load(x_ptr + i, mask=m)
+if flag > 0:
+    w = w + 1
+    p = p + 8
+else:
+    w = w + 2
+    p = p + 16
+v = tl.load(p + i, mask=m)
+tl.store(y_ptr + i, w + v, mask=m)
+""")
+    if errs2:
+        bad.append(f"reassigned/pointer: {errs2[0]}")
+    ifs2 = [s for s in m2.functions[0].body.statements if isinstance(s, tir.If)]
+    if len(ifs2) != 1 or not {"w", "p"} <= set(ifs2[0].join_names):
+        bad.append(f"reassigned/pointer joins: "
+                   f"{ifs2 and ifs2[0].join_names}")
+
+    # a loop channel copy (prev = cur) and a folded-away carried candidate
+    m3, errs3 = _t026_lower("""
+i = tl.arange(0, BLOCK)
+x = tl.load(x_ptr + i)
+t_cur = x
+t_prev = x * 0 + 1
+acc = 0
+for k in range(0, ITERS):
+    t_next = t_cur + t_prev
+    t_prev = t_cur
+    t_cur = t_next
+    acc = acc + 1
+keep = 0
+for k2 in range(0, ITERS):
+    if ITERS < 0:
+        keep = keep + 1
+    acc = acc + 2
+tl.store(y_ptr + i, x + acc + keep + t_prev + t_cur - t_prev)
+""")
+    if errs3:
+        bad.append(f"channel-copy/folded: {errs3[0]}")
+    loops = [s for s in m3.functions[0].body.statements
+             if isinstance(s, tir.Loop)]
+    if len(loops) != 2:
+        bad.append(f"channel-copy: {len(loops)} loops")
+    else:
+        carried0 = [c for c, _ in loops[0].carried]
+        if "t_prev" not in carried0 or "t_cur" not in carried0:
+            bad.append(f"channel-copy carried: {carried0}")
+        # the folded-away candidate is NOT a channel (its only assignment
+        # sits under a constexpr-false branch in this specialization)
+        carried1 = [c for c, _ in loops[1].carried]
+        if "keep" in carried1:
+            bad.append(f"folded-away candidate carried: {carried1}")
+
+    check("t026-carried-value-join-shapes-verify", not bad, "; ".join(bad))
+
+
+EARLY_RETURN_BODY = """\\
+    pid = tl.program_id(0)
+    i = pid * BLOCK + tl.arange(0, BLOCK)
+    m = i < n
+    if pid >= 2:
+        return
+    if flag < 0:
+        return
+    v = tl.load(x_ptr + i, mask=m)
+    tl.store(out_ptr + i, v + 1, mask=m)"""
+
+EARLY_RETURN_REF = ['out = np.zeros(len(args["x_ptr"]), np.int32)',
+                    'if args["flag"] >= 0:',
+                    '    for pid in range(2):',
+                    '        lo, hi = pid * 128, min((pid + 1) * 128, len(out))',
+                    '        out[lo:hi] = args["x_ptr"][lo:hi] + 1']
+
+
+def check_t026_early_return(workdir, compiler):
+    """acceptance[1] shape: a bare early return inside runtime branches --
+    the returned programs' outputs keep their default (the returned-vs-
+    default semantics), the guard state carries through the joins, and
+    both branch directions execute correctly at 1 and 4 workers."""
+    bad = []
+    params = ("x_ptr, out_ptr, n, flag, BLOCK: tl.constexpr, "
+              "ITERS: tl.constexpr")
+    for flag, tag in ((3, "live"), (-2, "returned")):
+        path = _operator_file(workdir, f"earlyret_{tag}", params,
+                              EARLY_RETURN_BODY,
+                              _int_case_layer(flag, EARLY_RETURN_REF,
+                                              f"earlyret_{tag}_kernel"))
+        module = _load(path)
+        for threads in (1, 4):
+            for shape in ((257,), (514,)):
+                ok, detail = _run_case(compiler, module, threads,
+                                       shape=shape)
+                if not ok:
+                    bad.append(f"flag={flag} threads={threads} "
+                               f"shape={shape}: {detail}")
+    check("t026-early-return-executes-at-1-and-4-workers", not bad,
+          "; ".join(bad[:3]))
+
+
+AND_OR_BODY = """\\
+    pid = tl.program_id(0)
+    i = pid * BLOCK + tl.arange(0, BLOCK)
+    row = i < n
+    col = i < (n - 1)
+    mask = row and col
+    x = tl.load(x_ptr + i, mask=mask, other=0)
+    below = i < (n // 2)
+    above = i > (n // 2 + 3)
+    violated = below or above
+    if flag > 0 and pid < 3:
+        x = x + 1
+    anyhits = tl.max((violated and mask).to(tl.int32), axis=0)
+    tl.store(out_ptr + i, x + anyhits, mask=row)"""
+
+AND_OR_REF = ['x = args["x_ptr"].astype(np.int32).copy()',
+              'n = len(x)',
+              'mask = np.arange(n) < (n - 1)',
+              'x[~mask] = 0',
+              'violated = (np.arange(n) < n // 2) | (np.arange(n) > n // 2 + 3)',
+              'if args["flag"] > 0:',
+              '    x = x + 1',
+              'out = x.copy()',
+              'B = 128',
+              'for b in range((n + B - 1) // B):',
+              '    lo, hi = b * B, min((b + 1) * B, n)',
+              '    hit = int((violated[lo:hi] & mask[lo:hi]).any())',
+              '    out[lo:hi] = x[lo:hi] + hit']
+
+
+def check_t026_and_or(workdir, compiler):
+    """Python and/or over runtime values lowers to the pinned semantics:
+    bool-tensor & / | with broadcast (the amax/any_kernel_dim class) and
+    the short-circuit/boolean forms over runtime scalars (the
+    sym_constrain_range / vocab_parallel_ce class), executed at 1 and 4
+    workers against an independent reference."""
+    bad = []
+    params = ("x_ptr, out_ptr, n, flag, BLOCK: tl.constexpr, "
+              "ITERS: tl.constexpr")
+    for flag, tag in ((3, "and"), (-2, "or_false")):
+        path = _operator_file(workdir, f"andor_{tag}", params, AND_OR_BODY,
+                              _int_case_layer(flag, AND_OR_REF,
+                                              f"andor_{tag}_kernel"))
+        module = _load(path)
+        for threads in (1, 4):
+            ok, detail = _run_case(compiler, module, threads, shape=(257,))
+            if not ok:
+                bad.append(f"flag={flag} threads={threads}: {detail}")
+    check("t026-python-and-or-executes-at-1-and-4-workers", not bad,
+          "; ".join(bad[:3]))
+
+
+WHILE_CARRIED_BODY = """\\
+    pid = tl.program_id(0)
+    j = 0
+    total = 0
+    while j < flag:
+        step = 0
+        while step < j:
+            total = total + 2
+            step = step + 1
+        total = total + 1
+        j = j + 1
+    i = pid * BLOCK + tl.arange(0, BLOCK)
+    m = i < n
+    v = tl.load(x_ptr + i, mask=m)
+    tl.store(out_ptr + i, v + total, mask=m)"""
+
+WHILE_CARRIED_REF = ['total = 0',
+                     'for j in range(args["flag"]):',
+                     '    total += 1 + 2 * j',
+                     'out = args["x_ptr"] + total']
+
+
+def check_t026_while_carried(workdir, compiler):
+    """The cholesky/deconv3d class: a while whose condition compares a
+    name the body re-assigns (``while j < K`` with ``j = 0`` before it)
+    must NOT fold against the pre-loop constant (the old 'while True
+    never terminates' refusal); nested whiles compose; executed at 1 and
+    4 workers against an independent reference."""
+    bad = []
+    params = ("x_ptr, out_ptr, n, flag, BLOCK: tl.constexpr, "
+              "ITERS: tl.constexpr")
+    path = _operator_file(workdir, "whilecarried", params, WHILE_CARRIED_BODY,
+                          _int_case_layer(5, WHILE_CARRIED_REF,
+                                          "whilecarried_kernel"))
+    module = _load(path)
+    for threads in (1, 4):
+        ok, detail = _run_case(compiler, module, threads, shape=(257,))
+        if not ok:
+            bad.append(f"threads={threads}: {detail}")
+    check("t026-while-carried-condition-executes-at-1-and-4-workers",
+          not bad, "; ".join(bad[:3]))
+
+
+BREAK_CONTINUE_BODY = """\\
+    pid = tl.program_id(0)
+    i = pid * BLOCK + tl.arange(0, BLOCK)
+    m = i < n
+    v = tl.load(x_ptr + i, mask=m)
+    total = 0
+    for k in range(0, ITERS * 4):
+        if k == 3:
+            break
+        if k == 1:
+            continue
+        total = total + 1
+    w = 0
+    while True:
+        if w >= flag:
+            break
+        w = w + 2
+    tl.store(out_ptr + i, v + total * 10 + w, mask=m)"""
+
+BREAK_CONTINUE_REF = ['total = 0',
+                      'for k in range(4 * 4):',
+                      '    if k == 3:',
+                      '        break',
+                      '    if k == 1:',
+                      '        continue',
+                      '    total += 1',
+                      'w = 0',
+                      'while True:',
+                      '    if w >= args["flag"]:',
+                      '        break',
+                      '    w += 2',
+                      'out = args["x_ptr"] + total * 10 + w']
+
+
+def check_t026_break_continue(workdir, compiler):
+    """break and continue as loop exits: a counted range with a break
+    lowers through the while form (the stop channel), a continue skips
+    the rest of its iteration while the induction still advances, and
+    ``while True`` + break terminates; executed at 1 and 4 workers.  The
+    control: ``while True`` WITHOUT a break still refuses, located."""
+    from a100c.driver import PipelineError
+    bad = []
+    params = ("x_ptr, out_ptr, n, flag, BLOCK: tl.constexpr, "
+              "ITERS: tl.constexpr")
+    path = _operator_file(workdir, "brkcont", params, BREAK_CONTINUE_BODY,
+                          _int_case_layer(7, BREAK_CONTINUE_REF,
+                                          "brkcont_kernel"))
+    module = _load(path)
+    for threads in (1, 4):
+        ok, detail = _run_case(compiler, module, threads, shape=(257,))
+        if not ok:
+            bad.append(f"threads={threads}: {detail}")
+
+    # the control: an exit-free `while True` refuses with the located
+    # infinite-loop diagnostic (never a silent hang)
+    path2 = _operator_file(workdir, "whiletrue", params, """\\
+    pid = tl.program_id(0)
+    i = pid * BLOCK + tl.arange(0, BLOCK)
+    m = i < n
+    v = tl.load(x_ptr + i, mask=m)
+    while True:
+        v = v + 1
+    tl.store(out_ptr + i, v, mask=m)""",
+                          _int_case_layer(7, ['out = args["x_ptr"]'],
+                                          "whiletrue_kernel"))
+    module2 = _load(path2)
+    try:
+        compiler.compile_case(module2.make_case())
+        bad.append("while-True-without-break compiled (expected a refusal)")
+    except PipelineError as exc:
+        if "while True never terminates" not in str(exc):
+            bad.append(f"while-True control: {str(exc)[:110]}")
+    except Exception as exc:                   # noqa: BLE001
+        bad.append(f"while-True control: wrong error {type(exc).__name__}")
+    check("t026-break-continue-and-while-true-execute", not bad,
+          "; ".join(bad[:3]))
+
+
 def main() -> int:
     workdir = Path(tempfile.mkdtemp(prefix="a100c-cf-"))
     cache = workdir / "cache"
@@ -660,6 +1013,12 @@ def main() -> int:
         check_if_pid(workdir, compiler)
         check_var_len_copy_corpus(compiler)
         check_refusals_located(compiler)
+        # T026: the control-flow frontend repair classes
+        check_t026_carried_join_shapes()
+        check_t026_early_return(workdir, compiler)
+        check_t026_and_or(workdir, compiler)
+        check_t026_while_carried(workdir, compiler)
+        check_t026_break_continue(workdir, compiler)
     finally:
         shutil.rmtree(workdir, ignore_errors=True)
     if FAILURES:

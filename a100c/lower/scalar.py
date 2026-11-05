@@ -152,11 +152,17 @@ def float_const_bits(value, ty: tir.Type, loc) -> int:
 
 
 def lower_const(ctx, value, ty: tir.Type, loc) -> mir.VReg:
-    """A scalar constant: raw bits (floats via their IEEE bit pattern)."""
+    """A scalar constant: raw bits (floats via their IEEE bit pattern).
+
+    A boolean constant lowers as the i64 0/1 GPR form -- the scalar-bool
+    convention the integer comparisons already produce (``_bool_scalar``
+    passes i64 through; block bools splat from any GPR into the mask
+    form).  A u1-typed GPR here would mix with the i64 comparison results
+    in the scalar core's type check (T026: the stop channel's ``&``)."""
     if ty.is_float():
         bits = float_const_bits(value, ty, loc)
     elif ty.is_bool():
-        bits = 1 if value else 0
+        return ctx.const(1 if value else 0, mir.I64, loc)
     elif ty.is_int():
         bits = int(value) & ((1 << ty.width) - 1)
         if ty.signed and bits >= (1 << (ty.width - 1)):

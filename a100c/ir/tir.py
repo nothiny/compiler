@@ -1971,6 +1971,13 @@ def _verify_block(block: Block, scope: _Scope, errors: list,
                           region=f"{region} / then-arm")
             _verify_block(stmt.els, else_scope, errors,
                           region=f"{region} / else-arm")
+            # the pre-branch bindings: the close rule below decides
+            # "defined inside an arm" by comparing against what the name
+            # bound BEFORE the region -- the join results have already
+            # re-bound the scope by then, and comparing against the JOIN
+            # would close the outer value the not-assigning arm kept (the
+            # one-path join's else side)
+            pre_if = dict(scope.values)
             results = []
             provided = tuple(stmt.join_results)
             for i, name in enumerate(stmt.join_names):
@@ -2019,7 +2026,7 @@ def _verify_block(block: Block, scope: _Scope, errors: list,
                 for name, v in arm_scope.values.items():
                     if v.producer is None:
                         continue
-                    outer = scope.values.get(name)
+                    outer = pre_if.get(name)
                     if (outer is not v and v.vid not in exported
                             and v.vid not in scope.closed):
                         scope.closed.setdefault(
@@ -2079,6 +2086,10 @@ def _verify_block(block: Block, scope: _Scope, errors: list,
                 body_scope.define(name, init)
             _verify_block(stmt.body, body_scope, errors,
                           region=f"{region} / loop-body")
+            # the pre-loop bindings (the join results below re-bind the
+            # scope; the close rule must compare against what the names
+            # bound before the loop -- see the if's pre_if note)
+            pre_loop = dict(scope.values)
             results = []
             provided = tuple(stmt.join_results)
             for i, (name, init) in enumerate(stmt.carried):
@@ -2121,7 +2132,7 @@ def _verify_block(block: Block, scope: _Scope, errors: list,
             for name, v in body_scope.values.items():
                 if v.producer is None:
                     continue
-                outer = scope.values.get(name)
+                outer = pre_loop.get(name)
                 if (outer is not v and v.vid not in exported
                         and v.vid not in scope.closed):
                     scope.closed.setdefault(v.vid, f"loop body at {stmt.loc}")

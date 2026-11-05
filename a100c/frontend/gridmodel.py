@@ -301,14 +301,32 @@ class _Interpreter:
             if stmt.value is not None:
                 self._assign(stmt.target, self._eval(stmt.value))
         elif isinstance(stmt, ast.AugAssign):
-            current = self.env.get(stmt.target.id) \
-                if isinstance(stmt.target, ast.Name) else None
-            if current is None:
+            if isinstance(stmt.target, ast.Name):
+                current = self.env.get(stmt.target.id)
+                if current is None:
+                    raise self._err(stmt, "augmented assignment",
+                                    "target is not defined")
+                binop = ast.BinOp(left=stmt.target, op=stmt.op,
+                                  right=stmt.value)
+                ast.copy_location(binop, stmt)
+                self._assign(stmt.target, self._eval(binop))
+            elif isinstance(stmt.target, ast.Subscript):
+                # an in-place element update (``x[:, np.arange(K),
+                # np.arange(K)] += 2`` in the case layer): the read and the
+                # operand evaluate for provenance, then the store follows
+                # _assign's own subscript rule -- a tracked tuple refuses,
+                # a tracked array's extents are unchanged (numpy element
+                # stores never reshape), an opaque object mutates in place
+                # and stays opaque (a grid axis consuming it refuses,
+                # located, at the axis check)
+                binop = ast.BinOp(left=stmt.target, op=stmt.op,
+                                  right=stmt.value)
+                ast.copy_location(binop, stmt)
+                self._eval(binop)
+                self._assign(stmt.target, _opaque("augmented store"))
+            else:
                 raise self._err(stmt, "augmented assignment",
-                                "target is not defined")
-            binop = ast.BinOp(left=stmt.target, op=stmt.op, right=stmt.value)
-            ast.copy_location(binop, stmt)
-            self._assign(stmt.target, self._eval(binop))
+                                "assignment target outside the grid model")
         elif isinstance(stmt, ast.Delete):
             for t in stmt.targets:
                 if isinstance(t, ast.Name):
@@ -904,7 +922,13 @@ class _Interpreter:
                     or not isinstance(index.concrete, int) \
                     or isinstance(index.concrete, bool):
                 return _opaque("array element access")
-            return base.extents[int(index.concrete)]
+            if 0 <= int(index.concrete) < len(base.extents):
+                return base.extents[int(index.concrete)]
+            # an element read beyond the tracked extents (x[4] of an
+            # (R, L) array): an element access, never an extent -- the
+            # value is untracked (a grid axis consuming it refuses,
+            # located, at the tie stage)
+            return _opaque("array element access")
         return _opaque("subscript")
 
 

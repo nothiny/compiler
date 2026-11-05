@@ -440,6 +440,33 @@ def check_minmax_grid_executes():
         shutil.rmtree(workdir, ignore_errors=True)
 
 
+def check_t026_augmented_subscript():
+    """T026: an in-place element update on a case-layer array
+    (``x[:, np.arange(K), np.arange(K)] += 2``, the lu_factor_info /
+    var_kernel_2 / unique_dim_row_chunk_diff_hash 'augmented assignment:
+    target is not defined' class) interprets: the read and the operand
+    evaluate for provenance, the store follows the subscript-store rule
+    (an opaque array mutates in place; a tracked tuple still refuses,
+    located), and the grid still ties to the tracked quantities."""
+    import numpy as np
+    bad = []
+    for rel in ("suite/dev/lu_factor_info_kernel.py",
+                "suite/dev/var_kernel_2.py",
+                "suite/dev/unique_dim_row_chunk_diff_hash_kernel.py"):
+        module = load_module(rel)
+        case = module.make_case()
+        try:
+            model = extract_grid(load_source(rel), case)
+        except GridError as exc:
+            bad.append(f"{rel}: {exc}")
+            continue
+        sc = model.self_check
+        if sc.get("modeled") != sc.get("declared"):
+            bad.append(f"{rel}: self-check {sc}")
+    check("t026-case-layer-augmented-subscript-interprets", not bad,
+          "; ".join(bad[:3]))
+
+
 def main() -> int:
     check_corpus_forms()
     check_no_baking()
@@ -448,6 +475,7 @@ def main() -> int:
     check_minmax_and_ceil()
     check_minmax_grid_executes()
     check_corpus_census()
+    check_t026_augmented_subscript()
     if FAILURES:
         print(f"FAILED: {len(FAILURES)} check(s)")
         return 1

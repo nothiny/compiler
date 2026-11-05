@@ -1,0 +1,114 @@
+{
+  "invocation_id": "WTI022",
+  "task_id": "T026",
+  "attempt": 1,
+  "context_sha256": "469be9d1cf93369e1020f519d751115b3c804760471ae2e1777f5019b28fdac7",
+  "outcome": "COMPLETED",
+  "failure_kind": "implementation",
+  "summary": "Repaired the five control-flow frontend defect classes through the shared control-flow path in a100c/frontend/lower_tir.py: (1) early return lowers as a region terminator -- a per-function %ret.active i1 bound at entry, re-bound false at each return site, carried through every region join and loop channel, with the post-return statements relocated into the live branch arm or guarded on the flag (the returned-vs-default semantics); (2) break/continue lower as loop exits -- a per-loop stop channel ANDed into the re-evaluated condition (a counted range with an exit converts to the while form; `while True`+break terminates; exit-free `while True` still refuses located); (3) the while condition's fold marks the body-assigned names runtime FIRST, so `while j < K` with `j += 1` no longer folds to `while True` from the initial constant; (4) Python and/or lowers to the pinned Triton 3.8 semantics (values evaluated in order, constexpr short-circuit, runtime i1 operands combined right-to-left through bit.and/bit.or with broadcast -- vmor added for boolean blocks and the scalar mask/i64 bool forms normalised); (5) the if-construction restores the pre-branch snapshot between the arms, joins every value carried across a branch (one-path assignment keeps the outer binding as the not-assigned side, ConstVal sides materialise under the join name), and the loop close drops channels the body never re-binds, gives outer-defined finals a region-visible identity definition (the `prev = cur` channel copy) and fresh channel inits for values shared with loop-invariant names; plus the grid-model case-layer interpreter's subscript augmented assignment. The repair exposed and fixed five latent defects the new forms reached: constprop reading a stale loop view after its own insertions (refresh moved after each settled swap) and folding through a broadcast of a carried init; copyprop rewriting `ptradd(p, carried-init-0)` to `p` inside the loop; the TIR verifier's region-close rule comparing against post-join bindings; scalar bool constants lowering as u1 GPRs that mixed with the i64 comparison results; and the split-merge path missing the liveout reload (a loop join consumed by the suffix). Owned-operator sweep: all five classes at zero (277 identities, 24 artifacts, 253 refusals all of other constructs). Full-corpus regression: 535 artifacts vs 427 before, ZERO lost, 108 gained. All 33 test files pass; 15/24 owned artifacts execute and compare PASS at 1 and 4 threads (jagged_to_padded_dense [return], cholesky_upper [while], chebyshev [carried-value], lu_factor_info [augmented-assignment] among them); the 9 failing artifacts fail on a deeper, pre-existing staging defect (an in-region reduction's per-chunk partial is never merged when its consumer sits inside the chunk region) that reproduces identically without any control-flow form and on original-census artifacts untouched by this task -- recorded as remaining work.",
+  "files_changed": [
+    "a100c/frontend/lower_tir.py",
+    "a100c/frontend/gridmodel.py",
+    "a100c/ir/tir.py",
+    "a100c/lower/scalar.py",
+    "a100c/lower/vectorize.py",
+    "a100c/passes/constprop.py",
+    "a100c/passes/copyprop.py",
+    "a100c/passes/strength_reduction.py",
+    "a100c/passes/rewrite.py",
+    "a100c/tests/test_control_flow.py",
+    "a100c/tests/test_grid_model.py",
+    "docs/compiler-agent/COMPILE_CENSUS.t026-owned-classes.json",
+    "docs/compiler-agent/T026_OWNED_ARTIFACT_SCREEN.json"
+  ],
+  "artifacts": [
+    "docs/compiler-agent/COMPILE_CENSUS.t026-owned-classes.json",
+    "docs/compiler-agent/T026_OWNED_ARTIFACT_SCREEN.json",
+    "/tmp/scratch-census-owned-final.json",
+    "/tmp/scratch-census-full.json"
+  ],
+  "commands": [
+    {
+      "command": "set -a; . ./.env; set +a; python3 a100c/tests/test_compile_sweep.py --operator <68 owned operators> --census-out /tmp/scratch-census-owned-final.json",
+      "exit_code": 1,
+      "observed": "277 identities: 24 artifacts + 253 refusals + 0 over-budget + 0 crash = 277 (sums to the identity census); ZERO rows of the five owned classes (return/while/'and'/'or'/augmented assignment/tir-verifier carried-value-without-join). The one FAILing check is refusals-located-and-countable over 2 pre-existing unlocated 'tl.arange: no tl.arange in the kernel body' segmentation refusals (cholesky_kernel, f_init_recurrence) -- the same location-less refusal class as 67 rows of the original committed census; every refusal of the five owned classes is located."
+    },
+    {
+      "command": "set -a; . ./.env; set +a; python3 a100c/tests/test_compile_sweep.py --census-out /tmp/scratch-census-full.json",
+      "exit_code": 1,
+      "observed": "Full 500-operator corpus: 535 artifacts + 1577 refusals + 4 over-budget = 2116 identities. vs the committed census (427 artifacts): ZERO artifacts lost, 108 gained. The 4 over-budget: matmul_k32_splitn2 (over-budget in the original census too) plus gemm_smallk x2 and matmul_kernel, all three previously refused at scalar-lowering fp16-const and now compiling past that point into the slow matrix path. The unlocated-refusal check fails on the same pre-existing tl.arange class (78 unlocated rows in the original census by the same rule)."
+    },
+    {
+      "command": "python3 a100c/tests/test_control_flow.py",
+      "exit_code": 0,
+      "observed": "all 16 checks PASS, including the six new T026 checks: t026-carried-value-join-shapes-verify (one-path assignment, arm-only name, re-assigned variable, conditionally-assigned pointer, ConstVal side, channel copy, folded-away carried candidate -- the TIR verifier accepts each built module), t026-early-return-executes-at-1-and-4-workers (both branch directions, 2 shapes x threads 1,4), t026-python-and-or-executes-at-1-and-4-workers, t026-while-carried-condition-executes-at-1-and-4-workers (nested whiles), t026-break-continue-and-while-true-execute (counted break, continue, while-True+break executed; exit-free while True refuses located)."
+    },
+    {
+      "command": "python3 a100c/tests/test_grid_model.py",
+      "exit_code": 0,
+      "observed": "all checks PASS including the new t026-case-layer-augmented-subscript-interprets (lu_factor_info, var_kernel_2, unique_dim_row_chunk_diff_hash grids extract with passing self-checks)."
+    },
+    {
+      "command": "for t in a100c/tests/test_*.py (excluding test_compile_sweep.py, run separately)",
+      "exit_code": 0,
+      "observed": "all 33 test files PASS (test_math_ops, test_passes_basic, test_tir_verifier, test_control_flow, test_grid_model, test_compile_regressions, test_matrix_breadth, ...)."
+    },
+    {
+      "command": "spot-execution of the owned artifacts at 1 and 4 threads (docs/compiler-agent/T026_OWNED_ARTIFACT_SCREEN.json)",
+      "exit_code": 0,
+      "observed": "24 artifact identities screened at both thread counts under each case's own policy: 15 PASS at 1 thread / 16 at 4 (cholesky_upper [17] fp32, jagged_to_padded_dense fp32/fp16/bf16, chebyshev_polynomial_t all 3 dtypes x 2 shapes, lu_factor_info, frobenius_norm x3). The failing 9 (l1_norm_fused_16977248/7f6ce49c, var_kernel_2, argmax_kernel_inner, fast_ce_loss[7,35], unique_dim_row_chunk_diff_hash, index_select SIGILL) fail on the deeper in-region-reduction staging defect -- reproduced identically on a no-return probe of the same kernels and on fused_l1_normalize_kernel_765f90f7 (an original-census artifact with no control-flow forms) with every pass disabled."
+    }
+  ],
+  "acceptance": [
+    {
+      "ref": "acceptance[0]",
+      "command": "set -a; . ./.env; set +a; python3 a100c/tests/test_compile_sweep.py --operator <the 68 census operators carrying the five classes> --census-out /tmp/scratch-census-owned-final.json",
+      "exit_code": 1,
+      "observed": "The five owned classes are at ZERO across all 277 identities: no 'return', 'while', \"'and'\"/\"'or'\", 'augmented assignment' or tir-verifier 'carried-value-without-join' refusal remains; 24 identities produce artifacts, 253 refuse on other constructs (grid 68, ptradd 31, tl.dot 31, tl.sum 24, ...), each named and located. The sweep's only failing check is the pre-existing location-less 'tl.arange' segmentation refusal class (2 rows), present in the original committed census (67 rows)."
+    },
+    {
+      "ref": "acceptance[1]",
+      "command": "python3 a100c/tests/test_control_flow.py (t026-early-return check) + the owned-artifact spot-execution screen",
+      "exit_code": 0,
+      "observed": "jagged_to_padded_dense_forward_kernel (early-return class, `if lens[idx] <= ptr: return` guards) executes and compares PASS at 1 and 4 workers for fp32/fp16/bf16 -- the returned programs' outputs keep their default. The t026-early-return probe (two sequential runtime-guarded returns) executes correctly at 1 and 4 workers in both branch directions (returned-vs-default semantics asserted by an independent reference). The other two early-return operators that now build artifacts (l1_norm_fused_16977248/7f6ce49c) misexecute on the in-region-reduction staging defect, proven independent of the return machinery (the same kernels without the return miscompile identically). cholesky_upper (while class), chebyshev (carried-value class) and lu_factor_info (augmented-assignment class) also execute PASS at 1 and 4 workers."
+    },
+    {
+      "ref": "acceptance[2]",
+      "command": "python3 a100c/tests/test_control_flow.py (t026-carried-value-join-shapes-verify)",
+      "exit_code": 0,
+      "observed": "The regression test lowers one probe per previously-failing join shape and asserts tir.verify_module returns no errors, plus the structural expectations: one-path assignment joins with the outer binding as the not-assigned side; an arm-only name creates NO join (the other arm must not see it); a re-assigned variable joins on both arms; a conditionally-assigned pointer joins; a ConstVal arm side materialises under the join name; a loop channel copy (prev = cur) carries; a carried candidate whose only assignment a specialization folds away keeps its outer binding."
+    },
+    {
+      "ref": "acceptance[3]",
+      "command": "for t in a100c/tests/test_*.py: python3 $t (test_compile_sweep.py run separately over the full corpus)",
+      "exit_code": 0,
+      "observed": "All 33 pre-existing test files pass. The full-corpus compile sweep shows zero lost artifacts (427 -> 535, +108)."
+    }
+  ],
+  "tests": [
+    {
+      "ref": "tests[0]",
+      "command": "set -a; . ./.env; set +a; python3 a100c/tests/test_compile_sweep.py --operator suite/dev/add_base_max_kernel.py --operator ... (all 68 owned operators) --census-out /tmp/scratch-census-owned-final.json",
+      "exit_code": 1,
+      "observed": "277/277 identities classified, 24 artifacts + 253 refusals, owned classes at zero; the location check fails only on the pre-existing unlocated tl.arange class."
+    },
+    {
+      "ref": "tests[1]",
+      "command": "python3 a100c/tests/test_control_flow.py && python3 a100c/tests/test_grid_model.py && <every a100c/tests/test_*.py>",
+      "exit_code": 0,
+      "observed": "test_control_flow: all 16 checks PASS (6 new T026 checks). test_grid_model: all PASS (1 new T026 check). All other 31 test files PASS."
+    }
+  ],
+  "evidence": "docs/compiler-agent/COMPILE_CENSUS.t026-owned-classes.json (the owned-operator sweep: the five classes at zero) and docs/compiler-agent/T026_OWNED_ARTIFACT_SCREEN.json (every owned artifact executed and compared at 1 and 4 threads under the case's own policy; the failures carry the no-return / passes-off reproductions that attribute them to the in-region-reduction staging defect). The full-corpus control: /tmp/scratch-census-full.json (535 artifacts, 427 before, zero lost). Executed spot evidence: cholesky_upper_kernel.py (the 'while' census class) PASS at 1 and 4 workers; jagged_to_padded_dense_forward_kernel.py (the 'return' class) PASS at 1 and 4 workers x 3 dtypes; chebyshev_polynomial_t.py (the loop carried-value class) PASS at 1 and 4 workers x all 6 identities; lu_factor_info_kernel.py (the augmented-assignment class) PASS.",
+  "design_issue": {},
+  "debug_request": {},
+  "attack": {},
+  "remaining_work": [
+    "In-region reduction staging defect (blocks l1_norm_fused_16977248/7f6ce49c and pre-dates this task on original artifacts like fused_l1_normalize_kernel_765f90f7/fused_l1_norm_and_divide_kernel_2d6d4854): a tl.sum/tl.max whose consumer sits INSIDE the chunk region gets no cross-chunk merge -- the stage plan only merges suffix-escaping partials ('no region-exit value escapes into the suffix' makes it ineligible). The consumer uses a per-chunk partial (out = raw x * per-chunk scale). Fix: extend the two-phase/stage-plan eligibility to split the region at an in-region-consumed reduction, or merge the partial at the chunk back edge and re-load it for the consumer pass.",
+    "var_kernel_2 (Var off by one value) and fast_ce_loss shape [7,35] (logsumexp, ragged tail) fail on reduction/tail numeric paths under the same chunk staging; argmax_kernel_inner [17] has one wrong out_index (a reduction index/tie-break defect); index_select_kernel SIGILLs under the same staging path; unique_dim_row_chunk_diff_hash has one wrong row after the grid fix.",
+    "The sweep's 4 over-budget identities (gemm_smallk x2, matmul_kernel, matmul_k32_splitn2): three were previously refused at scalar-lowering fp16-const and now compile into the slow matrix path past 120s; the compile-time cost of the matrix lowering on unfoldable loop bodies (the constprop loop-carried guard keeps correct per-iteration arithmetic alive) may need the budget or the matrix path revisited.",
+    "The location-less 'tl.arange: no tl.arange in the kernel body' segmentation refusal (67 rows in the original census) still carries no source position; giving it one would make the sweep's located-and-countable check pass."
+  ],
+  "end_revision": "",
+  "at": "2026-11-05T18:33:38.681432+00:00"
+}
