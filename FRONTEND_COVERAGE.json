@@ -136,7 +136,7 @@
         "propagate_nan"
       ],
       "evidence": "python3 a100c/tests/test_math_ops.py (exit 0): 24/24 declared forms executed on QEMU and compared against numpy oracles (NaN policies executed with NaN inputs)",
-      "ir_construct": "tir maxnum/maximum (the propagate_nan policy carried by the op code: maxnum returns the other operand on NaN)"
+      "ir_construct": "tir maximum/minimum (the propagate_nan policy carried by the op code)"
     },
     {
       "item": "tl.dot",
@@ -217,7 +217,7 @@
       "parameters_covered": [
         "x"
       ],
-      "evidence": "python3 a100c/tests/test_math_ops.py (exit 0): 24/24 declared forms executed on QEMU and compared against numpy oracles (bit-exact vs the double-rounded oracle)",
+      "evidence": "python3 a100c/tests/test_math_ops.py (exit 0): 24/24 declared forms executed on QEMU and compared against numpy oracles",
       "ir_construct": "tir math.* unary op family (the libm-backed vmath MIR op; fp32/fp64 operands per the pinned _check_dtype)"
     },
     {
@@ -238,7 +238,7 @@
         "propagate_nan"
       ],
       "evidence": "python3 a100c/tests/test_math_ops.py (exit 0): 24/24 declared forms executed on QEMU and compared against numpy oracles (NaN policies executed with NaN inputs)",
-      "ir_construct": "tir minnum/minimum (propagate_nan policy)"
+      "ir_construct": "tir maximum/minimum (the propagate_nan policy carried by the op code)"
     },
     {
       "item": "tl.min",
@@ -325,7 +325,7 @@
         "values"
       ],
       "evidence": "python3 a100c/tests/test_frontend_surface.py (exit 0); python3 a100c/tests/test_memory_forms.py (exit 0): memory forms (block pointers, boundary_check, padding_option, gather, interleave, pointer tables) executed and compared",
-      "ir_construct": "tir hint op (the divisibility promise; the wide-access proof consumes it)"
+      "ir_construct": "tir hint op (the divisibility/contiguity promise; the wide-access proof consumes it)"
     },
     {
       "item": "tl.sigmoid",
@@ -361,7 +361,7 @@
         "*dims"
       ],
       "evidence": "python3 a100c/tests/test_layout_ops.py (exit 0): layout and shape forms executed and compared (the .T attribute form too)",
-      "ir_construct": "tir permute op (default last-two)"
+      "ir_construct": "tir permute op"
     },
     {
       "item": "tl.exp2",
@@ -473,7 +473,7 @@
         "keep_dims"
       ],
       "evidence": "python3 a100c/tests/test_reductions.py (exit 0): reduction and scan forms executed and compared; corpus reduction operators at 1/2/4/8 threads on one artifact (corpus argmax_kernel_inner)",
-      "ir_construct": "tir reduce op (kind, per-op-and-dtype identity, axes, keep_dims, declared tie-break) (the index result form)"
+      "ir_construct": "tir reduce op (kind, per-op-and-dtype identity, axes, keep_dims, declared tie-break)"
     },
     {
       "item": "tl.debug_barrier",
@@ -513,7 +513,7 @@
         "offsets"
       ],
       "evidence": "python3 a100c/tests/test_memory_forms.py (exit 0): memory forms (block pointers, boundary_check, padding_option, gather, interleave, pointer tables) executed and compared",
-      "ir_construct": "BlockPtrVal desugar: the whole-tree ptradd address + mask operand + padding other (no block-pointer TIR op); tl.advance's offsets are loop-carried derived terms"
+      "ir_construct": "BlockPtrVal desugar: the whole-tree ptradd address + mask operand + padding other (no block-pointer TIR op)"
     },
     {
       "item": "tl.cos",
@@ -578,7 +578,7 @@
         "keep_dims"
       ],
       "evidence": "python3 a100c/tests/test_reductions.py (exit 0): reduction and scan forms executed and compared; corpus reduction operators at 1/2/4/8 threads on one artifact (corpus argmin operators)",
-      "ir_construct": "tir reduce op (kind, per-op-and-dtype identity, axes, keep_dims, declared tie-break) (the index result form)"
+      "ir_construct": "tir reduce op (kind, per-op-and-dtype identity, axes, keep_dims, declared tie-break)"
     },
     {
       "item": "tl.cumsum",
@@ -672,7 +672,7 @@
         "*shape"
       ],
       "evidence": "python3 a100c/tests/test_layout_ops.py (exit 0): layout and shape forms executed and compared; python3 a100c/tests/test_frontend_shapes.py (exit 0)",
-      "ir_construct": "tir broadcast op (broadcast extents realized before memory ops)"
+      "ir_construct": "tir broadcast op"
     },
     {
       "item": "tl.static_assert",
@@ -692,7 +692,7 @@
         "input"
       ],
       "evidence": "python3 a100c/tests/test_frontend_surface.py (exit 0)",
-      "ir_construct": "tir zeros op (the input's shape and type)"
+      "ir_construct": "tir zeros op"
     },
     {
       "item": "tl.atomic_xchg",
@@ -772,7 +772,7 @@
         "n_rounds"
       ],
       "evidence": "python3 a100c/tests/test_rng.py (exit 0): RNG bit-exact against vectors generated from the pinned Triton 3.8",
-      "ir_construct": "tir rng.philox op plus the pinned random.py desugars (uint_to_uniform_float, Box-Muller) -- the Box-Muller desugar"
+      "ir_construct": "tir rng.philox op plus the pinned random.py desugars (uint_to_uniform_float, Box-Muller)"
     },
     {
       "item": "tl.ravel",
@@ -782,7 +782,7 @@
         "can_reorder"
       ],
       "evidence": "python3 a100c/tests/test_layout_ops.py (exit 0): layout and shape forms executed and compared",
-      "ir_construct": "tir reshape op (constexpr shape; broadcast extents realized) (flatten; can_reorder accepted)"
+      "ir_construct": "tir reshape op (constexpr shape; broadcast extents realized)"
     },
     {
       "item": "tl.squeeze",
@@ -792,7 +792,7 @@
         "dim"
       ],
       "evidence": "python3 a100c/tests/test_layout_ops.py (exit 0): layout and shape forms executed and compared",
-      "ir_construct": "tir reshape op (constexpr shape; broadcast extents realized) (dim removal)"
+      "ir_construct": "tir reshape op (constexpr shape; broadcast extents realized)"
     },
     {
       "item": "tl.add",
@@ -829,7 +829,7 @@
         "scope"
       ],
       "evidence": "python3 a100c/tests/test_atomics.py (exit 0): all eight atomic operators plus debug_barrier executed and compared at 1/2/4/8 threads; sem/scope asserted on the assembly (atomic_bitmap)",
-      "ir_construct": "tir atomic_cas op"
+      "ir_construct": "tir atomic_rmw / atomic_cas ops (sem and scope carried; masked no-access at disabled lanes)"
     },
     {
       "item": "tl.atomic_or",
@@ -865,7 +865,7 @@
         "other"
       ],
       "evidence": "python3 a100c/tests/test_layout_ops.py (exit 0): layout and shape forms executed and compared",
-      "ir_construct": "the two-operand unification (both operands broadcast; the multi-result unpack form)"
+      "ir_construct": "tir broadcast op"
     },
     {
       "item": "tl.ceil",
@@ -884,7 +884,7 @@
         "axis"
       ],
       "evidence": "python3 a100c/tests/test_layout_ops.py (exit 0): layout and shape forms executed and compared",
-      "ir_construct": "tir reshape op (constexpr shape; broadcast extents realized) (axis insertion; the [:, None] subscript form too)"
+      "ir_construct": "tir reshape op (constexpr shape; broadcast extents realized)"
     },
     {
       "item": "tl.flip",
@@ -936,7 +936,7 @@
         "values"
       ],
       "evidence": "python3 a100c/tests/test_frontend_surface.py (exit 0); python3 a100c/tests/test_memory_forms.py (exit 0): memory forms (block pointers, boundary_check, padding_option, gather, interleave, pointer tables) executed and compared",
-      "ir_construct": "tir hint op (the contiguity promise)"
+      "ir_construct": "tir hint op (the divisibility/contiguity promise; the wide-access proof consumes it)"
     },
     {
       "item": "tl.mul",
@@ -1013,7 +1013,7 @@
         "keep_dims"
       ],
       "evidence": "python3 a100c/tests/test_reductions.py (exit 0): reduction and scan forms executed and compared; corpus reduction operators at 1/2/4/8 threads on one artifact",
-      "ir_construct": "tir reduce op (kind, per-op-and-dtype identity, axes, keep_dims, declared tie-break) (integer operands)"
+      "ir_construct": "tir reduce op (kind, per-op-and-dtype identity, axes, keep_dims, declared tie-break)"
     },
     {
       "item": "tl.softmax",
@@ -1044,7 +1044,7 @@
       "parameters_covered": [
         "x"
       ],
-      "evidence": "python3 a100c/tests/test_math_ops.py (exit 0): 24/24 declared forms executed on QEMU and compared against numpy oracles (bit-exact vs the oracle)",
+      "evidence": "python3 a100c/tests/test_math_ops.py (exit 0): 24/24 declared forms executed on QEMU and compared against numpy oracles",
       "ir_construct": "tir math.* unary op family (the libm-backed vmath MIR op; fp32/fp64 operands per the pinned _check_dtype)"
     },
     {
@@ -1101,7 +1101,7 @@
         "dim"
       ],
       "evidence": "python3 a100c/tests/test_layout_ops.py (exit 0): layout and shape forms executed and compared",
-      "ir_construct": "tir reshape op (constexpr shape; broadcast extents realized) (axis insertion)"
+      "ir_construct": "tir reshape op (constexpr shape; broadcast extents realized)"
     },
     {
       "item": "tl.view",
@@ -1111,7 +1111,7 @@
         "*shape"
       ],
       "evidence": "python3 a100c/tests/test_layout_ops.py (exit 0): layout and shape forms executed and compared",
-      "ir_construct": "tir reshape op (constexpr shape; broadcast extents realized) (the can_reorder=True reshape alias)"
+      "ir_construct": "tir reshape op (constexpr shape; broadcast extents realized)"
     },
     {
       "item": "tl.xor_sum",
@@ -1122,7 +1122,7 @@
         "keep_dims"
       ],
       "evidence": "python3 a100c/tests/test_reductions.py (exit 0): reduction and scan forms executed and compared; corpus reduction operators at 1/2/4/8 threads on one artifact",
-      "ir_construct": "tir reduce op (kind, per-op-and-dtype identity, axes, keep_dims, declared tie-break) (integer operands)"
+      "ir_construct": "tir reduce op (kind, per-op-and-dtype identity, axes, keep_dims, declared tie-break)"
     },
     {
       "item": "tl.swizzle2d",
