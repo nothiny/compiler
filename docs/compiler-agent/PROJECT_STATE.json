@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-05T09:26:23.913883+00:00",
+  "updated_at": "2026-11-05T09:27:26.872271+00:00",
   "facts": [
     {
       "id": "F001",
@@ -1951,13 +1951,13 @@
         "specialization-identity-v1"
       ],
       "tags": [],
-      "status": "READY",
-      "assignee": "",
-      "attempts": 0,
+      "status": "RUNNING",
+      "assignee": "coder",
+      "attempts": 1,
       "evidence": "",
       "last_error": "",
       "failure_kind": "",
-      "start_revision": "",
+      "start_revision": "64f761ed31a13b2258c513c89c04835fff15eae4",
       "end_revision": "",
       "completed_seq": 0,
       "debug_required": false,
@@ -1967,7 +1967,7 @@
       "debug_pending_failures": 0,
       "worker_debug_request": {},
       "coding_failures": 0,
-      "started_at": "",
+      "started_at": "2026-11-05T09:27:26.868714+00:00",
       "deferrals": 0,
       "debug_verified_patterns": [],
       "replan_baseline": {},
@@ -7121,6 +7121,12 @@
       "phase": "IMPLEMENTATION",
       "event": "complete-task",
       "detail": "T016 worker report WTI017: Declared-surface coverage completion and recording. FRONTEND_COVERAGE.json now has one row for each of the 107 declared constructs (280 parameters), every row implemented with per-construct executed evidence and the IR construct that carries it (51 shared carriers, 2.1 constructs per carrier: 13 dtype constants -> tir.Type, 12 math forms -> math.*, 7 reductions -> reduce, 6 reshape-family -> reshape, 6 atomics -> atomic_rmw/cas, 6 RNG -> rng.philox, 3 arith fn forms -> arith.*); recorded through the engine frontend-coverage command (evaluate ok=true) and cross-checked by a new coverage-matrix check inside the declared enumeration test. Closing the gaps required real implementation work the full-corpus census exposed: tl.static_assert (the last unimplemented construct with corpus calls: constexpr-true emits nothing, false/runtime conditions are located refusals; its 3 corpus operators now lower), tl.dtype (the pinned name-registry constructor, the f'uint{nbits}' JoinedStr form, .primitive_bitwidth folding on x.dtype and ptr.type.element_ty; its 2 corpus operators now clear the frontend), the .cast method form of tl.cast (24 cases), meta-carried live triton dtype objects in dtype= (tl.cast/tl.zeros/tl.full, 27 cases), module-level X = tl.constexpr(v) globals (10 cases), tl.fma's pinned to_tensor scalar legalization -- python-float scalars participate as fp32, which the gelu fp16 chain silently computed in 16-bit before (6 cases, now executed-and-compared PASS), .shape folding (attribute, subscript, evaluator; feeds tl.arange/tl.full constexpr shapes), and a pre-existing BoolOp leak where a runtime 'or' folded to the truthiness of the RuntimeValue objects (silently baking True; now a located refusal, the pinned visit_BoolOp logical_and/logical_or lowering left as a recorded T018 class). Evidence: the complete 30-file a100c test suite passes with 0 failed checks; end-to-end executed comparisons on the newly-enabled operators (selu_kernel_supreme [s"
+    },
+    {
+      "at": "2026-11-05T09:27:26.872261+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "start-task",
+      "detail": "T017 agent=coder"
     }
   ]
 }
