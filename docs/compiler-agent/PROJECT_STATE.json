@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-05T11:44:00.786941+00:00",
+  "updated_at": "2026-11-05T11:49:17.177586+00:00",
   "facts": [
     {
       "id": "F001",
@@ -2429,6 +2429,575 @@
       "replan_baseline": {},
       "origin": "manager",
       "parent_task": "",
+      "optimization_stage": "",
+      "bundle_passes": [],
+      "shared_analysis": [],
+      "rollback_boundary": "",
+      "fastpath_fallback": "",
+      "profile_artifact": "",
+      "profile_sha256": "",
+      "profile_revision": "",
+      "bundle_evidence": []
+    },
+    {
+      "id": "T024",
+      "goal": "Repair the compile-sweep crash and driver-load defect classes from docs/compiler-agent/COMPILE_CENSUS.json (22 crashes + 63 'case' loads + 8 _make_case + 9 literal-None rows), each through its shared path, never per-operator: (1) LICM hoist legality \u2014 a100c/passes/licm.py hoists a use of a loop-defined value ('rs' in ops/suite/dev/implicit_conv2d.py:47, 6 identities) above its definition breaking the TIR use-before-definition contract; fix the legality check (a value used by the hoisted expression must be defined outside the loop or hoisted with it) and keep the TIR verifier as the control; (2) AttributeError 'MaskType' object has no attribute 'sew' in the lowering (15 identities, e.g. ops/suite/dev/amp_foreach_non_finite_check_and_unscale_kernel.py) \u2014 the mask-typed value path must not read .sew; (3) OverflowError 'cannot convert float infinity to integer' (1 identity, ops/suite/dev/hidden__argmax_kernel_2.py) \u2014 literal typing must handle float('inf') comparisons against integer bounds without Python int conversion; (4) a100c/driver.py _load_source unwraps only one level of @triton.autotune (kernel is an Autotuner, kernel.fn a JITFunction, the raw function at kernel.fn.fn) so 11 autotune operators (63 'case' rows, e.g. fused_layernorm_triton) can never load their compile unit \u2014 unwrap recursively with the deterministically chosen config per the specialization identity; (5) case-layer interpreter failures '_make_case: int() argument must be...' (8 rows) \u2014 reproduce one, fix the shared interpreter gap; (6) literal None typing (9 rows: 'cannot type literal None of type NoneType') \u2014 None must type as the absent/other default it is used for, or be refused with a located diagnostic naming the construct. Validate with the sweep tool filtered to the owned operators (python3 a100c/tests/test_compile_sweep.py --operator <op>) plus the full test suite; the owned classes must produce artifacts or located refusals of a DIFFERENT construct (progressed), never crashes and never unlocated refusals.",
+      "kind": "general",
+      "gate": "G6",
+      "capability": "coding",
+      "purpose": "input",
+      "attempt_limit": 0,
+      "inputs": [
+        "docs/compiler-agent/COMPILE_CENSUS.json",
+        "a100c/tests/test_compile_sweep.py",
+        "a100c/passes/licm.py",
+        "a100c/driver.py",
+        "a100c/frontend/"
+      ],
+      "outputs": [
+        "Fixed crash/load classes with regression tests in a100c/tests/"
+      ],
+      "dependencies": [],
+      "interfaces": [],
+      "acceptance": [
+        "The filtered compile sweep over every operator named in the census crash_rows, 'case' rows, _make_case rows and literal rows completes with zero crashes and zero unlocated refusals; each owned identity now produces an ELF artifact or a located refusal of a different construct.",
+        "The LICM fix keeps the post-pass TIR verifier green on implicit_conv2d with passes enabled, and a regression test reproduces the original illegal hoist shape and asserts it is either not hoisted or hoisted with its definition.",
+        "The autotune unwrap loads the compile unit for the 11 @triton.autotune operators (kernel.fn.fn reached recursively), with the config chosen deterministically per the specialization identity.",
+        "All pre-existing test files still pass.",
+        "The full-corpus sweep re-run (or the class-filtered rows of one) shows the crash count 22 -> 0 and the 'case'/'_make_case'/literal classes resolved or progressed to located refusals."
+      ],
+      "tests": [
+        "set -a; . ./.env; set +a; timeout 7000 python3 a100c/tests/test_compile_sweep.py (full sweep: crash_rows empty, unlocated refusal count zero)",
+        "python3 a100c/tests/test_passes_basic.py (LICM legality unchanged for legal cases)"
+      ],
+      "conflicts": [
+        "a100c-passes",
+        "a100c-ir-frontend",
+        "a100c-tools-driver"
+      ],
+      "provides": [],
+      "consumes": [],
+      "tags": [
+        "compile-sweep-repair"
+      ],
+      "status": "RUNNING",
+      "assignee": "coder",
+      "attempts": 1,
+      "evidence": "",
+      "last_error": "",
+      "failure_kind": "",
+      "start_revision": "44cb018fa0ca04ac669a05328ca4069028661c65",
+      "end_revision": "",
+      "completed_seq": 0,
+      "debug_required": false,
+      "debug_request_id": "",
+      "debug_pending_revision": "",
+      "debug_pending_attempts": -1,
+      "debug_pending_failures": 0,
+      "worker_debug_request": {},
+      "coding_failures": 0,
+      "started_at": "2026-11-05T11:49:17.173795+00:00",
+      "deferrals": 0,
+      "debug_verified_patterns": [],
+      "replan_baseline": {},
+      "origin": "manager",
+      "parent_task": "T018",
+      "optimization_stage": "",
+      "bundle_passes": [],
+      "shared_analysis": [],
+      "rollback_boundary": "",
+      "fastpath_fallback": "",
+      "profile_artifact": "",
+      "profile_sha256": "",
+      "profile_revision": "",
+      "bundle_evidence": []
+    },
+    {
+      "id": "T025",
+      "goal": "Repair the scalar-typing defect classes from the census (~170 'float scalar width 32 differs from its record width 64' rows: eps/alpha/p/maxnorm/delta/negative_slope/ord/end/clamp_max/inv_127/slope/a/value/divisor/eps_minus/scalar/maxnorm across e.g. leaky_relu, softplus, clamp, dropout, rmsnorm-style operators; plus 84 'scalar-lowering: const: float width 16 is not in the scalar core' rows) through the shared scalar binding path: the bundle scalar record and the frontend must agree on the kernel's declared scalar type \u2014 the record width must follow the kernel signature's annotation (tl.float32 -> 32-bit record) or the runtime must convert on read under the declared semantics, never refuse on a width disagreement; and the scalar core must lower float constants of width 16 (fp16 scalars) with correct rounding semantics. Integer scalar width handling is checked for the same defect shape. No per-operator branches; the fix is in the scalar record/binding and scalar lowering paths.",
+      "kind": "general",
+      "gate": "G6",
+      "capability": "coding",
+      "purpose": "input",
+      "attempt_limit": 0,
+      "inputs": [
+        "docs/compiler-agent/COMPILE_CENSUS.json",
+        "a100c/frontend/types.py",
+        "a100c/frontend/specialize.py",
+        "a100c/lower/scalar.py",
+        "a100c/runtime/ (bundle scalar records)"
+      ],
+      "outputs": [
+        "Fixed scalar binding/lowering with regression tests"
+      ],
+      "dependencies": [],
+      "interfaces": [],
+      "acceptance": [
+        "The filtered compile sweep over the census operators carrying 'width 32 differs from its record width 64' and 'const: float width 16' refusals shows those classes at zero: each owned identity produces an artifact or a located refusal of a different construct.",
+        "The scalar record width and the kernel signature agree by construction (one shared definition or a checked conversion), demonstrated by a test that packs and reads back scalars of every declared dtype width.",
+        "fp16 scalar constants lower with declared rounding; integer scalar widths bind without refusal.",
+        "All pre-existing test files still pass."
+      ],
+      "tests": [
+        "set -a; . ./.env; set +a; python3 a100c/tests/test_compile_sweep.py --operator <owned operators> (classes at zero)",
+        "python3 a100c/tests/test_frontend_types.py and the full a100c test suite"
+      ],
+      "conflicts": [
+        "a100c-ir-frontend",
+        "a100c-lowering-backend",
+        "a100c-tools-driver"
+      ],
+      "provides": [],
+      "consumes": [],
+      "tags": [
+        "compile-sweep-repair"
+      ],
+      "status": "READY",
+      "assignee": "",
+      "attempts": 0,
+      "evidence": "",
+      "last_error": "",
+      "failure_kind": "",
+      "start_revision": "",
+      "end_revision": "",
+      "completed_seq": 0,
+      "debug_required": false,
+      "debug_request_id": "",
+      "debug_pending_revision": "",
+      "debug_pending_attempts": -1,
+      "debug_pending_failures": 0,
+      "worker_debug_request": {},
+      "coding_failures": 0,
+      "started_at": "",
+      "deferrals": 0,
+      "debug_verified_patterns": [],
+      "replan_baseline": {},
+      "origin": "manager",
+      "parent_task": "T018",
+      "optimization_stage": "",
+      "bundle_passes": [],
+      "shared_analysis": [],
+      "rollback_boundary": "",
+      "fastpath_fallback": "",
+      "profile_artifact": "",
+      "profile_sha256": "",
+      "profile_revision": "",
+      "bundle_evidence": []
+    },
+    {
+      "id": "T026",
+      "goal": "Repair the control-flow frontend defect classes from the census: 129 'return: early return is not lowered by the control-flow core (a region terminator is not in this path; guarded...)' rows \u2014 early return must lower as a region terminator with the guard semantics (returned value or default per the source semantics, carried through joins); 9 'while True never terminates (no break exists in the control-flow core)' rows \u2014 break (and continue) as loop exits; 54 \"'and': Python and/or on runtime values is not supported\" rows \u2014 Python and/or over runtime scalars lowers to the short-circuit/boolean semantics Triton pins for them; 7 'augmented assignment: target is not defined' rows; and the tir-verifier 'carried-value-without-join' rows (~30: join 'mask'/'i'/'i_t_true'/'base' of an if) \u2014 the frontend's if-construction must create joins for every value carried across a branch, including values only assigned on one path and values whose join the current builder drops. All through the shared frontend control-flow path, no per-operator branches.",
+      "kind": "general",
+      "gate": "G6",
+      "capability": "coding",
+      "purpose": "input",
+      "attempt_limit": 0,
+      "inputs": [
+        "docs/compiler-agent/COMPILE_CENSUS.json",
+        "a100c/frontend/lower_tir.py",
+        "a100c/lower/scalar.py",
+        "a100c/ir/tir.py"
+      ],
+      "outputs": [
+        "Fixed control-flow frontend with regression tests"
+      ],
+      "dependencies": [],
+      "interfaces": [],
+      "acceptance": [
+        "The filtered compile sweep over the census operators carrying 'return', 'while', \"'and'\"/\"'or'\", 'augmented assignment' and tir-verifier 'carried-value-without-join' refusals shows those classes at zero: each owned identity produces an artifact or a located refusal of a different construct.",
+        "Early-return kernels execute correctly on their cases (the returned-vs-default value semantics preserved) \u2014 spot-execute at least two owned operators at 1 and 4 workers under the declared comparison.",
+        "A carried-value regression test reproduces each join shape that previously failed (one-path assignment, re-assigned variable, conditionally-assigned pointer) and asserts the TIR verifier accepts the built module.",
+        "All pre-existing test files still pass."
+      ],
+      "tests": [
+        "set -a; . ./.env; set +a; python3 a100c/tests/test_compile_sweep.py --operator <owned operators> (classes at zero)",
+        "python3 a100c/tests/test_control_flow.py and the full a100c test suite"
+      ],
+      "conflicts": [
+        "a100c-ir-frontend"
+      ],
+      "provides": [],
+      "consumes": [],
+      "tags": [
+        "compile-sweep-repair"
+      ],
+      "status": "READY",
+      "assignee": "",
+      "attempts": 0,
+      "evidence": "",
+      "last_error": "",
+      "failure_kind": "",
+      "start_revision": "",
+      "end_revision": "",
+      "completed_seq": 0,
+      "debug_required": false,
+      "debug_request_id": "",
+      "debug_pending_revision": "",
+      "debug_pending_attempts": -1,
+      "debug_pending_failures": 0,
+      "worker_debug_request": {},
+      "coding_failures": 0,
+      "started_at": "",
+      "deferrals": 0,
+      "debug_verified_patterns": [],
+      "replan_baseline": {},
+      "origin": "manager",
+      "parent_task": "T018",
+      "optimization_stage": "",
+      "bundle_passes": [],
+      "shared_analysis": [],
+      "rollback_boundary": "",
+      "fastpath_fallback": "",
+      "profile_artifact": "",
+      "profile_sha256": "",
+      "profile_revision": "",
+      "bundle_evidence": []
+    },
+    {
+      "id": "T027",
+      "goal": "Repair the grid-model defect classes from the census (~215 'grid' rows: 135 'a grid axis is not provenance-tracked (it depends on values the model cannot see: floordiv/sub/add/mul over $shape_extent and untracked values)', 94 'grid input $shape_extent(axis) cannot be proven equal to a bundle-visible quantity', 24 'the case layer never assigns a trackable grid', 9 'tied scalar N_pre is not a bound kernel scalar', plus 9 'for: loops in the case layer are outside the grid model (only concrete range() loops unroll)') through the shared grid-model path in a100c/frontend/gridmodel.py: extend the provenance-tracking case-layer interpreter to track shape-derived expressions the corpus actually uses (floor division, subtraction, addition, multiplication, min/max chains over shape extents and unpacked locals), to bind grids computed from case shapes via the case's own view extents (the payload-shape tie), to extract grid forms assigned through loop-accumulated or helper-computed locals, and to tie scalars the case passes as grid inputs. Operators whose grid genuinely cannot be tied to bundle-visible quantities keep their located refusal. No per-operator branches; the grid expression coverage grows as data/patterns in the interpreter.",
+      "kind": "general",
+      "gate": "G6",
+      "capability": "coding",
+      "purpose": "input",
+      "attempt_limit": 0,
+      "inputs": [
+        "docs/compiler-agent/COMPILE_CENSUS.json",
+        "a100c/frontend/gridmodel.py",
+        "ops/harness/compiler_api/ (case-layer forms)"
+      ],
+      "outputs": [
+        "Extended grid model with regression tests"
+      ],
+      "dependencies": [],
+      "interfaces": [],
+      "acceptance": [
+        "The filtered compile sweep over the census operators carrying 'grid' and case-layer 'for' refusals shows the extractable share at zero for provenance-tracked forms: each owned identity produces an artifact or a located refusal naming the genuinely untraceable input (a strictly smaller set, counted).",
+        "The provenance self-check still proves modeled == declared grid for every compiling case (no baking: the emitted routine reads bundle scalars/view extents at runtime).",
+        "The extraction/refusal census is re-recorded with the new counts, and the refusal set that remains is named with its untraceable input.",
+        "All pre-existing test files still pass."
+      ],
+      "tests": [
+        "set -a; . ./.env; set +a; python3 a100c/tests/test_compile_sweep.py --operator <owned operators> (grid class reduced to genuinely untraceable, counted)",
+        "python3 a100c/tests/test_grid_model.py and the full a100c test suite"
+      ],
+      "conflicts": [
+        "a100c-ir-frontend"
+      ],
+      "provides": [],
+      "consumes": [],
+      "tags": [
+        "compile-sweep-repair"
+      ],
+      "status": "READY",
+      "assignee": "",
+      "attempts": 0,
+      "evidence": "",
+      "last_error": "",
+      "failure_kind": "",
+      "start_revision": "",
+      "end_revision": "",
+      "completed_seq": 0,
+      "debug_required": false,
+      "debug_request_id": "",
+      "debug_pending_revision": "",
+      "debug_pending_attempts": -1,
+      "debug_pending_failures": 0,
+      "worker_debug_request": {},
+      "coding_failures": 0,
+      "started_at": "",
+      "deferrals": 0,
+      "debug_verified_patterns": [],
+      "replan_baseline": {},
+      "origin": "manager",
+      "parent_task": "T018",
+      "optimization_stage": "",
+      "bundle_passes": [],
+      "shared_analysis": [],
+      "rollback_boundary": "",
+      "fastpath_fallback": "",
+      "profile_artifact": "",
+      "profile_sha256": "",
+      "profile_revision": "",
+      "bundle_evidence": []
+    },
+    {
+      "id": "T028",
+      "goal": "Repair the dominant block-form defect classes from the census through the shared vector/layout lane: 271 tl.sum + 56 tl.max + 27 tl.min 'reducing every axis of a multi-axis block is not in this path (the block forms are rank 1; partial axis...)' rows and 9 'a scalar computation between the reduction and a later block statement would read the per-chunk partial' rows \u2014 multi-axis (rank-2) blocks with all-axis and partial-axis reductions must lower (the layout lane generalizes beyond extent-homogeneous rank-1 regions); 128 'reduce: reduction operand SEW 32 is not the data SEW 16 (multi-width blocks are a later path)' rows \u2014 blocks mixing fp16 data and fp32 reduction/index widths must lower with correct vsetvli regions; 20 mir-verifier 'vsetvli-region-inconsistency: vector width v32m1 does not match the active region e16m1' rows \u2014 mixed-SEW regions must keep consistent region state; 67 'tl.arange: no tl.arange in the kernel body; the vector slice lowers the one-block elementwise form' rows (bn_inc_and_write_momentum, final_mean, finalize_stats, triton_conv2d_fwd, ...) \u2014 the vector slice must lower kernels whose block structure is not the single one-block elementwise form (multiple blocks, block sizes derived from runtime values, loop-carried blocks); and the 'loop: a runtime region mixes block extents' rows (~24). This is the core block-model generalization: rank-2 chunk regions, per-block SEW, mixed-extent regions. Preserve exactness classes (integer/index/boolean exact; fp within declared tolerance) and the ragged-tail witness. No per-operator branches.",
+      "kind": "general",
+      "gate": "G6",
+      "capability": "coding",
+      "purpose": "input",
+      "attempt_limit": 0,
+      "inputs": [
+        "docs/compiler-agent/COMPILE_CENSUS.json",
+        "a100c/lower/vectorize.py",
+        "a100c/lower/addresses.py",
+        "a100c/ir/mir.py",
+        "a100c/plan/partition.py"
+      ],
+      "outputs": [
+        "Generalized block-form lowering with regression tests"
+      ],
+      "dependencies": [],
+      "interfaces": [],
+      "acceptance": [
+        "The filtered compile sweep over the census operators carrying tl.sum/tl.max/tl.min all-axis, reduce multi-width, mir-verifier vsetvli-region, 'no tl.arange in the kernel body' and mixed-extent 'loop' refusals shows those classes at zero: each owned identity produces an artifact or a located refusal of a different construct.",
+        "Owned reduction operators execute and compare PASS on their cases (spot-execute representative multi-axis and multi-width operators at 1 and 4 workers under the declared policies; integer/index/boolean outputs exact).",
+        "The MIR verifier's vsetvli region consistency check still rejects hand-built inconsistent regions (control) and accepts the new mixed-SEW lowering.",
+        "All pre-existing test files still pass, including the ragged-tail witness and the IME slice evidence tests."
+      ],
+      "tests": [
+        "set -a; . ./.env; set +a; python3 a100c/tests/test_compile_sweep.py --operator <owned operators> (classes at zero)",
+        "python3 a100c/tests/test_lower_vector.py, test_mir_verifier.py, test_reductions.py and the full a100c test suite"
+      ],
+      "conflicts": [
+        "a100c-lowering-backend",
+        "a100c-ir-frontend"
+      ],
+      "provides": [],
+      "consumes": [],
+      "tags": [
+        "compile-sweep-repair"
+      ],
+      "status": "READY",
+      "assignee": "",
+      "attempts": 0,
+      "evidence": "",
+      "last_error": "",
+      "failure_kind": "",
+      "start_revision": "",
+      "end_revision": "",
+      "completed_seq": 0,
+      "debug_required": false,
+      "debug_request_id": "",
+      "debug_pending_revision": "",
+      "debug_pending_attempts": -1,
+      "debug_pending_failures": 0,
+      "worker_debug_request": {},
+      "coding_failures": 0,
+      "started_at": "",
+      "deferrals": 0,
+      "debug_verified_patterns": [],
+      "replan_baseline": {},
+      "origin": "manager",
+      "parent_task": "T018",
+      "optimization_stage": "",
+      "bundle_passes": [],
+      "shared_analysis": [],
+      "rollback_boundary": "",
+      "fastpath_fallback": "",
+      "profile_artifact": "",
+      "profile_sha256": "",
+      "profile_revision": "",
+      "bundle_evidence": []
+    },
+    {
+      "id": "T029",
+      "goal": "Repair the index-width and allocation defect classes from the census: 46 'ptradd: scalar offset width 64 exceeds the vector index SEW 32' rows \u2014 64-bit scalar offsets into vector address materialization must widen the vector index lane (or lower the address scalar-wise) with equivalent addressing semantics, never refuse on the width; 16 'allocation: vector LMUL 4 beyond m2 is not allocated by the slice' rows \u2014 the allocator must handle LMUL 4 vector groups within the 32x128B budget (chunking or spilling legally); 7 'allocation: allocation did not converge for operator_entry after 65 spill rounds' rows \u2014 diagnose the non-convergence (register-pressure patterns the splitter cannot resolve) and either converge, chunk the plan legally, or produce a located refusal naming the pressure source. Through the shared addressing/allocation paths.",
+      "kind": "general",
+      "gate": "G6",
+      "capability": "coding",
+      "purpose": "input",
+      "attempt_limit": 0,
+      "inputs": [
+        "docs/compiler-agent/COMPILE_CENSUS.json",
+        "a100c/lower/addresses.py",
+        "a100c/backend/allocate.py",
+        "a100c/backend/legalize.py"
+      ],
+      "outputs": [
+        "Fixed index-width/allocation paths with regression tests"
+      ],
+      "dependencies": [
+        "T028"
+      ],
+      "interfaces": [],
+      "acceptance": [
+        "The filtered compile sweep over the census operators carrying ptradd-width, LMUL-4 and non-convergence refusals shows those classes at zero: each owned identity produces an artifact or a located refusal of a different construct.",
+        "Addressing with 64-bit offsets computes identical addresses to the 32-bit path on a test enumerating offset magnitudes crossing the 32-bit boundary (within the corpus's address space).",
+        "The allocator's spill correctness is re-verified on pressure tests (values preserved across spill/reload; no mixed-LMUL overlap).",
+        "All pre-existing test files still pass."
+      ],
+      "tests": [
+        "set -a; . ./.env; set +a; python3 a100c/tests/test_compile_sweep.py --operator <owned operators> (classes at zero)",
+        "python3 a100c/tests/test_allocate.py, test_legalize.py and the full a100c test suite"
+      ],
+      "conflicts": [
+        "a100c-lowering-backend"
+      ],
+      "provides": [],
+      "consumes": [],
+      "tags": [
+        "compile-sweep-repair"
+      ],
+      "status": "BLOCKED",
+      "assignee": "",
+      "attempts": 0,
+      "evidence": "",
+      "last_error": "",
+      "failure_kind": "",
+      "start_revision": "",
+      "end_revision": "",
+      "completed_seq": 0,
+      "debug_required": false,
+      "debug_request_id": "",
+      "debug_pending_revision": "",
+      "debug_pending_attempts": -1,
+      "debug_pending_failures": 0,
+      "worker_debug_request": {},
+      "coding_failures": 0,
+      "started_at": "",
+      "deferrals": 0,
+      "debug_verified_patterns": [],
+      "replan_baseline": {},
+      "origin": "manager",
+      "parent_task": "T018",
+      "optimization_stage": "",
+      "bundle_passes": [],
+      "shared_analysis": [],
+      "rollback_boundary": "",
+      "fastpath_fallback": "",
+      "profile_artifact": "",
+      "profile_sha256": "",
+      "profile_revision": "",
+      "bundle_evidence": []
+    },
+    {
+      "id": "T030",
+      "goal": "Repair the 'tl.dot: a dot inside a runtime loop is not enabled on this build: the restructured loop's staged regions lose [the 256-byte staging buffer]' defect class from the census (62 rows, the pat.k_loop family and dot-carrying loops): dots inside runtime-bound loops must lower \u2014 the staged IME tile pipeline (or the vector FMA path) must survive loop restructuring, either by keeping the staging tile inside the loop iteration scope with correct liveness, hoisting the staging allocation legally, or chunking the K-loop so each iteration's staging fits. The reproduced defect and its guarded refusal exist in a100c/lower/matrix.py and the staging machinery in a100c/lower/vectorize.py from T014's census. Fix through the shared dot-in-loop path; keep the IME operand contract, tails, and the instruction-count evidence path intact; BF16 stays on the vector FP32 path with the gap recorded.",
+      "kind": "general",
+      "gate": "G6",
+      "capability": "coding",
+      "purpose": "input",
+      "attempt_limit": 0,
+      "inputs": [
+        "docs/compiler-agent/COMPILE_CENSUS.json",
+        "a100c/lower/matrix.py",
+        "a100c/lower/vectorize.py",
+        "a100c/plan/tiles.py"
+      ],
+      "outputs": [
+        "Dot-in-runtime-loop lowering with regression tests"
+      ],
+      "dependencies": [
+        "T028"
+      ],
+      "interfaces": [],
+      "acceptance": [
+        "The filtered compile sweep over the census operators carrying the dot-in-runtime-loop refusal shows the class at zero: each owned identity produces an artifact or a located refusal of a different construct.",
+        "Owned k-loop dot operators execute and compare PASS on their cases at 1 and 4 workers under the declared policies; representative int8/fp16 dot-in-loop cases still show positive smt.vmadot/smt.vfwmadot execution counts bound to their artifacts.",
+        "The T014 reproduction (the 256-byte staging loss) now compiles and executes correctly; the guard that refused it is removed or narrowed to a genuinely unlowerable form.",
+        "All pre-existing test files still pass, including test_lower_matrix.py and test_ime_evidence.py."
+      ],
+      "tests": [
+        "set -a; . ./.env; set +a; python3 a100c/tests/test_compile_sweep.py --operator <owned operators> (class at zero)",
+        "python3 a100c/tests/test_lower_matrix.py, test_matrix_breadth.py, test_ime_evidence.py and the full a100c test suite"
+      ],
+      "conflicts": [
+        "a100c-lowering-backend"
+      ],
+      "provides": [],
+      "consumes": [],
+      "tags": [
+        "compile-sweep-repair"
+      ],
+      "status": "BLOCKED",
+      "assignee": "",
+      "attempts": 0,
+      "evidence": "",
+      "last_error": "",
+      "failure_kind": "",
+      "start_revision": "",
+      "end_revision": "",
+      "completed_seq": 0,
+      "debug_required": false,
+      "debug_request_id": "",
+      "debug_pending_revision": "",
+      "debug_pending_attempts": -1,
+      "debug_pending_failures": 0,
+      "worker_debug_request": {},
+      "coding_failures": 0,
+      "started_at": "",
+      "deferrals": 0,
+      "debug_verified_patterns": [],
+      "replan_baseline": {},
+      "origin": "manager",
+      "parent_task": "T018",
+      "optimization_stage": "",
+      "bundle_passes": [],
+      "shared_analysis": [],
+      "rollback_boundary": "",
+      "fastpath_fallback": "",
+      "profile_artifact": "",
+      "profile_sha256": "",
+      "profile_revision": "",
+      "bundle_evidence": []
+    },
+    {
+      "id": "T031",
+      "goal": "Repair the remaining small construct-refusal classes from the census so the sweep's refusal set is either implemented or refused as genuinely outside the declared surface with a located diagnostic: 9 'tl.reshape: shape must be a compile-time sequence of integers' (runtime-derived reshape shapes: lower the runtime form or refuse as outside the pinned semantics with the location); 9 'tl.arange.end: end must be a compile-time integer'; 10 'store: i1 pointee widths are not in the slice (a bool backing store is the dtype-surface lane)'; 4 tl.softmax, 4 tl.erf, 4 convert, 4 tl.sqrt, 3 tl.program_id, 3 const, 3 tl.store, 3 load, 2 tl.floor, 2 tl.log, 1 bit.and, 1 bit.or, 3 mean, 3 scalar, 3 value, 3 start, 3 'end' scalar width (if not already fixed by the scalar task), and any residual unclassifiable rows. Each through its construct's shared path; classify any row that is genuinely outside the pinned Triton 3.8 subset as declared-unsupported with the refusal witness updated.",
+      "kind": "general",
+      "gate": "G6",
+      "capability": "coding",
+      "purpose": "input",
+      "attempt_limit": 0,
+      "inputs": [
+        "docs/compiler-agent/COMPILE_CENSUS.json",
+        "a100c/frontend/surface.py",
+        "a100c/lower/"
+      ],
+      "outputs": [
+        "Resolved remaining construct classes with regression tests"
+      ],
+      "dependencies": [
+        "T024",
+        "T025",
+        "T026",
+        "T027"
+      ],
+      "interfaces": [],
+      "acceptance": [
+        "The filtered compile sweep over the census operators carrying the remaining small classes shows each class at zero: every owned identity produces an artifact or a located refusal naming a construct outside the declared surface (counted, with the FRONTEND_COVERAGE row updated where a construct moves to declared-unsupported).",
+        "Runtime-shape reshape/arange bounds that the pinned Triton semantics support are lowered; genuinely constexpr-only forms keep located refusals naming the source location.",
+        "Bool stores round-trip exactly (integer/boolean exactness).",
+        "All pre-existing test files still pass."
+      ],
+      "tests": [
+        "set -a; . ./.env; set +a; python3 a100c/tests/test_compile_sweep.py --operator <owned operators> (classes at zero)",
+        "python3 a100c/tests/test_frontend_surface.py, test_layout_ops.py, test_memory_forms.py and the full a100c test suite"
+      ],
+      "conflicts": [
+        "a100c-ir-frontend",
+        "a100c-lowering-backend"
+      ],
+      "provides": [],
+      "consumes": [],
+      "tags": [
+        "compile-sweep-repair"
+      ],
+      "status": "BLOCKED",
+      "assignee": "",
+      "attempts": 0,
+      "evidence": "",
+      "last_error": "",
+      "failure_kind": "",
+      "start_revision": "",
+      "end_revision": "",
+      "completed_seq": 0,
+      "debug_required": false,
+      "debug_request_id": "",
+      "debug_pending_revision": "",
+      "debug_pending_attempts": -1,
+      "debug_pending_failures": 0,
+      "worker_debug_request": {},
+      "coding_failures": 0,
+      "started_at": "",
+      "deferrals": 0,
+      "debug_verified_patterns": [],
+      "replan_baseline": {},
+      "origin": "manager",
+      "parent_task": "T018",
       "optimization_stage": "",
       "bundle_passes": [],
       "shared_analysis": [],
@@ -5848,6 +6417,45 @@
         }
       ],
       "optimization": false
+    },
+    "a97cbe9a7aa503c30c45eaa3bd200442aa81a45b0a36f6734290b463881b346a": {
+      "run_id": "",
+      "digest": "b0845151c4dff604149b6da7575cbdbade5d70dcb245fec222372ff668b76a56",
+      "assignments": [
+        {
+          "task_id": "T024",
+          "cases": []
+        },
+        {
+          "task_id": "T025",
+          "cases": []
+        },
+        {
+          "task_id": "T026",
+          "cases": []
+        },
+        {
+          "task_id": "T027",
+          "cases": []
+        },
+        {
+          "task_id": "T028",
+          "cases": []
+        },
+        {
+          "task_id": "T029",
+          "cases": []
+        },
+        {
+          "task_id": "T030",
+          "cases": []
+        },
+        {
+          "task_id": "T031",
+          "cases": []
+        }
+      ],
+      "optimization": false
     }
   },
   "validation": {},
@@ -7199,6 +7807,66 @@
       "phase": "IMPLEMENTATION",
       "event": "fail-task",
       "detail": "T018 [implementation] Implemented and ran the full compile sweep (a100c/tests/test_compile_sweep.py): one cold pass over the whole corpus through the enabled pipeline (FactoryCompiler, passes=default, isolated temporary artifact cache), enumerating cases exactly as tools/run_scan.py does, compiling each of the 2116 reco\u2026"
+    },
+    {
+      "at": "2026-11-05T11:49:11.647848+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "task",
+      "detail": "T024 Repair the compile-sweep crash and driver-load defect classes from docs/compiler-agent/COMPILE_CENSUS.json (22 crashes + 63 'case' loads + 8 _make_case + 9 literal-None rows), each through its shared path, never per-operator: (1) LICM hoist legality \u2014 a100c/passes/licm.py hoists a use of a loop-defined value ('rs' in ops/suite/dev/implicit_conv2d.py:47, 6 identities) above its definition breaking the TIR use-before-definition contract; fix the legality check (a value used by the hoisted expression must be defined outside the loop or hoisted with it) and keep the TIR verifier as the control; (2) AttributeError 'MaskType' object has no attribute 'sew' in the lowering (15 identities, e.g. ops/suite/dev/amp_foreach_non_finite_check_and_unscale_kernel.py) \u2014 the mask-typed value path must not read .sew; (3) OverflowError 'cannot convert float infinity to integer' (1 identity, ops/suite/dev/hidden__argmax_kernel_2.py) \u2014 literal typing must handle float('inf') comparisons against integer bounds without Python int conversion; (4) a100c/driver.py _load_source unwraps only one level of @triton.autotune (kernel is an Autotuner, kernel.fn a JITFunction, the raw function at kernel.fn.fn) so 11 autotune operators (63 'case' rows, e.g. fused_layernorm_triton) can never load their compile unit \u2014 unwrap recursively with the deterministically chosen config per the specialization identity; (5) case-layer interpreter failures '_make_case: int() argument must be...' (8 rows) \u2014 reproduce one, fix the shared interpreter gap; (6) literal None typing (9 rows: 'cannot type literal None of type NoneType') \u2014 None must type as the absent/other default it is used for, or be refused with a located diagnostic naming the construct. Validate with the sweep tool filtered to the owned operators (python3 a100c/tests/test_compile_sweep.py --operator <op>) plus the full test suite; the owned classes must produce artifacts or located refusals of a DIFFERENT construct (progressed), never crashes and never unlocated refusals."
+    },
+    {
+      "at": "2026-11-05T11:49:11.647929+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "task",
+      "detail": "T025 Repair the scalar-typing defect classes from the census (~170 'float scalar width 32 differs from its record width 64' rows: eps/alpha/p/maxnorm/delta/negative_slope/ord/end/clamp_max/inv_127/slope/a/value/divisor/eps_minus/scalar/maxnorm across e.g. leaky_relu, softplus, clamp, dropout, rmsnorm-style operators; plus 84 'scalar-lowering: const: float width 16 is not in the scalar core' rows) through the shared scalar binding path: the bundle scalar record and the frontend must agree on the kernel's declared scalar type \u2014 the record width must follow the kernel signature's annotation (tl.float32 -> 32-bit record) or the runtime must convert on read under the declared semantics, never refuse on a width disagreement; and the scalar core must lower float constants of width 16 (fp16 scalars) with correct rounding semantics. Integer scalar width handling is checked for the same defect shape. No per-operator branches; the fix is in the scalar record/binding and scalar lowering paths."
+    },
+    {
+      "at": "2026-11-05T11:49:11.647965+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "task",
+      "detail": "T026 Repair the control-flow frontend defect classes from the census: 129 'return: early return is not lowered by the control-flow core (a region terminator is not in this path; guarded...)' rows \u2014 early return must lower as a region terminator with the guard semantics (returned value or default per the source semantics, carried through joins); 9 'while True never terminates (no break exists in the control-flow core)' rows \u2014 break (and continue) as loop exits; 54 \"'and': Python and/or on runtime values is not supported\" rows \u2014 Python and/or over runtime scalars lowers to the short-circuit/boolean semantics Triton pins for them; 7 'augmented assignment: target is not defined' rows; and the tir-verifier 'carried-value-without-join' rows (~30: join 'mask'/'i'/'i_t_true'/'base' of an if) \u2014 the frontend's if-construction must create joins for every value carried across a branch, including values only assigned on one path and values whose join the current builder drops. All through the shared frontend control-flow path, no per-operator branches."
+    },
+    {
+      "at": "2026-11-05T11:49:11.647994+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "task",
+      "detail": "T027 Repair the grid-model defect classes from the census (~215 'grid' rows: 135 'a grid axis is not provenance-tracked (it depends on values the model cannot see: floordiv/sub/add/mul over $shape_extent and untracked values)', 94 'grid input $shape_extent(axis) cannot be proven equal to a bundle-visible quantity', 24 'the case layer never assigns a trackable grid', 9 'tied scalar N_pre is not a bound kernel scalar', plus 9 'for: loops in the case layer are outside the grid model (only concrete range() loops unroll)') through the shared grid-model path in a100c/frontend/gridmodel.py: extend the provenance-tracking case-layer interpreter to track shape-derived expressions the corpus actually uses (floor division, subtraction, addition, multiplication, min/max chains over shape extents and unpacked locals), to bind grids computed from case shapes via the case's own view extents (the payload-shape tie), to extract grid forms assigned through loop-accumulated or helper-computed locals, and to tie scalars the case passes as grid inputs. Operators whose grid genuinely cannot be tied to bundle-visible quantities keep their located refusal. No per-operator branches; the grid expression coverage grows as data/patterns in the interpreter."
+    },
+    {
+      "at": "2026-11-05T11:49:11.648022+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "task",
+      "detail": "T028 Repair the dominant block-form defect classes from the census through the shared vector/layout lane: 271 tl.sum + 56 tl.max + 27 tl.min 'reducing every axis of a multi-axis block is not in this path (the block forms are rank 1; partial axis...)' rows and 9 'a scalar computation between the reduction and a later block statement would read the per-chunk partial' rows \u2014 multi-axis (rank-2) blocks with all-axis and partial-axis reductions must lower (the layout lane generalizes beyond extent-homogeneous rank-1 regions); 128 'reduce: reduction operand SEW 32 is not the data SEW 16 (multi-width blocks are a later path)' rows \u2014 blocks mixing fp16 data and fp32 reduction/index widths must lower with correct vsetvli regions; 20 mir-verifier 'vsetvli-region-inconsistency: vector width v32m1 does not match the active region e16m1' rows \u2014 mixed-SEW regions must keep consistent region state; 67 'tl.arange: no tl.arange in the kernel body; the vector slice lowers the one-block elementwise form' rows (bn_inc_and_write_momentum, final_mean, finalize_stats, triton_conv2d_fwd, ...) \u2014 the vector slice must lower kernels whose block structure is not the single one-block elementwise form (multiple blocks, block sizes derived from runtime values, loop-carried blocks); and the 'loop: a runtime region mixes block extents' rows (~24). This is the core block-model generalization: rank-2 chunk regions, per-block SEW, mixed-extent regions. Preserve exactness classes (integer/index/boolean exact; fp within declared tolerance) and the ragged-tail witness. No per-operator branches."
+    },
+    {
+      "at": "2026-11-05T11:49:11.648052+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "task",
+      "detail": "T029 Repair the index-width and allocation defect classes from the census: 46 'ptradd: scalar offset width 64 exceeds the vector index SEW 32' rows \u2014 64-bit scalar offsets into vector address materialization must widen the vector index lane (or lower the address scalar-wise) with equivalent addressing semantics, never refuse on the width; 16 'allocation: vector LMUL 4 beyond m2 is not allocated by the slice' rows \u2014 the allocator must handle LMUL 4 vector groups within the 32x128B budget (chunking or spilling legally); 7 'allocation: allocation did not converge for operator_entry after 65 spill rounds' rows \u2014 diagnose the non-convergence (register-pressure patterns the splitter cannot resolve) and either converge, chunk the plan legally, or produce a located refusal naming the pressure source. Through the shared addressing/allocation paths."
+    },
+    {
+      "at": "2026-11-05T11:49:11.648081+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "task",
+      "detail": "T030 Repair the 'tl.dot: a dot inside a runtime loop is not enabled on this build: the restructured loop's staged regions lose [the 256-byte staging buffer]' defect class from the census (62 rows, the pat.k_loop family and dot-carrying loops): dots inside runtime-bound loops must lower \u2014 the staged IME tile pipeline (or the vector FMA path) must survive loop restructuring, either by keeping the staging tile inside the loop iteration scope with correct liveness, hoisting the staging allocation legally, or chunking the K-loop so each iteration's staging fits. The reproduced defect and its guarded refusal exist in a100c/lower/matrix.py and the staging machinery in a100c/lower/vectorize.py from T014's census. Fix through the shared dot-in-loop path; keep the IME operand contract, tails, and the instruction-count evidence path intact; BF16 stays on the vector FP32 path with the gap recorded."
+    },
+    {
+      "at": "2026-11-05T11:49:11.648110+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "task",
+      "detail": "T031 Repair the remaining small construct-refusal classes from the census so the sweep's refusal set is either implemented or refused as genuinely outside the declared surface with a located diagnostic: 9 'tl.reshape: shape must be a compile-time sequence of integers' (runtime-derived reshape shapes: lower the runtime form or refuse as outside the pinned semantics with the location); 9 'tl.arange.end: end must be a compile-time integer'; 10 'store: i1 pointee widths are not in the slice (a bool backing store is the dtype-surface lane)'; 4 tl.softmax, 4 tl.erf, 4 convert, 4 tl.sqrt, 3 tl.program_id, 3 const, 3 tl.store, 3 load, 2 tl.floor, 2 tl.log, 1 bit.and, 1 bit.or, 3 mean, 3 scalar, 3 value, 3 start, 3 'end' scalar width (if not already fixed by the scalar task), and any residual unclassifiable rows. Each through its construct's shared path; classify any row that is genuinely outside the pinned Triton 3.8 subset as declared-unsupported with the refusal witness updated."
+    },
+    {
+      "at": "2026-11-05T11:49:11.648131+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "task-submission",
+      "detail": "006-compile-sweep-repairs"
+    },
+    {
+      "at": "2026-11-05T11:49:17.177576+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "start-task",
+      "detail": "T024 agent=coder"
     }
   ]
 }
