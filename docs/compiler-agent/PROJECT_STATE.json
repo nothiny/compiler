@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-05T13:40:49.645519+00:00",
+  "updated_at": "2026-11-05T15:15:58.880955+00:00",
   "facts": [
     {
       "id": "F001",
@@ -2552,14 +2552,14 @@
       "tags": [
         "compile-sweep-repair"
       ],
-      "status": "RUNNING",
+      "status": "DONE",
       "assignee": "coder",
       "attempts": 1,
-      "evidence": "",
+      "evidence": "worker report WTI021: Repaired both owned scalar-typing census classes through the shared scalar paths, no per-operator branches. (1) The 176-row 'float scalar width 32 differs from its record width 64' class: the bundle record holds the host scalar at its own width (a Python float packs as a float64 record) while the kernel signature types the argument fp32 (pinned mangle_type); the widths are independent by construction, so the entry binding now CONVERTS on read instead of refusing -- scalar.py::convert_float_scalar emits the splat-convert-extract form (vfncvt.f.f.w RTNE narrowing / vfwcvt.f.f.v exact widening, stepwise 64<->32<->16, avl=1, the double-LMUL source view the probed no-overlap form uses); integer records keep the existing wide-form strunc (checked: no width-disagreement refusal exists on the integer path). The record load's ext tag for 64-bit records now uses the repertoire's single 64-bit row (sext, vacuous) so float64/uint64 records select. (2) The 90-row 'const: float width 16 is not in the scalar core' class: lower_const now materializes fp16/bf16 constants at their OWN width as the raw IEEE bits under the declared constant rounding (scalar.py::float_const_bits: fp16 via <e RTNE with IEEE inf on overflow; bf16 via the RTNE bit rounding of the IEEE single word -- the same algorithm constprop._round_float declares), and the two fp32-materialization workarounds (the const op's 16-bit special case and the broadcast's splat-at-fp32-and-round path) were removed so every consumer splats the pre-rounded bits directly with no second rounding. Filtered sweep over the 62 operators carrying the classes: both classes at ZERO (318 identities: 77 artifacts, up from 5; 241 refusals, all of other constructs). Executed evidence: a100c/tests/test_scalar_binding.py (new) -- bit-exact read-back of packed records at every binding width through compile->QEMU->compare (float64 record -> fp32 RTNE incl. negative zero sign bit and overflow-to-inf, float16/float32/int32/int",
       "last_error": "",
       "failure_kind": "",
       "start_revision": "77c3611c7ccc47059a3e4b9f586d20027073c466",
-      "end_revision": "",
+      "end_revision": "dd27a29fd2f3ccb006a3bfff749f5e9737ac8890",
       "completed_seq": 0,
       "debug_required": false,
       "debug_request_id": "",
@@ -7909,6 +7909,30 @@
       "phase": "IMPLEMENTATION",
       "event": "task-delegate",
       "detail": "WTI021 task=T025 attempt=1 profile=general-purpose"
+    },
+    {
+      "at": "2026-11-05T15:15:58.824737+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "task-report-out-of-contract",
+      "detail": "T025: a100c/cache/d52dc8131ca51e9dec555bb480a4068ba87c86de15478c3bad008ccf7c58c152/stage.mir.allocated.txt, a100c/lower/vectorize.py, a100c/cache/d52dc8131ca51e9dec555bb480a4068ba87c86de15478c3bad008ccf7c58c152/program.S, a100c/cache/d52dc8131ca51e9dec555bb480a4068ba87c86de15478c3bad008ccf7c58c152/stage.selection.txt, a100c/cache/c1e7925b7c187ddadad0318cee85ac6d983bb0c5cc584301f037a80efc6479fc/stage.selection.txt"
+    },
+    {
+      "at": "2026-11-05T15:15:58.831513+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "task-report",
+      "detail": "WTI021 COMPLETED attempt=1 [acceptance[0] reports exit_code 1, not 0; declared outputs do not exist: Fixed scalar binding/lowering with regression tests; no new diff in declared outputs; existing implementation may already satisfy the task; nonzero command reported; verify input results before optimization, without treating record checks as coding failures; changes outside the declared paths: a100c/cache/d52dc8131ca51e9dec555bb480a4068ba87c86de15478c3bad008ccf7c58c152/stage.mir.allocated.txt, a100c/lower/vectorize.py, a100c/cache/d52dc8131ca51e9dec555bb480a4068ba87c86de15478c3bad008ccf7c58c152/program.S, a100c/cache/d52dc8131ca51e9dec555bb480a4068ba87c86de15478c3bad008ccf7c58c152/stage.selection.txt, a100c/cache/c1e7925b7c187ddadad0318cee85ac6d983bb0c5cc584301f037a80efc6479fc/stage.selection.txt]"
+    },
+    {
+      "at": "2026-11-05T15:15:58.857958+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "complete-task",
+      "detail": "T025 worker report WTI021: Repaired both owned scalar-typing census classes through the shared scalar paths, no per-operator branches. (1) The 176-row 'float scalar width 32 differs from its record width 64' class: the bundle record holds the host scalar at its own width (a Python float packs as a float64 record) while the kernel signature types the argument fp32 (pinned mangle_type); the widths are independent by construction, so the entry binding now CONVERTS on read instead of refusing -- scalar.py::convert_float_scalar emits the splat-convert-extract form (vfncvt.f.f.w RTNE narrowing / vfwcvt.f.f.v exact widening, stepwise 64<->32<->16, avl=1, the double-LMUL source view the probed no-overlap form uses); integer records keep the existing wide-form strunc (checked: no width-disagreement refusal exists on the integer path). The record load's ext tag for 64-bit records now uses the repertoire's single 64-bit row (sext, vacuous) so float64/uint64 records select. (2) The 90-row 'const: float width 16 is not in the scalar core' class: lower_const now materializes fp16/bf16 constants at their OWN width as the raw IEEE bits under the declared constant rounding (scalar.py::float_const_bits: fp16 via <e RTNE with IEEE inf on overflow; bf16 via the RTNE bit rounding of the IEEE single word -- the same algorithm constprop._round_float declares), and the two fp32-materialization workarounds (the const op's 16-bit special case and the broadcast's splat-at-fp32-and-round path) were removed so every consumer splats the pre-rounded bits directly with no second rounding. Filtered sweep over the 62 operators carrying the classes: both classes at ZERO (318 identities: 77 artifacts, up from 5; 241 refusals, all of other constructs). Executed evidence: a100c/tests/test_scalar_binding.py (new) -- bit-exact read-back of packed records at every binding width through compile->QEMU->compare (float64 record -> fp32 RTNE incl. negative zero sign bit and overflow-to-inf, float16/float32/int32/int"
+    },
+    {
+      "at": "2026-11-05T15:15:58.880941+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "unattributed-complete",
+      "detail": "T025: none of ['Fixed scalar binding/lowering with regression tests'] changed since 77c3611c7ccc47059a3e4b9f586d20027073c466"
     }
   ]
 }

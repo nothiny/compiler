@@ -60,6 +60,7 @@ from typing import Dict, List, Optional, Sequence, Tuple
 from a100c.ir import mir, tir
 
 __all__ = ["ScalarLoweringError", "scalar_type_of", "lower_const",
+           "float_const_bits", "convert_float_scalar",
            "lower_binop", "lower_cmp", "lower_not", "lower_rem",
            "refuse", "widen_to", "narrow_to",
            "scalar_load", "scalar_store",
@@ -104,17 +105,56 @@ def scalar_type_of(ty: tir.Type) -> mir.ScalarType:
     return mir.ScalarType(ty.width, signed=ty.signed)
 
 
+def float_const_bits(value, ty: tir.Type, loc) -> int:
+    """The raw IEEE bit pattern of one float constant at ``ty``'s width,
+    under the declared constant rounding (round-to-nearest, ties-to-even).
+
+    This is the single encoding every float-constant site shares: the
+    constprop fold rounds a folded ``convert`` to the same value
+    (``a100c/passes/constprop.py::_round_float``), and the runtime
+    downcast (``vfncvt.f.f.w`` under the default FRM) is the same RTNE.
+    A 16-bit target rounds the value in its OWN format:
+
+    * ``fp16``: the IEEE half word (``<e``) -- a single fp64 -> fp16
+      rounding; a value beyond the finite range is the IEEE infinity of
+      its sign (the RTNE answer, exactly what the hardware convert
+      produces), never a crash and never a guess;
+    * ``bf16``: the RTNE bit rounding of the IEEE single word (the
+      transport's own staging algorithm: round the low 16 bits, carry
+      into the exponent, overflow past the finite range rounds to inf).
+    """
+    import struct
+    value = float(value)
+    if ty.width == 32:
+        return struct.unpack("<I", struct.pack("<f", value))[0]
+    if ty.width == 64:
+        return struct.unpack("<Q", struct.pack("<d", value))[0]
+    if ty.width == 16 and ty.name != "bf16":
+        # the IEEE half word (fp16 -- the only 16-bit non-bf16 float the
+        # declared surface has, under its default "f16" name too)
+        try:
+            return struct.unpack("<H", struct.pack("<e", value))[0]
+        except OverflowError:
+            return 0x7C00 if value > 0 else 0xFC00
+    if ty.width == 16 and ty.name == "bf16":
+        f32 = struct.unpack("<I", struct.pack("<f", value))[0]
+        low = f32 & 0xFFFF
+        rounded = f32 & 0xFFFF0000
+        if low > 0x8000 or (low == 0x8000 and (rounded & 0x10000)):
+            rounded += 0x10000
+        if 0x7F7F_FFFF < rounded < 0x7F80_0000:
+            rounded = 0x7F80_0000          # round up to +inf
+        elif 0xFF7F_FFFF < rounded < 0xFF80_0000:
+            rounded = 0xFF80_0000          # round up to -inf
+        return (rounded >> 16) & 0xFFFF
+    raise ScalarLoweringError(
+        loc, "const", f"float width {ty.width} is not in the scalar core")
+
+
 def lower_const(ctx, value, ty: tir.Type, loc) -> mir.VReg:
     """A scalar constant: raw bits (floats via their IEEE bit pattern)."""
-    import struct
     if ty.is_float():
-        if ty.width == 32:
-            bits = struct.unpack("<I", struct.pack("<f", float(value)))[0]
-        elif ty.width == 64:
-            bits = struct.unpack("<Q", struct.pack("<d", float(value)))[0]
-        else:
-            raise ScalarLoweringError(
-                loc, "const", f"float width {ty.width} is not in the scalar core")
+        bits = float_const_bits(value, ty, loc)
     elif ty.is_bool():
         bits = 1 if value else 0
     elif ty.is_int():
@@ -125,6 +165,108 @@ def lower_const(ctx, value, ty: tir.Type, loc) -> mir.VReg:
         raise ScalarLoweringError(
             loc, "const", f"constant of type {ty!r} is not a scalar constant")
     return ctx.const(bits, scalar_type_of(ty), loc)
+
+
+# ---------------------------------------------------------------------------
+# The record/binding conversion (the scalar record width and the kernel's
+# declared scalar type are independent by construction)
+# ---------------------------------------------------------------------------
+
+def _vsetvli1(ctx, sew: int, lmul: int, loc) -> None:
+    """One vsetvli at avl=1 (the scalar conversion's own lane count)."""
+    avl = ctx.const(1, mir.I32, loc)
+    ctx.emit(mir.MOp(
+        "vsetvli", [avl], [ctx.vreg(mir.I32, hint="bvr", loc=loc)],
+        attrs={"sew": sew, "lmul": lmul, "policy": "ta,ma"}, loc=loc))
+
+
+def convert_float_scalar(ctx, reg: mir.VReg, from_width: int,
+                         ty: tir.Type, loc) -> mir.VReg:
+    """Convert one raw-bits float scalar from its RECORD width to the
+    kernel's DECLARED scalar type (the binding-side read conversion).
+
+    The bundle record holds the host value at its own width -- the packer
+    writes the Python/numpy scalar as packed, so a Python float argument
+    is a float64 record while the kernel's signature declares the
+    argument an fp32 scalar (the pinned mangle_type rule).  The two
+    widths are independent by construction, so the binding CONVERTS on
+    read under the declared semantics instead of refusing on the
+    disagreement:
+
+    * narrowing (record wider): ``vfncvt.f.f.w`` under the default FRM --
+      round-to-nearest-even, the pinned downcast rounding;
+    * widening (record narrower): ``vfwcvt.f.f.v`` -- exact;
+    both stepwise through the IEEE binary widths (64 <-> 32 <-> 16), one
+    lane: splat the record's raw bits, convert, extract lane 0 (the same
+    splat-convert-extract form the scalar convert path uses -- the scalar
+    core holds floats as raw bits in GPRs by design).
+
+    Only the IEEE binary widths the corpus dtype surface declares take
+    this path.  A bf16 *record* cannot arise (numpy has no bfloat16
+    scalar, so the packer never writes one); a bf16 declared scalar type
+    cannot arise from ``scalar_arg_type`` either -- both are refused
+    located rather than guessed.
+    """
+    if not ty.is_float():
+        refuse(loc, "scalar-binding",
+               f"the record conversion converts float scalars; {ty!r} is "
+               "not a float type")
+    to_width = ty.width
+    if ty.name == "bf16":
+        refuse(loc, "scalar-binding",
+               "a bfloat16 scalar parameter cannot arise from the declared "
+               "argument surface (numpy has no bfloat16 scalar and a Python "
+               "float binds as fp32); refusing located rather than guessing "
+               "a conversion")
+    if from_width not in (16, 32, 64) or to_width not in (16, 32, 64):
+        refuse(loc, "scalar-binding",
+               f"float scalar record width {from_width} -> {to_width} is "
+               "outside the IEEE binary widths the dtype surface declares "
+               "(16/32/64)")
+    if from_width == to_width:
+        return reg
+    # splat the record's raw bits at the record's own width (the region
+    # is opened explicitly: the entry block has none)
+    _vsetvli1(ctx, from_width, 1, loc)
+    vec = ctx.emit(mir.MOp(
+        "s2v", [reg],
+        [ctx.vreg(mir.VectorType(from_width, 1, "float"),
+                  hint="rbs", loc=loc)], loc=loc))
+    width = from_width
+    while width > to_width:
+        # one narrowing step: the source re-viewed at the DOUBLE-LMUL
+        # group the instruction actually reads (the probed no-overlap
+        # form), the destination at half SEW
+        src2 = ctx.emit(mir.MOp(
+            "vmovv", [vec],
+            [ctx.vreg(mir.VectorType(width, 2, "float"),
+                      hint="rbw", loc=loc)], loc=loc))
+        _vsetvli1(ctx, width // 2, 1, loc)
+        vec = ctx.emit(mir.MOp(
+            "vfncvt", [src2],
+            [ctx.vreg(mir.VectorType(width // 2, 1, "float"),
+                      hint="rbn", loc=loc)],
+            attrs={"op": "ff"}, loc=loc))
+        width //= 2
+    while width < to_width:
+        # one widening step: the source at the region, the destination
+        # doubling SEW and LMUL (the vfwcvt convention), then the group
+        # re-viewed down to LMUL 1 for the next step / the extract
+        _vsetvli1(ctx, width, 1, loc)
+        wide = ctx.emit(mir.MOp(
+            "vfwcvt", [vec],
+            [ctx.vreg(mir.VectorType(width * 2, 2, "float"),
+                      hint="rbw", loc=loc)],
+            attrs={"op": "ff"}, loc=loc))
+        width *= 2
+        _vsetvli1(ctx, width, 1, loc)
+        vec = ctx.emit(mir.MOp(
+            "vmovv", [wide],
+            [ctx.vreg(mir.VectorType(width, 1, "float"),
+                      hint="rbv", loc=loc)], loc=loc))
+    return ctx.emit(mir.MOp(
+        "vextract", [vec],
+        [ctx.vreg(scalar_type_of(ty), hint="rbx", loc=loc)], loc=loc))
 
 
 def lower_binop(ctx, op: tir.Op, lhs: mir.VReg, rhs: mir.VReg,

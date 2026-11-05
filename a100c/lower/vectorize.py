@@ -1882,38 +1882,48 @@ class SliceLowering:
                           hint=binding.name, loc=loc)],
                 attrs={"width": binding.width,
                        "offset": binding.record_index * 16 + 8,
-                       "ext": "sext" if binding.signed else "zext"},
+                       # a 64-bit record loads the full register (the
+                       # repertoire's single 64-bit row -- extension is
+                       # vacuous there, and every 64-bit sload in the
+                       # emitted programs carries this tag); narrower
+                       # records extend by the record's own signedness
+                       "ext": "sext" if (binding.signed
+                                         or binding.width == 64) else "zext"},
                 loc=loc))
-            wide = reg
-            if binding.width != 64:
-                if binding.tir_type.is_float():
-                    # a floating scalar binds at its own width (raw bits);
-                    # arithmetic on it lowers through the vector path and
-                    # it never feeds grid/index arithmetic
-                    pass
-                else:
-                    wide = ctx.emit(mir.MOp(
-                        "smove", [reg],
-                        [ctx.vreg(mir.I64, hint=binding.name + "w", loc=loc)],
-                        loc=loc))
-            grid_scalar_regs[binding.name] = wide
-            # the TIR value at its declared type: the record-width load
-            # when the types agree; a truncation of the wide form when the
-            # record is wider (a 32-bit value never binds to an i64 reg --
-            # the binop type rules would see a phantom mismatch)
-            tir_reg = reg
+            # the TIR value at its declared type.  The record width and the
+            # kernel's signature are independent by construction (the packer
+            # writes the host scalar at ITS own width -- a Python float is a
+            # float64 record -- while the kernel declares the argument an
+            # fp32 scalar), so a width disagreement CONVERTS on read, never
+            # refuses: floats through the declared RTNE narrowing / exact
+            # widening (raw bits in a GPR at the declared width), integers
+            # through the truncation of the wide form (a 32-bit value never
+            # binds to an i64 reg -- the binop type rules would see a
+            # phantom mismatch)
             ty = binding.tir_type
+            tir_reg = reg
             if ty.is_float():
                 if ty.width != binding.width:
-                    raise self._err(
-                        loc, binding.name,
-                        f"float scalar {binding.name!r} width {ty.width} "
-                        f"differs from its record width {binding.width}")
-            elif ty.width != binding.width:
-                tir_reg = ctx.emit(mir.MOp(
-                    "strunc", [wide],
-                    [ctx.vreg(mir.ScalarType(ty.width, signed=ty.signed),
-                              hint=binding.name + "n", loc=loc)], loc=loc))
+                    tir_reg = scalar_mod.convert_float_scalar(
+                        ctx, reg, binding.width, ty, loc)
+                # a floating scalar binds at its own width (raw bits);
+                # arithmetic on it lowers through the vector path and
+                # it never feeds grid/index arithmetic
+                wide = tir_reg
+            else:
+                wide = reg
+                if binding.width != 64:
+                    wide = ctx.emit(mir.MOp(
+                        "smove", [reg],
+                        [ctx.vreg(mir.I64,
+                                  hint=binding.name + "w", loc=loc)],
+                        loc=loc))
+                if ty.width != binding.width:
+                    tir_reg = ctx.emit(mir.MOp(
+                        "strunc", [wide],
+                        [ctx.vreg(mir.ScalarType(ty.width, signed=ty.signed),
+                                  hint=binding.name + "n", loc=loc)], loc=loc))
+            grid_scalar_regs[binding.name] = wide
             for p in fn.params:
                 if p.name == binding.name:
                     self.values[p.vid] = tir_reg
@@ -4563,15 +4573,11 @@ class SliceLowering:
             self._bind_result(op, reg)
             return
         if code == "const":
-            ty = op.results[0].type
-            if ty.is_float() and ty.bitwidth() == 16:
-                # the scalar core has no fp16 registers: the constant
-                # materializes at fp32 (exact for the literal) and the
-                # 16-bit consumers (the broadcast splat) round it once
-                reg = scalar_mod.lower_const(ctx, op.attrs["value"],
-                                             tir.FLOAT32, loc)
-                self._bind_result(op, reg)
-                return
+            # every float width of the corpus surface (16 included -- fp16
+            # and bf16) materializes at its OWN width as the raw IEEE bits
+            # under the declared constant rounding (scalar.lower_const /
+            # float_const_bits: RTNE, one rounding); the consumers splat
+            # those bits directly, so no re-rounding happens downstream
             reg = scalar_mod.lower_const(ctx, op.attrs["value"],
                                          op.results[0].type, loc)
             self._bind_result(op, reg)
@@ -4614,17 +4620,6 @@ class SliceLowering:
                     [ctx.vreg(mir.MaskType(), hint="bcm", loc=loc)],
                     attrs={"pred": "ne", "fp": False}, loc=loc))
                 self._restore_region(ctx, loc)
-                self._bind_result(op, reg)
-                return
-            if not operand.is_vector() and rty.is_float() \
-                    and rty.bitwidth() == 16 \
-                    and op.operands[0].rank == 0:
-                # a 16-bit float splat of a scalar: splat at fp32 and
-                # round once (the scalar core holds no fp16 values)
-                v32 = self._vtype(tir.FLOAT32)
-                self._vregion(ctx, v32, loc)
-                splat32 = self._splat_reg(ctx, operand, v32, loc)
-                reg = self._f32_to_ff(ctx, splat32, rty, loc)
                 self._bind_result(op, reg)
                 return
             if operand.is_vector():
