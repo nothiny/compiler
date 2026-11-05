@@ -1,0 +1,100 @@
+{
+  "invocation_id": "WTI021",
+  "task_id": "T025",
+  "attempt": 1,
+  "context_sha256": "c87996720edd0a2146fb637130b132577d39730837710551138c302baaf0ef49",
+  "outcome": "COMPLETED",
+  "failure_kind": "implementation",
+  "summary": "Repaired both owned scalar-typing census classes through the shared scalar paths, no per-operator branches. (1) The 176-row 'float scalar width 32 differs from its record width 64' class: the bundle record holds the host scalar at its own width (a Python float packs as a float64 record) while the kernel signature types the argument fp32 (pinned mangle_type); the widths are independent by construction, so the entry binding now CONVERTS on read instead of refusing -- scalar.py::convert_float_scalar emits the splat-convert-extract form (vfncvt.f.f.w RTNE narrowing / vfwcvt.f.f.v exact widening, stepwise 64<->32<->16, avl=1, the double-LMUL source view the probed no-overlap form uses); integer records keep the existing wide-form strunc (checked: no width-disagreement refusal exists on the integer path). The record load's ext tag for 64-bit records now uses the repertoire's single 64-bit row (sext, vacuous) so float64/uint64 records select. (2) The 90-row 'const: float width 16 is not in the scalar core' class: lower_const now materializes fp16/bf16 constants at their OWN width as the raw IEEE bits under the declared constant rounding (scalar.py::float_const_bits: fp16 via <e RTNE with IEEE inf on overflow; bf16 via the RTNE bit rounding of the IEEE single word -- the same algorithm constprop._round_float declares), and the two fp32-materialization workarounds (the const op's 16-bit special case and the broadcast's splat-at-fp32-and-round path) were removed so every consumer splats the pre-rounded bits directly with no second rounding. Filtered sweep over the 62 operators carrying the classes: both classes at ZERO (318 identities: 77 artifacts, up from 5; 241 refusals, all of other constructs). Executed evidence: a100c/tests/test_scalar_binding.py (new) -- bit-exact read-back of packed records at every binding width through compile->QEMU->compare (float64 record -> fp32 RTNE incl. negative zero sign bit and overflow-to-inf, float16/float32/int32/int64/uint32/uint64), fp16/bf16 constant rounding executed through masked-load other and tl.full, the census executors leaky_relu_kernel_strided (negative_slope) at 1/2/4/8 workers x 3 dtypes x 2 shapes and perf/leaky_relu, all under the cases' own policies; controls prove the checks distinguish conversion from re-read and RTNE from truncation. Full a100c suite (33 files incl. test_frontend_types.py) passes. Newly-exposed deeper failures were attributed to pre-existing defects outside this task's classes with controls (see remaining_work).",
+  "files_changed": [
+    "a100c/lower/scalar.py",
+    "a100c/lower/vectorize.py",
+    "a100c/tests/test_scalar_binding.py",
+    "docs/compiler-agent/COMPILE_CENSUS.t025-owned-classes.json"
+  ],
+  "artifacts": [
+    "docs/compiler-agent/COMPILE_CENSUS.t025-owned-classes.json",
+    "docs/compiler-agent/COMPILE_CENSUS.json",
+    "a100c/tests/test_scalar_binding.py"
+  ],
+  "commands": [
+    {
+      "command": "set -a; . ./.env; set +a; timeout 600 python3 a100c/tests/test_compile_sweep.py --operator suite/dev/leaky_relu_kernel_strided.py --census-out /tmp/t025-census-class1.json",
+      "exit_code": 0,
+      "observed": "BEFORE the fix: 9 refused identities, all 'negative_slope: float scalar ... width 32 differs from its record width 64' (the class-1 reproduction). AFTER the fix: 9 artifacts (re-run via the compile probe; the filtered sweep below confirms)."
+    },
+    {
+      "command": "set -a; . ./.env; set +a; timeout 600 python3 a100c/tests/test_compile_sweep.py --operator suite/dev/matmul_kernel.py --census-out /tmp/t025-census-class2.json",
+      "exit_code": 0,
+      "observed": "BEFORE the fix: 2 refused identities 'scalar-lowering: scalar lowering: const: float width 16 is not in the scalar core (at ops/suite/dev/matmul_kernel.py:70:17)' (the class-2 reproduction; the masked-load other=0.0 at fp16/bf16) plus 1 pre-existing mir-verifier row. AFTER the fix those 2 identities compile (artifact / deeper class)."
+    },
+    {
+      "command": "set -a; . ./.env; set +a; timeout 900 python3 a100c/tests/test_scalar_binding.py",
+      "exit_code": 0,
+      "observed": "11/11 checks PASS: record-kind-matches-transport; record-readback-declared-widths (bit-exact, 12 dtype probes); record-readback-float64-to-fp32 at 1/2/4/8 workers; record-readback-conversion-control (raw low half 0x9999999a vs RTNE 0x3dcccccd -- the check distinguishes a converted from a re-read record); const-bits-declared-rounding; const-bits-rounding-control (bf16 RTNE 0x3dcd vs trunc 0x3dcc); masked-other-const-executes (fp16/bf16, other=0.1/0.5 observable through an unmasked store); full-const-executes; conversion-refusal-boundary; census-executor-leaky-relu-strided (24 executed runs: 1/2/4/8 workers x float32/float16/bfloat16 x (64,128)/(33,65), the case's own policy); census-executor-perf-leaky-relu."
+    },
+    {
+      "command": "MM_DTYPE=float32 timeout 600 python3 /tmp/t025_debug/matmul_err.py (attribution control: the SAME matmul shape at float32, a dtype whose path this task's edits do not touch -- no float scalars, no 16-bit constants)",
+      "exit_code": 0,
+      "observed": "16 of 561 outputs mismatch, all at column 32 (the EVEN_N=False tail tile computes 0) -- IDENTICAL to the bfloat16 twin. The column-32 defect is pre-existing (the float32 identity was already an artifact in the input census) and belongs to the dot/tile-mask lane, not the scalar classes."
+    },
+    {
+      "command": "timeout 900 python3 /tmp/t025_debug/rms_variants.py (attribution control: rmsnorm_fwd_loop_kernel variants; 'eps_literal' removes the eps parameter entirely so no float scalar record/conversion exists anywhere in the program)",
+      "exit_code": 0,
+      "observed": "original FAIL (rsigma=316.2278=1/sqrt(1e-5), i.e. var=0); eps_literal (NO float scalar at all) FAILS IDENTICALLY; removing the SECOND runtime loop PASSES with the eps scalar and conversion present. The two-loop carried-value corruption is pre-existing and independent of this fix; the one-loop equivalent with the converted eps executes exactly."
+    }
+  ],
+  "acceptance": [
+    {
+      "ref": "acceptance[0]",
+      "command": "set -a; . ./.env; set +a; python3 a100c/tests/test_compile_sweep.py --operator <62 owned operators> --budget 300 --census-out docs/compiler-agent/COMPILE_CENSUS.t025-owned-classes.json (the full operator list is the 'command' field of the persisted census)",
+      "exit_code": 1,
+      "observed": "Both owned classes at ZERO: 'differs from its record width' rows = 0, 'float width 16 is not in the scalar core' rows = 0 (was 176 + 90 in the input census). 318 identities over the 62 operators: 77 artifacts (was 5) + 241 refusals, every refusal of a DIFFERENT construct (tl.dot 111, reduce 59, mir-verifier 28, ptradd 24, convert 9, allocation 6, tl.erf 4). Exit 1 comes only from the sweep's pre-existing 'refusals-located-and-countable' check: 2 allocation-class refusals (gemm_smallk float16) carry no source location -- the allocation class's own bookkeeping gap, identical in the input census (29 allocation rows there, 8 unlocated, 78 rows failing the same location pattern), unchanged by this task. All other sweep checks PASS incl. partition-sums (0 over-budget, 0 crash), repeat-cases-reuse-one-artifact (22 repeat cases, 0 violations -- no value baking: the record value is read and converted at run time), artifacts-are-riscv64-elf, enabled-pipeline-passes-on."
+    },
+    {
+      "ref": "acceptance[1]",
+      "command": "set -a; . ./.env; set +a; timeout 900 python3 a100c/tests/test_scalar_binding.py",
+      "exit_code": 0,
+      "observed": "record-kind-matches-transport: the compiler's scalar_record_kind and the transport's own packer (a100_support.native_io.scalar) agree on (dtype, width) for every declared scalar record dtype (bool, int8..uint64, float16/32/64 -- one shared definition), and every kernel-signature type either matches its record width or the pair has a declared conversion. Executed read-back (pack a record, read it through the generated binding, compare bit-exact against numpy's own conversion): float64-record->fp32 (0.1 inexact, -0.1, -0.0 sign bit, 1e300 overflow-to-inf) at 1/2/4/8 workers; float16/float32/int32/int64/uint32/uint64 records. The conversion control records that the record's raw low half (0x9999999a) differs from the expected RTNE bits (0x3dcccccd), so a re-read instead of a conversion would fail."
+    },
+    {
+      "ref": "acceptance[2]",
+      "command": "set -a; . ./.env; set +a; timeout 900 python3 a100c/tests/test_scalar_binding.py",
+      "exit_code": 0,
+      "observed": "fp16 constants lower at their own width with the declared RTNE (bits equal numpy fp16 casting for inexact/tie/overflow values; overflow is the IEEE infinity) and bf16 with the RTNE bit rounding of the single word (equal to an independent spec reference written in the test; the constprop fold's value re-encodes to the same bits -- one declared rounding); the truncation control differs so the checks are not vacuous. Executed: the masked-load other=0.1/0.5 constant is observable bit-exactly through an unmasked store at fp16 and bf16 (the matmul form), and tl.full at fp16/bf16 stores the rounded constant bit-exactly. Integer scalar widths bind without refusal (int64-record->int32 truncation, int32, int64, uint32, uint64 -- all executed bit-exact); the integer path has no width-disagreement refusal of the float class's shape."
+    },
+    {
+      "ref": "acceptance[3]",
+      "command": "set -a; . ./.env; set +a; for t in a100c/tests/test_*.py; do (case $t in *test_compile_sweep*) continue;; esac; timeout 1800 python3 $t; done",
+      "exit_code": 0,
+      "observed": "All 33 test files PASS (32 pre-existing + the new test_scalar_binding), including test_frontend_types.py ('all checks PASS'), test_lower_scalar, test_lower_vector, test_conversions, test_memory_forms, test_compile_regressions, test_e2e_slice and the matrix/IME/runtime suites. Zero FAIL lines; suite exit 0."
+    }
+  ],
+  "tests": [
+    {
+      "ref": "tests[0]",
+      "command": "set -a; . ./.env; set +a; python3 a100c/tests/test_compile_sweep.py --operator suite/dev/alpha_dropout_inplace_kernel.py --operator suite/dev/arange_func.py ... --operator suite/perf/scaled_add_norm.py --budget 300 --census-out docs/compiler-agent/COMPILE_CENSUS.t025-owned-classes.json (all 62 operators carrying the two classes in the input census; the exact command is recorded in the census 'command' field)",
+      "exit_code": 1,
+      "observed": "Owned classes at zero: 0 'differs from its record width' rows (was 176), 0 'const: float width 16' rows (was 90). 77 artifacts + 241 refusals of other constructs = 318 identities, partition sums, 0 over-budget (budget 300s; slowest cold compile 235s, the newly reachable matmul bfloat16 identity), 0 crashes, 22 repeat-case cache reuses with 0 violations. The single failing sweep check is the pre-existing unlocated-allocation bookkeeping (2 rows), which the input census exhibits identically (78 rows failing the location pattern) and which this task does not own."
+    },
+    {
+      "ref": "tests[1]",
+      "command": "set -a; . ./.env; set +a; timeout 900 python3 a100c/tests/test_frontend_types.py && (for t in a100c/tests/test_*.py; do (case $t in *test_compile_sweep*) continue;; esac; timeout 1800 python3 $t; done)",
+      "exit_code": 0,
+      "observed": "test_frontend_types.py: all checks PASS. Full suite: 33/33 files PASS, exit 0, zero FAIL lines."
+    }
+  ],
+  "evidence": "docs/compiler-agent/COMPILE_CENSUS.t025-owned-classes.json (the filtered compile sweep over the 62 owned operators after the fix: both owned refusal classes at zero, 77 artifacts + 241 refusals of other constructs, repeat-case no-baking control clean) and a100c/tests/test_scalar_binding.py executed end to end through compile -> pinned QEMU -> comparison (bit-exact record read-back at every binding dtype width incl. the float64-record->fp32 RTNE conversion at 1/2/4/8 workers; fp16/bf16 constant rounding executed through the masked-load other and tl.full paths; the leaky_relu census executors under their own comparison policies), with non-vacuity controls for both the conversion and the rounding.",
+  "design_issue": {},
+  "debug_request": {},
+  "attack": {},
+  "remaining_work": [
+    "Two-loop carried-value corruption (exposed, pre-existing, NOT this fix): a kernel whose body has TWO consecutive runtime loops (for off in range(0, N, TILE_N)) loses the value reduced after the first loop once the second loop is emitted -- rmsnorm_fwd_loop_kernel computes rsigma=1/sqrt(0+eps)=316.2278 instead of ~2.46. Minimal reproduction needs no scalar args and no 16-bit floats (sum-of-squares loop, then rsigma=1.0/tl.sqrt(var+1e-5) stored, then a second loop using rsigma): the second loop's emission zeroes the first loop's reduced value; the single-loop form executes exactly. Owner: the staging/liveout lane.",
+    "matmul column-32 defect (pre-existing): for EVEN_N=False tail tiles the whole last output column computes 0 (16 of 561 outputs at shape (17,33,100)); the float32 identity -- an artifact in the input census, on a path this task does not touch -- fails identically, so this is the dot/tile-mask lane's defect, newly reachable for the bfloat16 identity now that the const class no longer refuses it.",
+    "The allocation-class refusals carry no source location (2 rows in the filtered census; the input census shows the same gap on 29 allocation rows) -- the sweep's refusals-located-and-countable check fails on them; the allocation path should attach a loc like the other refusal paths.",
+    "Narrow integer/bool scalar ARGUMENTS (int8/uint8/int16/uint16/bool records) trip the grid wide-view smove (8/16 -> i64) at the MIR verifier -- the separate 'scalar widening' census class (4 rows, count_nonzero family); no corpus case binds them today, and the record packing itself is verified by this task's unit check.",
+    "The deeper census classes the owned identities now refuse at belong to their own repair tasks: tl.dot inside a runtime loop (111 rows), multi-width reduce (59), mir-verifier vsetvli-region at 16-bit (28), ptradd width (24), int64->f32 convert policy (9), allocation (6), tl.erf 16-bit (4)."
+  ],
+  "end_revision": "",
+  "at": "2026-11-05T15:15:58.777587+00:00"
+}
