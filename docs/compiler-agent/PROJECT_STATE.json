@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-05T20:09:50.683314+00:00",
+  "updated_at": "2026-11-05T23:17:17.966229+00:00",
   "facts": [
     {
       "id": "F001",
@@ -2760,14 +2760,14 @@
       "tags": [
         "compile-sweep-repair"
       ],
-      "status": "RUNNING",
+      "status": "DONE",
       "assignee": "coder",
       "attempts": 1,
-      "evidence": "",
+      "evidence": "worker report WTI024: Generalized the block model in the shared vector/layout lane. Five of the six owned defect classes are at zero in the filtered compile sweep over all 157 owned operators (715 identities): the 354 tl.sum/tl.max/tl.min multi-axis rows (the frontend refusal removed; partial-axis reductions lower through a new staging-lane segment that materializes the reduced block -- chunked vred along the last axis, a scalar walk for other axis sets, index forms with the declared tie-break), the 139 multi-width reduce rows (the reduction runs at the operand's own SEW with per-op vsetvli regions; 16-bit float sums ride the declared fp32-lane policy with one rounding at the exit), the 15 per-chunk-partial rows (the pass splits at the first rank-0 partial consumer; the merged value binds at the pass exit), all vsetvli-region-inconsistency rows including 28 newly exposed ones (active-region tracking in the emission context; region discipline in the merge/back-edge/scalar-float/convert/maxmin/abs paths; the dot emitter's accumulator splat), and the 67 no-arange rows (scalar-only kernels and block-extent kernels lower without the legacy arange default; the default pass params come from the first real pass). 302 of the 715 owned identities now produce artifacts. The sixth class (mixed-extent runtime regions) was implemented as a segment-level restructure (group_norm_forward_affine executes PASS 12/12 at 1/4 workers) but is DISABLED after reproducing staging-path hangs under QEMU on two other shapes (a staged block carry; a masked 2-D access with a ragged row tail): the boundary keeps its located refusal with the reproductions recorded in vectorize._is_mixed_extent_region's docstring, and the restructure predicate is kept behind the switch for the repair loop that owns the staging-path defect. Of the 159 original (operator, class) pairs, 155 moved to artifacts or different-construct refusals; 4 operators (15 rows) keep the mixed-extent boundary. All pre-existing test fi",
       "last_error": "",
       "failure_kind": "",
       "start_revision": "a8da8fdec3e5897be54717b56fbbd3b2094fff83",
-      "end_revision": "",
+      "end_revision": "90758237c27a15c51f670a7a3312f38f2ca450d8",
       "completed_seq": 0,
       "debug_required": false,
       "debug_request_id": "",
@@ -2831,7 +2831,7 @@
       "tags": [
         "compile-sweep-repair"
       ],
-      "status": "BLOCKED",
+      "status": "READY",
       "assignee": "",
       "attempts": 0,
       "evidence": "",
@@ -2902,7 +2902,7 @@
       "tags": [
         "compile-sweep-repair"
       ],
-      "status": "BLOCKED",
+      "status": "READY",
       "assignee": "",
       "attempts": 0,
       "evidence": "",
@@ -8005,6 +8005,24 @@
       "phase": "IMPLEMENTATION",
       "event": "task-delegate",
       "detail": "WTI024 task=T028 attempt=1 profile=general-purpose"
+    },
+    {
+      "at": "2026-11-05T23:17:17.932431+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "task-report-out-of-contract",
+      "detail": "T028: a100c/cache/215698891914ff776988f790f56f937f343635a22c086a102e77d29e7ab40d6c/artifact.json, a100c/cache/cd21fc0a96550667ac914da449e29366fdb748780eb454b564087997b1b6bf9a/stage.selection.txt, a100c/cache/cd21fc0a96550667ac914da449e29366fdb748780eb454b564087997b1b6bf9a/stage.mir.allocated.txt, a100c/cache/215698891914ff776988f790f56f937f343635a22c086a102e77d29e7ab40d6c/stage.mir.allocated.txt, a100c/cache/6e1b97ee7fe34e0ad95d9853a5656ab2c14391dc9547241019c2c7cb8697a766/operator_exec"
+    },
+    {
+      "at": "2026-11-05T23:17:17.938514+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "task-report",
+      "detail": "WTI024 COMPLETED attempt=1 [acceptance[0] reports exit_code 1, not 0; nonzero command reported; verify input results before optimization, without treating record checks as coding failures; changes outside the declared paths: a100c/cache/215698891914ff776988f790f56f937f343635a22c086a102e77d29e7ab40d6c/artifact.json, a100c/cache/cd21fc0a96550667ac914da449e29366fdb748780eb454b564087997b1b6bf9a/stage.selection.txt, a100c/cache/cd21fc0a96550667ac914da449e29366fdb748780eb454b564087997b1b6bf9a/stage.mir.allocated.txt, a100c/cache/215698891914ff776988f790f56f937f343635a22c086a102e77d29e7ab40d6c/stage.mir.allocated.txt, a100c/cache/6e1b97ee7fe34e0ad95d9853a5656ab2c14391dc9547241019c2c7cb8697a766/operator_exec]"
+    },
+    {
+      "at": "2026-11-05T23:17:17.966216+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "complete-task",
+      "detail": "T028 worker report WTI024: Generalized the block model in the shared vector/layout lane. Five of the six owned defect classes are at zero in the filtered compile sweep over all 157 owned operators (715 identities): the 354 tl.sum/tl.max/tl.min multi-axis rows (the frontend refusal removed; partial-axis reductions lower through a new staging-lane segment that materializes the reduced block -- chunked vred along the last axis, a scalar walk for other axis sets, index forms with the declared tie-break), the 139 multi-width reduce rows (the reduction runs at the operand's own SEW with per-op vsetvli regions; 16-bit float sums ride the declared fp32-lane policy with one rounding at the exit), the 15 per-chunk-partial rows (the pass splits at the first rank-0 partial consumer; the merged value binds at the pass exit), all vsetvli-region-inconsistency rows including 28 newly exposed ones (active-region tracking in the emission context; region discipline in the merge/back-edge/scalar-float/convert/maxmin/abs paths; the dot emitter's accumulator splat), and the 67 no-arange rows (scalar-only kernels and block-extent kernels lower without the legacy arange default; the default pass params come from the first real pass). 302 of the 715 owned identities now produce artifacts. The sixth class (mixed-extent runtime regions) was implemented as a segment-level restructure (group_norm_forward_affine executes PASS 12/12 at 1/4 workers) but is DISABLED after reproducing staging-path hangs under QEMU on two other shapes (a staged block carry; a masked 2-D access with a ragged row tail): the boundary keeps its located refusal with the reproductions recorded in vectorize._is_mixed_extent_region's docstring, and the restructure predicate is kept behind the switch for the repair loop that owns the staging-path defect. Of the 159 original (operator, class) pairs, 155 moved to artifacts or different-construct refusals; 4 operators (15 rows) keep the mixed-extent boundary. All pre-existing test fi"
     }
   ]
 }

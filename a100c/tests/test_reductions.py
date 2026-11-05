@@ -698,12 +698,13 @@ def check_remaining_boundaries_refuse_located(compiler):
     cases = [
         # argmin_kernel_contiguous: T027 tied its grid (the n_pre*s_post
         # subtree reads the out_ptr view extent at run time), so the
-        # float32 case compiles and executes PASS now (verified in
-        # T027's execution probe); the fp16 case refuses deeper, at the
-        # multi-width reduction lane
-        ("ops/suite/dev/argmin_kernel_contiguous.py",
-         {"shape": (128, 128, 2), "dtype": "float16"},
-         ("SEW", "multi-width", "reduce")),
+        # float32 case compiles and executes PASS; T028's multi-width
+        # reduction lane (fp16 data reduced at fp32 with per-op vsetvli
+        # regions) moved the fp16/bf16 cases past the SEW boundary too --
+        # every dtype now compiles and executes PASS at 1/4 workers
+        # (verified in T028's execution probe), so this family left the
+        # boundary list; the median family below keeps an element-width
+        # boundary case.
         # loop_sum: the identity .to(float32) folds, but the int64
         # median family refuses on the element width
         # T012 widened the conversion matrix, so the int64 element path
@@ -714,13 +715,13 @@ def check_remaining_boundaries_refuse_located(compiler):
          {"shape": (17, 3)},
          ("width 64", "SEW", "scalar bool stores", "scalar core")),
         # cumsum family: T016 closed the meta-carried dtype-object
-        # boundary (tl.zeros((), dtype=ACC_KIND) with the live tl.float32
-        # constant in the case meta now folds), so the refusal moved to
-        # the partial-axis multi-block reduction (the T018 compile-sweep
-        # class) -- still a located refusal naming the missing construct
+        # boundary; T028's partial-axis staging lane then lowered the
+        # multi-block reduction itself, so the refusal moved to the grid
+        # model (a shape extent the bundle cannot see -- the grid lane's
+        # own located refusal, a different construct)
         ("ops/suite/dev/masked_cumsum_vec_kernel.py",
          {"shape": (17, 257), "dtype": "float32"},
-         ("multi-axis", "partial axis", "rank 1")),
+         ("grid", "bundle-visible")),
         # sort family: T012 implements flip, so the file's refusal boundary
         # moved past it -- it now refuses on tl.softmax's exp (the
         # math-ops lane owns that construct)
@@ -743,6 +744,308 @@ def check_remaining_boundaries_refuse_located(compiler):
           "; ".join(bad[:2]))
 
 
+# ---------------------------------------------------------------------------
+# T028: the block-form generalization (partial-axis multi-axis reductions,
+# the multi-width reduce, the pass-split at a partial consumer, scalar-only
+# kernels without an arange, and the mixed-extent region restructure)
+# ---------------------------------------------------------------------------
+
+T028_TEMPLATE = '''"""probe"""
+OPERATOR = {{"name": "probe/{name}", "group": "probe", "channel": "local",
+            "execution": "triton_kernel", "verification": "correctness",
+            "tags": []}}
+import numpy as np
+import triton
+import triton.language as tl
+@triton.jit
+def {name}_kernel({args_decl}):
+{body}
+def ref(args, meta):
+    import numpy as np
+{ref_body}
+def _make_case(shape=(20, 17), dtype="float32", seed=0):
+    import numpy as np
+    R = int(shape[0])
+    C = int(shape[1])
+    N = (R * C) if {buf_rc} else 4 * (R if R > C else C)
+    rng = np.random.default_rng(seed)
+    want_int = (dtype == "int32")
+    base_dt = np.dtype("float32") if dtype in ("float32", "float16",
+                                               "bfloat16") else np.dtype(dtype)
+    if want_int:
+        x = rng.integers(-1000, 1000, (R, C)).astype(np.int32)
+    else:
+        x = rng.uniform(-2.0, 2.0, (R, C)).astype(base_dt)
+    args = {{"x_ptr": x, "o_ptr": np.zeros((N,), base_dt), "R": R, "C": C}}
+    meta = {{"RB": {rb}, "CB": 128}}
+    grid = ((R + 3) // 4,) if {grid_rows} else (1,)
+    expected = ref(args, meta)
+    case = {{"args": args, "meta": meta, "grid": grid, "shape": shape,
+            "kernel": {name}_kernel, "outputs": ("o_ptr",),
+            "expected": expected,
+            "comparison": {{"o_ptr": {{"comparator":
+                                     "array_equal" if want_int
+                                     else "allclose",
+                                     "exact": want_int,
+                                     "rtol": 0.0 if want_int else 1e-2,
+                                     "atol": 0.0 if want_int else 1e-2}}}}}}
+    if dtype == "bfloat16":
+        from case_utils import dtype_case
+        case = dtype_case(case, "bfloat16", ref=ref)
+    return case
+
+
+def make_case(shape=None, dtype=None, seed=None):
+    return _make_case(shape=shape or (20, 17),
+                      dtype=dtype or "float32", seed=seed or 0)
+'''
+
+
+def _t028_operator(directory, name, body, ref_body, args_decl, grid_rows,
+                   buf_rc=False, rb=4):
+    import textwrap
+    text = T028_TEMPLATE.format(
+        name=name, args_decl=args_decl, grid_rows=grid_rows, buf_rc=buf_rc,
+        rb=rb,
+        body=textwrap.indent(textwrap.dedent(body).strip("\n"), "    "),
+        ref_body=textwrap.indent(textwrap.dedent(ref_body).strip("\n"),
+                                  "    "))
+    path = directory / f"{name}.py"
+    path.write_text(text)
+    return _load(path)
+
+
+def _t028_run(compiler, module, threads: int, **make_kwargs):
+    """_run_case with the readback extent aligned to the expected (the
+    probe buffers are padded to a fixed size; the comparison itself keeps
+    the case's own policy)."""
+    import a100_support.native_device as nd
+    case = module.make_case(**make_kwargs)
+    device = nd.NativeExecutableDevice(compiler, threads)
+    staged = device.stage_case(case)
+    staged.launch()
+    outputs = staged.outputs()
+    ok, detail = True, ""
+    for name, policy in case["comparison"].items():
+        got = np.asarray(outputs[name])
+        exp = np.asarray(case["expected"][name])
+        if got.size != exp.size:
+            if got.size < exp.size:
+                return False, f"{name}: read back {got.size} of {exp.size}"
+            got = np.ravel(got)[:exp.size].reshape(exp.shape)
+        if policy.get("exact") or policy.get("comparator") == "array_equal":
+            same = np.array_equal(got, exp)
+        else:
+            same = np.allclose(got, exp, rtol=policy.get("rtol", 0.0),
+                               atol=policy.get("atol", 0.0),
+                               equal_nan=policy.get("equal_nan", False))
+        if not same:
+            ok = False
+            detail = f"{name}: got {np.ravel(got)[:4]} " \
+                     f"expected {np.ravel(exp)[:4]}"
+    return ok, detail
+
+
+def check_t028_block_forms(workdir, compiler):
+    """The generalized block forms execute end to end under QEMU and
+    compare PASS against independent numpy references at one worker and
+    four -- the partial-axis reductions (the staging lane), the
+    multi-width reduce (fp16/bf16 data reduced at fp32), the 2-D softmax
+    composition, the pass-split at a rank-0 partial consumer, a
+    scalar-only kernel without any tl.arange, and the mixed-extent
+    region restructure.  Integer outputs compare exact."""
+    R1 = """
+        pid = tl.program_id(0)
+        rows = pid * RB + tl.arange(0, RB)
+        cols = tl.arange(0, CB)
+        mask = (rows[:, None] < R) & (cols[None, :] < C)
+        offs = rows[:, None] * C + cols[None, :]
+        x = tl.load(x_ptr + offs, mask=mask, other=OTHER)
+    """
+    ARGS = "x_ptr, o_ptr, R, C, RB: tl.constexpr, CB: tl.constexpr"
+    PAD = """
+        out = np.zeros((4 * max(args["R"], args["C"]),), np.float64)
+        out[:len(v)] = v
+        return {"o_ptr": out}
+    """
+    forms = []
+    forms.append((
+        "t028_psum_last", R1.replace("OTHER", "0.0") + """
+        m = tl.sum(x, axis=1)
+        tl.store(o_ptr + rows, m, mask=rows < R)
+    """, """
+        x = np.asarray(args["x_ptr"], np.float64)
+        v = x.sum(axis=1)
+    """ + PAD, ARGS, True, False,
+        ("float32", "float16", "bfloat16", "int32")))
+    forms.append((
+        "t028_psum_axis0", R1.replace("OTHER", "0.0") + """
+        m = tl.sum(x, axis=0)
+        tl.store(o_ptr + cols, m, mask=cols < C)
+    """, """
+        x = np.asarray(args["x_ptr"], np.float64)
+        v = x.sum(axis=0)
+    """ + PAD, ARGS, False, False,
+        ("float32", "int32"), 32))
+    forms.append((
+        "t028_pmax_last", R1.replace("OTHER", "-3.0e38") + """
+        m = tl.max(x, axis=1)
+        tl.store(o_ptr + rows, m, mask=rows < R)
+    """, """
+        x = np.asarray(args["x_ptr"], np.float64)
+        v = x.max(axis=1)
+    """ + PAD, ARGS, True, False,
+        ("float32", "bfloat16")))
+    forms.append((
+        "t028_pargmax_last", R1.replace("OTHER", "-3.0e38") + """
+        m = tl.argmax(x, axis=1)
+        tl.store(o_ptr + rows, m, mask=rows < R)
+    """, """
+        x = np.asarray(args["x_ptr"], np.float64)
+        v = x.argmax(axis=1)
+    """ + PAD, ARGS, True, False,
+        ("float32",)))
+    forms.append((
+        "t028_softmax2d", R1.replace("OTHER", "-3.0e38") + """
+        m = tl.max(x, axis=1)
+        e = tl.exp(x - m[:, None])
+        d = tl.sum(e, axis=1)
+        y = e / d[:, None]
+        tl.store(o_ptr + offs, y, mask=mask)
+    """, """
+        x = np.asarray(args["x_ptr"], np.float64)
+        m = x.max(axis=1, keepdims=True)
+        e = np.exp(x - m)
+        y = e / e.sum(axis=1, keepdims=True)
+        out = np.zeros((args["R"] * args["C"],), np.float64)
+        out[:y.size] = y.ravel()
+        return {"o_ptr": out}
+    """, ARGS, True, True,
+        ("float32", "float16", "bfloat16")))
+    # the multi-width reduce: 16-bit data converted to fp32 and reduced
+    # at fp32 inside the 16-bit pass (mean_dim's ``.to(cdtype)`` form; the
+    # block covers the buffer's first C elements -- one row of the 2-D
+    # case payload, matching the reference exactly)
+    forms.append((
+        "t028_multiwidth", """
+        i = tl.arange(0, CB)
+        m = i < C
+        x = tl.load(x_ptr + i, mask=m, other=0.0).to(tl.float32)
+        s = tl.sum(x, axis=0)
+        tl.store(o_ptr, s / C)
+    """, """
+        x = np.asarray(args["x_ptr"], np.float64).ravel()
+        return {"o_ptr": np.array([x[:args["C"]].sum() / args["C"]],
+                                  np.float64)}
+    """, ARGS, False, False,
+        ("float16", "bfloat16")))
+    # the pass-split: a scalar consumer of the reduction sits between the
+    # reduce and a later block statement (fused_max_bincount's shape) --
+    # the atomic runs ONCE on the merged value
+    forms.append((
+        "t028_pass_split", """
+        pid = tl.program_id(0)
+        i = pid * RB + tl.arange(0, RB)
+        m = i < R
+        v = tl.load(x_ptr + i, mask=m, other=0)
+        local_max = tl.max(v, axis=0)
+        tl.atomic_max(o_ptr, local_max)
+        safe = m & (v < C)
+        tl.atomic_add(o_ptr + 1 + (i % 8), 1, mask=safe)
+    """, """
+        x = np.asarray(args["x_ptr"], np.float64).ravel()
+        k = args["R"]
+        out = np.zeros((4 * max(args["R"], args["C"]),), np.float64)
+        out[0] = x[:k].max()
+        sel = np.nonzero(x[:k] < args["C"])[0] % 8
+        out[1:9] = np.bincount(sel, minlength=8)[:8]
+        return {"o_ptr": out}
+    """, ARGS, True, False,
+        ("float32", "int32")))
+    # a scalar-only kernel with NO tl.arange (bn_inc / final_mean's shape)
+    forms.append((
+        "t028_no_arange", """
+        s = tl.load(x_ptr)
+        n = tl.load(x_ptr + 1)
+        mean = s / n
+        tl.store(o_ptr, mean)
+    """, """
+        x = np.asarray(args["x_ptr"], np.float64).ravel()
+        return {"o_ptr": np.array([x[0] / x[1]], np.float64)}
+    """, ARGS, False, False,
+        ("float32",)))
+    # the mixed-extent region keeps its LOCATED refusal: T028 implemented
+    # the segment-level restructure and reproduced a staging-path hang
+    # under QEMU (a staged block carry; and a masked 2-D access with a
+    # ragged row tail at verified extents) -- the boundary is recorded in
+    # vectorize._is_mixed_extent_region's docstring for the repair loop
+    # that owns the staging-path defect
+    forms.append((
+        "t028_mixed_extent", """
+        pid = tl.program_id(0)
+        rows = pid * RB + tl.arange(0, RB)
+        mask = rows < R
+        w = tl.load(x_ptr + rows, mask=mask, other=1.0) + 1.0
+        cols = tl.arange(0, 8)
+        for k in range(0, 2):
+            cm = (cols[None, :] < C) & mask[:, None]
+            v = tl.load(x_ptr + rows[:, None] * C + cols[None, :],
+                        mask=cm, other=0.0)
+            y = v * w[:, None]
+            tl.store(o_ptr + rows[:, None] * C + cols[None, :], y,
+                     mask=cm)
+    """, """
+        x = np.asarray(args["x_ptr"], np.float64).reshape(
+            args["R"], args["C"])
+        w = x.max(axis=1, keepdims=True) + 1.0
+        out = np.zeros((4 * max(args["R"], args["C"]),), np.float64)
+        acc = x * w
+        out[:acc.size] = acc.ravel()
+        return {"o_ptr": out}
+    """, ARGS, True, False,
+        ("float32",), True))
+    bad = []
+    for form in forms:
+        name, body, ref_body, args_decl, grid_rows, buf_rc = form[:6]
+        # the tail carries the dtype list, an optional row-block extent
+        # and an optional expect-refusal flag, in that order
+        tail = list(form[6:])
+        dtypes = tail.pop(0)
+        rb = 4
+        if tail and isinstance(tail[0], int) \
+                and not isinstance(tail[0], bool):
+            rb = tail.pop(0)
+        expect_refusal = bool(tail) and bool(tail[0])
+        if expect_refusal:
+            from a100c.driver import PipelineError
+            module = _t028_operator(workdir, name, body, ref_body,
+                                    args_decl, grid_rows, buf_rc)
+            try:
+                compiler.compile_case(module.make_case(
+                    shape=(3, 17), dtype=dtypes[0]))
+                bad.append(f"{name}: compiled (expected the located "
+                           "mixed-extent boundary refusal)")
+            except PipelineError as exc:
+                if "block extents" not in str(exc):
+                    bad.append(f"{name}: {str(exc)[:110]}")
+            continue
+        module = _t028_operator(workdir, name, body, ref_body, args_decl,
+                                grid_rows, buf_rc, rb)
+        for dtype in dtypes:
+            for shape in ((20, 17), (3, 97)):
+                try:
+                    module._make_case(shape=shape, dtype=dtype)
+                except Exception:                     # noqa: BLE001
+                    continue        # a shape the case layer does not build
+                for threads in (1, 4):
+                    ok, detail = _t028_run(compiler, module, threads,
+                                           shape=shape, dtype=dtype)
+                    if not ok:
+                        bad.append(f"{name} {dtype} {shape} t{threads}: "
+                                   f"{detail}")
+    check("t028-block-forms-execute-1-4-workers", not bad,
+          "; ".join(bad[:3]))
+
 def main() -> int:
     workdir = Path(tempfile.mkdtemp(prefix="a100c-red-"))
     cache = workdir / "cache"
@@ -756,6 +1059,7 @@ def main() -> int:
         check_empty_and_single_element(workdir, compiler)
         check_corpus_reduction_operators(compiler)
         check_remaining_boundaries_refuse_located(compiler)
+        check_t028_block_forms(workdir, compiler)
     finally:
         import shutil
         shutil.rmtree(workdir, ignore_errors=True)

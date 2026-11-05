@@ -293,6 +293,82 @@ def check_accepts_real_lowering():
           str(errors[0]) if errors else "")
 
 
+MIXED_SEW_BODY = """
+    i = tl.arange(0, BLOCK)
+    m = i < n
+    x = tl.load(x_ptr + i, mask=m, other=0.0).to(tl.float32)
+    s = tl.sum(x, axis=0)
+    tl.store(o_ptr, s / n)"""
+
+
+def check_accepts_mixed_sew_lowering():
+    """T028 acceptance[2]: the mixed-SEW lowering (fp16 data loaded in an
+    e16 pass, converted to fp32 and reduced at e32 -- the multi-width
+    reduce lane) verifies; the hand-built rejection control above still
+    rejects inconsistent regions."""
+    import textwrap
+    import tempfile
+    text = (
+        '"""probe"""\n'
+        'OPERATOR = {"name": "probe/mixedsew", "group": "probe", '
+        '"channel": "local",\n'
+        '            "execution": "triton_kernel", "verification": '
+        '"correctness", "tags": []}\n'
+        'import numpy as np\n'
+        'import triton\n'
+        'import triton.language as tl\n'
+        '@triton.jit\n'
+        'def mixedsew_kernel(x_ptr, o_ptr, n, BLOCK: tl.constexpr):\n'
+        + textwrap.indent(textwrap.dedent(MIXED_SEW_BODY).strip("\n"),
+                          "    ")
+        + '\n\n'
+        'def ref(args, meta):\n'
+        '    import numpy as np\n'
+        '    x = np.asarray(args["x_ptr"], np.float32)\n'
+        '    return {"o_ptr": np.array([x.sum() / args["n"]], np.float32)}\n'
+        '\n'
+        'def _make_case(shape=(17,), dtype="float16", seed=0):\n'
+        '    import numpy as np\n'
+        '    rng = np.random.default_rng(seed)\n'
+        '    x = rng.uniform(-2.0, 2.0, (17,)).astype(np.float16)\n'
+        '    args = {"x_ptr": x, "o_ptr": np.zeros(4, np.float16),'
+        ' "n": 17}\n'
+        '    meta = {"BLOCK": 128}\n'
+        '    expected = ref(args, meta)\n'
+        '    return {"args": args, "meta": meta, "grid": (1,),'
+        ' "shape": shape,\n'
+        '            "kernel": mixedsew_kernel, "outputs": ("o_ptr",),\n'
+        '            "expected": expected,\n'
+        '            "comparison": {"o_ptr": {"comparator": "allclose",'
+        ' "exact": False,\n'
+        '                                    "rtol": 1e-2, "atol": 1e-2}}}\n'
+    )
+    d = tempfile.mkdtemp(prefix="a100c-mir-mixedsew-")
+    p = Path(d) / "mixedsew.py"
+    p.write_text(text)
+    spec = importlib.util.spec_from_file_location("mixedsew", str(p))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    case = module._make_case()
+    src = source.load_operator(str(p))
+    specz = specialize.specialize(src, case)
+    tir_module = lower_tir.lower(src, specz)
+    grid = grid_mod.extract_grid(src, case)
+    layout = binding_mod.argument_layout(case, specz)
+    from a100c.passes import pipeline as passes_mod
+    passes_mod.run(tir_module, passes_mod.PassConfig())
+    mir_module = vectorize.lower_to_mir(tir_module, part_mod.ExecutionPlan(),
+                                        DEFAULT_TARGET, layout, grid)
+    errors = mir.verify_module(mir_module)
+    sews = {op.attrs["sew"] for fn in mir_module.functions
+            for b in fn.blocks for op in b.ops if op.opcode == "vsetvli"}
+    check("accepts-the-mixed-sew-lowering", not errors,
+          f"{str(errors[0])[:90] if errors else ''} "
+          f"(sews seen: {sorted(sews)})")
+    check("mixed-sew-lowering-mixes-regions", 16 in sews and 32 in sews,
+          f"sews seen: {sorted(sews)}")
+
+
 def main() -> int:
     check_region_inconsistency()
     check_region_missing()
@@ -305,6 +381,7 @@ def main() -> int:
     check_block_structure()
     check_type_mismatch_and_unknown()
     check_accepts_real_lowering()
+    check_accepts_mixed_sew_lowering()
     if FAILURES:
         print(f"FAILED: {len(FAILURES)} check(s)")
         return 1

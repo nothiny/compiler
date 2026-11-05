@@ -3266,12 +3266,6 @@ class Lowering:
         axes = self._reduction_axis(args, node, construct, value.rank)
         if axes is None:
             axes = tuple(range(value.rank))
-        if len(axes) != len(value.shape):
-            raise self._err(
-                node, construct,
-                "reducing every axis of a multi-axis block is not in this "
-                "path (the block forms are rank 1; partial axis sets come "
-                "with the layout lane's multi-axis blocks)")
         if kind in ("xor_sum", "reduce_or") and not value.type.is_int():
             raise self._err(
                 node, construct,
@@ -3314,11 +3308,6 @@ class Lowering:
         axes = self._reduction_axis(args, node, construct, value.rank)
         if axes is None:
             axes = tuple(range(value.rank))
-        if len(axes) != len(value.shape):
-            raise self._err(
-                node, construct,
-                "reducing every axis of a multi-axis block is not in this "
-                "path (the block forms are rank 1)")
         keep_dims = False
         if "keep_dims" in args:
             kd = self.env.evaluate(args["keep_dims"], self.source.path)

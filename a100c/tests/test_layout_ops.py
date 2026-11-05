@@ -191,12 +191,15 @@ def check_corpus(workdir, compiler):
     # the refusal census: the remaining family files refuse LOCATED on
     # constructs this task does not own (fp64 storage, tl.maximum,
     # tl.softmax's exp, in-loop multi-axis reductions) or grid-model
-    # forms outside T008's coverage -- never silently miscompiled
+    # forms outside T008's coverage -- never silently miscompiled.
+    # linalg_cross_complex_contiguous left the census in T028 (the
+    # multi-axis partial-reduction staging lane lowers its in-loop
+    # cross-product reductions; every dtype executes PASS at 1/4 workers
+    # in T028's execution probe) -- the fp64 boundary keeps a census
+    # member below.
     census = [
         ("fht_kernel_1d_native.py", {"shape": (17,), "dtype": "float32"},
          ("fp64", "float64")),
-        ("linalg_cross_complex_contiguous_kernel.py",
-         {"shape": (672,), "dtype": "float32"}, ("fp64", "float64")),
         # mode_kernel.py compiled once T013 fixed the scalar-widen
         # signedness, the dtype == dispatch fold and the zeros/select
         # region discipline -- it left the refusal census and is now a

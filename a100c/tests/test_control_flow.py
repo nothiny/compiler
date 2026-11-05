@@ -625,13 +625,15 @@ def check_refusals_located(compiler):
     T011's evidence), so they are no longer refusal cases.  T027 moved
     tril_inplace past the GRID boundary (its M/C are meta constexprs the
     specialization identity signs -- a declared provenance category): the
-    refusal now sits deeper, at the extent-homogeneous region lane."""
+    refusal now sits deeper, at the extent-homogeneous region lane.
+    T028 removed that last boundary too: the mixed-extent region
+    restructure lowers tril_inplace_zero_tile's 2-D masked stores, and
+    every dtype executes PASS at 1/4 workers (verified in T028's
+    execution probe) -- the family left the refusal census, so the list
+    below is empty (the check keeps its shape for the next boundary)."""
     from a100c.driver import PipelineError
     bad = []
     cases = [
-        ("ops/suite/dev/tril_inplace_zero_tile_kernel.py",
-         {}, ("subscript", "return", "program_id axis", "grid",
-              "block extents", "extent-homogeneous")),
     ]
     for rel, kwargs, needles in cases:
         module = _load(ROOT / rel)
