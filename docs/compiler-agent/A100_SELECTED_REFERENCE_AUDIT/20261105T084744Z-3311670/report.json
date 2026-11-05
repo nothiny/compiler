@@ -1,0 +1,89 @@
+{
+  "schema": "a100-reference-audit/v1",
+  "environment": "compiled-x86-triton-cpu",
+  "purpose": "question validation, not candidate compiler execution",
+  "corpus": "ops",
+  "run_id": "20261105T084744Z-3311670",
+  "reference_properties": {
+    "name": "x86-triton-cpu-reference",
+    "triton": "3.8.0",
+    "commit": "5a4885bf9b0b349a525b490a1df25f449f12d4e9",
+    "backend_compatibility": {
+      "reduction": "balanced-low-precision-tree",
+      "bf16_lowering": "portable-RNE",
+      "source_patch_sha256": "34825a3eddd24e6c0fffe0bd56bb8cbd82067a64fbb6571c445a56a2fa7a42cc",
+      "configuration_sha256": "efed5fd7910bc5fd1dfc5defef6621c56ac474a1a2f81ad527cda641e81241fa"
+    },
+    "threads": 1,
+    "role": "question-validation-only",
+    "fast_math": "default(1)"
+  },
+  "source_hashes": {
+    "suite/dev/blocked_jacobi_pair_svals_kernel.py": "51ad93af49a43a9cb9deb4e857b28f94fa7cf6cc6cadcfacff3f355883514c5b"
+  },
+  "libtriton_sha256": "6fbda460b20f72afd8c40ea433ba92f0f47b04beb570528d6fe026eff2830b93",
+  "started_at": 1793868465.9354248,
+  "finished_at": 1793868467.2064972,
+  "operators": 1,
+  "case_count": 3,
+  "summary": {
+    "PASS": 3
+  },
+  "all_compared_pass": true,
+  "adapter_sha256": "f36dec7663068e8777cb5f512dd0e6f9d87097e2aabb00931ebcbabb0ee2b99a",
+  "results": [
+    {
+      "operator": "suite/dev/blocked_jacobi_pair_svals_kernel.py",
+      "returncode": 0,
+      "seconds": 1.2670012996532023,
+      "log": "docs/compiler-agent/A100_SELECTED_REFERENCE_AUDIT/20261105T084744Z-3311670/blocked_jacobi_pair_svals_kernel.log",
+      "cases": [
+        {
+          "operator": "suite/dev/blocked_jacobi_pair_svals_kernel.py",
+          "group": "suite/dev",
+          "shape": [
+            17
+          ],
+          "dtype": "float32",
+          "identity": "e42dac9e2748",
+          "status": "PASS",
+          "detail": "",
+          "rss_mb": 975.0,
+          "launch_seconds": 0.983,
+          "seconds": 0.989
+        },
+        {
+          "operator": "suite/dev/blocked_jacobi_pair_svals_kernel.py",
+          "group": "suite/dev",
+          "shape": [
+            17
+          ],
+          "dtype": "float16",
+          "identity": "ebc41cc95a4c",
+          "status": "PASS",
+          "detail": "",
+          "rss_mb": 975.0,
+          "launch_seconds": 0.002,
+          "seconds": 0.003
+        },
+        {
+          "operator": "suite/dev/blocked_jacobi_pair_svals_kernel.py",
+          "group": "suite/dev",
+          "shape": [
+            17
+          ],
+          "dtype": "bfloat16",
+          "identity": "ead2971b4267",
+          "status": "PASS",
+          "detail": "",
+          "rss_mb": 975.0,
+          "launch_seconds": 0.002,
+          "seconds": 0.003
+        }
+      ]
+    }
+  ],
+  "inputs_unchanged": true,
+  "backend_unchanged": true,
+  "configuration_unchanged": true
+}

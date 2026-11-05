@@ -375,12 +375,23 @@ def _module_constants(tree: ast.Module) -> Tuple[Dict[str, object],
         except (ValueError, SyntaxError):
             return None
 
+    def is_constexpr_call(value: ast.expr) -> bool:
+        # ``X = tl.constexpr(<literal>)``: the assignment itself makes the
+        # global a constexpr instance the kernel body may read (the pinned
+        # ``_is_constexpr_global``; the corpus's _MAX_FLOAT32_VAL form)
+        return (isinstance(value, ast.Call)
+                and _dotted_name(value.func) in ("tl.constexpr",
+                                                 "constexpr")
+                and len(value.args) == 1)
+
     for node in tree.body:
         if (isinstance(node, ast.Assign) and len(node.targets) == 1
                 and isinstance(node.targets[0], ast.Name)):
             value = unwrap(node.value)
             if value is not None:
                 constants[node.targets[0].id] = value
+                if is_constexpr_call(node.value):
+                    constexpr_globals[node.targets[0].id] = value
         elif (isinstance(node, ast.AnnAssign)
                 and isinstance(node.target, ast.Name) and node.value is not None
                 and _dotted_name(node.annotation) in ("tl.constexpr",
