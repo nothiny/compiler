@@ -242,15 +242,22 @@ def lower_not(ctx, operand: mir.VReg, loc) -> mir.VReg:
 # Width conversions (i32 values live sign-extended; the invariants)
 # ---------------------------------------------------------------------------
 
-def widen_to(ctx, reg: mir.VReg, width: int, loc) -> mir.VReg:
+def widen_to(ctx, reg: mir.VReg, width: int, loc,
+             unsigned: Optional[bool] = None) -> mir.VReg:
     """Widen an i32 scalar to i64 (the register already holds the extended
-    value; ``smove`` realizes the view).  Other widths are refused."""
+    value; ``smove`` realizes the view).  Other widths are refused.
+
+    ``unsigned`` (T013): the widened view's signedness -- the philox key
+    path widens an i32 seed to the UINT64 view, and the scalar binop
+    type rules must see matching operand types."""
     if reg.type.width == width:
         return reg
     if reg.type.width == 32 and width == 64 and not reg.type.float:
+        signed = True if unsigned is None else (not unsigned)
+        sty = mir.ScalarType(64, signed=signed)
         return ctx.emit(mir.MOp(
             "smove", [reg],
-            [ctx.vreg(mir.I64, hint="w", loc=loc)], loc=loc))
+            [ctx.vreg(sty, hint="w", loc=loc)], loc=loc))
     refuse(loc, "width",
            f"scalar widening {reg.type.width} -> {width} is not in the "
            "scalar core (32 -> 64 only)")
@@ -1443,8 +1450,15 @@ def prove_wide_access(sl, ptr: "tir.Value", vl: int) -> Optional[WideProof]:
     access keeps its masked/indexed form, never a guessed wide one
     (MECH-MASKED-VECTOR-ACCESS)."""
     base_node, offsets = _flatten_ptradd(ptr)
-    if base_node.producer is not None:
+    if base_node.producer is not None \
+            and base_node.producer.op != "select.where":
         return None                      # not a ptradd-formed address
+    # a select.where base (the runtime-selected target pointer) is a
+    # valid flat base: the contiguity proof concerns the offsets, and the
+    # selected base is one of the transport's aligned view bases (T013:
+    # the rng_dual target-pointer form -- without this the 16-bit store
+    # fell back to the indexed form, whose EEW=64 index at SEW=16 the
+    # pinned QEMU rejects with SIGILL)
     scalar_terms: List["tir.Value"] = []
     vector_term = None
     for off in offsets:

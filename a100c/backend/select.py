@@ -90,6 +90,8 @@ def _features(op: mir.MOp) -> Dict[str, object]:
         features["succ"] = op.attrs["succ"]
     elif op.opcode in ("vunit_load", "vunit_store"):
         features["sew"] = op.attrs["sew"]
+    elif op.opcode == "vmath":
+        features["fn"] = op.attrs["fn"]
     elif op.opcode == "vsetvli":
         features["sew"] = op.attrs["sew"]
         features["lmul"] = op.attrs["lmul"]

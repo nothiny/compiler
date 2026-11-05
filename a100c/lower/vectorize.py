@@ -3517,21 +3517,151 @@ class SliceLowering:
                                 "slice (fneg is; neg lowers via 0-x later)")
             if vop is None:
                 raise self._err(loc, code, "unary op is not in the slice")
+            # the region discipline the binop/cmp paths follow: a
+            # non-pass element width opens its own region and restores
+            # afterwards (T013's bit.invert -- the uniform conversion's
+            # ~x -- found the gap: the vunary ran at a stale setting)
+            switched = self._open_region(ctx, operand.type, loc)
             reg = ctx.emit(mir.MOp(
                 "vunary", [operand],
                 [ctx.vreg(operand.type, hint="un", loc=loc)],
                 attrs={"op": vop}, loc=loc))
+            if switched:
+                self._restore_region(ctx, loc)
             self._bind_result(op, reg)
+            return
+        if code in tir.MATH_UNARY_OPS:
+            operand = self._need(op.operands[0], loc)
+            if operand.is_scalar():
+                reg = self._scalar_math_unary(ctx, code, operand, loc)
+                self._bind_result(op, reg)
+                return
+            reg = self._vector_math_unary(ctx, code, operand, loc)
+            self._bind_result(op, reg)
+            return
+        if code in tir.ABS_OPS:
+            operand = self._need(op.operands[0], loc)
+            if operand.is_scalar():
+                # the scalar form rides the splat-compute-extract path
+                vtype = mir.VectorType(operand.type.width,
+                                       1 if not operand.is_vector() else
+                                       operand.type.lmul,
+                                       "float" if code == "math.fabs"
+                                       else operand.type.kind)
+                splat = self._splat_reg(ctx, operand, vtype, loc)
+                res = self._vector_abs(ctx, code, splat, loc)
+                self._bind_result(op, self._scalarize(ctx, res, loc))
+                return
+            reg = self._vector_abs(ctx, code, operand, loc)
+            self._bind_result(op, reg)
+            return
+        if code in tir.MAXMIN_OPS:
+            lhs, rhs = op.operands
+            lreg, rreg = self._need(lhs, loc), self._need(rhs, loc)
+            if lreg.is_scalar() and rreg.is_scalar():
+                vtype = mir.VectorType(
+                    lreg.type.width if lreg.type.width >= rreg.type.width
+                    else rreg.type.width, 1,
+                    "float" if lreg.type.float or rreg.type.float
+                    else ("uint" if lreg.type.signed is False
+                          and rreg.type.signed is False else "int"))
+                ls = self._splat_reg(ctx, lreg, vtype, loc)
+                rs = self._splat_reg(ctx, rreg, vtype, loc)
+                res = self._vector_maxmin(ctx, code, ls, rs, loc)
+                self._bind_result(op, self._scalarize(ctx, res, loc))
+                return
+            if lreg.is_scalar():
+                lreg = self._splat_reg(
+                    ctx, lreg, mir.VectorType(
+                        rreg.type.sew, rreg.type.lmul, rreg.type.kind),
+                    loc)
+            if rreg.is_scalar():
+                rreg = self._splat_reg(
+                    ctx, rreg, mir.VectorType(
+                        lreg.type.sew, lreg.type.lmul, lreg.type.kind),
+                    loc)
+            if lreg.type != rreg.type:
+                raise self._err(loc, code,
+                                f"maxmin operand types differ: "
+                                f"{lreg.type!r} vs {rreg.type!r}")
+            reg = self._vector_maxmin(ctx, code, lreg, rreg, loc)
+            self._bind_result(op, reg)
+            return
+        if code == "math.fma":
+            x, y, z = op.operands
+            xreg, yreg, zreg = (self._need(x, loc), self._need(y, loc),
+                                self._need(z, loc))
+            if xreg.is_scalar() and yreg.is_scalar() \
+                    and zreg.is_scalar():
+                vtype = mir.VectorType(
+                    max(r.type.width for r in (xreg, yreg, zreg)), 1,
+                    "float")
+                xs = self._splat_reg(ctx, xreg, vtype, loc)
+                ys = self._splat_reg(ctx, yreg, vtype, loc)
+                zs = self._splat_reg(ctx, zreg, vtype, loc)
+                reg = self._vector_fma(ctx, xs, ys, zs, loc)
+                self._bind_result(op, self._scalarize(ctx, reg, loc))
+                return
+            vtype = xreg.type if xreg.is_vector() else \
+                mir.VectorType(xreg.type.width, 1, "float")
+            for name, reg in (("x", xreg), ("y", yreg), ("z", zreg)):
+                if reg.is_scalar():
+                    raise self._err(
+                        loc, code,
+                        f"a scalar {name} operand with block partners is "
+                        "not splatted here (the frontend's broadcast "
+                        "should have unified them)")
+            reg = self._vector_fma(ctx, xreg, yreg, zreg, loc)
+            self._bind_result(op, reg)
+            return
+        if code == "rng.philox":
+            self._lower_philox(ctx, op, loc)
             return
         if code == "select.where":
             cond, x, y = op.operands
             mreg = self._need(cond, loc)
             xreg, yreg = self._need(x, loc), self._need(y, loc)
+            if x.type.is_pointer() and y.type.is_pointer():
+                # the pinned where allows two pointer operands: a scalar
+                # pointer select in the i64 domain (the selected base
+                # binds as a pointer value for the consumer ptradds --
+                # the rng_dual target-pointer form)
+                if not (xreg.is_scalar() and yreg.is_scalar()):
+                    raise self._err(
+                        loc, "select.where",
+                        "a block-valued pointer select is not in this "
+                        "lane (the corpus's pointer selects are scalars)")
+                if not mreg.is_mask():
+                    mreg = self._mask_of_bool(ctx, mreg, loc)
+                v64 = mir.VectorType(64, 1, "int")
+                switched = self._open_region(ctx, v64, loc)
+                xs = self._splat_reg(ctx, xreg, v64, loc)
+                ys = self._splat_reg(ctx, yreg, v64, loc)
+                v0 = ctx.emit(mir.MOp(
+                    "vmovmask", [mreg],
+                    [ctx.vreg(mir.MaskType(), hint="pw0", loc=loc,
+                              fixed_phys="v0")], loc=loc))
+                sel = ctx.emit(mir.MOp(
+                    "vsel", [v0, xs, ys],
+                    [ctx.vreg(v64, hint="psel", loc=loc)], loc=loc))
+                reg = self._scalarize(ctx, sel, loc)
+                if switched:
+                    self._restore_region(ctx, loc)
+                self.values[op.results[0].vid] = reg
+                if self._names is not None:
+                    for key in op.results[0].scope_names():
+                        self._names.define(key, op.results[0])
+                return
             if xreg.is_scalar() and yreg.is_scalar():
                 # a scalar select: splat both branches, select, extract
                 if not mreg.is_mask():
                     mreg = self._mask_of_bool(ctx, mreg, loc)
                 vtype = self._vtype(x.type)
+                # the region discipline every vector path follows (the
+                # scalar-select splats at the branch type -- a non-pass
+                # width in fp16/bf16 passes must open its own region; the
+                # rng_dual offsets select in the fp16 pass found it)
+                switched = self._open_region(ctx, vtype, loc)
                 xs = ctx.emit(mir.MOp(
                     "s2v", [xreg], [ctx.vreg(vtype, hint="ssx", loc=loc)],
                     loc=loc))
@@ -3545,16 +3675,25 @@ class SliceLowering:
                 sel = ctx.emit(mir.MOp(
                     "vsel", [v0, xs, ys],
                     [ctx.vreg(vtype, hint="ssel", loc=loc)], loc=loc))
-                self._bind_result(op, self._scalarize(ctx, sel, loc))
+                reg = self._scalarize(ctx, sel, loc)
+                if switched:
+                    self._restore_region(ctx, loc)
+                self._bind_result(op, reg)
                 return
             v0 = ctx.emit(mir.MOp(
                 "vmovmask", [mreg],
                 [ctx.vreg(mir.MaskType(), hint="v0", loc=loc,
                           fixed_phys="v0")], loc=loc))
+            # the region discipline the binop/cmp/unary paths follow (a
+            # non-pass element width opens its own region and restores;
+            # the uniform conversion's where found the gap)
+            switched = self._open_region(ctx, xreg.type, loc)
             reg = ctx.emit(mir.MOp(
                 "vsel", [v0, xreg, yreg],
                 [ctx.vreg(xreg.type, hint="sel", loc=loc)],
                 loc=loc))
+            if switched:
+                self._restore_region(ctx, loc)
             self._bind_result(op, reg)
             return
         if code == "load":
@@ -3582,9 +3721,18 @@ class SliceLowering:
                 # -- the persistent-reduction accumulators)
                 self._bind_result(op, kreg)
                 return
+            vtype = self._vtype(ty)
+            # the region discipline every vector op follows (a non-pass
+            # element width opens its own region and restores -- T013:
+            # tl.zeros of a narrower type inside a wider pass ran at the
+            # stale setting; bucketize's int32 zeros in the fp64 pass
+            # found it)
+            switched = self._open_region(ctx, vtype, loc)
             reg = ctx.emit(mir.MOp(
                 "s2v", [kreg],
-                [ctx.vreg(self._vtype(ty), hint="cst", loc=loc)], loc=loc))
+                [ctx.vreg(vtype, hint="cst", loc=loc)], loc=loc))
+            if switched:
+                self._restore_region(ctx, loc)
             self._bind_result(op, reg)
             return
         if code == "convert":
@@ -3802,16 +3950,24 @@ class SliceLowering:
 
     def _mask_of_bool(self, ctx: _Ctx, bool_reg: mir.VReg,
                       loc) -> mir.VReg:
-        """A mask from an i64 0/1 bool: splat and compare against zero."""
+        """A mask from an i64 0/1 bool: splat and compare against zero.
+
+        The e64 region is opened EXPLICITLY (never assumed): in a
+        non-32-bit pass the hardcoded v64m1 splat would run at the active
+        (stale) setting -- the rng_dual scalar-pointer select in the fp16
+        pass found it."""
         vtype = mir.VectorType(64, 1, "int")
+        self._vregion(ctx, vtype, loc)
         splat = ctx.emit(mir.MOp(
             "s2v", [bool_reg], [ctx.vreg(vtype, hint="bs", loc=loc)],
             loc=loc))
         zero = self._splat_const(ctx, 0, vtype, loc)
-        return ctx.emit(mir.MOp(
+        reg = ctx.emit(mir.MOp(
             "vcmp", [splat, zero],
             [ctx.vreg(mir.MaskType(), hint="bm", loc=loc)],
             attrs={"pred": "ne", "fp": False}, loc=loc))
+        self._restore_region(ctx, loc)
+        return reg
 
     def _lower_scan(self, ctx: _Ctx, op: tir.Op, loc) -> None:
         """One TIR scan op: materialize the operand's chunk slice to the
@@ -4025,18 +4181,30 @@ class SliceLowering:
             self._vregion(ctx, bits.type, loc)
             half = self._splat_const(ctx, 0x7fff,
                                      mir.VectorType(32, lmul, "uint"), loc)
-            lsb = self._splat_const(ctx, 1,
+            sixteen = self._splat_const(ctx, 16,
+                                        mir.VectorType(32, lmul, "uint"),
+                                        loc)
+            one = self._splat_const(ctx, 1,
                                     mir.VectorType(32, lmul, "uint"), loc)
             add = ctx.emit(mir.MOp(
                 "vbin", [bits, half],
                 [ctx.vreg(bits.type, hint="cva", loc=loc)],
                 attrs={"op": "add"}, loc=loc))
-            shifted = ctx.emit(mir.MOp(
-                "vbin", [bits, lsb],
+            # the round-to-nearest-even correction is the LSB OF THE HIGH
+            # HALF: (bits >> 16) & 1 -- T013 found the previous form
+            # adding (bits >> 1) instead (a whole half of the value rode
+            # into the sum; the rng_dual bf16 store was the first
+            # executed non-trivial rounding)
+            high = ctx.emit(mir.MOp(
+                "vbin", [bits, sixteen],
                 [ctx.vreg(bits.type, hint="cvs", loc=loc)],
                 attrs={"op": "srl"}, loc=loc))
+            lsb = ctx.emit(mir.MOp(
+                "vbin", [high, one],
+                [ctx.vreg(bits.type, hint="cvl", loc=loc)],
+                attrs={"op": "and"}, loc=loc))
             rounded = ctx.emit(mir.MOp(
-                "vbin", [add, shifted],
+                "vbin", [add, lsb],
                 [ctx.vreg(bits.type, hint="cvr", loc=loc)],
                 attrs={"op": "add"}, loc=loc))
             # NaN: exponent all ones and a non-zero mantissa
@@ -4088,13 +4256,14 @@ class SliceLowering:
                 [ctx.vreg(bits.type, hint="cvd", loc=loc)],
                 attrs={"op": "srl"}, loc=loc))
             # the low half: the strided gather at the half-width view,
-            # then the float-kind view of the bf16 bits
+            # then the float-kind view of the bf16 bits (through _vmovv
+            # so the retyping move opens its own region -- T013: the raw
+            # emit ran at the ambient region, stale when the pass's data
+            # is wider than 16 bits; the rng_dual bf16 store found it)
             low = self._int_narrow(ctx, down, 32, 16, loc)
             dl = max(1, self._vl * 16 // self.target.vlen_bits)
-            out = ctx.emit(mir.MOp(
-                "vmovv", [low],
-                [ctx.vreg(mir.VectorType(16, dl, "float"),
-                          hint="cvf", loc=loc)], loc=loc))
+            out = self._vmovv(ctx, low, mir.VectorType(16, dl, "float"),
+                              loc)
             self._restore_region(ctx, loc)
             return out
         # fp16: the narrowing convert at the DESTINATION's region (RTNE
@@ -4118,41 +4287,56 @@ class SliceLowering:
         return out
 
     def _int_narrow(self, ctx: _Ctx, reg: mir.VReg, sw: int, dw: int,
-                    loc) -> mir.VReg:
+                    loc, dst_kind: Optional[str] = None) -> mir.VReg:
         """Exact integer narrowing (sw -> dw, sw > dw): the register view
         retyped to the destination width (vmovv at the SOURCE's region --
         every used byte survives) and vrgather with the strided lane
         index: each destination lane takes the low half of its source
-        lane."""
+        lane.  ``dst_kind`` (T013): the destination's element kind -- an
+        unsigned destination views the gathered lanes unsigned (the
+        philox hi word's i64 -> u32 truncation) instead of the default
+        signed view."""
         if dw >= sw:
             raise self._err(loc, "convert", "int_narrow requires sw > dw")
         factor = sw // dw
         lmul = max(1, self._vl * dw // self.target.vlen_bits)
-        viewed = self._vmovv(ctx, reg, mir.VectorType(dw, lmul, "int"),
+        # the retyping view keeps the SOURCE's register-group footprint
+        # (the copy at the wider-SEW region writes a group of the
+        # region's LMUL -- a narrower destination group would overflow
+        # into a register the allocation does not own; T013: the philox
+        # hi word's i64 -> u32 truncation from an m2 source found the
+        # odd-base SIGILL), then the gathered result re-views down to
+        # the lanes-derived destination class
+        view_lmul = max(reg.type.lmul, lmul)
+        viewed = self._vmovv(ctx, reg, mir.VectorType(dw, view_lmul, "int"),
                              loc)
         self._vregion(ctx, viewed.type, loc)
         vid = ctx.emit(mir.MOp(
-            "vid", [], [ctx.vreg(mir.VectorType(dw, lmul, "int"),
+            "vid", [], [ctx.vreg(mir.VectorType(dw, view_lmul, "int"),
                                  hint="cvi", loc=loc)], loc=loc))
         sty = mir.ScalarType(dw, signed=True)
         kreg = ctx.const(factor, sty, loc)
         fac = ctx.emit(mir.MOp(
-            "s2v", [kreg], [ctx.vreg(mir.VectorType(dw, lmul, "int"),
+            "s2v", [kreg], [ctx.vreg(mir.VectorType(dw, view_lmul, "int"),
                                      hint="cvk", loc=loc)], loc=loc))
         idx = ctx.emit(mir.MOp(
             "vbin", [vid, fac],
-            [ctx.vreg(mir.VectorType(dw, lmul, "int"), hint="cvx",
+            [ctx.vreg(mir.VectorType(dw, view_lmul, "int"), hint="cvx",
                       loc=loc)],
             attrs={"op": "mul"}, loc=loc))
-        out = ctx.emit(mir.MOp(
+        gathered = ctx.emit(mir.MOp(
             "vrgather", [viewed, idx],
-            [ctx.vreg(mir.VectorType(dw, lmul, "int"), hint="cvg",
-                      loc=loc)], loc=loc))
+            [ctx.vreg(mir.VectorType(dw, view_lmul, dst_kind or "int"),
+                      hint="cvg", loc=loc)], loc=loc))
         self._restore_region(ctx, loc)
-        return out
+        if view_lmul == lmul:
+            return gathered
+        return self._vmovv(
+            ctx, gathered,
+            mir.VectorType(dw, lmul, dst_kind or "int"), loc)
 
     def _int_widen(self, ctx: _Ctx, reg: mir.VReg, sw: int, dw: int,
-                   signed: bool, loc) -> mir.VReg:
+                   signed: bool, loc, dst_kind: Optional[str] = None) -> mir.VReg:
         """Exact integer widening (sw -> dw, a power-of-two factor): the
         vwiden chain at each step's source region (sext for signed
         sources, zext for unsigned -- the pinned extension semantics),
@@ -4170,12 +4354,19 @@ class SliceLowering:
                           hint="cvw", loc=loc)],
                 attrs={"mode": "sext" if signed else "zext"}, loc=loc))
             w *= 2
+            kind = dst_kind if (dst_kind is not None and w == dw) \
+                else ("int" if signed else "uint")
             want = mir.VectorType(
                 w, max(1, self._vl * w // self.target.vlen_bits),
-                "int" if signed else "uint")
+                kind)
             cur = self._vmovv(ctx, wide, want, loc) if \
                 (want.sew, want.lmul) != (wide.type.sew,
                                           wide.type.lmul) else wide
+        # the destination kind re-view when the last step's product
+        # already matched (no _vmovv ran): an explicit view move
+        if dst_kind is not None and cur.type.kind != dst_kind:
+            cur = self._vmovv(ctx, cur, mir.VectorType(
+                cur.type.sew, cur.type.lmul, dst_kind), loc)
         self._restore_region(ctx, loc)
         return cur
 
@@ -4185,13 +4376,28 @@ class SliceLowering:
         """The conversion matrix over the corpus dtype surface (vector
         form, at the current pass's vl)."""
         sw, dw = src.bitwidth(), dst.bitwidth()
-        # fp64 is outside the executed corpus surface (the 16 dead dtype
-        # dispatch branches fold at specialization)
+        # fp64 staging (buffers of fp64 tensors) is outside the executed
+        # corpus surface (the 16 dead dtype dispatch branches fold at
+        # specialization) -- but the INTERNAL compute width is not:
+        # position_quantize (the math.round family) computes its phase in
+        # fp64, which needs exactly two routes: i64 -> f64 (the block
+        # index becomes the phase) and f64 -> f32 (the reduced phase
+        # feeds the fp32 sin).  Everything else fp64 stays the declared
+        # boundary refusal.
         if (sw == 64 and src.is_float()) or (dw == 64 and dst.is_float()):
-            raise self._err(
-                loc, "convert",
-                f"fp64 conversions are not in the lane (the corpus dtype "
-                f"surface has no fp64 tensors): {src!r} -> {dst!r}")
+            allowed = ((src.is_int() and dst.is_float()
+                        and sw == 64 and dw == 64)
+                       or (src.is_float() and dst.is_float()
+                           and sw == 64 and dw == 32)
+                       or (src.is_float() and dst.is_float()
+                           and sw == 32 and dw == 64))
+            if not allowed:
+                raise self._err(
+                    loc, "convert",
+                    f"fp64 conversions are not in the lane (the corpus "
+                    f"dtype surface has no fp64 tensors; the two internal-"
+                    f"compute routes i64->f64 and f64->f32 are the "
+                    f"exception): {src!r} -> {dst!r}")
         if src.is_bool():
             # bool -> X: the 0/1 class selected at the destination type.
             # An integer destination WIDER than the pass's SEW keeps the
@@ -4266,9 +4472,17 @@ class SliceLowering:
                 # register-view move (bit-identical)
                 return self._vmovv(ctx, sreg, self._vtype(dst), loc)
             if sw < dw:
-                return self._int_widen(ctx, sreg, sw, dw,
-                                       src.is_int_signed(), loc)
-            return self._int_narrow(ctx, sreg, sw, dw, loc)
+                # the widening chain extends by the SOURCE's signedness;
+                # the final register view carries the DESTINATION's kind
+                # (int32 -> uint64 sexts the value and views it unsigned
+                # -- the randint offsets' start + arange mix found the
+                # kind gap)
+                return self._int_widen(
+                    ctx, sreg, sw, dw, src.is_int_signed(), loc,
+                    dst_kind="uint" if dst.is_int_unsigned() else "int")
+            return self._int_narrow(
+                ctx, sreg, sw, dw, loc,
+                dst_kind="uint" if dst.is_int_unsigned() else "int")
         if src.is_int() and dst.is_float():
             if sw <= dw:
                 if sw < dw:
@@ -4355,9 +4569,44 @@ class SliceLowering:
                                        rounding=rounding)
             if sw == 16 and dw == 32:
                 return self._f16_to_f32(ctx, sreg, src, loc)
+            if sw == 32 and dw == 64:
+                # T013: the exact fp32 -> fp64 widening (igamma's high-
+                # precision lane): the widening convert at the SOURCE's
+                # region, destination doubling SEW and LMUL (the vfwcvt
+                # convention)
+                self._vregion(ctx, sreg.type, loc)
+                wide = ctx.emit(mir.MOp(
+                    "vfwcvt", [sreg],
+                    [ctx.vreg(mir.VectorType(
+                        64, sreg.type.lmul * 2, "float"),
+                        hint="cvd", loc=loc)],
+                    attrs={"op": "ff"}, loc=loc))
+                dl = max(1, self._vl * 64 // self.target.vlen_bits)
+                out = self._vmovv(
+                    ctx, wide, mir.VectorType(64, dl, "float"), loc)                     if wide.type.lmul != dl else wide
+                self._restore_region(ctx, loc)
+                return out
             if sw == 32 and dw == 16:
                 return self._f32_to_ff(ctx, sreg, dst, loc,
                                        rounding=rounding)
+            if sw == 64 and dw == 32:
+                # T013: the internal-compute route (position_quantize's
+                # fp64 phase feeding the fp32 sin): the narrowing convert
+                # at the destination's region, source re-viewed at the
+                # double-LMUL group the instruction reads (the f32->f16
+                # convention)
+                dl = max(1, self._vl * 32 // self.target.vlen_bits)
+                src2 = self._vmovv(ctx, sreg,
+                                   mir.VectorType(64, dl * 2, "float"),
+                                   loc)
+                vtype = mir.VectorType(32, dl, "float")
+                self._vregion(ctx, vtype, loc)
+                out = ctx.emit(mir.MOp(
+                    "vfncvt", [src2],
+                    [ctx.vreg(vtype, hint="cvd", loc=loc)],
+                    attrs={"op": "ff"}, loc=loc))
+                self._restore_region(ctx, loc)
+                return out
             raise self._err(
                 loc, "convert",
                 f"f{sw} -> f{dw} is not in the conversion matrix")
@@ -4390,24 +4639,328 @@ class SliceLowering:
         if src.type.is_int() and dst.type.is_int():
             # the scalar core's own widen (and the 64->32 narrow; the
             # sub-32 narrowing rides the vector path -- the scalar core
-            # has no form there)
+            # has no form there).  The widened view carries the
+            # DESTINATION's signedness (the philox key path widens an
+            # i32 seed into the uint64 view -- the scalar binop type
+            # rules must see matching operand types)
             if src.type.bitwidth() < dst.type.bitwidth():
                 self._bind_result(op, scalar_mod.widen_to(
-                    ctx, sreg, dst.type.bitwidth(), loc))
+                    ctx, sreg, dst.type.bitwidth(), loc,
+                    unsigned=dst.type.is_int_unsigned()))
                 return
             if src.type.bitwidth() > dst.type.bitwidth() \
                     and dst.type.bitwidth() >= 32:
                 self._bind_result(op, scalar_mod.narrow_to(
                     ctx, sreg, dst.type.bitwidth(), loc))
                 return
-        # the scalar form: splat, convert, extract
+        # the scalar form: splat, convert, extract.  The region is set
+        # EXPLICITLY (never assumed): in a mixed-SEW pass the active
+        # region at this point may be a helper's leftover (a same-width
+        # signedness convert's vmovv leaves its own region behind), and a
+        # stale setting would mis-execute the splat (the philox key path
+        # found it); the pass's data region is restored afterwards.
         splat_ty = src.type
         vtype = self._vtype(splat_ty)
-        self._open_region(ctx, vtype, loc)
+        self._vregion(ctx, vtype, loc)
         splat = self._splat_reg(ctx, sreg, vtype, loc)
         cvt = self._convert_vector(ctx, splat, src.type, dst.type, loc,
                                    rounding=rounding)
-        self._bind_result(op, self._scalarize(ctx, cvt, loc))
+        reg = self._scalarize(ctx, cvt, loc)
+        self._restore_region(ctx, loc)
+        self._bind_result(op, reg)
+
+    # -- T013: special math functions through the real vector path --------
+    def _scalar_math_unary(self, ctx: _Ctx, code: str, operand: mir.VReg,
+                           loc) -> mir.VReg:
+        """A scalar math operand rides the splat-compute-extract path (the
+        scalar core has no transcendentals; pow_scalar_tensor's
+        ``tl.floor(val0)`` is the corpus's scalar form)."""
+        vtype = mir.VectorType(operand.type.width, 1, "float")
+        # the region is set explicitly and restored (a non-32-bit pass
+        # would otherwise run the splat at a stale setting); it is
+        # RE-OPENED for the extract -- _vector_math_unary restores the
+        # pass region on exit and the vextract reads at the math width
+        self._vregion(ctx, vtype, loc)
+        splat = self._splat_reg(ctx, operand, vtype, loc)
+        res = self._vector_math_unary(ctx, code, splat, loc)
+        self._vregion(ctx, vtype, loc)
+        reg = self._scalarize(ctx, res, loc)
+        self._restore_region(ctx, loc)
+        return reg
+
+    def _vector_math_unary(self, ctx: _Ctx, code: str, operand: mir.VReg,
+                           loc) -> mir.VReg:
+        """One special math function on a float vector.
+
+        Direct RVV forms: sqrt/sqrt_rn (vfsqrt.v, exactly rounded -- the
+        approximable and precise forms coincide on this target) and rsqrt
+        (1/sqrt through vfsqrt + vfdiv, both exactly rounded).
+
+        Libm calls: exp/exp2/log/log2/sin/cos/erf and floor/ceil have no
+        vector form on RVV 1.0 (a recorded absence) -- the vmath op calls
+        the declared sysroot's libm per element at the region's lane
+        count.  fp32 uses the float functions, the fp64 internal-compute
+        width the double ones.
+        """
+        vtype = operand.type
+        if vtype.kind != "float":
+            raise self._err(loc, code,
+                            f"{code} requires a float vector, got "
+                            f"{vtype!r}")
+        switched = self._open_region(ctx, vtype, loc)
+        try:
+            if code in ("math.sqrt", "math.sqrt_rn"):
+                reg = ctx.emit(mir.MOp(
+                    "vunary", [operand],
+                    [ctx.vreg(vtype, hint="sqr", loc=loc)],
+                    attrs={"op": "fsqrt"}, loc=loc))
+                return reg
+            if code == "math.rsqrt":
+                sqr = ctx.emit(mir.MOp(
+                    "vunary", [operand],
+                    [ctx.vreg(vtype, hint="rsq", loc=loc)],
+                    attrs={"op": "fsqrt"}, loc=loc))
+                if vtype.sew == 64:
+                    one = self._splat_const(
+                        ctx, 0x3ff0000000000000, vtype, loc)
+                else:
+                    one = self._splat_const(ctx, 1.0, vtype, loc)
+                return ctx.emit(mir.MOp(
+                    "vbin", [one, sqr],
+                    [ctx.vreg(vtype, hint="rsh", loc=loc)],
+                    attrs={"op": "fdiv"}, loc=loc))
+            fn = {"math.exp": "exp", "math.exp2": "exp2",
+                  "math.log": "log", "math.log2": "log2",
+                  "math.sin": "sin", "math.cos": "cos",
+                  "math.erf": "erf", "math.floor": "floor",
+                  "math.ceil": "ceil"}[code]
+            # fp32 -> the float functions (expf, ...); fp64 -> the double
+            # forms (exp, ...) -- the internal-compute width
+            if vtype.sew == 32:
+                fn = fn + "f"
+            vl = min(self._vl, self.target.vlmax(vtype.sew, vtype.lmul))
+            return ctx.emit(mir.MOp(
+                "vmath", [operand],
+                [ctx.vreg(vtype, hint="mth", loc=loc)],
+                attrs={"fn": fn, "sew": vtype.sew, "vl": vl}, loc=loc))
+        finally:
+            if switched:
+                self._restore_region(ctx, loc)
+
+    def _vector_abs(self, ctx: _Ctx, code: str, operand: mir.VReg,
+                    loc) -> mir.VReg:
+        """fabs (vfsgnjx) / iabs (max(x, 0-x), the signed-integer form --
+        exact including INT_MIN's wrap, matching the pinned iabs)."""
+        vtype = operand.type
+        switched = self._open_region(ctx, vtype, loc)
+        try:
+            if code == "math.fabs":
+                return ctx.emit(mir.MOp(
+                    "vunary", [operand],
+                    [ctx.vreg(vtype, hint="abs", loc=loc)],
+                    attrs={"op": "fabs"}, loc=loc))
+            zero = self._splat_const(ctx, 0, vtype, loc)
+            neg = ctx.emit(mir.MOp(
+                "vbin", [zero, operand],
+                [ctx.vreg(vtype, hint="ngv", loc=loc)],
+                attrs={"op": "sub"}, loc=loc))
+            return ctx.emit(mir.MOp(
+                "vbin", [operand, neg],
+                [ctx.vreg(vtype, hint="iab", loc=loc)],
+                attrs={"op": "max"}, loc=loc))
+        finally:
+            if switched:
+                self._restore_region(ctx, loc)
+
+    def _vector_maxmin(self, ctx: _Ctx, code: str, lreg: mir.VReg,
+                       rreg: mir.VReg, loc) -> mir.VReg:
+        """maximum/minimum with the NaN policy the TIR op code carries.
+
+        Integers: vmax/vmin (signed) or vmaxu/vminu (unsigned) -- the
+        exact pinned create_maxsi/maxui/minsi/minui.
+
+        Floats: the vfmax/vfmin building block plus the NaN corrections
+        the policy requires -- maxnum (NONE, the default) returns the
+        OTHER operand on NaN, maximum (ALL) propagates a quiet NaN.  The
+        corrections make the result independent of vfmax's own NaN
+        convention (vfmax is only ever consulted when neither operand is
+        NaN).
+        """
+        vtype = lreg.type
+        switched = self._open_region(ctx, vtype, loc)
+        try:
+            if code.endswith("f"):
+                m = ctx.emit(mir.MOp(
+                    "vbin", [lreg, rreg],
+                    [ctx.vreg(vtype, hint="mxm", loc=loc)],
+                    attrs={"op": "fmax" if code.startswith("arith.max")
+                           else "fmin"}, loc=loc))
+                nanl = ctx.emit(mir.MOp(
+                    "vcmp", [lreg, lreg],
+                    [ctx.vreg(mir.MaskType(), hint="nl", loc=loc)],
+                    attrs={"pred": "ne", "fp": True}, loc=loc))
+                nanr = ctx.emit(mir.MOp(
+                    "vcmp", [rreg, rreg],
+                    [ctx.vreg(mir.MaskType(), hint="nr", loc=loc)],
+                    attrs={"pred": "ne", "fp": True}, loc=loc))
+                if code in ("arith.maxnumf", "arith.minnumf"):
+                    # where(isnan(y), x, m) then where(isnan(x), y, that)
+                    v0r = ctx.emit(mir.MOp(
+                        "vmovmask", [nanr],
+                        [ctx.vreg(mir.MaskType(), hint="m0r", loc=loc,
+                                  fixed_phys="v0")], loc=loc))
+                    inner = ctx.emit(mir.MOp(
+                        "vsel", [v0r, lreg, m],
+                        [ctx.vreg(vtype, hint="mni", loc=loc)], loc=loc))
+                    v0l = ctx.emit(mir.MOp(
+                        "vmovmask", [nanl],
+                        [ctx.vreg(mir.MaskType(), hint="m0l", loc=loc,
+                                  fixed_phys="v0")], loc=loc))
+                    return ctx.emit(mir.MOp(
+                        "vsel", [v0l, rreg, inner],
+                        [ctx.vreg(vtype, hint="mnm", loc=loc)], loc=loc))
+                # maximum/minimum: any NaN -> a quiet NaN
+                any_nan = ctx.emit(mir.MOp(
+                    "vmor", [nanl, nanr],
+                    [ctx.vreg(mir.MaskType(), hint="mno", loc=loc)],
+                    loc=loc))
+                if vtype.sew == 64:
+                    qnan = self._splat_const(
+                        ctx, 0x7ff8000000000000, vtype, loc)
+                else:
+                    qnan = self._splat_const(ctx, float("nan"), vtype, loc)
+                v0 = ctx.emit(mir.MOp(
+                    "vmovmask", [any_nan],
+                    [ctx.vreg(mir.MaskType(), hint="m0n", loc=loc,
+                              fixed_phys="v0")], loc=loc))
+                return ctx.emit(mir.MOp(
+                    "vsel", [v0, qnan, m],
+                    [ctx.vreg(vtype, hint="mxm", loc=loc)], loc=loc))
+            vop = {"arith.maxsi": "max", "arith.maxui": "maxu",
+                   "arith.minsi": "min", "arith.minui": "minu"}[code]
+            return ctx.emit(mir.MOp(
+                "vbin", [lreg, rreg],
+                [ctx.vreg(vtype, hint="mm", loc=loc)],
+                attrs={"op": vop}, loc=loc))
+        finally:
+            if switched:
+                self._restore_region(ctx, loc)
+
+    def _vector_fma(self, ctx: _Ctx, xreg: mir.VReg, yreg: mir.VReg,
+                    zreg: mir.VReg, loc) -> mir.VReg:
+        """x * y + z with one rounding: vfmacc accumulates into vd, which
+        the emitter pre-loads with z (the MIR op carries z as its third
+        operand exactly for that copy)."""
+        vtype = xreg.type
+        switched = self._open_region(ctx, vtype, loc)
+        try:
+            reg = ctx.emit(mir.MOp(
+                "vfmacc", [xreg, yreg, zreg],
+                [ctx.vreg(vtype, hint="fma", loc=loc)], loc=loc))
+            return reg
+        finally:
+            if switched:
+                self._restore_region(ctx, loc)
+
+    def _lower_philox(self, ctx: _Ctx, op: tir.Op, loc) -> None:
+        """The Philox4_32 round recurrence as vector ops (bit-exact: the
+        umulhi/mul/xor/add chain is the pinned random.py philox_impl over
+        the uint32 counter words; the key raises ride vector adds).
+
+        Per round (counter words c0..c3, key words k0/k1):
+          c0' = umulhi(B, c2) ^ c1 ^ k0
+          c2' = umulhi(A, c0) ^ c3 ^ k1
+          c1' = B * c2   (wrapping)
+          c3' = A * c0   (wrapping)
+          k0 += PHILOX_KEY_A;  k1 += PHILOX_KEY_B   (wrapping)
+        with A = 0xD2511F53, B = 0xCD9E8D57, KEY_A = 0x9E3779B9,
+        KEY_B = 0xBB67AE85 -- the pinned constants.
+        """
+        PHILOX_A, PHILOX_B = 0xD2511F53, 0xCD9E8D57
+        PHILOX_KEY_A, PHILOX_KEY_B = 0x9E3779B9, 0xBB67AE85
+        k0 = self._need(op.operands[0], loc)
+        k1 = self._need(op.operands[1], loc)
+        counters = [self._need(v, loc) for v in op.operands[2:6]]
+        rounds = op.attrs["rounds"]
+        for i, c in enumerate(counters):
+            if not c.is_vector() or c.type.kind != "uint" \
+                    or c.type.sew != 32:
+                raise self._err(
+                    loc, "rng.philox",
+                    f"counter word {i} must be a uint32 vector, got "
+                    f"{c.type!r}")
+        for name, k in (("k0", k0), ("k1", k1)):
+            if not k.is_scalar():
+                raise self._err(
+                    loc, "rng.philox",
+                    f"key word {name} must be a scalar (the pinned "
+                    "implementation keeps the key rank-0)")
+        vtype = counters[0].type
+        for i, c in enumerate(counters[1:], 1):
+            if c.type != vtype:
+                raise self._err(
+                    loc, "rng.philox",
+                    f"counter word {i} type {c.type!r} differs from "
+                    f"{vtype!r}")
+        switched = self._open_region(ctx, vtype, loc)
+        try:
+            a = self._splat_const(ctx, PHILOX_A, vtype, loc)
+            b = self._splat_const(ctx, PHILOX_B, vtype, loc)
+            keya = self._splat_const(ctx, PHILOX_KEY_A, vtype, loc)
+            keyb = self._splat_const(ctx, PHILOX_KEY_B, vtype, loc)
+            k0v = self._splat_reg(ctx, k0, vtype, loc)
+            k1v = self._splat_reg(ctx, k1, vtype, loc)
+            c0, c1, c2, c3 = counters
+            for _r in range(rounds):
+                hi_b = ctx.emit(mir.MOp(
+                    "vbin", [b, c2],
+                    [ctx.vreg(vtype, hint="phb", loc=loc)],
+                    attrs={"op": "umulhi"}, loc=loc))
+                lo_b = ctx.emit(mir.MOp(
+                    "vbin", [b, c2],
+                    [ctx.vreg(vtype, hint="plb", loc=loc)],
+                    attrs={"op": "mul"}, loc=loc))
+                hi_a = ctx.emit(mir.MOp(
+                    "vbin", [a, c0],
+                    [ctx.vreg(vtype, hint="pha", loc=loc)],
+                    attrs={"op": "umulhi"}, loc=loc))
+                lo_a = ctx.emit(mir.MOp(
+                    "vbin", [a, c0],
+                    [ctx.vreg(vtype, hint="pla", loc=loc)],
+                    attrs={"op": "mul"}, loc=loc))
+                x0 = ctx.emit(mir.MOp(
+                    "vbin", [hi_b, c1],
+                    [ctx.vreg(vtype, hint="px0", loc=loc)],
+                    attrs={"op": "xor"}, loc=loc))
+                new0 = ctx.emit(mir.MOp(
+                    "vbin", [x0, k0v],
+                    [ctx.vreg(vtype, hint="pn0", loc=loc)],
+                    attrs={"op": "xor"}, loc=loc))
+                x2 = ctx.emit(mir.MOp(
+                    "vbin", [hi_a, c3],
+                    [ctx.vreg(vtype, hint="px2", loc=loc)],
+                    attrs={"op": "xor"}, loc=loc))
+                new2 = ctx.emit(mir.MOp(
+                    "vbin", [x2, k1v],
+                    [ctx.vreg(vtype, hint="pn2", loc=loc)],
+                    attrs={"op": "xor"}, loc=loc))
+                k0v = ctx.emit(mir.MOp(
+                    "vbin", [k0v, keya],
+                    [ctx.vreg(vtype, hint="pk0", loc=loc)],
+                    attrs={"op": "add"}, loc=loc))
+                k1v = ctx.emit(mir.MOp(
+                    "vbin", [k1v, keyb],
+                    [ctx.vreg(vtype, hint="pk1", loc=loc)],
+                    attrs={"op": "add"}, loc=loc))
+                c0, c1, c2, c3 = new0, lo_b, new2, lo_a
+            for i, r in enumerate(op.results):
+                self.values[r.vid] = (c0, c1, c2, c3)[i]
+                if self._names is not None:
+                    for key in r.scope_names():
+                        self._names.define(key, r)
+        finally:
+            if switched:
+                self._restore_region(ctx, loc)
 
     # -- scalar float arithmetic through the vector path -------------------------
     def _scalar_float_binop(self, ctx: _Ctx, op: tir.Op, lreg: mir.VReg,
@@ -4421,7 +4974,8 @@ class SliceLowering:
         ls = self._splat_reg(ctx, lreg, vtype, loc)
         rs = self._splat_reg(ctx, rreg, vtype, loc)
         vop = {"arith.add": "add", "arith.sub": "sub", "arith.mul": "mul",
-               "arith.fdiv": "fdiv"}.get(op.op)
+               "arith.fdiv": "fdiv",
+               "arith.div_rn": "fdiv"}.get(op.op)
         if vop is None:
             raise self._err(loc, op.op,
                             "scalar floating op is not in the vector path")
@@ -4480,7 +5034,11 @@ class SliceLowering:
                "arith.udiv": "udiv", "arith.frem": "frem",
                "arith.srem": "srem", "arith.urem": "urem",
                "bit.lshr": "srl", "bit.ashr": "sra",
-               "bit.shl": "sll"}.get(code)
+               "bit.shl": "sll",
+               # T013: the precise division lowers to the same exactly-
+               # rounded vfdiv (the codes stay distinct in TIR so an
+               # approximating fast path can never silently claim it)
+               "arith.div_rn": "fdiv"}.get(code)
         if vop is None:
             raise self._err(loc, code, "vector binary op is not in the slice")
         if vop in ("sdiv", "udiv", "srem", "urem"):
@@ -4559,10 +5117,17 @@ class SliceLowering:
             offsets.append(offset_value)
             node = base_value
         if node.producer is not None \
-                and node.producer.op not in ("bitcast", "hint"):
+                and node.producer.op not in ("bitcast", "hint",
+                                             "select.where"):
             raise self._err(loc, ptr.name,
                             f"pointer '{ptr.name}' is not a ptradd-formed "
                             "address (the slice's whole-tree address form)")
+        if node.producer is not None \
+                and node.producer.op == "select.where":
+            if not node.type.is_pointer():
+                raise self._err(loc, ptr.name,
+                                f"pointer '{ptr.name}' selects a non-pointer "
+                                "root (a malformed address)")
         base_reg = self._need(node, loc)
         if not offsets:
             offset_reg = ctx.const(0, mir.I32, loc)

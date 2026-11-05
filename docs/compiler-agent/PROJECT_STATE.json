@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-04T23:53:09.902253+00:00",
+  "updated_at": "2026-11-05T01:33:58.344986+00:00",
   "facts": [
     {
       "id": "F001",
@@ -1631,14 +1631,14 @@
         "layout-ops-v1"
       ],
       "tags": [],
-      "status": "RUNNING",
+      "status": "DONE",
       "assignee": "coder",
       "attempts": 1,
-      "evidence": "",
+      "evidence": "worker report WTI014: Special math functions and bit-exact RNG implemented through the real compilation path, with the two declared test files as the delivery. (1) Frontend: handlers for tl.exp/exp2/log/log2/sin/cos/erf/sqrt/sqrt_rn/rsqrt/floor/ceil (fp32/fp64 only, the pinned _check_dtype; 16-bit operands are located type errors), tl.abs (fabs/iabs/unsigned identity), tl.maximum/minimum (the propagate_nan policy carried BY the TIR op code: maxnum returns the other operand on NaN, maximum propagates a quiet NaN), tl.clamp, tl.fma, tl.div_rn, tl.sigmoid (the pinned 1/(1+exp(-x)) composition), tl.softmax (the SOFTMAX_COMPOSITE declared in plan/stages.py, replacing the old refusal stub), the explicit tl.add/sub/mul forms, and the RNG family: tl.philox as a new 4-result TIR op rng.philox plus the pinned random.py desugars for tl.rand/randn/randint and their 4x variants (counter=(offset_lo,offset_hi,0,0), key=(seed_lo,seed_hi), uint_to_uniform_float, Box-Muller). (2) Lowering/backend: the libm-backed vmath MIR op (per-element scalar calls to the declared sysroot's expf/logf/sinf/cosf/erff/floorf/ceilf and their double forms; -lm added to the link), vfsqrt/vfsgnjx/vnot/vmax/vmin/vmaxu/vminu/vfmax/vfmin/vmulhu/vfmacc/vmor repertoire rows, the NaN-policy compositions over vfmax/vfmin, the umulhi philox round expansion, the two declared fp64 internal-compute routes (i64->f64, f64->f32) plus the exact f32->f64 widening, and the pointer-select (where/ifexp between two pointers, the rng_dual target form). (3) Pre-existing defects found and fixed on the shared path, each with an executed reproduction: the vmath loop used the caller-saved element pointer after the PLT-clobbering call (wild store, guest SIGSEGV) and had used a callee-saved scratch corrupting the runtime caller (hang); the bf16 RTNE rounding added (bits>>1) instead of the LSB of the high half (first executed non-trivial bf16 rounding was wrong); the fcvt.fxu verifier rule was inverted (uint->float mis-rejected); st",
       "last_error": "",
       "failure_kind": "",
       "start_revision": "65e6cb5df9688da3d72f4b9bec28a18a0cdb6d23",
-      "end_revision": "",
+      "end_revision": "45c4ecfa043bebcec2df9d98725ae3001bfd0cee",
       "completed_seq": 0,
       "debug_required": false,
       "debug_request_id": "",
@@ -1868,7 +1868,7 @@
         "math-rng-v1"
       ],
       "tags": [],
-      "status": "BLOCKED",
+      "status": "READY",
       "assignee": "",
       "attempts": 0,
       "evidence": "",
@@ -6995,6 +6995,24 @@
       "phase": "IMPLEMENTATION",
       "event": "task-delegate",
       "detail": "WTI014 task=T013 attempt=1 profile=general-purpose"
+    },
+    {
+      "at": "2026-11-05T01:33:58.314283+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "task-report-out-of-contract",
+      "detail": "T013: a100c/cache/12d57ceaa52ebe22d9bc2510f3c2baa656d07e7146161ad01064e4cdea198443/stage.mir.allocated.txt, a100c/frontend/surface.py, a100c/cache/176005b4eac23341ef6bd5bd697197b71b52f415bc3e8567df468a51383e97f6/stage.plan.txt, a100c/backend/select.py, a100c/cache/12d57ceaa52ebe22d9bc2510f3c2baa656d07e7146161ad01064e4cdea198443/stage.mir.lowered.txt"
+    },
+    {
+      "at": "2026-11-05T01:33:58.321094+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "task-report",
+      "detail": "WTI014 COMPLETED attempt=1 [changes outside the declared paths: a100c/cache/12d57ceaa52ebe22d9bc2510f3c2baa656d07e7146161ad01064e4cdea198443/stage.mir.allocated.txt, a100c/frontend/surface.py, a100c/cache/176005b4eac23341ef6bd5bd697197b71b52f415bc3e8567df468a51383e97f6/stage.plan.txt, a100c/backend/select.py, a100c/cache/12d57ceaa52ebe22d9bc2510f3c2baa656d07e7146161ad01064e4cdea198443/stage.mir.lowered.txt]"
+    },
+    {
+      "at": "2026-11-05T01:33:58.344973+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "complete-task",
+      "detail": "T013 worker report WTI014: Special math functions and bit-exact RNG implemented through the real compilation path, with the two declared test files as the delivery. (1) Frontend: handlers for tl.exp/exp2/log/log2/sin/cos/erf/sqrt/sqrt_rn/rsqrt/floor/ceil (fp32/fp64 only, the pinned _check_dtype; 16-bit operands are located type errors), tl.abs (fabs/iabs/unsigned identity), tl.maximum/minimum (the propagate_nan policy carried BY the TIR op code: maxnum returns the other operand on NaN, maximum propagates a quiet NaN), tl.clamp, tl.fma, tl.div_rn, tl.sigmoid (the pinned 1/(1+exp(-x)) composition), tl.softmax (the SOFTMAX_COMPOSITE declared in plan/stages.py, replacing the old refusal stub), the explicit tl.add/sub/mul forms, and the RNG family: tl.philox as a new 4-result TIR op rng.philox plus the pinned random.py desugars for tl.rand/randn/randint and their 4x variants (counter=(offset_lo,offset_hi,0,0), key=(seed_lo,seed_hi), uint_to_uniform_float, Box-Muller). (2) Lowering/backend: the libm-backed vmath MIR op (per-element scalar calls to the declared sysroot's expf/logf/sinf/cosf/erff/floorf/ceilf and their double forms; -lm added to the link), vfsqrt/vfsgnjx/vnot/vmax/vmin/vmaxu/vminu/vfmax/vfmin/vmulhu/vfmacc/vmor repertoire rows, the NaN-policy compositions over vfmax/vfmin, the umulhi philox round expansion, the two declared fp64 internal-compute routes (i64->f64, f64->f32) plus the exact f32->f64 widening, and the pointer-select (where/ifexp between two pointers, the rng_dual target form). (3) Pre-existing defects found and fixed on the shared path, each with an executed reproduction: the vmath loop used the caller-saved element pointer after the PLT-clobbering call (wild store, guest SIGSEGV) and had used a callee-saved scratch corrupting the runtime caller (hang); the bf16 RTNE rounding added (bits>>1) instead of the LSB of the high half (first executed non-trivial bf16 rounding was wrong); the fcvt.fxu verifier rule was inverted (uint->float mis-rejected); st"
     }
   ]
 }

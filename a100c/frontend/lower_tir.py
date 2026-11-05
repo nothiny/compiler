@@ -210,18 +210,49 @@ _REQUIRED_PARAMS = {
     "tl.flip": ("x",),
     "tl.swizzle2d": ("i", "j", "size_i", "size_j", "size_g"),
     "tl.to_tensor": ("x",),
+    # T013: special math functions and bit-exact RNG
+    "tl.exp": ("x",), "tl.exp2": ("x",), "tl.log": ("x",),
+    "tl.log2": ("x",), "tl.sin": ("x",), "tl.cos": ("x",),
+    "tl.erf": ("x",), "tl.sqrt": ("x",), "tl.sqrt_rn": ("x",),
+    "tl.rsqrt": ("x",), "tl.floor": ("x",), "tl.ceil": ("x",),
+    "tl.abs": ("x",),
+    "tl.maximum": ("x", "y"), "tl.minimum": ("x", "y"),
+    "tl.clamp": ("x", "min", "max"),
+    "tl.fma": ("x", "y", "z"),
+    "tl.div_rn": ("x", "y"),
+    "tl.sigmoid": ("x",),
+    "tl.softmax": ("x",),
+    "tl.add": ("x", "y"), "tl.sub": ("x", "y"), "tl.mul": ("x", "y"),
+    "tl.philox": ("seed", "c0", "c1", "c2", "c3"),
+    "tl.rand": ("seed", "offset"), "tl.randn": ("seed", "offset"),
+    "tl.randint": ("seed", "offset"),
+    "tl.rand4x": ("seed", "offsets"),
+    "tl.randint4x": ("seed", "offset"),
+    "tl.randn4x": ("seed", "offset"),
 }
 
 #: constructs whose call produces multiple values (the tuple-unpack forms):
-#: tl.max/min with return_indices, tl.split, tl.broadcast and tl.swizzle2d
+#: tl.max/min with return_indices, tl.split, tl.broadcast, tl.swizzle2d and
+#: the 4x RNG family / tl.philox (four counter words each)
 _MULTI_RESULT_CONSTRUCTS = {"tl.max", "tl.min", "tl.split", "tl.broadcast",
-                            "tl.swizzle2d"}
+                            "tl.swizzle2d", "tl.philox", "tl.rand4x",
+                            "tl.randint4x", "tl.randn4x"}
 
 #: reduction constructs -> the TIR reduce kind
 _REDUCE_KINDS = {
     "tl.sum": "sum", "tl.max": "max", "tl.min": "min",
     "tl.argmax": "argmax", "tl.argmin": "argmin",
     "tl.xor_sum": "xor_sum", "tl.reduce_or": "reduce_or",
+}
+
+#: T013: special math constructs -> the TIR math op code
+_MATH_UNARY_CODES = {
+    "tl.exp": "math.exp", "tl.exp2": "math.exp2",
+    "tl.log": "math.log", "tl.log2": "math.log2",
+    "tl.sin": "math.sin", "tl.cos": "math.cos",
+    "tl.erf": "math.erf", "tl.sqrt": "math.sqrt",
+    "tl.sqrt_rn": "math.sqrt_rn", "tl.rsqrt": "math.rsqrt",
+    "tl.floor": "math.floor", "tl.ceil": "math.ceil",
 }
 
 
@@ -1339,13 +1370,36 @@ class Lowering:
             cond_v = self._emit_convert(cond_v, tir.INT1, loc)
         x = self._lower_expr(node.body)
         y = self._lower_expr(node.orelse)
-        l, r, t = self._binary_operands(x, y, loc, preserve_order=True)
+        l, r = self._where_operands(x, y, loc, node)
         target, _, _ = fshapes.unify_pair(cond_v.shape, l.shape, loc)
         target, _, _ = fshapes.unify_pair(target, r.shape, loc)
         cond_b = self._broadcast_to(cond_v, target, loc)
         lb = self._broadcast_to(l, target, loc)
         rb = self._broadcast_to(r, target, loc)
         return self._emit(tir.Op.where(cond_b, lb, rb, loc), "sel")
+
+    def _where_operands(self, x, y, loc, node):
+        """The where/ifexp operand unification: the pinned semantic passes
+        ``allow_lhs_ptr=allow_rhs_ptr=True``, so TWO pointers of one type
+        select directly (the rng_dual target-pointer form); everything
+        else goes through the arithmetic unification."""
+        x_ptr = isinstance(x, tir.Value) and x.type.is_pointer()
+        y_ptr = isinstance(y, tir.Value) and y.type.is_pointer()
+        if x_ptr or y_ptr:
+            if not (x_ptr and y_ptr):
+                raise self._err(
+                    node, "where",
+                    "a pointer selects against a pointer (the pinned "
+                    "where allows two pointers of one type, never a "
+                    "pointer/value mix)")
+            if x.type != y.type:
+                raise self._err(
+                    node, "where",
+                    f"pointer types differ in the select: {x.type!r} vs "
+                    f"{y.type!r}")
+            return x, y
+        l, r, _t = self._binary_operands(x, y, loc, preserve_order=True)
+        return l, r
 
     # -- the pinned unification ------------------------------------------------
     def _binary_operands(self, lhs, rhs, loc,
@@ -1509,6 +1563,21 @@ class Lowering:
                 return self._lower_tl_broadcast(bound, node, self._loc(node),
                                                 construct)
             return self._lower_tl_swizzle2d(bound, node, self._loc(node))
+        if construct in ("tl.philox", "tl.rand4x", "tl.randint4x",
+                         "tl.randn4x"):
+            # the 4x RNG family and the philox primitive produce four
+            # values (the tuple-unpack forms are the legal uses)
+            self._check_construct(construct, node)
+            bound, provided = self._bind_call_args(construct, node)
+            for required in _REQUIRED_PARAMS.get(construct, ()):
+                if required not in provided:
+                    raise self._err(
+                        node, construct,
+                        f"missing required parameter {required!r}")
+            handler = _CONSTRUCT_HANDLERS[construct]
+            values = handler(self, bound, node, self._loc(node))
+            assert isinstance(values, list)
+            return values
         if construct not in ("tl.max", "tl.min"):
             return None
         bound, provided = self._bind_call_args(construct, node)
@@ -1919,7 +1988,7 @@ class Lowering:
         if not cond_v.type.is_bool():
             # pinned: deprecated non-bool condition, cast to int1
             cond_v = self._emit_convert(cond_v, tir.INT1, loc)
-        l, r, t = self._binary_operands(x, y, loc, preserve_order=True)
+        l, r = self._where_operands(x, y, loc, node)
         target, _, _ = fshapes.unify_pair(cond_v.shape, l.shape, loc)
         target, _, _ = fshapes.unify_pair(target, r.shape, loc)
         cond_b = self._broadcast_to(cond_v, target, loc)
@@ -2692,17 +2761,535 @@ class Lowering:
 
     def _lower_tl_softmax(self, args: Dict[str, ast.expr], node: ast.Call,
                           loc, construct: str) -> tir.Value:
-        """tl.softmax: the composite is exp(x - max(x)) / sum(exp(x -
-        max(x))) -- the reduction structure (axis, keep_dims, stable max
-        subtraction) is declared in a100c/plan/stages.py, but the
-        elementwise exp is the math-ops lane's construct; refused with a
-        located diagnostic naming the dependency (never miscompiled)."""
+        """tl.softmax: the pinned standard.py composition, declared as
+        SOFTMAX_COMPOSITE in a100c/plan/stages.py -- ``z = x -
+        max(x, dim, keep_dims); num = exp(z); den = sum(num, dim,
+        keep_dims); fdiv(num, den)`` (the stable max subtraction; the
+        ieee_rounding flag selects the division flavour and both map to
+        the target's exactly-rounded vfdiv)."""
+        from a100c.plan import stages as stages_mod
+        x = self._reduction_operand(args, node, loc, construct)
+        if not x.type.is_float() or x.type.bitwidth() not in (32, 64):
+            raise self._err(
+                node, construct,
+                f"tl.softmax requires an fp32/fp64 block (the exp "
+                f"dependency's pinned _check_dtype), got {x.type!r}")
+        rank = x.rank
+        if rank != 1:
+            raise self._err(
+                node, construct,
+                f"tl.softmax in this lane lowers a rank-1 block (the "
+                f"keep_dims broadcast back), got rank {rank}")
+        dim = 0
+        if "dim" in args:
+            d = py_scalar(self.env.evaluate(args["dim"], self.source.path))
+            if d is not NOT_CONSTEXPR:
+                if isinstance(d, bool) or not isinstance(d, int) \
+                        or not 0 <= d < rank:
+                    raise self._err(
+                        node, construct,
+                        f"tl.softmax dim {d!r} outside 0..{rank - 1}")
+                dim = d
+        keep_dims = False
+        if "keep_dims" in args:
+            kd = self.env.evaluate(args["keep_dims"], self.source.path)
+            if kd is not NOT_CONSTEXPR:
+                keep_dims = bool(kd)
+        if not keep_dims:
+            # the composition needs the broadcastable keep_dims form
+            # (extent-1 reduced axes); a non-keep_dims result reshapes
+            # back at the end
+            keep_dims = True
+        identity = stages_mod.identity_for("max", x.type)
+        max_op = tir.Op.reduce(x, "max", (dim,), keep_dims, identity,
+                               loc=loc)
+        self._emit(max_op, "smx")
+        l, r, _t = self._binary_operands(
+            x, max_op.results[0], loc, preserve_order=True)
+        z = self._emit(tir.Op.binop("arith.sub", l, r, loc), "sub")
+        num = self._emit(tir.Op.math_unary("math.exp", z, loc), "exp")
+        sum_ident = stages_mod.identity_for("sum", x.type)
+        den_op = tir.Op.reduce(num, "sum", (dim,), True, sum_ident,
+                               loc=loc)
+        self._emit(den_op, "sms")
+        nl, nr, _t2 = self._binary_operands(
+            num, den_op.results[0], loc, preserve_order=True)
+        out = self._emit(tir.Op.binop("arith.fdiv", nl, nr, loc), "div")
+        if not (rank and out.rank == rank and dim == 0):
+            raise self._err(node, construct,
+                            "the softmax composition changed the rank")
+        return out
+
+    # -- T013: special math functions ----------------------------------------
+
+    def _lower_math_unary(self, args: Dict[str, ast.expr], node: ast.Call,
+                          loc, construct: str) -> tir.Value:
+        """exp/exp2/log/log2/sin/cos/erf/sqrt/sqrt_rn/rsqrt/floor/ceil: the
+        pinned ``_check_dtype`` admits fp32/fp64 blocks only -- a 16-bit
+        operand is a located type error (never a silent promotion), and
+        fp64 is the internal-compute width (position_quantize's phase
+        reduction)."""
+        code = _MATH_UNARY_CODES[construct]
+        x = self._lower_expr(args["x"])
+        if isinstance(x, ConstVal):
+            # the pinned to_tensor makes a rank-0 tensor and the math op
+            # runs on it (igamma's tl.log(pi) on a Python float): the
+            # scalar path lowers rank-0 math through the vector splat
+            v = _py_scalar(x.value)
+            if isinstance(v, bool) or not isinstance(v, (int, float)):
+                raise self._err(
+                    node, construct,
+                    f"a {construct} operand must be numeric, got {v!r}")
+            x = self._materialize(ConstVal(float(v)), loc,
+                                  target=tir.FLOAT32)
+        if not x.type.is_float():
+            raise self._err(
+                node, construct,
+                f"{construct} requires a floating block (the pinned "
+                f"_check_dtype admits fp32/fp64), got {x.type!r}")
+        if x.type.bitwidth() not in (32, 64):
+            raise self._err(
+                node, construct,
+                f"{construct} requires fp32 or fp64 operands (the pinned "
+                f"_check_dtype); 16-bit compute goes through the fp32 "
+                f"lanes, got {x.type!r}")
+        return self._emit(tir.Op.math_unary(code, x, loc), "mth")
+
+    def _lower_tl_abs(self, args: Dict[str, ast.expr], node: ast.Call,
+                      loc, construct: str) -> tir.Value:
+        """tl.abs: fabs on floats, iabs on signed integers, the identity
+        on unsigned (the pinned dispatch)."""
+        x = self._lower_expr(args["x"])
+        if isinstance(x, ConstVal):
+            v = _py_scalar(x.value)
+            if isinstance(v, (int, float)) and not isinstance(v, bool):
+                return ConstVal(abs(v))
+            raise self._err(node, construct,
+                            f"cannot abs constexpr {v!r}")
+        if x.type.is_float() or (x.type.is_int() and x.type.is_int_signed()):
+            return self._emit(tir.Op.abs_value(x, loc), "abs")
+        if x.type.is_int():
+            return x                  # unsigned: the pinned identity
         raise self._err(
-            node, "tl.softmax",
-            "tl.softmax lowers to max/sum reductions over exp terms; the "
-            "elementwise exp is the math-ops lane's construct (the "
-            "reduction structure -- axis, keep_dims, the stable max "
-            "subtraction -- is declared in a100c/plan/stages.py)")
+            node, construct,
+            f"tl.abs requires a numeric block, got {x.type!r}")
+
+    def _lower_tl_maxmin_bin(self, args: Dict[str, ast.expr],
+                             node: ast.Call,
+                             loc, construct: str) -> tir.Value:
+        """tl.maximum / tl.minimum: the propagate_nan policy selects the op
+        code -- NONE (the default) is the maxnum form (the other operand
+        on NaN), ALL propagates a quiet NaN; integers take their own
+        signedness-carrying forms."""
+        propagate_nan = self._propagate_nan(args, node, construct)
+        x = self._lower_expr(args["x"])
+        y = self._lower_expr(args["y"])
+        if isinstance(x, ConstVal) and isinstance(y, ConstVal):
+            raise self._err(
+                node, construct,
+                "two constexpr operands have no block lanes (Python "
+                "min/max folds at specialization)")
+        l, r, t = self._binary_operands(x, y, loc)
+        if t.is_bool():
+            raise self._err(
+                node, construct,
+                f"boolean {construct} is not in the pinned semantics "
+                "(Unexpected dtype)")
+        if t.is_float():
+            base = ("maximum" if construct == "tl.maximum"
+                    else "minimum") if propagate_nan \
+                else ("maxnum" if construct == "tl.maximum" else "minnum")
+            code = f"arith.{base}f"
+        elif t.is_int():
+            sfx = "si" if t.is_int_signed() else "ui"
+            code = ("arith.max" if construct == "tl.maximum"
+                    else "arith.min") + sfx
+        else:
+            raise self._err(
+                node, construct,
+                f"{construct} requires numeric operands, got {t!r}")
+        return self._emit(tir.Op.maxmin(code, l, r, loc), "mm")
+
+    def _propagate_nan(self, args: Dict[str, ast.expr], node,
+                       construct: str) -> bool:
+        """The propagate_nan parameter (constexpr; the pinned default is
+        PropagateNan.NONE)."""
+        if "propagate_nan" not in args:
+            return False
+        v = self.env.evaluate(args["propagate_nan"], self.source.path)
+        if v is NOT_CONSTEXPR:
+            raise self._err(
+                node, construct,
+                "propagate_nan must be a compile-time value "
+                "(tl.PropagateNan.ALL / tl.PropagateNan.NONE)")
+        v = _py_scalar(v)
+        if isinstance(v, bool):
+            return v
+        text = str(v)
+        if "ALL" in text or v is True:
+            return True
+        if "NONE" in text or v is False or v is None:
+            return False
+        raise self._err(
+            node, construct,
+            f"propagate_nan {v!r} is neither NONE nor ALL")
+
+    def _lower_tl_clamp(self, args: Dict[str, ast.expr], node: ast.Call,
+                        loc, construct: str) -> tir.Value:
+        """tl.clamp: the minimum(maximum(x, min), max) composition at the
+        unified type, with the propagate_nan policy carried by both
+        maxmin ops (the floating-only pinned semantic)."""
+        propagate_nan = self._propagate_nan(args, node, construct)
+        x = self._lower_expr(args["x"])
+        lo = self._lower_expr(args["min"])
+        hi = self._lower_expr(args["max"])
+        # the pinned unification order: (min, max), then (x, min), then
+        # (x, max)
+        lo_v, hi_v, _t = self._binary_operands(lo, hi, loc,
+                                               preserve_order=True)
+        x1, lo_b, t = self._binary_operands(x, lo_v, loc,
+                                            preserve_order=True)
+        x2, hi_b, t2 = self._binary_operands(x1, hi_v, loc,
+                                             preserve_order=True)
+        if not t.is_float():
+            raise self._err(
+                node, construct,
+                f"tl.clamp requires floating operands (the pinned "
+                f"semantic), got {t!r}")
+        sfx = "f"
+        base_hi = ("maximum" if propagate_nan else "maxnum")
+        base_lo = ("minimum" if propagate_nan else "minnum")
+        inner = self._emit(tir.Op.maxmin(f"arith.{base_hi}{sfx}",
+                                         x2, lo_b, loc), "clp")
+        return self._emit(tir.Op.maxmin(f"arith.{base_lo}{sfx}",
+                                        inner, hi_b, loc), "clp")
+
+    def _lower_tl_fma(self, args: Dict[str, ast.expr], node: ast.Call,
+                      loc, construct: str) -> tir.Value:
+        """tl.fma: x * y + z with one rounding; the pinned legalization
+        chain unifies x/y, then z with each."""
+        x = self._lower_expr(args["x"])
+        y = self._lower_expr(args["y"])
+        z = self._lower_expr(args["z"])
+        if all(isinstance(v, ConstVal) for v in (x, y, z)):
+            raise self._err(
+                node, construct,
+                "three constexpr operands have no block lanes")
+        x1, y1, t = self._binary_operands(x, y, loc)
+        z1, x2, t2 = self._binary_operands(z, x1, loc,
+                                           preserve_order=True)
+        # y1 is already at x1's type; re-unify with the (possibly
+        # widened) x2 shape (z's shape may have broadcast the pair)
+        target, _, _ = fshapes.unify_pair(x2.shape, y1.shape, loc)
+        target2, _, _ = fshapes.unify_pair(target, z1.shape, loc)
+        xb = self._broadcast_to(x2, target2, loc)
+        yb = self._broadcast_to(y1, target2, loc)
+        zb = self._broadcast_to(z1, target2, loc)
+        if not t.is_float():
+            raise self._err(
+                node, construct,
+                f"tl.fma requires floating operands, got {t!r}")
+        return self._emit(tir.Op.fma(xb, yb, zb, loc), "fma")
+
+    def _lower_tl_div_rn(self, args: Dict[str, ast.expr], node: ast.Call,
+                         loc, construct: str) -> tir.Value:
+        """tl.div_rn: the precise (round-to-nearest) division; fp32 only
+        per the pinned _check_dtype."""
+        x = self._lower_expr(args["x"])
+        y = self._lower_expr(args["y"])
+        if isinstance(x, ConstVal) and isinstance(y, ConstVal):
+            raise self._err(
+                node, construct,
+                "two constexpr operands have no block lanes")
+        l, r, t = self._binary_operands(x, y, loc, preserve_order=True)
+        if not t.is_float() or t.bitwidth() != 32:
+            raise self._err(
+                node, construct,
+                f"tl.div_rn requires fp32 operands (the pinned "
+                f"_check_dtype), got {t!r}")
+        return self._emit(tir.Op.binop("arith.div_rn", l, r, loc), "dvr")
+
+    def _lower_tl_sigmoid(self, args: Dict[str, ast.expr], node: ast.Call,
+                          loc, construct: str) -> tir.Value:
+        """tl.sigmoid: the pinned standard.py composition ``1 / (1 +
+        exp(-x))`` at the operand's float width."""
+        x = self._lower_expr(args["x"])
+        if isinstance(x, ConstVal):
+            raise self._err(
+                node, construct,
+                "a compile-time operand has no block lanes")
+        if not x.type.is_float() or x.type.bitwidth() not in (32, 64):
+            raise self._err(
+                node, construct,
+                f"tl.sigmoid requires an fp32/fp64 block (the exp "
+                f"dependency's pinned _check_dtype), got {x.type!r}")
+        neg = self._emit(tir.Op.unary("arith.fneg", x, loc), "neg")
+        e = self._emit(tir.Op.math_unary("math.exp", neg, loc), "exp")
+        one, denom, _t = self._binary_operands(ConstVal(1), e, loc,
+                                               preserve_order=True)
+        s = self._emit(tir.Op.binop("arith.add", one, denom, loc), "add")
+        one2, s2, _t2 = self._binary_operands(ConstVal(1), s, loc,
+                                              preserve_order=True)
+        return self._emit(tir.Op.binop("arith.fdiv", one2, s2, loc), "div")
+
+    def _lower_tl_arith_fn(self, args: Dict[str, ast.expr], node, loc,
+                           construct: str) -> tir.Value:
+        """tl.add / tl.sub / tl.mul: the explicit function forms of the
+        AST operators (position_quantize's spelled-out arithmetic) -- the
+        same pinned unification and the same TIR binops."""
+        x = self._lower_expr(args["x"])
+        y = self._lower_expr(args["y"])
+        code = {"tl.add": "arith.add", "tl.sub": "arith.sub",
+                "tl.mul": "arith.mul"}[construct]
+        l, r, _t = self._binary_operands(x, y, loc, preserve_order=True)
+        return self._emit(tir.Op.binop(code, l, r, loc), "bin")
+
+    # -- T013: bit-exact RNG ---------------------------------------------------
+
+    def _rng_rounds(self, args: Dict[str, ast.expr], node, construct) -> int:
+        """The n_rounds constexpr (the pinned default is 10)."""
+        if "n_rounds" not in args:
+            return 10
+        v = py_scalar(self.env.evaluate(args["n_rounds"], self.source.path))
+        if v is NOT_CONSTEXPR or isinstance(v, bool) \
+                or not isinstance(v, int) or v < 1:
+            raise self._err(
+                node, construct,
+                f"n_rounds must be a positive compile-time integer, got "
+                f"{v!r}")
+        return v
+
+    def _lower_tl_philox(self, args: Dict[str, ast.expr], node, loc,
+                         construct: str) -> List[tir.Value]:
+        """tl.philox(seed, c0, c1, c2, c3): the pinned random.py lowering
+        -- the seed converts to uint64, splits into the (lo, hi) key
+        words, the counters bitcast to the counter width; the rounds run
+        in the lowering.  The 32-bit counter family only (the corpus's
+        philox callers; 64-bit counters are a located refusal)."""
+        rounds = self._rng_rounds(args, node, construct)
+        seed_lo, seed_hi = self._philox_key(args["seed"], node, loc,
+                                            construct)
+        counters = []
+        for name in ("c0", "c1", "c2", "c3"):
+            c = self._philox_counter(args[name], node, loc, construct, name)
+            counters.append(c)
+        # the pinned philox_impl broadcasts its counter words against
+        # each other (a scalar c1 against the block c0 -- the randint
+        # kernels' form): unify the extents here (rank-0 words broadcast;
+        # a genuine extent disagreement is a located diagnostic, never a
+        # silent stretch)
+        target = counters[0].shape
+        for c in counters[1:]:
+            try:
+                target, _, _ = fshapes.unify_pair(target, c.shape, loc)
+            except fshapes.ShapeError as exc:
+                raise self._err(
+                    node, construct,
+                    f"the philox counter words cannot unify: {exc.message}")
+        unified = [self._broadcast_to(c, target, loc) for c in counters]
+        op = tir.Op.philox(seed_lo, seed_hi, *unified, rounds, loc)
+        self._block.statements.append(op)
+        for i, r in enumerate(op.results):
+            r.name = self._fresh_name(f"phx{i}")
+        return list(op.results)
+
+    def _philox_key(self, seed_expr: ast.expr, node, loc,
+                    construct: str) -> Tuple[tir.Value, tir.Value]:
+        """The (k0, k1) key words from the seed: to_tensor -> uint64 ->
+        (lo 32 bits, hi 32 bits), exactly the pinned chain."""
+        seed = self._lower_expr(seed_expr)
+        if isinstance(seed, ConstVal):
+            v = _py_scalar(seed.value)
+            if isinstance(v, bool) or not isinstance(v, (int, float)):
+                raise self._err(
+                    node, construct,
+                    f"the philox seed must be an integer, got {v!r}")
+            seed = self._emit(tir.Op.const(int(v), tir.INT64, loc), "sd")
+        if not seed.type.is_int():
+            raise self._err(
+                node, construct,
+                f"the philox seed must be an integer (the pinned "
+                f"static_assert), got {seed.type!r}")
+        if seed.shape != ():
+            raise self._err(
+                node, construct,
+                "a block seed is not in this lane (the corpus seeds are "
+                "scalars; the key words stay rank-0 across the rounds)")
+        if seed.type != tir.UINT64:
+            seed = self._emit_convert(seed, tir.UINT64, loc)
+        # lo = low 32 bits of the uint64 seed; hi = (seed >>u 32)'s low 32
+        lo32 = self._emit_convert(seed, tir.UINT32, loc)
+        sh_l, sh_r, _t = self._binary_operands(
+            seed, ConstVal(32), loc, preserve_order=True)
+        shifted = self._emit(tir.Op.binop("bit.lshr", sh_l, sh_r, loc),
+                             "shr")
+        hi32 = self._emit_convert(shifted, tir.UINT32, loc)
+        return lo32, hi32
+
+    def _philox_counter(self, expr: ast.expr, node, loc, construct: str,
+                        name: str) -> tir.Value:
+        """One counter word: a 32-bit integer block bitcast to uint32
+        (the pinned ``.to(int_dtype, bitcast=True)``)."""
+        c = self._lower_expr(expr)
+        if isinstance(c, ConstVal):
+            v = _py_scalar(c.value)
+            if isinstance(v, bool) or not isinstance(v, int):
+                raise self._err(
+                    node, construct,
+                    f"the philox counter {name} must be an integer, got "
+                    f"{v!r}")
+            c = self._emit(tir.Op.const(v, tir.INT32, loc), name)
+        if not c.type.is_int():
+            raise self._err(
+                node, construct,
+                f"the philox counter {name} must be an integer block, "
+                f"got {c.type!r}")
+        if c.type.bitwidth() != 32:
+            raise self._err(
+                node, construct,
+                f"the philox counter {name} must be 32-bit (the 64-bit "
+                f"counter family is a located refusal; the corpus's "
+                f"callers are all uint32), got {c.type!r}")
+        if c.type == tir.UINT32:
+            return c
+        return self._emit(tir.Op.bitcast(c, tir.UINT32, loc), "bc")
+
+    def _randint4x_values(self, args: Dict[str, ast.expr], node, loc,
+                          construct: str) -> List[tir.Value]:
+        """The randint4x desugar: counter = (offset_lo, offset_hi, 0, 0)
+        with the offset's low/high words per the pinned split (a 32-bit
+        offset has hi = 0), then philox."""
+        rounds = self._rng_rounds(args, node, construct)
+        # the surface's parameter name: "offset" (rand/randn/randint and
+        # the 4x int/normal forms) or "offsets" (tl.rand4x)
+        offset = self._lower_expr(args.get("offsets", args.get("offset")))
+        if isinstance(offset, ConstVal):
+            v = _py_scalar(offset.value)
+            if isinstance(v, bool) or not isinstance(v, int):
+                raise self._err(
+                    node, construct,
+                    f"the offset must be an integer block, got {v!r}")
+            offset = self._emit(tir.Op.const(v, tir.INT32, loc), "off")
+        if not offset.type.is_int():
+            raise self._err(
+                node, construct,
+                f"the offset must be an integer block, got "
+                f"{offset.type!r}")
+        if offset.rank == 0:
+            raise self._err(
+                node, construct,
+                "the offset must be a block (a scalar offset has no "
+                "lanes to draw)")
+        width = offset.type.bitwidth()
+        lo = self._emit_convert(offset, tir.UINT32, loc)
+        if width > 32:
+            code = "bit.lshr" if not offset.type.is_int_signed() \
+                else "bit.ashr"
+            sh_l, sh_r, _t = self._binary_operands(
+                offset, ConstVal(32), loc, preserve_order=True)
+            shifted = self._emit(
+                tir.Op.binop(code, sh_l, sh_r, loc), "shr")
+            hi = self._emit_convert(shifted, tir.UINT32, loc)
+        else:
+            hi = self._emit(tir.Op.zeros(
+                tir.real_shape([e.value for e in offset.shape]),
+                tir.UINT32, loc), "z")
+        # keep the low word at the offset's own shape (hi may be a zeros
+        # block of the same extents)
+        shape = lo.shape
+        hi = self._broadcast_to(hi, shape, loc)
+        zero = self._emit(tir.Op.zeros(
+            tir.real_shape([e.value for e in shape]), tir.UINT32, loc), "z")
+        seed_lo, seed_hi = self._philox_key(args["seed"], node, loc,
+                                            construct)
+        op = tir.Op.philox(seed_lo, seed_hi, lo, hi, zero, zero, rounds,
+                           loc)
+        self._block.statements.append(op)
+        for i, r in enumerate(op.results):
+            r.name = self._fresh_name(f"ri{i}")
+        return list(op.results)
+
+    def _rng_uniform(self, word: tir.Value, loc) -> tir.Value:
+        """uint_to_uniform_float: bitcast to int32, ``where(x < 0, ~x, x)``
+        then ``x * 4.6566127342e-10`` -- every step the pinned op, so the
+        result is bit-exact against the reference vectors."""
+        x = self._emit(tir.Op.bitcast(word, tir.INT32, loc), "bc")
+        zero = self._emit(tir.Op.const(0, tir.INT32, loc), "z")
+        zero_b = self._broadcast_to(zero, x.shape, loc)
+        neg = self._emit(tir.Op.cmp("cmp.lt", x, zero_b, loc), "lt")
+        inv = self._emit(tir.Op.unary("bit.invert", x, loc), "inv")
+        pos = self._emit(tir.Op.where(neg, inv, x, loc), "sel")
+        l, r, _t = self._binary_operands(pos, ConstVal(4.6566127342e-10),
+                                         loc)
+        return self._emit(tir.Op.binop("arith.mul", l, r, loc), "unf")
+
+    def _lower_tl_rand(self, args: Dict[str, ast.expr], node, loc,
+                       construct: str) -> tir.Value:
+        """tl.rand: uniform(randint(seed, offset)) -- U(0, 1) fp32."""
+        words = self._randint4x_values(args, node, loc, construct)
+        return self._rng_uniform(words[0], loc)
+
+    def _lower_tl_randint(self, args: Dict[str, ast.expr], node, loc,
+                          construct: str) -> tir.Value:
+        """tl.randint: the first philox word (a uint32 block; the consumer
+        converts or bitcasts)."""
+        words = self._randint4x_values(args, node, loc, construct)
+        return words[0]
+
+    def _rng_pair_normal(self, u1: tir.Value, u2: tir.Value,
+                         loc) -> Tuple[tir.Value, tir.Value]:
+        """pair_uniform_to_normal: the pinned Box-Muller pair -- ``u1 =
+        maximum(1e-7, u1); th = 6.283185307179586 * u2; r = sqrt(-2.0 *
+        log(u1)); (r * cos(th), r * sin(th))``."""
+        one, u1v, _t = self._binary_operands(ConstVal(1.0e-7), u1, loc,
+                                             preserve_order=True)
+        u1m = self._emit(tir.Op.maxmin("arith.maxnumf", one, u1v, loc),
+                         "mm")
+        th_l, th_r, _t2 = self._binary_operands(
+            ConstVal(6.283185307179586), u2, loc, preserve_order=True)
+        th = self._emit(tir.Op.binop("arith.mul", th_l, th_r, loc), "mul")
+        ln = self._emit(tir.Op.math_unary("math.log", u1m, loc), "log")
+        neg2_l, neg2_r, _t3 = self._binary_operands(
+            ConstVal(-2.0), ln, loc, preserve_order=True)
+        arg = self._emit(tir.Op.binop("arith.mul", neg2_l, neg2_r, loc),
+                         "mul")
+        r = self._emit(tir.Op.math_unary("math.sqrt", arg, loc), "sqrt")
+        c = self._emit(tir.Op.math_unary("math.cos", th, loc), "cos")
+        s = self._emit(tir.Op.math_unary("math.sin", th, loc), "sin")
+        r_l, c_r, _t4 = self._binary_operands(r, c, loc)
+        s_l, s_r, _t5 = self._binary_operands(r, s, loc)
+        n1 = self._emit(tir.Op.binop("arith.mul", r_l, c_r, loc), "mul")
+        n2 = self._emit(tir.Op.binop("arith.mul", s_l, s_r, loc), "mul")
+        return n1, n2
+
+    def _lower_tl_randn(self, args: Dict[str, ast.expr], node, loc,
+                        construct: str) -> tir.Value:
+        """tl.randn: the first normal of the (u1, u2) Box-Muller pair."""
+        words = self._randint4x_values(args, node, loc, construct)
+        u1 = self._rng_uniform(words[0], loc)
+        u2 = self._rng_uniform(words[1], loc)
+        n1, _n2 = self._rng_pair_normal(u1, u2, loc)
+        return n1
+
+    def _lower_tl_rand4x(self, args: Dict[str, ast.expr], node, loc,
+                         construct: str) -> List[tir.Value]:
+        """tl.rand4x: the uniform conversion of each philox word."""
+        words = self._randint4x_values(args, node, loc, construct)
+        return [self._rng_uniform(w, loc) for w in words]
+
+    def _lower_tl_randint4x(self, args: Dict[str, ast.expr], node, loc,
+                            construct: str) -> List[tir.Value]:
+        """tl.randint4x: the four philox words."""
+        return self._randint4x_values(args, node, loc, construct)
+
+    def _lower_tl_randn4x(self, args: Dict[str, ast.expr], node, loc,
+                          construct: str) -> List[tir.Value]:
+        """tl.randn4x: two Box-Muller pairs over the four uniforms."""
+        words = self._randint4x_values(args, node, loc, construct)
+        u = [self._rng_uniform(w, loc) for w in words]
+        n1, n2 = self._rng_pair_normal(u[0], u[1], loc)
+        n3, n4 = self._rng_pair_normal(u[2], u[3], loc)
+        return [n1, n2, n3, n4]
 
     def _lower_tl_histogram(self, args: Dict[str, ast.expr], node: ast.Call,
                             loc, construct: str) -> tir.Value:
@@ -2889,6 +3476,12 @@ class Lowering:
         ty = None
         if isinstance(value, DTypeValue):
             ty = value.ty
+        elif isinstance(value, TypeObject):
+            # ``x.dtype`` of a runtime tensor folds to its (compile-time)
+            # element type -- the asinh form ``y32.to(x.dtype)`` (the
+            # math.transcendental lane's round trip back to the buffer
+            # dtype)
+            ty = value.element_ty.ty
         elif isinstance(value, str):
             try:
                 ty = ftypes.dtype_by_name(value)
@@ -3567,6 +4160,67 @@ _CONSTRUCT_HANDLERS = {
         self, a, n, l, "tl.flip"),
     "tl.to_tensor": lambda self, a, n, l: Lowering._lower_tl_to_tensor(
         self, a, n, l, "tl.to_tensor"),
+    # T013: special math functions and bit-exact RNG (the math-ops lane)
+    "tl.add": lambda self, a, n, l: Lowering._lower_tl_arith_fn(
+        self, a, n, l, "tl.add"),
+    "tl.sub": lambda self, a, n, l: Lowering._lower_tl_arith_fn(
+        self, a, n, l, "tl.sub"),
+    "tl.mul": lambda self, a, n, l: Lowering._lower_tl_arith_fn(
+        self, a, n, l, "tl.mul"),
+    "tl.exp": lambda self, a, n, l: Lowering._lower_math_unary(
+        self, a, n, l, "tl.exp"),
+    "tl.exp2": lambda self, a, n, l: Lowering._lower_math_unary(
+        self, a, n, l, "tl.exp2"),
+    "tl.log": lambda self, a, n, l: Lowering._lower_math_unary(
+        self, a, n, l, "tl.log"),
+    "tl.log2": lambda self, a, n, l: Lowering._lower_math_unary(
+        self, a, n, l, "tl.log2"),
+    "tl.sin": lambda self, a, n, l: Lowering._lower_math_unary(
+        self, a, n, l, "tl.sin"),
+    "tl.cos": lambda self, a, n, l: Lowering._lower_math_unary(
+        self, a, n, l, "tl.cos"),
+    "tl.erf": lambda self, a, n, l: Lowering._lower_math_unary(
+        self, a, n, l, "tl.erf"),
+    "tl.sqrt": lambda self, a, n, l: Lowering._lower_math_unary(
+        self, a, n, l, "tl.sqrt"),
+    "tl.sqrt_rn": lambda self, a, n, l: Lowering._lower_math_unary(
+        self, a, n, l, "tl.sqrt_rn"),
+    "tl.rsqrt": lambda self, a, n, l: Lowering._lower_math_unary(
+        self, a, n, l, "tl.rsqrt"),
+    "tl.floor": lambda self, a, n, l: Lowering._lower_math_unary(
+        self, a, n, l, "tl.floor"),
+    "tl.ceil": lambda self, a, n, l: Lowering._lower_math_unary(
+        self, a, n, l, "tl.ceil"),
+    "tl.abs": lambda self, a, n, l: Lowering._lower_tl_abs(
+        self, a, n, l, "tl.abs"),
+    "tl.maximum": lambda self, a, n, l: Lowering._lower_tl_maxmin_bin(
+        self, a, n, l, "tl.maximum"),
+    "tl.minimum": lambda self, a, n, l: Lowering._lower_tl_maxmin_bin(
+        self, a, n, l, "tl.minimum"),
+    "tl.clamp": lambda self, a, n, l: Lowering._lower_tl_clamp(
+        self, a, n, l, "tl.clamp"),
+    "tl.fma": lambda self, a, n, l: Lowering._lower_tl_fma(
+        self, a, n, l, "tl.fma"),
+    "tl.div_rn": lambda self, a, n, l: Lowering._lower_tl_div_rn(
+        self, a, n, l, "tl.div_rn"),
+    "tl.sigmoid": lambda self, a, n, l: Lowering._lower_tl_sigmoid(
+        self, a, n, l, "tl.sigmoid"),
+    "tl.softmax": lambda self, a, n, l: Lowering._lower_tl_softmax(
+        self, a, n, l, "tl.softmax"),
+    "tl.philox": lambda self, a, n, l: Lowering._lower_tl_philox(
+        self, a, n, l, "tl.philox"),
+    "tl.rand": lambda self, a, n, l: Lowering._lower_tl_rand(
+        self, a, n, l, "tl.rand"),
+    "tl.randn": lambda self, a, n, l: Lowering._lower_tl_randn(
+        self, a, n, l, "tl.randn"),
+    "tl.randint": lambda self, a, n, l: Lowering._lower_tl_randint(
+        self, a, n, l, "tl.randint"),
+    "tl.rand4x": lambda self, a, n, l: Lowering._lower_tl_rand4x(
+        self, a, n, l, "tl.rand4x"),
+    "tl.randint4x": lambda self, a, n, l: Lowering._lower_tl_randint4x(
+        self, a, n, l, "tl.randint4x"),
+    "tl.randn4x": lambda self, a, n, l: Lowering._lower_tl_randn4x(
+        self, a, n, l, "tl.randn4x"),
     # multi-result constructs: the single-value call path refuses them
     # before the handler runs (the tuple-unpack form is the legal use);
     # registered so the surface's construct/handler consistency holds

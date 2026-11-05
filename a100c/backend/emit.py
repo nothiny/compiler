@@ -82,7 +82,32 @@ class _Emitter:
         if self._needs_scratch():
             scratch = offset
             offset += 8
+        # T013: the libm element loops' buffer and pointer/counter slots.
+        # The buffer holds one vector of the widest vmath element (the
+        # operand spills there, the scalar loop rewrites it in place --
+        # every libm function in the set is pure in its single argument --
+        # and the result reloads from it).
+        self._math_slots: Dict[str, int] = {}
+        buf = self._math_buffer_bytes()
+        if buf:
+            self._math_slots["buf"] = offset
+            offset += buf
+            self._math_slots["ptr"] = offset
+            offset += 8
+            self._math_slots["cnt"] = offset
+            offset += 8
         return offsets, scratch
+
+    def _math_buffer_bytes(self) -> int:
+        """The widest vmath operand in bytes (vl * esz), 16-byte aligned."""
+        worst = 0
+        for fn in self.module.functions:
+            for b in fn.blocks:
+                for op in b.ops:
+                    if op.opcode == "vmath":
+                        worst = max(worst, op.attrs["vl"]
+                                    * op.attrs["sew"] // 8)
+        return (worst + 15) & ~15
 
     def _needs_scratch(self) -> bool:
         for fn in self.module.functions:
@@ -98,7 +123,10 @@ class _Emitter:
                       key=GPR_NAMES.index)
 
     def frame_bytes(self) -> int:
-        body = max(sum(self.alloc.slots), 0) + (8 if self.scratch_offset is not None else 0)
+        body = max(sum(self.alloc.slots), 0) \
+            + (8 if self.scratch_offset is not None else 0) \
+            + (self._math_buffer_bytes() + 16 if self._math_buffer_bytes()
+               else 0)
         return (body + 8 * len(self.saved_regs) + 8 + 15) & ~15
 
     # -- phys helpers -------------------------------------------------------
@@ -192,18 +220,25 @@ class _Emitter:
         return None
 
     def _free_gpr(self) -> Optional[str]:
-        """A GPR no allocated value owns and no ABI role reserves (the
-        vector spill/reload address scratch: no call intervenes between
-        the address materialization and the vector access, so a
-        caller-saved register the allocation does not own is safe)."""
-        from a100c.backend.allocate import GPR_NAMES
-        reserved = {"zero", "ra", "sp", "gp", "tp"}
+        """A CALLER-SAVED GPR no allocated value owns and no ABI role
+        reserves.
+
+        Only caller-saved registers qualify (t0-t6, a1-a7): a callee-saved
+        register the allocation does not own still belongs to the RUNTIME
+        caller (pool.c's worker loop holds live values across
+        operator_entry), and using it without saving corrupts that state
+        -- the probe-found hang of the first vmath emission.  a0 carries
+        call arguments, so it never serves as a scratch either."""
+        regs = self._free_gprs(1)
+        return regs[0] if regs else None
+
+    def _free_gprs(self, count: int) -> Optional[List[str]]:
+        """``count`` distinct caller-saved GPRs no allocated value owns
+        (the same rule as :meth:`_free_gpr`; None when fewer exist)."""
         used = set(self.alloc.assignment.values())
-        for name in GPR_NAMES:
-            if name in reserved or name in used:
-                continue
-            return name
-        return None
+        order = [f"t{i}" for i in range(7)] + [f"a{i}" for i in range(1, 8)]
+        free = [name for name in order if name not in used]
+        return free[:count] if len(free) >= count else None
 
     def _emit_move(self, dst: str, src: str, dstv: mir.VReg, op: mir.MOp) -> None:
         if dstv.is_scalar():
@@ -366,6 +401,23 @@ class _Emitter:
                 self.emit(f"mv a0, {launch}", op)
             self.emit("call a100rt_stage_barrier", op)
             return
+        if code == "vmath":
+            self._emit_vmath(op)
+            return
+        if code == "vfmacc":
+            # vd = z pre-copied, then vd += x * y (one rounding; the
+            # third operand legitimately shares vd's register)
+            vd = self.phys(op.results[0])
+            z = self.phys(op.operands[2])
+            x = self.phys(op.operands[0])
+            y = self.phys(op.operands[1])
+            if vd != z:
+                if op.results[0].type.lmul == 2:
+                    self.emit(f"vmv2r.v {vd}, {z}", op)
+                else:
+                    self.emit(f"vmv.v.v {vd}, {z}", op)
+            self.emit(f"vfmacc.vv {vd}, {x}, {y}", op)
+            return
         if code == "br":
             args = list(op.attrs.get("args", ()))
             self.parallel_move(list(zip(self._params(op.attrs["target"]),
@@ -445,6 +497,66 @@ class _Emitter:
                 if b.name == block_name:
                     return list(b.params)
         raise EmissionError(None, "branch", f"unknown block {block_name}")
+
+    # -- T013: the libm element loop ---------------------------------------
+    def _emit_vmath(self, op: mir.MOp) -> None:
+        """One libm-backed elementwise math op: the operand spills to the
+        frame buffer, a scalar loop applies the function per element (the
+        argument in fa0, exactly the psABI float/double convention) and
+        the result reloads as a vector at the same region.
+
+        No register lives across the call: the element pointer and the
+        remaining-element count live in frame slots and reload into free
+        GPRs after every call (the call clobbers every caller-saved GPR;
+        the allocator's avoid-sets keep live values out of them).  The
+        libm functions are pure in their single argument, so the loop
+        rewrites the buffer in place.
+        """
+        fn = op.attrs["fn"]
+        sew = op.attrs["sew"]
+        vl = op.attrs["vl"]
+        esz = sew // 8
+        load = {4: "flw", 8: "fld"}[esz]
+        store = {4: "fsw", 8: "fsd"}[esz]
+        regs = self._free_gprs(2)
+        if regs is None:
+            raise EmissionError(op.loc, "vmath",
+                                "no free caller-saved GPR pair for the "
+                                "libm loop (a located refusal)")
+        scratch, second = regs
+        buf = self._math_slots["buf"]
+        ptr = self._math_slots["ptr"]
+        cnt = self._math_slots["cnt"]
+        vs = self.phys(op.operands[0])
+        vd = self.phys(op.results[0])
+        loop = f".Lvmath{op.index}_loop"
+        done = f".Lvmath{op.index}_done"
+        self.emit(f"addi {scratch}, sp, {buf}", op)
+        self.emit(f"vse{sew}.v {vs}, ({scratch})", op)
+        self.emit(f"sd {scratch}, {ptr}(sp)", op)
+        self.emit(f"li {second}, {vl}", op)
+        self.emit(f"sd {second}, {cnt}(sp)", op)
+        self.emit(f"{loop}:", op)
+        self.emit(f"ld {second}, {cnt}(sp)", op)
+        self.emit(f"beq {second}, zero, {done}", op)
+        self.emit(f"ld {scratch}, {ptr}(sp)", op)
+        self.emit(f"{load} fa0, 0({scratch})", op)
+        self.emit(f"call {fn}", op)
+        # the call (and its PLT stub) clobbers every caller-saved GPR:
+        # the element pointer reloads from its slot BEFORE the store --
+        # probe-found: the PLT stub's own auipc/ld scratch registers
+        # turned the stale pointer into a wild store (guest SIGSEGV)
+        self.emit(f"ld {scratch}, {ptr}(sp)", op)
+        self.emit(f"{store} fa0, 0({scratch})", op)
+        self.emit(f"addi {scratch}, {scratch}, {esz}", op)
+        self.emit(f"sd {scratch}, {ptr}(sp)", op)
+        self.emit(f"ld {second}, {cnt}(sp)", op)
+        self.emit(f"addi {second}, {second}, -1", op)
+        self.emit(f"sd {second}, {cnt}(sp)", op)
+        self.emit(f"j {loop}", op)
+        self.emit(f"{done}:", op)
+        self.emit(f"addi {scratch}, sp, {buf}", op)
+        self.emit(f"vle{sew}.v {vd}, ({scratch})", op)
 
     # -- function ------------------------------------------------------------
     def emit_function(self, fn: mir.MFunction) -> None:

@@ -441,7 +441,12 @@ class MaskedDefault:
 #: extent values)
 BIN_ARITH = {"arith.add", "arith.sub", "arith.mul", "arith.fdiv",
              "arith.sdiv", "arith.udiv", "arith.srem", "arith.urem",
-             "arith.frem"}
+             "arith.frem",
+             # T013: the precise (round-to-nearest) division, distinct
+             # from the approximable fdiv (both lower to the target's
+             # exactly-rounded vfdiv; the codes stay distinct so a future
+             # fast path can never silently replace the precise form)
+             "arith.div_rn"}
 #: bitwise/logical op codes (integer or bool operands)
 BIN_BITWISE = {"bit.and", "bit.or", "bit.xor", "bit.shl", "bit.ashr",
                "bit.lshr"}
@@ -449,6 +454,26 @@ BIN_BITWISE = {"bit.and", "bit.or", "bit.xor", "bit.shl", "bit.ashr",
 CMP_PREDS = {"cmp.lt", "cmp.le", "cmp.gt", "cmp.ge", "cmp.eq", "cmp.ne"}
 #: unary op codes
 UNARY_OPS = {"arith.neg", "arith.fneg", "logical.not", "bit.invert"}
+
+#: T013: special math unary op codes (the math-ops lane).  The pinned
+#: Triton 3.8 ``_check_dtype`` admits fp32/fp64 operands only for these
+#: constructs (a 16-bit operand is a frontend type error, never a silent
+#: promotion); fp64 is the internal-compute width position_quantize uses.
+MATH_UNARY_OPS = {"math.exp", "math.exp2", "math.log", "math.log2",
+                  "math.sin", "math.cos", "math.erf", "math.sqrt",
+                  "math.sqrt_rn", "math.rsqrt", "math.floor", "math.ceil"}
+#: tl.abs: the floating form and the signed-integer form are distinct ops
+#: (the pinned semantic dispatches fabs / iabs; unsigned abs is the
+#: identity, emitted as no op at all)
+ABS_OPS = {"math.fabs", "math.iabs"}
+#: T013: tl.maximum / tl.minimum.  The NaN policy is carried BY THE OP
+#: CODE, never by an ignorable attribute: ``maxnum`` returns the other
+#: operand when one is NaN (propagate_nan=NONE, the default) while
+#: ``maximum`` propagates a quiet NaN (propagate_nan=ALL); the integer
+#: forms carry the operand signedness (IR-SEMANTIC-FIDELITY).
+MAXMIN_OPS = {"arith.maxnumf", "arith.minnumf", "arith.maximumf",
+              "arith.minimumf", "arith.maxsi", "arith.maxui",
+              "arith.minsi", "arith.minui"}
 
 
 def _and_flags(shapes: Sequence[Shape]) -> Shape:
@@ -867,6 +892,64 @@ class Op:
         """out[b] = count of elements equal to b, b in [0, num_bins)."""
         return Op("histogram", (value,), loc, INT32,
                   real_shape([num_bins]), attrs={"num_bins": num_bins})
+
+    # -- T013: special math functions and bit-exact RNG ----------------------
+
+    @staticmethod
+    def math_unary(op: str, operand: Value,
+                   loc: Optional[SrcLoc] = None) -> "Op":
+        """One special math function application (``math.exp`` &c): the
+        result preserves the operand's type and shape."""
+        return Op(op, (operand,), loc, operand.type, operand.shape)
+
+    @staticmethod
+    def abs_value(operand: Value,
+                  loc: Optional[SrcLoc] = None) -> "Op":
+        """``tl.abs``: the float form (``math.fabs``) or the signed-integer
+        form (``math.iabs``); unsigned abs is the identity (no op)."""
+        if operand.type.is_float():
+            op = "math.fabs"
+        elif operand.type.is_int() and operand.type.is_int_signed():
+            op = "math.iabs"
+        else:
+            raise ValueError(
+                f"abs of {operand.type!r} is the identity (no op)")
+        return Op(op, (operand,), loc, operand.type, operand.shape)
+
+    @staticmethod
+    def maxmin(op: str, lhs: Value, rhs: Value,
+               loc: Optional[SrcLoc] = None) -> "Op":
+        """``tl.maximum`` / ``tl.minimum`` on pre-unified operands; the op
+        code carries the NaN policy and the signedness."""
+        shape = _and_flags([lhs.shape, rhs.shape])
+        return Op(op, (lhs, rhs), loc, lhs.type, shape)
+
+    @staticmethod
+    def fma(x: Value, y: Value, z: Value,
+            loc: Optional[SrcLoc] = None) -> "Op":
+        """``tl.fma``: x * y + z with ONE rounding (fused), the operands
+        pre-unified by the frontend exactly like the pinned
+        ``binary_op_type_legalization`` chain."""
+        shape = _and_flags([x.shape, y.shape, z.shape])
+        return Op("math.fma", (x, y, z), loc, x.type, shape)
+
+    @staticmethod
+    def philox(k0: Value, k1: Value, c0: Value, c1: Value, c2: Value,
+               c3: Value, rounds: int,
+               loc: Optional[SrcLoc] = None) -> "Op":
+        """The Philox counter-based RNG primitive (``tl.philox``).
+
+        Carries (IR-SEMANTIC-FIDELITY): the 32-bit counter words
+        ``c0..c3`` as uint32 blocks of one shape, the key words ``k0``/``k1``
+        as rank-0 uint32 scalars (the pinned implementation keeps the key
+        0-d across the rounds), and the round count (a constexpr; the
+        pinned default is 10).  Four uint32 results (the new counter).
+        The round recurrence itself is the lowering's: umulhi/mul of the
+        PHILOX constants, xor with the key words, wrapping key raises.
+        """
+        return Op("rng.philox", (k0, k1, c0, c1, c2, c3), loc,
+                  c0.type, c0.shape, attrs={"rounds": int(rounds)},
+                  results=4)
 
     def __repr__(self) -> str:
         return f"Op({self.op})"
@@ -1702,6 +1785,112 @@ def _type_rule_errors(op: Op, errors: list) -> None:
             return err("'histogram' produces i32 counts")
         if op.results[0].shape != real_shape([num_bins]):
             return err("'histogram' produces [num_bins]")
+    elif op_name in MATH_UNARY_OPS:
+        if len(ops) != 1 or len(op.results) != 1:
+            return err(f"'{op_name}' takes one operand and produces one "
+                       "value")
+        v = ops[0]
+        if not v.type.is_float():
+            return err(f"'{op_name}' requires a floating operand (the "
+                       f"pinned _check_dtype), got {v.type!r}")
+        if v.type.bitwidth() not in (32, 64):
+            return err(f"'{op_name}' requires fp32 or fp64 operands, got "
+                       f"{v.type!r}")
+        if op.results[0].type != v.type \
+                or op.results[0].shape != v.shape:
+            return err(f"'{op_name}' must preserve the operand's type and "
+                       "shape")
+    elif op_name in ABS_OPS:
+        if len(ops) != 1 or len(op.results) != 1:
+            return err(f"'{op_name}' takes one operand and produces one "
+                       "value")
+        v = ops[0]
+        if op_name == "math.fabs" and not v.type.is_float():
+            return err("'math.fabs' requires a floating operand, got "
+                       f"{v.type!r}")
+        if op_name == "math.iabs" and not (v.type.is_int()
+                                           and v.type.is_int_signed()):
+            return err("'math.iabs' requires a signed integer operand, "
+                       f"got {v.type!r}")
+        if op.results[0].type != v.type \
+                or op.results[0].shape != v.shape:
+            return err(f"'{op_name}' must preserve the operand's type and "
+                       "shape")
+    elif op_name in MAXMIN_OPS:
+        if len(ops) != 2 or len(op.results) != 1:
+            return err(f"'{op_name}' takes two operands and produces one "
+                       "value")
+        lhs, rhs = ops
+        if lhs.type != rhs.type:
+            return err(f"'{op_name}' operand types differ: {lhs.type!r} vs "
+                       f"{rhs.type!r} (the lowering must insert explicit "
+                       "converts)")
+        if op_name.endswith("f") and not lhs.type.is_float():
+            return err(f"'{op_name}' requires floating operands, got "
+                       f"{lhs.type!r}")
+        if op_name.endswith(("si", "ui")):
+            if not lhs.type.is_int():
+                return err(f"'{op_name}' requires integer operands, got "
+                           f"{lhs.type!r}")
+            signed = op_name.endswith("si")
+            if lhs.type.is_int_signed() != signed:
+                return err(f"'{op_name}' signedness disagrees with the "
+                           f"operand {lhs.type!r}")
+        if not _same_values(lhs.shape, rhs.shape):
+            return err(f"'{op_name}' operand extent values differ "
+                       f"({lhs.shape} vs {rhs.shape}); broadcasting must be "
+                       "an explicit broadcast op")
+        if op.results and (op.results[0].type != lhs.type
+                           or value_shape(op.results[0].shape)
+                           != value_shape(lhs.shape)):
+            return err(f"'{op_name}' result must equal the operand type "
+                       "and extents")
+    elif op_name == "math.fma":
+        if len(ops) != 3 or len(op.results) != 1:
+            return err("'math.fma' takes three operands and produces one "
+                       "value")
+        x, y, z = ops
+        for a, b in ((x, y), (x, z)):
+            if a.type != b.type:
+                return err(f"'math.fma' operand types differ: {a.type!r} "
+                           f"vs {b.type!r}")
+        if not x.type.is_float():
+            return err("'math.fma' requires floating operands, got "
+                       f"{x.type!r}")
+        if not (_same_values(x.shape, y.shape)
+                and _same_values(x.shape, z.shape)):
+            return err("'math.fma' operand extent values differ; "
+                       "broadcasting must be an explicit broadcast op")
+        if op.results[0].type != x.type \
+                or value_shape(op.results[0].shape) != value_shape(x.shape):
+            return err("'math.fma' result must equal the operand type and "
+                       "extents")
+    elif op_name == "rng.philox":
+        if len(ops) != 6 or len(op.results) != 4:
+            return err("'rng.philox' takes (k0, k1, c0, c1, c2, c3) and "
+                       "produces the four counter words")
+        k0, k1, c0, c1, c2, c3 = ops
+        for name, v in (("k0", k0), ("k1", k1)):
+            if v.type != UINT32 or v.shape != ():
+                return err(f"'rng.philox' key word {name} must be a rank-0 "
+                           f"uint32 scalar, got {v.type!r} {list(v.shape)}")
+        for name, v in (("c0", c0), ("c1", c1), ("c2", c2), ("c3", c3)):
+            if v.type != UINT32:
+                return err(f"'rng.philox' counter word {name} must be "
+                           f"uint32, got {v.type!r}")
+            if not _same_values(v.shape, c0.shape):
+                return err(f"'rng.philox' counter word {name} extent "
+                           f"values differ from c0 ({list(v.shape)} vs "
+                           f"{list(c0.shape)})")
+        rounds = op.attrs.get("rounds")
+        if not isinstance(rounds, int) or isinstance(rounds, bool) \
+                or rounds < 1:
+            return err(f"'rng.philox' rounds must be a positive integer, "
+                       f"got {rounds!r}")
+        for r in op.results:
+            if r.type != UINT32 or r.shape != c0.shape:
+                return err("'rng.philox' produces four uint32 results at "
+                           "the counter shape")
     else:
         errors.append(TirError(Invariant.MALFORMED, op.loc,
                                f"unknown op '{op_name}'"))

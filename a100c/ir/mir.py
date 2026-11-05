@@ -182,6 +182,10 @@ VEC_OPS = {
     # T012: the conversion matrix's widening/narrowing converts and the
     # bit-level reinterpretation move
     "vfwcvt", "vfncvt", "vmovv",
+    # T013: the math-ops lane -- the libm-backed transcendentals (a scalar
+    # call per element inside the region's lane count), the fused
+    # multiply-add and the mask OR
+    "vmath", "vfmacc", "vmor",
 }
 
 #: atomic op codes (T011, lower/scalar.py): the RVWMO-ordered forms.
@@ -216,13 +220,21 @@ SBIN_OPS = {"sadd", "ssub", "smul", "sdiv", "sdivu", "sand", "sor", "sxor",
 VBIN_OPS = {"add", "sub", "mul", "and", "or", "xor", "fadd", "fsub",
             "fmul", "fdiv", "srl", "sra", "sll",
             # T012: the layout lane's index maps and tl.swizzle2d
-            "sdiv", "udiv", "srem", "urem"}
+            "sdiv", "udiv", "srem", "urem",
+            # T013: the math-ops lane -- the philox umulhi (unsigned high
+            # multiply), the maximum/minimum families (the NaN policy
+            # lives in the TIR op code and its lowering composition; the
+            # vfmax/vfmin here are the plain non-NaN maximum building
+            # blocks) and the IEEE-rounding division marker
+            "umulhi", "max", "min", "maxu", "minu", "fmax", "fmin"}
 
 #: vector x scalar op codes
 VBINX_OPS = {"add", "mul"}
 
 #: vector unary op codes
-VUNARY_OPS = {"fneg", "not", "fcvt", "fcvt.xf", "fcvt.fxu", "fcvt.xuf"}
+VUNARY_OPS = {"fneg", "not", "fcvt", "fcvt.xf", "fcvt.fxu", "fcvt.xuf",
+              # T013: the exactly-rounded sqrt and the float abs
+              "fsqrt", "fabs"}
 
 #: widening value-convert kinds (T012): ff = f16->f32, fx = i16->f32,
 #: fxu = u16->f32 (the destination doubles SEW and LMUL, same element
@@ -236,6 +248,14 @@ VFNCVT_OPS = {"ff", "ffrtz", "xf", "xuf"}
 
 #: comparison predicates (vector and scalar)
 CMP_PREDS = {"lt", "le", "gt", "ge", "eq", "ne"}
+
+#: T013: the libm functions the vmath op may call (fp32 on the left, the
+#: fp64 internal-compute forms on the right; both sets exist in the
+#: declared sysroot's libm -- probed under the pinned QEMU endpoint)
+MATH_LIBM_FNS = {"expf", "exp2f", "logf", "log2f", "sinf", "cosf",
+                 "erff", "floorf", "ceilf",
+                 "exp", "exp2", "log", "log2", "sin", "cos",
+                 "erf", "floor", "ceil"}
 
 
 class MOp:
@@ -525,15 +545,22 @@ def _type_check(op: MOp, errors: List[MirError]) -> None:
             return err("'smove' preserves width (32->64 only for values "
                        "already held extended in the register)")
     elif code == "strunc":
-        if len(ops) != 1 or len(res) != 1 or ops[0].type != I64 \
-                or res[0].type != I32:
-            return err("'strunc' narrows one i64 to i32 (pre-legalisation "
-                       "semantic op; no target instruction truncates)")
+        # T013: the 64-bit source may be signed or unsigned (the philox
+        # key words narrow from uint64 -- the low 32 bits are the same
+        # under either extension)
+        if len(ops) != 1 or len(res) != 1 or not S(0) or S(0).width != 64 \
+                or S(0).float or res[0].type != I32:
+            return err("'strunc' narrows one 64-bit scalar to i32 "
+                       "(pre-legalisation semantic op; no target "
+                       "instruction truncates)")
     elif code == "swext":
-        if len(ops) != 1 or len(res) != 1 or ops[0].type != I64 \
-                or res[0].type != I32:
-            return err("'swext' re-sign-extends the low 32 bits of one i64 "
-                       "into an i32 value")
+        # T013: the 64-bit source may be signed or unsigned (the philox
+        # key words' strunc legalisation narrows a uint64 -- the low 32
+        # bits are extension-agnostic)
+        if len(ops) != 1 or len(res) != 1 or not S(0) or S(0).width != 64 \
+                or S(0).float or res[0].type != I32:
+            return err("'swext' re-sign-extends the low 32 bits of one "
+                       "64-bit scalar into an i32 value")
     elif code in SBIN_OPS:
         if len(ops) != 2 or len(res) != 1:
             return err(f"'{code}' takes two operands and one result")
@@ -625,6 +652,44 @@ def _type_check(op: MOp, errors: List[MirError]) -> None:
         if not ops[0].is_mask() or not ops[1].is_mask() \
                 or not res[0].is_mask():
             return err("'vmand' operates on mask values")
+    elif code == "vmor":
+        if len(ops) != 2 or len(res) != 1:
+            return err("'vmor' takes two masks and produces one mask")
+        if not ops[0].is_mask() or not ops[1].is_mask() \
+                or not res[0].is_mask():
+            return err("'vmor' operates on mask values")
+    elif code == "vmath":
+        # T013: one libm-backed transcendent applied per element at the
+        # region's lane count (the call clobbers every caller-saved GPR,
+        # exactly like callbarrier -- the allocator's avoid-sets apply)
+        if len(ops) != 1 or len(res) != 1 or not V(0) \
+                or not res[0].is_vector():
+            return err("'vmath' takes one vector and produces one vector")
+        if ops[0].type != res[0].type:
+            return err("'vmath' preserves the vector type")
+        if ops[0].type.kind != "float":
+            return err("'vmath' operates on float vectors")
+        if op.attrs.get("fn") not in MATH_LIBM_FNS:
+            return err(f"'vmath' fn {op.attrs.get('fn')!r} is not in the "
+                       "declared libm set")
+        if op.attrs.get("sew") != ops[0].type.sew:
+            return err("'vmath' sew attribute must match the operand")
+        vl = op.attrs.get("vl")
+        if not isinstance(vl, int) or isinstance(vl, bool) or vl < 1:
+            return err("'vmath' requires a positive constant lane count")
+    elif code == "vfmacc":
+        # T013: vd = vs1 * vs2 + vd with one rounding; the third operand
+        # is pre-copied into the result register by the lowering
+        if len(ops) != 3 or len(res) != 1:
+            return err("'vfmacc' takes (x, y, z) and produces one vector")
+        a, b, c, r = V(0), V(1), V(2), res[0].type
+        if not (a and b and c and res[0].is_vector()):
+            return err("'vfmacc' requires vector operands")
+        if a != b or b != c or r != a:
+            return err(f"'vfmacc' types must agree: {a!r}, {b!r}, "
+                       f"{c!r} -> {r!r}")
+        if a.kind != "float":
+            return err("'vfmacc' operates on float vectors")
     elif code == "vunary":
         if len(ops) != 1 or len(res) != 1 or not V(0) or not res[0].is_vector():
             return err("'vunary' takes one vector and produces one vector")
@@ -632,9 +697,11 @@ def _type_check(op: MOp, errors: List[MirError]) -> None:
         if fcvt_op in ("fcvt", "fcvt.xf", "fcvt.fxu", "fcvt.xuf"):
             # int <-> float at the same SEW/LMUL: the element kind changes
             # by value conversion, the shape does not.  The rounding forms
-            # (T012): fcvt = f.x[u].v (int <- float only via the rtz forms),
-            # fcvt.xf/xuf = rtz (the pinned fptosi/fptoui truncation),
-            # fcvt.fxu = f.xu.v (unsigned int <- float)
+            # (T012): fcvt = f.x.v (signed int -> float), fcvt.xf/xuf =
+            # rtz (the pinned fptosi/fptoui truncation), fcvt.fxu =
+            # f.xu.v (unsigned int -> float; T013 fixed the inverted
+            # kind check -- the unsigned-to-float route the repertoire
+            # row documents, probed in T012)
             a, r = V(0), res[0].type
             if (a.sew, a.lmul) != (r.sew, r.lmul):
                 return err("'vunary' fcvt preserves SEW and LMUL")
@@ -648,8 +715,9 @@ def _type_check(op: MOp, errors: List[MirError]) -> None:
                            "rtz truncation semantics)")
             if fcvt_op in ("fcvt.xf", "fcvt.xuf") and r.kind == "float":
                 return err("'vunary' rtz forms convert float -> integer")
-            if fcvt_op == "fcvt.fxu" and a.kind != "int":
-                return err("'vunary' fcvt.fxu converts int -> uint float")
+            if fcvt_op == "fcvt.fxu" and a.kind != "uint":
+                return err("'vunary' fcvt.fxu converts unsigned int -> "
+                           "float (vfcvt.f.xu.v)")
             return
         if ops[0].type != res[0].type:
             return err("'vunary' must preserve the vector type")
@@ -779,10 +847,12 @@ def _type_check(op: MOp, errors: List[MirError]) -> None:
         a, idx, r = V(0), V(1), res[0].type
         if not a or not idx or not res[0].is_vector():
             return err("'vrgather' operates on vectors")
-        if (a.sew, a.lmul) != (idx.sew, idx.lmul) or r != a:
+        if (a.sew, a.lmul) != (idx.sew, idx.lmul)                 or (r.sew, r.lmul) != (a.sew, a.lmul):
             return err(f"'vrgather' needs the index at the data's "
                        f"(SEW, LMUL) (an integer index into any element "
-                       f"kind): {a!r}, {idx!r} -> {r!r}")
+                       f"kind -- T013: an unsigned destination views the "
+                       f"gathered lanes unsigned): {a!r}, {idx!r} -> "
+                       f"{r!r}")
         if idx.kind == "float":
             return err("'vrgather' index must be an integer vector")
     elif code == "vslidedn":

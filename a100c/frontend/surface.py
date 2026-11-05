@@ -663,6 +663,29 @@ IMPLEMENTED_CONSTRUCTS = {
     "tl.unsqueeze", "tl.trans", "tl.permute", "tl.join", "tl.split",
     "tl.cat", "tl.broadcast_to", "tl.broadcast", "tl.flip",
     "tl.swizzle2d", "tl.to_tensor",
+    # T013: special math functions and bit-exact RNG -- the math-ops
+    # lane.  exp/exp2/log/log2/sin/cos/erf/sqrt/sqrt_rn/rsqrt/floor/ceil
+    # (the pinned _check_dtype: fp32/fp64 operands only), abs (fabs /
+    # iabs / the unsigned identity), maximum/minimum (the op code carries
+    # the propagate_nan policy: maxnum returns the other operand on NaN,
+    # maximum propagates a quiet NaN), clamp (the minimum/maximum
+    # composition), fma (single rounding), div_rn (the IEEE-rounding
+    # division -- vfdiv on this target), sigmoid (the pinned 1/(1+exp(-x))
+    # composition) and softmax (the SOFTMAX_COMPOSITE declared in
+    # a100c/plan/stages.py: max-subtract, exp, sum, divide); the RNG
+    # family (philox -- the counter-based primitive the corpus kernels
+    # inline around -- and rand/randn/randint with their 4x variants and
+    # offset formulas from the pinned Triton 3.8 random.py)
+    # the explicit function forms of the AST arithmetic operators
+    # (position_quantize's spelled-out tl.add/tl.sub/tl.mul;
+    # sanitize_overflow is a debug-only check, ignorable with a reason)
+    "tl.add", "tl.sub", "tl.mul",
+    "tl.exp", "tl.exp2", "tl.log", "tl.log2", "tl.sin", "tl.cos",
+    "tl.erf", "tl.sqrt", "tl.sqrt_rn", "tl.rsqrt", "tl.floor", "tl.ceil",
+    "tl.abs", "tl.maximum", "tl.minimum", "tl.clamp", "tl.fma",
+    "tl.div_rn", "tl.sigmoid", "tl.softmax",
+    "tl.philox", "tl.rand", "tl.randn", "tl.randint",
+    "tl.rand4x", "tl.randint4x", "tl.randn4x",
     # dtype constants (no parameters): parse, compare, create
     "tl.float32", "tl.int64", "tl.int32", "tl.bfloat16", "tl.float16",
     "tl.float64", "tl.uint32", "tl.int1", "tl.uint64", "tl.int16", "tl.int8",
@@ -731,6 +754,17 @@ IGNORABLE_PARAMS: Dict[Tuple[str, str], str] = {
         "scheduling hint; not a loop semantic",
     ("tl.range", "disable_licm"):
         "optimization hint; not a loop semantic",
+    # T013: the debug-only overflow check on the explicit arithmetic
+    # forms (the pinned default is False; no corpus call sets it)
+    ("tl.add", "sanitize_overflow"):
+        "debug-only overflow check (the pinned default is False; no "
+        "corpus call sets it)",
+    ("tl.sub", "sanitize_overflow"):
+        "debug-only overflow check (the pinned default is False; no "
+        "corpus call sets it)",
+    ("tl.mul", "sanitize_overflow"):
+        "debug-only overflow check (the pinned default is False; no "
+        "corpus call sets it)",
 }
 
 #: semantic-but-unsupported parameters of *implemented* constructs: a call

@@ -75,6 +75,10 @@ ABSENT_FORMS: List[Tuple[str, str]] = [
     ("spilled mask values (vsm/vlm stack round-trip)",
      "mask spill is not implemented; the allocator refuses when the mask "
      "file is exhausted (a bounded, located refusal)"),
+    ("vector transcendental instructions (exp/log/sin/cos/erf/floor/ceil)",
+     "RVV 1.0 has no vector transcendental forms; the math-ops lane calls "
+     "the declared sysroot's libm per element through the vmath expansion "
+     "(a negative target fact that fixes the lowering, not folklore)"),
 ]
 
 _E = InstructionEntry
@@ -172,9 +176,71 @@ def _vector_rows() -> List[InstructionEntry]:
         rows.append(_E(m + ".vx", "vbinx", (("op", op), ("fp", True)),
                        f"{m}.vx {{vd}}, {{vs2}}, {{rs1}}",
                        evidence="RVV 1.0 (F006/F026)"))
+    # T013: the math-ops lane's binary forms -- the philox umulhi (the
+    # unsigned high half of the 2x-SEW product), the integer maximum /
+    # minimum families (signed and unsigned -- the op code carries the
+    # signedness) and the float maximum/minimum building blocks (the NaN
+    # policies are lowering compositions over these, never this bare form)
+    rows.append(_E("vmulhu.vv", "vbin", (("op", "umulhi"), ("fp", False)),
+                   "vmulhu.vv {vd}, {vs2}, {vs1}",
+                   notes="unsigned high multiply (philox's umulhi at the "
+                         "counter width)",
+                   evidence="RVV 1.0 (F006/F026)"))
+    for op, m in (("max", "vmax"), ("min", "vmin"),
+                  ("maxu", "vmaxu"), ("minu", "vminu")):
+        rows.append(_E(m + ".vv", "vbin", (("op", op), ("fp", False)),
+                       f"{m}.vv {{vd}}, {{vs2}}, {{vs1}}",
+                       notes="integer maximum/minimum (the MIR op code "
+                             "carries the signedness)",
+                       evidence="RVV 1.0 (F006/F026)"))
+    for op, m in (("fmax", "vfmax"), ("fmin", "vfmin")):
+        rows.append(_E(m + ".vv", "vbin", (("op", op), ("fp", True)),
+                       f"{m}.vv {{vd}}, {{vs2}}, {{vs1}}",
+                       notes="float maximum/minimum building block; the "
+                             "maxnum/maximum NaN policies are lowering "
+                             "compositions over this form",
+                       evidence="RVV 1.0 (F006/F026)"))
+    rows.append(_E("vfmacc.vv", "vfmacc", (),
+                   "vfmacc.vv {vd}, {vs1}, {vs2}",
+                   notes="vd = +(vs1 * vs2) + vd, one rounding (tl.fma; "
+                         "the third operand is pre-copied into vd)",
+                   evidence="RVV 1.0 (F006/F026)"))
+    rows.append(_E("vmor.mm", "vmor", (), "vmor.mm {vd}, {vs2}, {vs1}",
+                   notes="mask OR (the any-NaN disjunction of the "
+                         "propagate_nan compositions)",
+                   evidence="RVV 1.0 (F006)"))
+    # the libm-backed transcendentals: one scalar libm call per element at
+    # the region's lane count; the emitter expands the sequence (buffer
+    # spill, element loop, reload) and the form below is the selection
+    # record (the call itself carries [opN] attribution)
+    for fn in sorted(mir.MATH_LIBM_FNS):
+        rows.append(_E(f"call {fn}", "vmath", (("fn", fn),),
+                       f"call {fn}",
+                       notes="libm-backed elementwise math (the emitter's "
+                             "buffer/loop expansion; -lm links the "
+                             "declared sysroot's libm)",
+                       evidence="sysroot libm probed under the pinned QEMU "
+                                "(exit 0, correct values)"))
     rows.append(_E("vfsgnjn.vv", "vunary", (("op", "fneg"),),
                    "vfsgnjn.vv {vd}, {vs2}, {vs2}",
                    notes="the real form behind the vfneg.vv pseudo",
+                   evidence="RVV 1.0 (F006)"))
+    # T013: the math-ops lane's direct vector forms -- the exactly-rounded
+    # sqrt and the float abs (sign-bit xor with itself)
+    rows.append(_E("vfsqrt.v", "vunary", (("op", "fsqrt"),),
+                   "vfsqrt.v {vd}, {vs2}",
+                   notes="IEEE round-to-nearest square root (math.sqrt and "
+                         "math.sqrt_rn; the approximable and precise forms "
+                         "coincide on this target)",
+                   evidence="RVV 1.0 (F006)"))
+    rows.append(_E("vfsgnjx.vv", "vunary", (("op", "fabs"),),
+                   "vfsgnjx.vv {vd}, {vs2}, {vs2}",
+                   notes="float absolute value (sign bits xor themselves)",
+                   evidence="RVV 1.0 (F006)"))
+    rows.append(_E("vnot.v", "vunary", (("op", "not"),),
+                   "vnot.v {vd}, {vs2}",
+                   notes="one's complement (vxor.vi -1); the uint_to_"
+                         "uniform_float negation path's ~x on int blocks",
                    evidence="RVV 1.0 (F006)"))
     rows.append(_E("vfcvt.f.x.v", "vunary", (("op", "fcvt"),),
                    "vfcvt.f.x.v {vd}, {vs2}",
@@ -272,12 +338,21 @@ def _vector_rows() -> List[InstructionEntry]:
                    notes="mask AND (the arg-merge tie condition); the .mm "
                          "form is the mask-mask assembly suffix of RVV 1.0",
                    evidence="RVV 1.0 (F006)"))
-    # integer vector compares (vv): vd = vs2 <pred> vs1
+    # integer vector compares (vv): vd = vs2 <pred> vs1.  The ORDERED
+    # signed rows constrain unsigned=False (T013: a uint-kind operand must
+    # select the unsigned form -- before the constraint the matcher saw
+    # both rows and the randint offsets' uint64 compares hit the
+    # ambiguity); eq/ne are sign-agnostic and stay unconstrained
     for pred, m, swap in (("lt", "vmslt", False), ("le", "vmsle", False),
-                          ("eq", "vmseq", False), ("ne", "vmsne", False),
                           ("gt", "vmslt", True), ("ge", "vmsle", True)):
-        rows.append(_E(m + ".vv", "vcmp", (("pred", pred), ("fp", False)),
+        rows.append(_E(m + ".vv", "vcmp",
+                       (("pred", pred), ("fp", False), ("unsigned", False)),
                        f"{m}.vv {{vd}}, {{vs2}}, {{vs1}}", swap_operands=swap,
+                       evidence="RVV 1.0 (F006/F026)"))
+    for pred, m in (("eq", "vmseq"), ("ne", "vmsne")):
+        rows.append(_E(m + ".vv", "vcmp", (("pred", pred), ("fp", False)),
+                       f"{m}.vv {{vd}}, {{vs2}}, {{vs1}}",
+                       notes="sign-agnostic equality",
                        evidence="RVV 1.0 (F006/F026)"))
     for pred, m, swap in (("lt", "vmsltu", False), ("le", "vmsleu", False),
                           ("gt", "vmsltu", True), ("ge", "vmsleu", True)):

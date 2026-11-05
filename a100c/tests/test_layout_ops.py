@@ -197,8 +197,11 @@ def check_corpus(workdir, compiler):
          ("fp64", "float64")),
         ("linalg_cross_complex_contiguous_kernel.py",
          {"shape": (672,), "dtype": "float32"}, ("fp64", "float64")),
-        ("mode_kernel.py", {"shape": (17,), "dtype": "float32"},
-         ("fp64", "float64")),
+        # mode_kernel.py compiled once T013 fixed the scalar-widen
+        # signedness, the dtype == dispatch fold and the zeros/select
+        # region discipline -- it left the refusal census and is now a
+        # compiled family member (the census below keeps only the files
+        # that still refuse)
         ("avg_pool1d_kernel_optimized.py",
          {"shape": (2, 32, 4096), "dtype": "float32"},
          ("grid", "provenance")),

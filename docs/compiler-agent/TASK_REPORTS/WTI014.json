@@ -1,0 +1,109 @@
+{
+  "invocation_id": "WTI014",
+  "task_id": "T013",
+  "attempt": 1,
+  "context_sha256": "73b1c8c2cfdf10db72804db0103db72e3827477fbc1ef3934ebc83e8eaff5705",
+  "outcome": "COMPLETED",
+  "failure_kind": "implementation",
+  "summary": "Special math functions and bit-exact RNG implemented through the real compilation path, with the two declared test files as the delivery. (1) Frontend: handlers for tl.exp/exp2/log/log2/sin/cos/erf/sqrt/sqrt_rn/rsqrt/floor/ceil (fp32/fp64 only, the pinned _check_dtype; 16-bit operands are located type errors), tl.abs (fabs/iabs/unsigned identity), tl.maximum/minimum (the propagate_nan policy carried BY the TIR op code: maxnum returns the other operand on NaN, maximum propagates a quiet NaN), tl.clamp, tl.fma, tl.div_rn, tl.sigmoid (the pinned 1/(1+exp(-x)) composition), tl.softmax (the SOFTMAX_COMPOSITE declared in plan/stages.py, replacing the old refusal stub), the explicit tl.add/sub/mul forms, and the RNG family: tl.philox as a new 4-result TIR op rng.philox plus the pinned random.py desugars for tl.rand/randn/randint and their 4x variants (counter=(offset_lo,offset_hi,0,0), key=(seed_lo,seed_hi), uint_to_uniform_float, Box-Muller). (2) Lowering/backend: the libm-backed vmath MIR op (per-element scalar calls to the declared sysroot's expf/logf/sinf/cosf/erff/floorf/ceilf and their double forms; -lm added to the link), vfsqrt/vfsgnjx/vnot/vmax/vmin/vmaxu/vminu/vfmax/vfmin/vmulhu/vfmacc/vmor repertoire rows, the NaN-policy compositions over vfmax/vfmin, the umulhi philox round expansion, the two declared fp64 internal-compute routes (i64->f64, f64->f32) plus the exact f32->f64 widening, and the pointer-select (where/ifexp between two pointers, the rng_dual target form). (3) Pre-existing defects found and fixed on the shared path, each with an executed reproduction: the vmath loop used the caller-saved element pointer after the PLT-clobbering call (wild store, guest SIGSEGV) and had used a callee-saved scratch corrupting the runtime caller (hang); the bf16 RTNE rounding added (bits>>1) instead of the LSB of the high half (first executed non-trivial bf16 rounding was wrong); the fcvt.fxu verifier rule was inverted (uint->float mis-rejected); strunc/swext rejected u64 sources; scalar widening kept the signed view for unsigned destinations; int widening/narrowing kept the source element kind for unsigned destinations; the vrgather group-footprint overflow in _int_narrow (odd-base SIGILL); region discipline was missing in the scalar-select, bit.invert, zeros/full, _mask_of_bool and scalar-convert paths (stale vsetvli in mixed-SEW passes); dtype == dispatch never folded (TypeObject/DTypeValue equality), routing fused_exponential into its dead 64-bit branch; tl.PropagateNan and x.dtype cast targets were not constexpr-foldable. (4) Validation: test_rng.py generates reference vectors from the pinned Triton 3.8 reference python (recorded with the generation command) and matches philox 128/128 words, randint/rand/rand4x bit-exactly, randn within tolerance; the off-by-one-round and wrongly-rounded-scale controls fail as required. test_math_ops.py executes all 20 declared math forms with 20/20 PASS, fp32 IEEE forms bit-exact vs the double-rounded oracle, fp16/bf16 through the fp32 lanes, integer abs/maxmin exact, NaN policies executed, located refusals for the fp16-transcendental and tensor-pow boundaries, the wrongly-rounded-constant control fails as required, and 1/2/4/8 threads share one artifact. Corpus operators executed and compared PASS: asinh_kernel, gelu_min, fused_activation, floor_kernel (math families) and all 5 compilable misc.rng operators (stochastic_ensemble, fused_fill_dropout, rng_dual in fp32/fp16/bf16, randint__randint, randint_like). The full existing test suite (26 files) passes with two stale expectations updated (softmax now lowers; mode_kernel now compiles). Compile-only sweep of the six families: math.transcendental 30/125, math.clamp 24/111, math.sqrt_rsqrt 18/62, math.round 1/7, arith.pow 5/15, misc.rng 5/12; every remaining refusal is a LOCATED diagnostic from another lane's declared boundary (tl.dot 24 operators -> T014; grid-model vocabulary 25; multi-axis partial reductions 58; early return 19; multi-width blocks 17; scalar record-width mismatches; case-without-kernel wrappers), not a math/RNG construct.",
+  "files_changed": [
+    "a100c/tests/test_math_ops.py",
+    "a100c/tests/test_rng.py",
+    "a100c/frontend/lower_tir.py",
+    "a100c/frontend/surface.py",
+    "a100c/frontend/specialize.py",
+    "a100c/ir/tir.py",
+    "a100c/ir/mir.py",
+    "a100c/lower/vectorize.py",
+    "a100c/lower/scalar.py",
+    "a100c/backend/repertoire.py",
+    "a100c/backend/select.py",
+    "a100c/backend/allocate.py",
+    "a100c/backend/emit.py",
+    "a100c/runtime/build.py",
+    "a100c/tests/test_reductions.py",
+    "a100c/tests/test_layout_ops.py"
+  ],
+  "artifacts": [
+    "a100c/tests/test_math_ops.py",
+    "a100c/tests/test_rng.py"
+  ],
+  "commands": [
+    {
+      "command": "python3 a100c/tests/test_math_ops.py",
+      "exit_code": 0,
+      "observed": "12 checks PASS: every-declared-math-form-executes-and-compares 20/20; wrongly-rounded-constant-fails (control); fp32-ieee-forms-bit-exact; fp16-bf16-ride-the-fp32-lanes; integer-abs-and-maxmin-exact; maximum-minimum-honor-propagate_nan; refusal-fp16-transcendental + refusal-tensor-pow located; corpus-math-representatives (asinh/gelu_min/fused_activation/floor); math-op-1-2-4-8-threads-one-artifact (1 sha); constexpr-pow-folds-exact"
+    },
+    {
+      "command": "python3 a100c/tests/test_rng.py",
+      "exit_code": 0,
+      "observed": "15 checks PASS: pinned-triton-reference-vectors-generated; philox-words-bit-exact-vs-pinned-triton 128/128; randint/rand/rand4x bit-exact; randn/randn4x within tolerance (max |diff| 5.96e-08); randint4x bit-exact; the four offset-formula checks; off-by-one-philox-round-fails + wrongly-rounded-uniform-constant-fails (controls); rng-corpus-operators-execute-and-compare; rng-dual-all-declared-dtypes; rng-1-2-4-8-threads-one-artifact (1 sha)"
+    },
+    {
+      "command": "for t in a100c/tests/test_*.py (26 pre-existing files)",
+      "exit_code": 0,
+      "observed": "all 26 report 'all checks PASS' (test_reductions and test_layout_ops updated: softmax now lowers as the declared composite, mode_kernel now compiles)"
+    },
+    {
+      "command": "python3 <sweep> over the six acceptance families (compile-only, first declared case per operator)",
+      "exit_code": 0,
+      "observed": "math.transcendental 30/125, math.clamp 24/111, math.sqrt_rsqrt 18/62, math.round 1/7, arith.pow 5/15, misc.rng 5/12 compile; all remaining refusals are located diagnostics owned by other lanes (dot/grid/multi-axis-reduction/early-return/multi-width/binding-width/case-wrapper)"
+    },
+    {
+      "command": "python3 a100c/tests/test_conversions.py && python3 a100c/tests/test_e2e_slice.py",
+      "exit_code": 0,
+      "observed": "the bf16 RTNE fix and the region/zeros/widen fixes hold the T012 conversion matrix and the e2e slice green"
+    }
+  ],
+  "acceptance": [
+    {
+      "ref": "acceptance[0]",
+      "command": "python3 a100c/tests/test_math_ops.py",
+      "exit_code": 0,
+      "observed": "All declared math forms (exp, exp2, log, log2, sqrt, sqrt_rn, rsqrt, sigmoid, erf, sin, cos, floor, ceil, clamp, pow, fma, div_rn, abs, maximum/minimum) compile and execute-and-compare 20/20 within tolerance; fp32 IEEE forms bit-exact; fp16/bf16 via FP32 lanes; constexpr pow folds exact. Corpus representatives of the families execute PASS (asinh, gelu_min, fused_activation, floor_kernel). Family-wide compile: 30/125 transcendental, 24/111 clamp, 18/62 sqrt_rsqrt, 1/7 round, 5/15 pow -- every remaining refusal is a located diagnostic from another lane's boundary (tl.dot->T014, grid model, multi-axis partial reductions, early return, multi-width blocks, scalar record widths, case-without-kernel), none is a math construct."
+    },
+    {
+      "ref": "acceptance[1]",
+      "command": "python3 a100c/tests/test_rng.py",
+      "exit_code": 0,
+      "observed": "Reference vectors generated inside the test by the pinned Triton 3.8 reference python (A100_REFERENCE_PYTHON, TRITON_DEFAULT_BACKEND=cpu; the command and vectors.json recorded under the run's evidence dir); philox matches 128/128 words bit-exactly, randint/rand/rand4x bit-exactly, randn within the 1e-4 tolerance; the counter=(offset_lo,offset_hi,0,0)/key=(seed_lo,seed_hi) offset formulas verified against the independent numpy model."
+    },
+    {
+      "ref": "acceptance[2]",
+      "command": "python3 a100c/tests/test_rng.py",
+      "exit_code": 0,
+      "observed": "All 5 compilable misc.rng operators execute and compare PASS (stochastic_ensemble exercises randint/randint4x/philox/rand4x/randn/randn4x with an exact Route output; fused_fill_dropout compares array_equal; rng_dual in fp32/fp16/bf16; randint__randint; randint_like). maximum/minimum honor propagate_nan executed with NaN inputs under both policies; where/equal_nan comparison policies hold. The 7 non-compiling misc.rng members are blocked by other lanes' located refusals (scalar record-width 3, early return 2, grid 1, multi-width reduction 1)."
+    },
+    {
+      "ref": "acceptance[3]",
+      "command": "python3 a100c/tests/test_rng.py && python3 a100c/tests/test_math_ops.py",
+      "exit_code": 0,
+      "observed": "Controls fail as required: a 9-round philox (off-by-one) does NOT match the 10-round reference; a perturbed uniform scale does NOT match; a wrongly-rounded exp2 reference FAILS the accuracy comparison (correct reference passes, perturbed fails)."
+    }
+  ],
+  "tests": [
+    {
+      "ref": "tests[0]",
+      "command": "python3 a100c/tests/test_math_ops.py",
+      "exit_code": 0,
+      "observed": "test_math_ops: all checks PASS (12 checks)"
+    },
+    {
+      "ref": "tests[1]",
+      "command": "python3 a100c/tests/test_rng.py",
+      "exit_code": 0,
+      "observed": "test_rng: all checks PASS (15 checks)"
+    }
+  ],
+  "evidence": "test_rng.py's pinned-vector comparison (128/128 philox words bit-exact, recorded generation command) and the executed corpus comparisons (stochastic_ensemble Y/Route, fused_fill_dropout array_equal, rng_dual fp32/fp16/bf16, randint__randint, randint_like, asinh, gelu_min, fused_activation, floor_kernel); test_math_ops.py's 20/20 form matrix with the fp32 bit-exactness and the failing controls.",
+  "design_issue": {},
+  "debug_request": {},
+  "attack": {},
+  "remaining_work": [
+    "Multi-value staging defect (the layout lane): a kernel mixing >=3 four-result RNG desugars (rand4x+randn4x+randint4x) with int64 output buffers leaves the later staged word groups zero (reproduction: the ri4e-style probe -- three 4x desugars, int64 out; single-family variants all pass bit-exactly). Root cause is in the multi-pass staging/chunk interaction, not the RNG ops themselves.",
+    "The other-lane refusals that keep the remaining family members from compiling: tl.dot (24 operators, T014), grid-model vocabulary (next_power_of_2 etc., 25), multi-axis partial reductions (58), early return (19), multi-width blocks (17), float scalar record-width mismatches, case-without-kernel wrappers (quant_transpose, rowwise_quantization).",
+    "igamma/bucketize now reach the lowering but still hit multi-SEW staging-region boundaries (located diagnostics at the staging constants)."
+  ],
+  "end_revision": "",
+  "at": "2026-11-05T01:33:58.258314+00:00"
+}

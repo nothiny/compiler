@@ -81,6 +81,21 @@ class DTypeValue:
     def is_bool(self) -> bool:
         return self.ty.is_bool()
 
+    def __eq__(self, other):
+        # dtype equality (the pinned ``x.dtype == tl.uint32`` dispatch --
+        # T013 found the missing __eq__ folding every such compare to
+        # False, which routed fused_exponential's uniform conversion into
+        # the dead 64-bit branch)
+        if isinstance(other, DTypeValue):
+            return self.ty == other.ty
+        if isinstance(other, TypeObject):
+            return self.ty == other._element
+        return NotImplemented
+
+    def __ne__(self, other):
+        result = self.__eq__(other)
+        return result if result is NotImplemented else not result
+
     @property
     def int_bitwidth(self) -> int:
         if not self.ty.is_int():
@@ -114,6 +129,18 @@ class TypeObject:
     def is_pointer(self) -> bool:
         return self._is_pointer
 
+    def __eq__(self, other):
+        if isinstance(other, DTypeValue):
+            return self._element == other.ty
+        if isinstance(other, TypeObject):
+            return (self._element == other._element
+                    and self._is_pointer == other._is_pointer)
+        return NotImplemented
+
+    def __ne__(self, other):
+        result = self.__eq__(other)
+        return result if result is NotImplemented else not result
+
     def __repr__(self) -> str:
         return ("*" if self._is_pointer else "") + repr(self._element)
 
@@ -141,6 +168,16 @@ class _ConstexprMarker:
         return "tl.constexpr"
 
 
+class _PropagateNanNamespace:
+    """``tl.PropagateNan`` in the constexpr domain (T013: the
+    maximum/minimum NaN policy selector folds to its member name)."""
+
+    def __getattr__(self, name):
+        if name in ("ALL", "NONE"):
+            return f"PropagateNan.{name}"
+        return NOT_CONSTEXPR
+
+
 class TlNamespace:
     """The ``tl`` name in constexpr evaluation: dtype constants and the
     ``tl.constexpr`` wrapper only.  Anything else on ``tl`` is not
@@ -148,6 +185,7 @@ class TlNamespace:
     classify against the declared surface)."""
 
     def __init__(self):
+        self.PropagateNan = _PropagateNanNamespace()
         self.constexpr = _ConstexprMarker()
         self._dtypes = {n: DTypeValue(t) for t, n in _TYPE_NAMES.items()}
         # dtype aliases that appear in the pinned triton.language
@@ -161,6 +199,8 @@ class TlNamespace:
             return self._dtypes[name]
         if name == "constexpr":
             return self.constexpr
+        if name == "PropagateNan":
+            return self.PropagateNan
         return NOT_CONSTEXPR
 
 

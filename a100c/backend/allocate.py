@@ -231,7 +231,10 @@ def _interference(fn: mir.MFunction) -> Tuple[Dict[int, Set[int]], Dict[int, Set
                         edge(r.rid, o.rid)
             for o in op.operands:
                 touch(o)
-            if op.opcode == "callbarrier":
+            if op.opcode in ("callbarrier", "vmath"):
+                # a100rt_stage_barrier and the libm calls behind vmath
+                # clobber every caller-saved GPR (psABI, F045), so values
+                # live across them avoid those registers
                 for rid in after:
                     avoid.setdefault(rid, set()).update(CALLER_SAVED)
             if op.opcode == "vrgather":
@@ -240,6 +243,14 @@ def _interference(fn: mir.MFunction) -> Tuple[Dict[int, Set[int]], Dict[int, Set
                 # written -- vd == vs1 is an illegal form the hardware
                 # traps on)
                 for o in op.operands:
+                    for r in op.results:
+                        edge(r.rid, o.rid)
+            if op.opcode == "vfmacc":
+                # T013: vfmacc reads vs1/vs2 while accumulating into vd --
+                # the destination group must not overlap either source
+                # (the third operand z legitimately shares vd: the emitter
+                # pre-copies it there)
+                for o in op.operands[:2]:
                     for r in op.results:
                         edge(r.rid, o.rid)
             if op.opcode in ("vfncvt", "vfwcvt", "vmovv"):
@@ -587,8 +598,11 @@ def _check_group_overlap(fn: mir.MFunction, alloc: "Allocation") -> None:
                     if not o.is_vector():
                         continue
                     if o.type.lmul == r.type.lmul and \
-                            op.opcode not in ("vfncvt", "vfwcvt", "vmovv"):
+                            op.opcode not in ("vfncvt", "vfwcvt", "vmovv",
+                                              "vfmacc"):
                         continue
+                    if op.opcode == "vfmacc" and o is op.operands[2]:
+                        continue      # z legitimately pre-copied into vd
                     overlap = dst & indices(o)
                     if overlap:
                         raise AllocationError(

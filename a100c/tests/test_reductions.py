@@ -131,18 +131,25 @@ def check_tir_reduction_forms():
         ri[0].results[1].type == tir.INT32
     check("return-indices-pair-carried", ok)
 
-    # softmax refuses with a located diagnostic naming the dependency
+    # softmax lowers as the declared SOFTMAX_COMPOSITE now that the
+    # math-ops lane (T013) implemented exp: the composition is max-
+    # subtract / exp / sum / divide -- the reduction structure with the
+    # elementwise exp dependency (the T009 stub refused naming that
+    # dependency; T013 completed it)
     try:
-        lower("""
+        m3, errs3 = lower("""
             i = tl.arange(0, BLOCK)
             x = tl.load(x_ptr + i)
             p = tl.softmax(x, dim=0)
             tl.store(o_ptr + i, p)
         """)
-        check("softmax-refuses-located", False, "no refusal")
+        ops3 = [st.op for fn in m3.functions
+                for st in fn.body.statements if isinstance(st, tir.Op)]
+        check("softmax-composes-exp", not errs3 and "math.exp" in ops3
+              and "reduce" in ops3 and "arith.fdiv" in ops3,
+              f"ops={sorted(set(ops3))[:6]}")
     except FrontendError as exc:
-        check("softmax-refuses-located",
-              "exp" in str(exc) and "softmax" in str(exc), str(exc)[:80])
+        check("softmax-composes-exp", False, str(exc)[:80])
 
     # sort / topk / histogram emit their TIR ops (the semantics are
     # declared; the whole-block reorder path refuses at the lowering)

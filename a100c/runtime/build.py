@@ -28,7 +28,12 @@ OPERATOR_STUB = "operator_stub.S"
 CFLAGS = ("-O2", "-Wall", "-Wextra", "-march=rv64gcv", "-mabi=lp64d", "-pthread",
           "-fno-ident", "-I", str(RUNTIME_DIR))
 ASFLAGS = ("-march=rv64gcv",)
-LINKFLAGS = ("-march=rv64gcv", "-mabi=lp64d", "-pthread", "-Wl,--build-id=none")
+# -lm: the math-ops lane's elementwise transcendentals call the declared
+# sysroot's libm (expf/logf/sinf/cosf/erff/floorf/ceilf and their double
+# forms -- probed under the pinned QEMU endpoint, exit 0 with correct
+# values); the runtime itself has no other libm dependency
+LINKFLAGS = ("-march=rv64gcv", "-mabi=lp64d", "-pthread", "-Wl,--build-id=none",
+             "-lm")
 
 
 def _project_env() -> dict:
