@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-05T01:34:58.934497+00:00",
+  "updated_at": "2026-11-05T06:35:27.582285+00:00",
   "facts": [
     {
       "id": "F001",
@@ -1711,14 +1711,14 @@
         "memory-forms-v1"
       ],
       "tags": [],
-      "status": "RUNNING",
+      "status": "DONE",
       "assignee": "coder",
       "attempts": 1,
-      "evidence": "",
+      "evidence": "worker report WTI015: Matrix breadth through the real pipeline: tl.dot is now a frontend construct (the pinned Triton 3.8 typing rules), a verified TIR linalg.dot op, and a composed lowering between the vectorize passes -- the IME tile pipeline (int8/uint8 via smt.vmadot*, fp16 via smt.vfwmadot: staged operand regions, the m2 accumulator chaining, the column-major B pack, masked result stores with out_dtype's one final rounding) and the budget-bounded vector FP32 FMA path (fp32 IEEE, bit-exact vs numpy on the 1/16 grid -- no tf32 anywhere; bf16 with the recorded F010/F034 gap and zero smt.* executions under the instruction-count plugin). Executed-and-compared PASS: int8/uint8 basic, fp32 basic/acc/masked, bf16 basic/acc/masked (independent numpy references); 1/2/4/8 threads on one artifact; int8 composed-path smt.vmadot counts = the pure tile model, artifact-bound. The vector-file budget is data: plan_dot_breadth's demand records, chunk_plan's legal chunking and the diagnosed no-chunking refusal (F023/F028/F041). THREE pre-existing defects found and fixed on the way (each reproduced first): (1) the allocator's spill/reload vsetvli x0,x0 left the block at the spilled value's vtype -- a pressure-dependent silent wrong-answer corruption, fixed with the tracked region restore (+ the spill-address scratch slot so a full GPR file still spills, + the vsetivli 5-bit immediate range); (2) a while loop carrying a POINTER BLOCK compiled but read the first iteration's addresses forever (the static ptradd tree never sees the carried step) -- the uniform pointer-recurrence repair carries the step as a scalar offset param in both the indexed and the proven-contiguous (wide) paths, with the regression now passing; (3) the per-block implicit vsetvli region used the final pass's SEW (the prefix's e32 ops ran in an e16 region). Recorded boundaries (all located refusals, never silent wrong answers; the test's census documents them): dots inside runtime loops are guarded off -- the rest",
       "last_error": "",
       "failure_kind": "",
       "start_revision": "2e3343cc648ce9d6766ec5e474f329ad0c1f3099",
-      "end_revision": "",
+      "end_revision": "67941fc660b10f03f30ec71003333c0fc97de56c",
       "completed_seq": 0,
       "debug_required": false,
       "debug_request_id": "",
@@ -7025,6 +7025,24 @@
       "phase": "IMPLEMENTATION",
       "event": "task-delegate",
       "detail": "WTI015 task=T014 attempt=1 profile=general-purpose"
+    },
+    {
+      "at": "2026-11-05T06:35:27.552690+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "task-report-out-of-contract",
+      "detail": "T014: a100c/backend/emit.py, a100c/lower/matrix.py, a100c/cache/45da326fe1ba56c7b485e31ad7bb67e66dfca76d621154a785ab4e7fc3807106/stage.mir.lowered.txt, a100c/cache/45da326fe1ba56c7b485e31ad7bb67e66dfca76d621154a785ab4e7fc3807106/stage.plan.txt, a100c/cache/45da326fe1ba56c7b485e31ad7bb67e66dfca76d621154a785ab4e7fc3807106/stage.selection.txt"
+    },
+    {
+      "at": "2026-11-05T06:35:27.558523+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "task-report",
+      "detail": "WTI015 COMPLETED attempt=1 [changes outside the declared paths: a100c/backend/emit.py, a100c/lower/matrix.py, a100c/cache/45da326fe1ba56c7b485e31ad7bb67e66dfca76d621154a785ab4e7fc3807106/stage.mir.lowered.txt, a100c/cache/45da326fe1ba56c7b485e31ad7bb67e66dfca76d621154a785ab4e7fc3807106/stage.plan.txt, a100c/cache/45da326fe1ba56c7b485e31ad7bb67e66dfca76d621154a785ab4e7fc3807106/stage.selection.txt]"
+    },
+    {
+      "at": "2026-11-05T06:35:27.582272+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "complete-task",
+      "detail": "T014 worker report WTI015: Matrix breadth through the real pipeline: tl.dot is now a frontend construct (the pinned Triton 3.8 typing rules), a verified TIR linalg.dot op, and a composed lowering between the vectorize passes -- the IME tile pipeline (int8/uint8 via smt.vmadot*, fp16 via smt.vfwmadot: staged operand regions, the m2 accumulator chaining, the column-major B pack, masked result stores with out_dtype's one final rounding) and the budget-bounded vector FP32 FMA path (fp32 IEEE, bit-exact vs numpy on the 1/16 grid -- no tf32 anywhere; bf16 with the recorded F010/F034 gap and zero smt.* executions under the instruction-count plugin). Executed-and-compared PASS: int8/uint8 basic, fp32 basic/acc/masked, bf16 basic/acc/masked (independent numpy references); 1/2/4/8 threads on one artifact; int8 composed-path smt.vmadot counts = the pure tile model, artifact-bound. The vector-file budget is data: plan_dot_breadth's demand records, chunk_plan's legal chunking and the diagnosed no-chunking refusal (F023/F028/F041). THREE pre-existing defects found and fixed on the way (each reproduced first): (1) the allocator's spill/reload vsetvli x0,x0 left the block at the spilled value's vtype -- a pressure-dependent silent wrong-answer corruption, fixed with the tracked region restore (+ the spill-address scratch slot so a full GPR file still spills, + the vsetivli 5-bit immediate range); (2) a while loop carrying a POINTER BLOCK compiled but read the first iteration's addresses forever (the static ptradd tree never sees the carried step) -- the uniform pointer-recurrence repair carries the step as a scalar offset param in both the indexed and the proven-contiguous (wide) paths, with the regression now passing; (3) the per-block implicit vsetvli region used the final pass's SEW (the prefix's e32 ops ran in an e16 region). Recorded boundaries (all located refusals, never silent wrong answers; the test's census documents them): dots inside runtime loops are guarded off -- the rest"
     }
   ]
 }

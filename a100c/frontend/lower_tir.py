@@ -222,6 +222,8 @@ _REQUIRED_PARAMS = {
     "tl.div_rn": ("x", "y"),
     "tl.sigmoid": ("x",),
     "tl.softmax": ("x",),
+    # T014: the matrix-breadth lane
+    "tl.dot": ("input", "other"),
     "tl.add": ("x", "y"), "tl.sub": ("x", "y"), "tl.mul": ("x", "y"),
     "tl.philox": ("seed", "c0", "c1", "c2", "c3"),
     "tl.rand": ("seed", "offset"), "tl.randn": ("seed", "offset"),
@@ -3339,6 +3341,165 @@ class Lowering:
         op = tir.Op.topk(value, k, dim, descending, loc=loc)
         return self._emit(op, "topk")
 
+    # -- T014: the matrix-breadth lane -------------------------------------
+
+    def _lower_tl_dot(self, args: Dict[str, ast.expr], node: ast.Call,
+                      loc, construct: str) -> tir.Value:
+        """tl.dot: the matrix product of two rank-2 blocks (T014).
+
+        The typing rules are the pinned Triton 3.8 ``Semantic.dot``
+        (F049), not what the target happens to serve:
+
+          * both operands are block tensors of the SAME dtype in
+            {int8, uint8, float16, bfloat16, float32} (fp64 is outside
+            the corpus dtype surface, F037; non-i8 integers are refused
+            by the pinned semantics itself: "only int8 supported");
+          * ``out_dtype`` defaults to float32 with no ``acc`` and to the
+            accumulator's dtype with one; ``out_dtype=bfloat16`` is the
+            pinned ValueError; integer dots produce int32;
+            float16/bfloat16/float32 dots produce float32, or float16
+            for float16 operands when explicitly requested (fp32
+            accumulation, one final rounding);
+          * the ``acc`` block must match the result shape and dtype;
+          * fp32 dots carry the IEEE numeric class: the declared subset
+            strips ``input_precision``/``allow_tf32`` and the runner
+            pins ``TRITON_F32_DEFAULT=ieee`` (F052) -- no reduced
+            precision path exists to select.
+
+        The lowered ``linalg.dot`` op carries the operand dtypes, the
+        accumulation type and the ieee flag; the lowering consumes them
+        (IME tiles for int8/float16, the vector FP32 path for fp32 IEEE
+        and bfloat16 -- the recorded emulator gap, F010/F034).
+        """
+        a = self._lower_expr(args["input"])
+        b = self._lower_expr(args["other"])
+        if isinstance(a, ConstVal) or isinstance(b, ConstVal):
+            raise self._err(
+                node, construct,
+                "tl.dot operands must be block tensors (not compile-time "
+                "scalars)")
+        for v, name in ((a, "input"), (b, "other")):
+            if v.rank < 2:
+                raise self._err(
+                    node, construct,
+                    f"tl.dot operand '{name}' must be rank-2 (got rank "
+                    f"{v.rank}); the batched rank-3 form is not in this "
+                    "lane")
+            if len(v.shape) != 2:
+                raise self._err(
+                    node, construct,
+                    f"tl.dot operand '{name}' must be rank-2, got "
+                    f"{list(v.shape)} (the batched rank-3 form is not in "
+                    "this lane)")
+        if a.type != b.type:
+            raise self._err(
+                node, construct,
+                f"both operands must be the same dtype (the pinned "
+                f"semantics); got {a.type!r} and {b.type!r}")
+        if a.type.is_pointer() or a.type.is_bool():
+            raise self._err(
+                node, construct,
+                f"tl.dot requires numeric operands, got {a.type!r}")
+        if a.type.name == "fp64":
+            raise self._err(
+                node, construct,
+                "fp64 tl.dot is outside the corpus dtype surface (F037: "
+                "bfloat16/bool/float16/float32/int16/int32/int64/int8 only)")
+        if a.type.is_int() and a.type.width != 8:
+            raise self._err(
+                node, construct,
+                f"only int8 integer dots are supported by the pinned "
+                f"semantics ('only int8 supported!'); got {a.type!r}")
+        if tir.value_shape(a.shape)[1] != tir.value_shape(b.shape)[0]:
+            raise self._err(
+                node, construct,
+                f"tl.dot reduction extents differ: {list(a.shape)} x "
+                f"{list(b.shape)} (second index of the first shape must "
+                "equal the first index of the second)")
+
+        # the accumulator and the out_dtype (the pinned resolution order)
+        acc = None
+        if "acc" in args and args["acc"] is not None:
+            acc = self._lower_expr(args["acc"])
+            if isinstance(acc, ConstVal):
+                raise self._err(
+                    node, construct,
+                    "tl.dot's acc must be a block tensor (not a "
+                    "compile-time scalar)")
+            if len(acc.shape) != 2 or \
+                    tir.value_shape(acc.shape) != \
+                    (tir.value_shape(a.shape)[0],
+                     tir.value_shape(b.shape)[1]):
+                raise self._err(
+                    node, construct,
+                    f"accumulator shape {list(acc.shape)} is incompatible "
+                    f"with the result "
+                    f"({tir.value_shape(a.shape)[0]}, "
+                    f"{tir.value_shape(b.shape)[1]})")
+        explicit_out = None
+        if "out_dtype" in args and args["out_dtype"] is not None:
+            explicit_out = self._constexpr_dtype(args["out_dtype"], node,
+                                                 construct)
+        if explicit_out is not None and explicit_out.name == "bf16":
+            raise self._err(
+                node, construct,
+                "out_dtype=bfloat16 is unsupported (the pinned Triton 3.8 "
+                "raises; cast the float32 result with .to(tl.bfloat16))")
+
+        # the result type (the pinned rules)
+        if a.type.is_int():
+            # integer dots: int32 result, always (the pinned semantics)
+            if explicit_out is not None and explicit_out != tir.INT32:
+                raise self._err(
+                    node, construct,
+                    f"integer dots accumulate int32 (the pinned "
+                    f"semantics); out_dtype {explicit_out!r}")
+            result_ty = tir.INT32
+        elif a.type.name in ("fp32", "bf16"):
+            if explicit_out is not None and explicit_out != tir.FLOAT32:
+                raise self._err(
+                    node, construct,
+                    f"{a.type.name} dots produce float32 (the pinned "
+                    f"semantics); out_dtype {explicit_out!r}")
+            result_ty = tir.FLOAT32
+        else:
+            # fp16 operands: fp32, or fp16 with one final rounding
+            if explicit_out is None:
+                explicit_out = tir.FLOAT32
+            if explicit_out not in (tir.FLOAT32, tir.FLOAT16):
+                raise self._err(
+                    node, construct,
+                    f"fp16 dots produce float32 (or float16 with one "
+                    f"final rounding); out_dtype {explicit_out!r}")
+            result_ty = explicit_out
+        if acc is not None:
+            if acc.type != result_ty:
+                raise self._err(
+                    node, construct,
+                    f"expected accumulator dtype {result_ty!r}, got "
+                    f"{acc.type!r}; pass out_dtype={acc.type.name} to use "
+                    "this accumulator dtype")
+            if explicit_out is not None and acc.type != explicit_out:
+                raise self._err(
+                    node, construct,
+                    f"expected accumulator dtype {explicit_out!r}, got "
+                    f"{acc.type!r}")
+
+        operands = [a, b] + ([acc] if acc is not None else [])
+        op = tir.Op(
+            "linalg.dot", operands, loc, result_ty,
+            tir.real_shape([tir.value_shape(a.shape)[0],
+                            tir.value_shape(b.shape)[1]]),
+            attrs={
+                "a_dtype": a.type.name, "b_dtype": b.type.name,
+                "out_dtype": result_ty.name,
+                # fp32 dots are IEEE by construction: the subset strips
+                # the precision knobs and the runner pins ieee (F052)
+                "ieee": a.type.name == "fp32",
+                "acc_mode": "chain" if acc is not None else "zero",
+            })
+        return self._emit(op, "dot")
+
     def _scan_dim(self, args, node, construct, rank: int) -> int:
         if "dim" not in args:
             return rank - 1              # the pinned default: last dim
@@ -4221,6 +4382,9 @@ _CONSTRUCT_HANDLERS = {
         self, a, n, l, "tl.randint4x"),
     "tl.randn4x": lambda self, a, n, l: Lowering._lower_tl_randn4x(
         self, a, n, l, "tl.randn4x"),
+    # T014: the matrix-breadth lane -- tl.dot through the real pipeline
+    "tl.dot": lambda self, a, n, l: Lowering._lower_tl_dot(
+        self, a, n, l, "tl.dot"),
     # multi-result constructs: the single-value call path refuses them
     # before the handler runs (the tuple-unpack form is the legal use);
     # registered so the surface's construct/handler consistency holds

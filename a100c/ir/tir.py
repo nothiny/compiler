@@ -46,7 +46,7 @@ __all__ = [
     "SrcLoc", "Type", "Shape", "Extent", "Sym", "Value", "Op", "Block",
     "If", "Loop", "Function", "Module", "MaskedDefault", "TirError",
     "Invariant", "verify_module", "verify", "unify_shapes", "value_shape",
-    "is_real", "real_shape", "flat_extent", "LAYOUT_OPS",
+    "is_real", "real_shape", "flat_extent", "LAYOUT_OPS", "MATRIX_OPS",
 ]
 
 # ---------------------------------------------------------------------------
@@ -474,6 +474,15 @@ ABS_OPS = {"math.fabs", "math.iabs"}
 MAXMIN_OPS = {"arith.maxnumf", "arith.minnumf", "arith.maximumf",
               "arith.minimumf", "arith.maxsi", "arith.maxui",
               "arith.minsi", "arith.minui"}
+
+#: T014: tl.dot -- the matrix product of two rank-2 blocks.  The op
+#: carries the operand dtypes, the accumulation type (``out_dtype``) and
+#: the numeric class (``ieee``: fp32 dots are exact IEEE, never tf32 --
+#: the subset strips input_precision/allow_tf32 and the runner pins
+#: TRITON_F32_DEFAULT=ieee, F052).  The optional third operand is the
+#: ``acc`` block (the pinned semantics require its dtype to equal
+#: out_dtype); the result is (M, N) at out_dtype.
+MATRIX_OPS = {"linalg.dot"}
 
 
 def _and_flags(shapes: Sequence[Shape]) -> Shape:
@@ -1865,6 +1874,53 @@ def _type_rule_errors(op: Op, errors: list) -> None:
                 or value_shape(op.results[0].shape) != value_shape(x.shape):
             return err("'math.fma' result must equal the operand type and "
                        "extents")
+    elif op_name in MATRIX_OPS:
+        if len(ops) not in (2, 3) or len(op.results) != 1:
+            return err("'linalg.dot' takes (a, b[, acc]) and produces one "
+                       "value")
+        a, b = ops[0], ops[1]
+        acc = ops[2] if len(ops) == 3 else None
+        if a.type != b.type:
+            return err(f"'linalg.dot' operand types differ: {a.type!r} vs "
+                       f"{b.type!r} (the pinned semantics require equal "
+                       "operand dtypes)")
+        if len(a.shape) != 2 or len(b.shape) != 2:
+            return err(f"'linalg.dot' operands must be rank-2 blocks "
+                       f"({list(a.shape)} x {list(b.shape)}); the batched "
+                       "rank-3 form is not in this lane")
+        if value_shape(a.shape)[1] != value_shape(b.shape)[0]:
+            return err(f"'linalg.dot' reduction extents differ: "
+                       f"{list(a.shape)} x {list(b.shape)}")
+        out_dtype = op.attrs.get("out_dtype")
+        if not isinstance(out_dtype, str) or not out_dtype:
+            return err("'linalg.dot' must carry its out_dtype attribute "
+                       "(the accumulation type)")
+        ieee = op.attrs.get("ieee", False)
+        if not isinstance(ieee, bool):
+            return err("'linalg.dot' ieee attribute must be a boolean")
+        res = op.results[0]
+        want_shape = (a.shape[0], b.shape[1])
+        if value_shape(res.shape) != value_shape(want_shape) \
+                or len(res.shape) != 2:
+            return err(f"'linalg.dot' result must be "
+                       f"({want_shape[0].value}, {want_shape[1].value}), "
+                       f"got {list(res.shape)}")
+        if acc is not None:
+            if value_shape(acc.shape) != value_shape(res.shape) \
+                    or len(acc.shape) != 2:
+                return err(f"'linalg.dot' accumulator shape "
+                           f"{list(acc.shape)} is incompatible with the "
+                           f"result {list(res.shape)}")
+            if acc.type != res.type:
+                return err(f"'linalg.dot' accumulator dtype {acc.type!r} "
+                           f"must equal out_dtype {res.type!r}")
+        for v, name in ((a, "a"), (b, "b"), (acc, "acc")):
+            if v is None:
+                continue
+            if v.type.is_pointer() or v.type.is_bool():
+                return err(f"'linalg.dot' operand '{name}' must be numeric, "
+                           f"got {v.type!r}")
+            _require_real(v, f"'linalg.dot' operand '{name}'", op, errors)
     elif op_name == "rng.philox":
         if len(ops) != 6 or len(op.results) != 4:
             return err("'rng.philox' takes (k0, k1, c0, c1, c2, c3) and "

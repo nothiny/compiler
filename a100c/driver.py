@@ -100,6 +100,11 @@ class CompileOptions:
     #: out-of-range lanes touch a poisoned guard region; recorded in the
     #: artifact identity when set
     witness_drop_atomic_masks: bool = False
+    #: reproduction-only (T014): enable the known-defective matrix-loop
+    #: dot path -- the restructured loop's staged regions lose chunks
+    #: beyond the first 256 bytes; the default refuses located.  Recorded
+    #: in the artifact identity when set.
+    matrix_loop_dots: bool = False
 
     def identity_part(self) -> str:
         parts = []
@@ -109,6 +114,8 @@ class CompileOptions:
             parts.append("witness-drop-stage-barrier")
         if self.witness_drop_atomic_masks:
             parts.append("witness-drop-atomic-masks")
+        if self.matrix_loop_dots:
+            parts.append("matrix-loop-dots-defective-path")
         if not self.dumps:
             parts.append("no-dumps")      # dumps do not affect the ELF
         return ",".join(parts) if parts else "default"
@@ -265,7 +272,8 @@ class Compiler:
         options = LowerOptions(
             witness_drop_tail_predicates=self.options.witness_drop_tail_predicates,
             witness_drop_stage_barrier=self.options.witness_drop_stage_barrier,
-            witness_drop_atomic_masks=self.options.witness_drop_atomic_masks)
+            witness_drop_atomic_masks=self.options.witness_drop_atomic_masks,
+            matrix_loop_dots=self.options.matrix_loop_dots)
         try:
             mir_module = vectorize.lower_to_mir(tir_module, plan, self.target,
                                                 layout, grid, options)
@@ -276,7 +284,8 @@ class Compiler:
             # path (T012: the widened conversion matrix reaches deeper
             # before refusing)
             raise PipelineError(None, "scalar-lowering", str(exc)) from None
-        errors = mir.verify_module(mir_module)
+        from a100c.lower import matrix as matrix_verify
+        errors = matrix_verify.verify_module(mir_module)
         if errors:
             raise PipelineError(None, "mir-verifier", str(errors[0]))
         if dumps:
@@ -289,7 +298,8 @@ class Compiler:
             (entry / "stage.mir.lowered.txt").write_text(mir.dump_module(mir_module))
         # 7. legalisation (contract: after it, everything is in the repertoire)
         report = legal_mod.legalize(mir_module)
-        errors = mir.verify_module(mir_module)
+        from a100c.lower import matrix as matrix_verify
+        errors = matrix_verify.verify_module(mir_module)
         if errors:
             raise PipelineError(None, "mir-verifier-post-legalize",
                                 str(errors[0]))
@@ -347,6 +357,9 @@ class Compiler:
             "emission": program.stats,
             "address_trees": mir_module.meta.get("address_trees", []),
             "witness": mir_module.meta.get("witness", "default"),
+            "matrix_segments": mir_module.meta.get("matrix_segments", []),
+            "matrix_staging_offset":
+                mir_module.meta.get("matrix_staging_offset"),
             "toolchain": {
                 "as": str(tools["as"]),
                 "ld": str(tools["gcc"]),

@@ -93,6 +93,13 @@ class LowerOptions:
     #: fp16 native lanes exist (probed) and the switch selects the
     #: single-rounding policy.  Recorded in the artifact identity.
     fp16_bf16_fp32_lanes: bool = True
+    #: T014's recorded boundary: dots inside runtime loops (the matrix
+    #: regions) refuse located by default -- the restructured loop's
+    #: staged regions lose chunks beyond the first 256 bytes (a
+    #: reproduced wrong-answer defect).  The switch exists so the
+    #: reproduction and the repair's regression can execute the
+    #: defective path deliberately; recorded in the artifact identity.
+    matrix_loop_dots: bool = False
 
     def identity_part(self) -> str:
         parts = []
@@ -104,6 +111,8 @@ class LowerOptions:
             parts.append("witness-drop-atomic-masks")
         if not self.fp16_bf16_fp32_lanes:
             parts.append("native-fp16-lanes")
+        if self.matrix_loop_dots:
+            parts.append("matrix-loop-dots-defective-path")
         return ",".join(parts) if parts else "default"
 
 
@@ -111,7 +120,17 @@ _VECTOR_KIND = {"float": "float", "int": "int", "uint": "uint"}
 
 
 class _Ctx:
-    """Emission helper: vreg creation and ordered op append."""
+    """Emission helper: vreg creation and ordered op append.
+
+    Region tracking (T014): ``switch`` resets the block's region knowledge
+    (regions do not cross block boundaries -- the MIR invariant); the
+    first vector op emitted into a regionless block opens the *pass's*
+    data region right there, so every block's implicit region is the one
+    that was active when the block's first vector op was emitted -- never
+    the final pass's region applied after the fact (a prefix scalar's
+    splat at e32 must not land in an e16 region because the kernel also
+    has an fp16 pass).
+    """
 
     def __init__(self, module: mir.MModule, function: mir.MFunction):
         self.module = module
@@ -119,6 +138,9 @@ class _Ctx:
         self.blocks: Dict[str, mir.Block] = {}
         self.cur: Optional[mir.Block] = None
         self._hint_counts: Dict[str, int] = {}
+        self._region_known: set = set()
+        #: the region provider: () -> (sew, lmul, vl) of the current pass
+        self.default_region = None
 
     def add_block(self, name: str, params=(), loc=None) -> mir.Block:
         block = mir.Block(name, list(params), loc)
@@ -128,6 +150,29 @@ class _Ctx:
 
     def switch(self, block: mir.Block) -> None:
         self.cur = block
+        self._region_known.discard(id(block))
+
+    def _note_region(self, op: mir.MOp) -> None:
+        if op.opcode == "vsetvli":
+            if self.cur is not None:
+                self._region_known.add(id(self.cur))
+        elif op.opcode in mir.VEC_OPS and self.cur is not None \
+                and id(self.cur) not in self._region_known:
+            # the block's first vector op: open the pass's data region
+            # before it (the implicit-region contract; ops that manage
+            # their own regions emit a vsetvli first and mark the block)
+            if self.default_region is not None:
+                sew, lmul, vl = self.default_region()
+                avl = mir.MOp("sconst", [],
+                              [self.vreg(mir.I32, hint="bvl", loc=op.loc)],
+                              attrs={"value": int(vl)}, loc=op.loc)
+                self.cur.ops.append(avl)
+                self.cur.ops.append(mir.MOp(
+                    "vsetvli", [avl.results[0]],
+                    [self.vreg(mir.I32, hint="brg", loc=op.loc)],
+                    attrs={"sew": sew, "lmul": lmul,
+                           "policy": "ta,ma"}, loc=op.loc))
+            self._region_known.add(id(self.cur))
 
     def vreg(self, mtype, hint: str = "t", loc=None,
              fixed_phys: Optional[str] = None) -> mir.VReg:
@@ -137,11 +182,13 @@ class _Ctx:
                         loc=loc)
 
     def emit(self, op: mir.MOp) -> mir.VReg:
+        self._note_region(op)
         self.cur.ops.append(op)
         assert len(op.results) == 1, op.opcode
         return op.results[0]
 
     def emit0(self, op: mir.MOp) -> None:
+        self._note_region(op)
         self.cur.ops.append(op)
 
     def const(self, bits: int, mtype: mir.ScalarType, loc) -> mir.VReg:
@@ -159,6 +206,66 @@ def ctx_emit_view_load(sl: "SliceLowering", loc, view_index: int) -> mir.VReg:
         [ctx.vreg(mir.I64, hint="vw", loc=loc)],
         attrs={"width": 64, "offset": view_index * 56, "ext": "sext"},
         loc=loc))
+
+
+#: TIR dtype names -> the tiles planner's operand names (T014)
+_TILES_DTYPE_NAME = {"i8": "int8", "u8": "uint8", "fp16": "float16",
+                     "bf16": "bfloat16", "fp32": "float32",
+                     "i32": "int32"}
+
+
+class _MatrixIface:
+    """The emission interface the composed dot emitters consume (T014):
+    the vectorize lowering's context, the private workspace base, region
+    control, the scalar loop forms and the 16-bit float conversions --
+    the services the IME slice's own ``_Ctx`` provides, against the
+    composed program's address space."""
+
+    def __init__(self, sl: "SliceLowering", ctx: _Ctx, loc=None):
+        self.sl = sl
+        self.ctx = ctx
+        self.loc = loc
+
+    def vreg(self, mtype, hint: str = "t", loc=None,
+             fixed_phys=None):
+        return self.ctx.vreg(mtype, hint=hint, loc=loc,
+                             fixed_phys=fixed_phys)
+
+    def emit(self, op: mir.MOp) -> mir.VReg:
+        return self.ctx.emit(op)
+
+    def emit0(self, op: mir.MOp) -> None:
+        self.ctx.emit0(op)
+
+    def const(self, bits: int, mtype, loc):
+        return self.ctx.const(bits, mtype, loc)
+
+    def region(self, sew: int, lmul: int, vl: int, loc) -> None:
+        avl = self.ctx.const(vl, mir.I32, loc)
+        self.ctx.emit0(mir.MOp(
+            "vsetvli", [avl],
+            [self.ctx.vreg(mir.I32, hint="mgr", loc=loc)],
+            attrs={"sew": sew, "lmul": lmul, "policy": "ta,ma"}, loc=loc))
+
+    def ws(self, loc) -> mir.VReg:
+        return self.sl._workspace_private_reg(self.ctx, loc)
+
+    def loop(self, lower, upper, inits, loc, tag):
+        return scalar_mod.begin_counted_loop(self.ctx, lower, upper, inits,
+                                             loc, tag)
+
+    def close(self, frame, back, loc) -> None:
+        scalar_mod.close_loop(self.ctx, frame, back)
+        self.ctx.switch(frame.exit)
+
+    def tag(self, hint: str) -> str:
+        return self.sl._tag(hint)
+
+    def widen_f16(self, reg: mir.VReg, ty16) -> mir.VReg:
+        return self.sl._f16_to_f32(self.ctx, reg, ty16, self.loc)
+
+    def narrow_f32(self, reg: mir.VReg, ty16) -> mir.VReg:
+        return self.sl._f32_to_ff(self.ctx, reg, ty16, self.loc)
 
 
 class _Names:
@@ -254,6 +361,32 @@ class SliceLowering:
         self._pass_bound: set = set()
         #: layout staging counter (IR-OBSERVABILITY: the countable record)
         self._layout_stagings: List[dict] = []
+        # -- T014: the matrix-breadth lane ---------------------------------
+        #: open matrix-region loop frames: the staged carries (name -> the
+        #: record + the body-end value) and the pointer recurrences
+        self._matrix_frames: List[dict] = []
+        #: the active uniform pointer recurrences, one layer per loop
+        #: frame (carried vid -> the frame's scalar offset param); the
+        #: address resolution adds every active layer's offset for each
+        #: mapped vid its chain passes (nested loops over one pointer
+        #: accumulate both steps)
+        self._ptr_recurrences: List[Dict[int, mir.VReg]] = []
+        #: matrix segments emitted (IR-OBSERVABILITY: the countable
+        #: record carrying the plan each dot lowered under)
+        self._matrix_segments: List[dict] = []
+        #: matrix-region nesting depth (staging stores are legal at a
+        #: matrix region's own top level: the per-iteration redefinition
+        #: IS the semantics of a staged loop carry)
+        self._matrix_depth: int = 0
+        #: the dots' breadth plans (result vid -> plan; T014)
+        self._dot_plans: Dict[int, object] = {}
+        #: the IME segments' transient staging area offset (None when no
+        #: IME dot exists)
+        self._matrix_stage_off: Optional[int] = None
+        #: the narrow-data fallback's workspace scratch offset (the
+        #: per-lane scalar loop's lane staging; None when no sub-32-bit
+        #: unproven load/store exists)
+        self._narrow_ws_offset: Optional[int] = None
 
     # -- helpers ---------------------------------------------------------------
     def _err(self, loc, construct: str, message: str):
@@ -273,6 +406,16 @@ class SliceLowering:
         if view_index is not None:
             return ctx_emit_view_load(self, loc, view_index)
         reg = self.value(t)
+        if reg is None and self._recurrence_of(t) is not None:
+            # a carried pointer block has no register by design (the
+            # uniform-recurrence repair); only the address resolution
+            # may consume it
+            raise self._err(
+                loc, t.name,
+                f"the loop-carried pointer '{t.name}' is consumed by a "
+                "non-address form (its value exists only as the address "
+                "recurrence the loads resolve; a pointer comparison or "
+                "arithmetic on the carried block is not in this lane)")
         if reg is None:
             rec = getattr(self, "_staged", {}).get(t.vid)
             if rec is not None:
@@ -301,7 +444,10 @@ class SliceLowering:
 
     def _load_staged(self, t: tir.Value, rec: dict, loc) -> mir.VReg:
         """Materialize one staged value's lanes at the current position:
-        ``ws[offset + (elem + lane) * esz]`` through the indexed load."""
+        ``ws[offset + (elem + lane) * esz]`` through the indexed load
+        (the standard convention) or the unit-stride load at the scalar
+        chunk address (the matrix lane's native sub-32 records -- the
+        narrow indexed forms crash the pinned QEMU)."""
         ctx = self._ctx
         if self._chunk is None:
             raise self._err(
@@ -312,6 +458,31 @@ class SliceLowering:
         lane_sew = rec["lane_sew"]
         kind = "float" if rec["type"].is_float() else \
             ("uint" if rec["type"].is_int_unsigned() else "int")
+        if rec.get("native"):
+            lmul = max(1, vl * lane_sew // self.target.vlen_bits)
+            vtype = mir.VectorType(lane_sew, lmul, kind)
+            self._vregion(ctx, vtype, loc, vl=vl)
+            ws = self._workspace_private_reg(ctx, loc)
+            base = ctx.emit(mir.MOp(
+                "sadd", [ws, ctx.const(rec["offset"], mir.I64, loc)],
+                [ctx.vreg(mir.I64, hint="nlb", loc=loc)], loc=loc))
+            elem64 = scalar_mod.widen_to(ctx, self._chunk["elem"], 64, loc)
+            byteoff = ctx.emit(mir.MOp(
+                "smul", [elem64, ctx.const(rec["esz"], mir.I64, loc)],
+                [ctx.vreg(mir.I64, hint="nlo", loc=loc)], loc=loc))
+            addr = ctx.emit(mir.MOp(
+                "sadd", [base, byteoff],
+                [ctx.vreg(mir.I64, hint="nla", loc=loc)], loc=loc))
+            opcode = "vuload8" if lane_sew == 8 else "vuload16"
+            reg = ctx.emit(mir.MOp(
+                opcode, [addr],
+                [ctx.vreg(vtype, hint="nld", loc=loc)], loc=loc))
+            self._restore_region(ctx, loc)
+            self.values[t.vid] = reg
+            if self._names is not None:
+                for key in t.scope_names():
+                    self._names.define(key, t)
+            return reg
         sew_v = lane_sew
         lmul = max(1, vl * sew_v // self.target.vlen_bits)
         ity = self._idx_vtype(vl)
@@ -378,12 +549,16 @@ class SliceLowering:
             self._store_staged(op.results[0], reg, op.loc)
 
     def _store_staged(self, t: tir.Value, reg: mir.VReg, loc) -> None:
-        if self._region_depth > 0:
+        if self._region_depth > 0 and \
+                not (self._matrix_depth > 0
+                     and self._region_depth == self._matrix_depth):
             raise self._err(
                 loc, "layout",
                 f"a block value ('{t.name}') defined inside a runtime "
                 "region cannot cross a pass boundary (the layout lane "
-                "stages top-level values only)")
+                "stages top-level values only; a matrix region's own "
+                "top level stages per iteration -- the staged loop carry "
+                "semantics)")
         if self._chunk is None:
             raise self._err(
                 loc, "layout",
@@ -392,6 +567,31 @@ class SliceLowering:
         ctx = self._ctx
         rec = self._staged[t.vid]
         vl = self._vl
+        if rec.get("native"):
+            # T014: a native record stores through the unit-stride form
+            # at a scalar address (the narrow indexed forms crash the
+            # pinned QEMU -- the probed e8/e16 + e64m2 constraint).  The
+            # analysis only flags sub-32 records native; 32-bit records
+            # keep the standard (identical) convention.
+            kind = "float" if rec["type"].is_float() else \
+                ("uint" if rec["type"].is_int_unsigned() else "int")
+            vtype = mir.VectorType(rec["lane_sew"], 1, kind)
+            self._vregion(ctx, vtype, loc, vl=vl)
+            ws = self._workspace_private_reg(ctx, loc)
+            base = ctx.emit(mir.MOp(
+                "sadd", [ws, ctx.const(rec["offset"], mir.I64, loc)],
+                [ctx.vreg(mir.I64, hint="nsb", loc=loc)], loc=loc))
+            elem64 = scalar_mod.widen_to(ctx, self._chunk["elem"], 64, loc)
+            byteoff = ctx.emit(mir.MOp(
+                "smul", [elem64, ctx.const(rec["esz"], mir.I64, loc)],
+                [ctx.vreg(mir.I64, hint="nso", loc=loc)], loc=loc))
+            addr = ctx.emit(mir.MOp(
+                "sadd", [base, byteoff],
+                [ctx.vreg(mir.I64, hint="nsa", loc=loc)], loc=loc))
+            opcode = "vustore8" if rec["lane_sew"] == 8 else "vustore16"
+            ctx.emit0(mir.MOp(opcode, [addr, reg], [], loc=loc))
+            self._restore_region(ctx, loc)
+            return
         ity = self._idx_vtype(vl)
         self._vregion(ctx, ity, loc)
         vid = ctx.emit(mir.MOp(
@@ -492,43 +692,12 @@ class SliceLowering:
         # defaults come from the first arange (single-pass kernels keep
         # exactly today's shape)
         arange_extent, arange_op = self._find_arange(fn.body)
-        self._pass_params: List[dict] = []
+        self._pass_params: List[Optional[dict]] = \
+            self._compute_pass_params(self._segments)
         max_extent = arange_extent
         for seg in self._segments:
-            if seg[0] != "pass":
-                self._pass_params.append(None)
-                continue
-            extent, sew = seg[2], seg[3] or 32
-            # the 32-lane cap: every register class stays within m2 (the
-            # allocator's declared budget; the e64 index class at 32 lanes
-            # is m2 -- wider SEWs simply use fewer lanes per chunk)
-            cap = min(self.target.vlmax(sew, 1), 32)
-            if extent <= cap:
-                chunks = self.target.chunk_plan(extent, sew, 1)
-                vls = {vl for vl, _ in chunks}
-                if len(vls) != 1:
-                    raise self._err(
-                        arange_op.loc if arange_op else None, "tl.arange",
-                        f"block extent {extent} does not split into uniform "
-                        f"vector chunks at SEW {sew} (mixed-chunk tails "
-                        "are not in the slice)")
-                vl = vls.pop()
-            else:
-                # the largest power-of-two chunk size at or below the cap
-                # that divides the extent (every iteration full)
-                vl = cap
-                while vl > 1 and extent % vl:
-                    vl //= 2
-                if extent % vl:
-                    raise self._err(
-                        arange_op.loc if arange_op else None, "tl.arange",
-                        f"block extent {extent} does not split into uniform "
-                        f"vector chunks at SEW {sew}")
-                chunks = tuple((vl, 1) for _ in range(extent // vl))
-            self._pass_params.append({"extent": extent, "sew": sew,
-                                      "vl": vl,
-                                      "chunks": chunks})
-            max_extent = max(max_extent, extent)
+            if seg[0] == "pass":
+                max_extent = max(max_extent, seg[2])
         # the default region (the prefix scalars' index class and the
         # single-pass form): the first pass's, else the arange's
         if self._pass_params and self._pass_params[0] is not None:
@@ -578,6 +747,21 @@ class SliceLowering:
         self._layout_ws_base = private_bytes
         self._analyze_staging()
         private_bytes = max(private_bytes, self._layout_ws_end)
+        # T014: the IME dot segments' transient staging area -- the dense
+        # A tile (128B), the B tile (128B) and the C accumulator staging
+        # (256B); ONE area serves every IME dot (the segments run
+        # sequentially within one program instance)
+        if any(getattr(p, "path", None) == "ime"
+               for p in self._dot_plans.values()):
+            self._matrix_stage_off = private_bytes
+            private_bytes += 512
+        # T014: the narrow-data fallback's scratch -- one chunk of vl
+        # lanes at up to 4 bytes (the per-lane scalar loop's carrier)
+        if any(isinstance(op, tir.Op) and op.op in ("load", "store")
+               and op.operands[0].type.pointee.bitwidth() < 32
+               for op in self._walk_ops(fn.body)):
+            self._narrow_ws_offset = private_bytes
+            private_bytes += 32 * 4 + 8
         if self._staged and self.stage_plan is not None \
                 and self.stage_plan.eligible:
             # cross-chunk staging is sequential within one worker: the
@@ -670,8 +854,9 @@ class SliceLowering:
             for later in self._segments[si + 1:]:
                 if later[0] == "scalar":
                     continue
-                if later[0] == "layout":
-                    later_uses.update(v.vid for v in later[1].operands
+                if later[0] in ("layout", "matrix"):
+                    later_uses.update(v.vid for v in
+                                      self._region_uses(later[1])
                                       if v.rank == 0)
                 else:
                     for st in later[1]:
@@ -702,6 +887,9 @@ class SliceLowering:
         module.functions.append(function)
         ctx = _Ctx(module, function)
         self._ctx = ctx
+        # the implicit-region provider: the pass parameters active when a
+        # block's first vector op is emitted (T014's per-block region fix)
+        ctx.default_region = lambda: (self._sew, 1, self._vl)
         ctx.add_block("entry", [launch], fn.loc)
         ctx.switch(ctx.blocks["entry"])
 
@@ -899,6 +1087,35 @@ class SliceLowering:
             return True
         return False
 
+    # -- T014: the matrix-breadth lane --------------------------------------
+
+    def _contains_dot(self, st) -> bool:
+        """Does the statement transitively contain a ``linalg.dot`` op?"""
+        if isinstance(st, tir.Op):
+            return st.op == "linalg.dot"
+        if isinstance(st, tir.If):
+            return any(self._contains_dot(s)
+                       for s in list(st.then.statements)
+                       + list(st.els.statements))
+        if isinstance(st, tir.Loop):
+            return any(self._contains_dot(s) for s in st.body.statements)
+        return False
+
+    def _is_matrix_region(self, st) -> bool:
+        """A runtime region (loop or if) hosting a dot: the region is
+        restructured -- the MIR loop runs at the segment level and the
+        body's statements lower through their own passes and matrix
+        segments (the chunk loop cannot wrap a dot: the dot needs its
+        whole operand blocks)."""
+        return isinstance(st, (tir.Loop, tir.If)) and self._contains_dot(st)
+
+    def _is_matrix_stmt(self, st) -> bool:
+        """A top-level statement the matrix lane owns: a dot, or a region
+        hosting one."""
+        if isinstance(st, tir.Op):
+            return st.op == "linalg.dot"
+        return self._is_matrix_region(st)
+
     def _seg_is_scalar(self, st) -> bool:
         if isinstance(st, tir.Op):
             return all(getattr(o, "rank", 0) == 0 for o in st.operands) \
@@ -932,6 +1149,10 @@ class SliceLowering:
                         return self._flat_extent_of(v.shape, st.loc or loc,
                                                     st.op)
                 return None
+            if st.op == "linalg.dot":
+                # the matrix lane's segment: it never constrains a pass
+                # (the segmentation routes it out before extents matter)
+                return None
             # results first (a broadcast's result carries the pass extent,
             # not its extent-1 source); operands cover the reduce forms
             for v in list(st.results) + list(st.operands):
@@ -944,6 +1165,8 @@ class SliceLowering:
             return None
         if isinstance(st, tir.If):
             ext = None
+            if self._is_matrix_region(st):
+                return None          # restructured: never in a pass
             for s in list(st.then.statements) + list(st.els.statements):
                 e = self._stmt_extent(s, st.loc)
                 if e is not None and ext is not None and e != ext:
@@ -966,6 +1189,8 @@ class SliceLowering:
             return ext
         if isinstance(st, tir.Loop):
             ext = None
+            if self._is_matrix_region(st):
+                return None          # restructured: never in a pass
             for b in (st.lower, st.upper, st.step, st.cond):
                 if b is not None and b.rank > 0:
                     c = self._flat_extent_of(b.shape, st.loc, "loop")
@@ -1048,6 +1273,13 @@ class SliceLowering:
                 cur, cur_extent, cur_sew = [], None, None
 
         for st in region:
+            if self._is_matrix_stmt(st):
+                # T014: the matrix lane -- a dot (or a runtime region
+                # hosting one) is its own segment; the pass closes and
+                # the dot lowers through the workspace tile pipeline
+                close()
+                segs.append(("matrix", st))
+                continue
             if self._is_layout_op(st):
                 close()
                 segs.append(("layout", st))
@@ -1084,27 +1316,104 @@ class SliceLowering:
         close()
         return segs
 
+    def _hoist_carry_stmts(self, segments: list, ids: set) -> list:
+        """Pull the trailing carried-name definitions out of a matrix
+        body's pass segments (T014): the induction increment, the while
+        condition's re-evaluation and the scalar carries' final values
+        must dominate the loop's BACK EDGE -- a mid-pass emission sits
+        inside the chunk loop, whose body does not dominate the edge.
+        Only the TRAILING run is hoisted (a definition the pass's earlier
+        statements consume stays in place; the frontend appends the
+        increments last, which is exactly the trailing run)."""
+        out: list = []
+        for seg in segments:
+            if seg[0] != "pass":
+                out.append(seg)
+                continue
+            stmts = seg[1]
+            i = len(stmts)
+            while i > 0 and id(stmts[i - 1]) in ids:
+                i -= 1
+            if i == len(stmts):
+                out.append(seg)
+                continue
+            kept, hoisted = stmts[:i], stmts[i:]
+            if kept:
+                out.append(("pass", kept, seg[2], seg[3]))
+            out.append(("scalar", hoisted))
+        return out
+
+    def _flat_segments(self, statements, out: list) -> None:
+        """Flatten one statement list's segmentation, recursing into
+        matrix regions (T014): a matrix region's body segments the same
+        way, and the staging analysis needs the sub-segment def/use order
+        inside it -- a load in the body's pass feeds the body's dot, and
+        the dot's result feeds the body's later passes or the next
+        iteration.  If-arms are walked sequentially (conservative for the
+        def/use order: staging an extra value is always correct)."""
+        for seg in self._segment_region(statements):
+            if seg[0] == "matrix" and isinstance(seg[1], (tir.Loop, tir.If)):
+                st = seg[1]
+                if isinstance(st, tir.If):
+                    self._flat_segments(list(st.then.statements), out)
+                    self._flat_segments(list(st.els.statements), out)
+                else:
+                    self._flat_segments(list(st.body.statements), out)
+                # the region's own joins define values at this position
+                out.append(("matrix_region_join", st))
+                continue
+            out.append(seg)
+
     def _analyze_staging(self) -> None:
         """Compute the staged-value set and the workspace layout.
 
-        A value is staged when (a) it is a block operand of a layout op,
-        or (b) it is a block value whose definition segment precedes its
-        first use segment (it crosses a pass boundary; registers do not
-        survive a pass loop).  Layout results are staged by construction.
+        A value is staged when (a) it is a block operand of a layout op
+        or a dot (the matrix segment reads whole operand regions), (b)
+        it is a block value whose definition segment precedes its first
+        use segment (it crosses a pass boundary; registers do not survive
+        a pass loop), or (c) it is a dot result (the matrix segment
+        writes it; consumers materialize it chunk by chunk).  Layout
+        results are staged by construction.  Matrix regions are
+        flattened into their sub-segments (T014).
         """
-        # (a) layout operands
-        for seg in self._segments:
-            if seg[0] != "layout":
-                continue
-            op = seg[1]
-            for v in op.operands:
-                if v.rank > 0 and v.vid not in self._staged:
-                    self._staged[v.vid] = {"pending": True}
-                    self._stage_out.add(v.vid)
+        flat: list = []
+        self._flat_segments(
+            self._body_split[1] if self._body_split else [], flat)
+        # (a) layout operands + dot operands/results (T014: the dot's
+        # breadth plan decides the staging convention -- the IME path's
+        # 8/16-bit operands and results stage at their NATIVE width so
+        # the tile pipeline reads them through the safe unit-stride
+        # forms; bf16 keeps the standard exact-fp32-widened convention
+        # the vector path FMAs from)
+        for seg in flat:
+            if seg[0] == "layout":
+                op = seg[1]
+                for v in op.operands:
+                    if v.rank > 0 and v.vid not in self._staged:
+                        self._staged[v.vid] = {"pending": True}
+                        self._stage_out.add(v.vid)
+            elif seg[0] == "matrix" and isinstance(seg[1], tir.Op) \
+                    and seg[1].op == "linalg.dot":
+                op = seg[1]
+                plan = self._dot_plan_of(op)
+                self._dot_plans[op.results[0].vid] = plan
+                native_ime = plan.path == "ime"
+                for v in op.operands:
+                    if v.rank > 0 and v.vid not in self._staged:
+                        self._staged[v.vid] = {"pending": True}
+                        self._stage_out.add(v.vid)
+                    if v.rank > 0 and native_ime \
+                            and v.type.bitwidth() < 32 \
+                            and v.type.name != "bf16":
+                        self._staged[v.vid]["native"] = True
+                for r in op.results:
+                    self._staged[r.vid] = {"pending": True}
+                    if native_ime and r.type.bitwidth() < 32:
+                        self._staged[r.vid]["native"] = True
         # (b) cross-pass block values: definition segment index vs use
         defined_in: Dict[int, int] = {}
         seg_index = 0
-        for seg in self._segments:
+        for seg in flat:
             if seg[0] == "scalar":
                 continue
             if seg[0] == "layout":
@@ -1112,6 +1421,17 @@ class SliceLowering:
                 for r in op.results:
                     defined_in[r.vid] = seg_index
                     self._staged[r.vid] = {"pending": True}
+                seg_index += 1
+                continue
+            if seg[0] == "matrix" and isinstance(seg[1], tir.Op) \
+                    and seg[1].op == "linalg.dot":
+                for r in seg[1].results:
+                    defined_in[r.vid] = seg_index
+                seg_index += 1
+                continue
+            if seg[0] == "matrix_region_join":
+                for r in getattr(seg[1], "join_results", ()):
+                    defined_in[r.vid] = seg_index
                 seg_index += 1
                 continue
             for st in seg[1]:
@@ -1122,12 +1442,16 @@ class SliceLowering:
             seg_index += 1
         # the uses: walk every statement's operands per segment
         seg_index = 0
-        for seg in self._segments:
+        for seg in flat:
             if seg[0] == "scalar":
                 continue
             uses: List[tir.Value] = []
             if seg[0] == "layout":
                 uses.extend(seg[1].operands)
+            elif seg[0] == "matrix" and isinstance(seg[1], tir.Op):
+                uses.extend(seg[1].operands)
+            elif seg[0] == "matrix_region_join":
+                uses.extend(self._region_uses(seg[1]))
             else:
                 for st in seg[1]:
                     uses.extend(self._region_uses(st))
@@ -1140,6 +1464,30 @@ class SliceLowering:
                     self._staged[v.vid] = {"pending": True}
                     self._stage_out.add(v.vid)
             seg_index += 1
+        # (c) T014: the matrix regions' staged loop carries -- the
+        # body-end value must stage (the back-edge copy writes its
+        # region); the loop's join aliases the init's record (resolved
+        # after the allocation below)
+        self._staged_join_aliases: List[Tuple[int, int]] = []
+        for seg in flat:
+            if seg[0] != "matrix_region_join":
+                continue
+            st = seg[1]
+            if not isinstance(st, tir.Loop):
+                continue
+            for entry in self._classify_carried(st):
+                if entry[0] == "staged":
+                    if entry[3].vid not in self._staged:
+                        self._staged[entry[3].vid] = {"pending": True}
+                    # the body's definition of the end value stores to
+                    # its region (the back-edge copy reads it); without a
+                    # later TIR use the def/use walk would have missed it
+                    self._stage_out.add(entry[3].vid)
+                    for (cname, init), jv in zip(st.carried,
+                                                 st.join_results):
+                        if init.vid == entry[2].vid:
+                            self._staged_join_aliases.append((jv.vid,
+                                                              init.vid))
         # suffix uses (the plan's liveouts are scalars; block values used
         # by the suffix would cross the last pass -- refuse: the suffix is
         # scalar-only by construction)
@@ -1150,9 +1498,11 @@ class SliceLowering:
         # cross a pass loop; the byte form is the typed carrier).
         offset = self._layout_ws_base
         for vid in sorted(self._staged.keys()):
+            rec = self._staged[vid]
+            if rec.get("offset") is not None:
+                continue          # an aliased record: already allocated
             v = self._value_by_vid(vid)
             extent = self._flat_extent_of(v.shape, v.loc, "layout")
-            rec = self._staged[vid]
             rec["offset"] = offset
             rec["extent"] = extent
             rec["type"] = v.type
@@ -1161,19 +1511,28 @@ class SliceLowering:
             # is narrower than 32 bits (probed: e8/e16 data + e64m2
             # index at avl 32 crashes; e32 data works -- complex_pack's
             # fp16 staging already rides the fp32 compute lanes).  Every
-            # staged region therefore uses 32-bit (or wider) lanes:
-            # sub-32 floats stage as their exact fp32 widening (the
-            # RTNE round trip is the identity), sub-32 integers stage
-            # zext-widened (the low bits survive), boolean blocks as
-            # 0/1 lanes.
-            rec["lane_sew"] = max(32, v.type.bitwidth())
-            if v.type.is_bool():
-                rec["esz"] = 4
-                rec["mask"] = True
-            else:
+            # staged region therefore uses 32-bit (or wider) lanes --
+            # EXCEPT the matrix lane's native records (T014): the IME
+            # tile pipeline reads those through unit-stride forms at
+            # compiler-known scalar addresses, never an index vector, so
+            # the dense 8/16-bit layout is safe and needs no conversion.
+            if rec.get("native"):
+                rec["lane_sew"] = v.type.bitwidth()
                 rec["esz"] = rec["lane_sew"] // 8
+            else:
+                rec["lane_sew"] = max(32, v.type.bitwidth())
+                if v.type.is_bool():
+                    rec["esz"] = 4
+                    rec["mask"] = True
+                else:
+                    rec["esz"] = rec["lane_sew"] // 8
             offset += extent * rec["esz"]
         self._layout_ws_end = offset
+        # the staged loop-carried joins alias their init's record (the
+        # back-edge copy leaves it holding the final value)
+        for join_vid, init_vid in getattr(
+                self, "_staged_join_aliases", []):
+            self._staged[join_vid] = self._staged[init_vid]
 
     def _region_defs(self, st, defined_in: Dict[int, int], seg_index: int,
                      depth: int = 0) -> None:
@@ -1224,6 +1583,174 @@ class SliceLowering:
             for s in st.body.statements:
                 out.extend(self._region_uses(s))
         return out
+
+    # -- T014: carried-value classification (the pointer-recurrence repair
+    # and the matrix regions' staged carries) ----------------------------------
+
+    def _tir_end_names(self, statements) -> Dict[str, tir.Value]:
+        """The name -> value binding at the end of a TIR statement list
+        (the lowering's own scoping rule, simulated on TIR: ops define
+        their results under every scope name; regions define their
+        joins under the join names).  Used to find a loop's back-edge
+        value for each carried name BEFORE the body is lowered."""
+
+        names: Dict[str, tir.Value] = {}
+
+        def bind(v: tir.Value) -> None:
+            for key in v.scope_names():
+                names[key] = v
+
+        def walk(stmts) -> None:
+            for st in stmts:
+                if isinstance(st, tir.Op):
+                    for r in st.results:
+                        bind(r)
+                elif isinstance(st, tir.If):
+                    walk(st.then.statements)
+                    walk(st.els.statements)
+                    for name, jv in zip(st.join_names, st.join_results):
+                        names[name] = jv
+                        bind(jv)
+                elif isinstance(st, tir.Loop):
+                    walk(st.body.statements)
+                    for (cname, _init), jv in zip(st.carried,
+                                                  st.join_results):
+                        names[cname] = jv
+                        bind(jv)
+
+        walk(statements)
+        return names
+
+    def _region_defined_vids(self, stmt, out: set) -> None:
+        """Every vid defined inside a region (transitively), including
+        the joins."""
+        if isinstance(stmt, tir.Op):
+            out.update(r.vid for r in stmt.results)
+        elif isinstance(stmt, tir.If):
+            for s in list(stmt.then.statements) + list(stmt.els.statements):
+                self._region_defined_vids(s, out)
+            out.update(r.vid for r in stmt.join_results)
+        elif isinstance(stmt, tir.Loop):
+            for s in stmt.body.statements:
+                self._region_defined_vids(s, out)
+            out.update(r.vid for r in stmt.join_results)
+
+    def _value_outside(self, v: tir.Value, inside: set,
+                       seen: Optional[set] = None,
+                       carried: Optional[set] = None) -> bool:
+        """Is ``v`` loop-invariant (a legal uniform-recurrence step)?
+
+        A value is invariant when every leaf of its producer tree is a
+        parameter, a constant, or a value defined outside the loop body.
+        Statement location is irrelevant for PURE trees (the frontend
+        lowers ``p += BK * s`` inside the body; the tree re-materializes
+        at the loop level).  A CARRIED name's init vid denotes the
+        current iteration's value inside the body (the override
+        semantics) -- any dependence on one makes the tree
+        iteration-dependent, so it is not a legal step."""
+        if seen is None:
+            seen = set()
+        if carried is None:
+            carried = frozenset()
+        if v.vid in seen:
+            return True
+        seen.add(v.vid)
+        if v.vid in carried:
+            return False
+        prod = v.producer
+        if prod is None or prod.op == "const":
+            return True
+        if v.vid not in inside:
+            return True              # defined before the loop: invariant
+        # a body-defined pure tree: invariant iff its operands are
+        return all(self._value_outside(o, inside, seen, carried)
+                   for o in prod.operands)
+
+    def _classify_carried(self, stmt: tir.Loop) -> List[tuple]:
+        """Classify the loop's carried entries (beyond the induction /
+        condition) for the emission:
+
+        * ``("scalar", name, init)`` -- an ordinary scalar param;
+        * ``("recurrence", name, init, step_value)`` -- a uniform
+          pointer-block carry whose back edge is
+          ``ptradd(carried, scalar)`` with a loop-invariant step: the
+          carried pointer becomes a SCALAR offset param (the repair for
+          the address-recurrence miscompile: the static ptradd tree
+          never sees the step, so a vector param reads the first
+          iteration's addresses forever);
+        * ``("staged", name, init, end_value)`` -- a block carry that
+          flows through the workspace (the dot pipeline's accumulator
+          chain); the back edge copies the end value's region into the
+          init's region;
+        * ``("block", name, init, end_value)`` -- an ordinary block carry
+          (the normal path keeps its chunk vreg param; the matrix path
+          refuses it);
+        * ``("refused", name, init, why)`` -- a carry with no legal form
+          in this lane (a located refusal at emission).
+        """
+        inside: set = set()
+        for s in stmt.body.statements:
+            self._region_defined_vids(s, inside)
+        carried_vids = {init.vid for _, init in stmt.carried}
+        end_names = self._tir_end_names(stmt.body.statements)
+        out: List[tuple] = []
+        def _bare_step(v):
+            """The uniform step of a pointer recurrence: a rank-0 value,
+            or the frontend's broadcast-of-scalar expansion of one (the
+            augmented ``p += s`` on a block pointer broadcasts the scalar
+            step over the block shape)."""
+            if v.rank == 0:
+                return v
+            prod = v.producer
+            if prod is not None and prod.op == "broadcast" \
+                    and prod.operands[0].rank == 0:
+                return prod.operands[0]
+            return None
+
+        for cname, init in stmt.carried[1:]:
+            if init.rank == 0:
+                out.append(("scalar", cname, init))
+                continue
+            end = end_names.get(cname)
+            step = None
+            if end is not None and end.producer is not None \
+                    and end.producer.op == "ptradd" \
+                    and end.producer.operands[0].vid == init.vid:
+                step = _bare_step(end.producer.operands[1])
+            if step is not None and self._value_outside(
+                    step, inside, carried=carried_vids):
+                out.append(("recurrence", cname, init, step))
+                continue
+            if init.vid in self._staged:
+                if end is None:
+                    out.append(("refused", cname, init,
+                                "the carried name is not redefined by the "
+                                "body (the verifier requires it)"))
+                else:
+                    out.append(("staged", cname, init, end))
+                continue
+            # an ordinary block carry: the normal path keeps its chunk
+            # vreg param (today's behavior); the matrix path refuses it
+            # (a block register cannot survive the restructured loop)
+            out.append(("block", cname, init, end))
+        return out
+
+    def _recurrence_of(self, v: tir.Value) -> Optional[tuple]:
+        """The active pointer-recurrence frame for a vid, if any (the
+        innermost frame wins; nested frames over the same pointer
+        accumulate -- every active layer's offset is added by the address
+        resolution)."""
+        for frame in reversed(self._ptr_recurrences):
+            rec = frame.get(v.vid)
+            if rec is not None:
+                return rec
+        return None
+
+    def _active_recurrence_offsets(self, v: tir.Value) -> List[mir.VReg]:
+        """Every active recurrence layer's offset register for one vid
+        (nested loops carrying the same pointer each add their step)."""
+        return [frame[v.vid][1] for frame in self._ptr_recurrences
+                if v.vid in frame]
 
     def _value_by_vid(self, vid: int) -> tir.Value:
         for fn in self.tir_module.functions:
@@ -2432,13 +2959,22 @@ class SliceLowering:
         last closes its own chunk loop (chaining pid/items into the next
         pass); the LAST pass stays open for the caller's close (the
         existing single-pass shape)."""
-        loc = fn.loc
+        self._emit_segments_list(ctx, fn, view_regs, self._segments,
+                                 strided=strided)
+
+    def _emit_segments_list(self, ctx: _Ctx, fn: tir.Function,
+                            view_regs: Dict[str, mir.VReg], segments: list,
+                            strided: Optional[bool] = None,
+                            close_all: bool = False) -> None:
+        """Emit one segmentation (T014: also the matrix regions' bodies --
+        every pass closes before the region's back edge; the top-level
+        form keeps the last pass open for the caller's close)."""
         all_merges = list(self._chunk_merges)
-        pass_index = 0
-        n_passes = sum(1 for seg in self._segments if seg[0] == "pass")
+        n_passes = sum(1 for seg in segments if seg[0] == "pass")
         seen_pass = 0
         saved_liveouts = self._liveouts
-        for si, seg in enumerate(self._segments):
+        params_list = self._compute_pass_params(segments)
+        for si, seg in enumerate(segments):
             if seg[0] == "scalar":
                 self._lower_statements(ctx, seg[1], fn, view_regs)
                 continue
@@ -2447,31 +2983,81 @@ class SliceLowering:
                     self._close_pass(ctx, fn, strided)
                 self._lower_layout_segment(ctx, fn, seg[1])
                 continue
+            if seg[0] == "matrix":
+                if self._chunk is not None:
+                    self._close_pass(ctx, fn, strided)
+                if isinstance(seg[1], tir.Op) and seg[1].op == "linalg.dot":
+                    self._lower_matrix_segment(ctx, fn, seg[1])
+                else:
+                    self._lower_matrix_region(ctx, seg[1], fn, view_regs)
+                continue
             # a pass: configure its parameters and merges
-            params = self._pass_params[si]
+            params = params_list[si]
             if params is None:      # pragma: no cover - segmentation shape
                 raise self._err(None, "layout", "pass without parameters")
             defined = self._pass_defined_vids(seg[1])
             self._chunk_merges = [f for f in all_merges
                                   if f["vid"] in defined]
-            if not self._chunk_merges and seen_pass == 0 and n_passes == 1:
+            if not self._chunk_merges and seen_pass == 0 and n_passes == 1 \
+                    and segments is self._segments:
                 self._chunk_merges = all_merges   # the single-pass form
             seen_pass += 1
             self._sew = params["sew"]
             self._vl = params["vl"]
             # this pass's cross-pass scalar liveouts (store at the back
             # edge, reload at the exit -- registers do not survive loops)
-            self._liveouts = list(self._pass_liveouts.get(si, []))
-            if seen_pass == n_passes:
+            self._liveouts = list(self._pass_liveouts.get(si, [])) \
+                if segments is self._segments else []
+            if seen_pass == n_passes and segments is self._segments:
                 self._liveouts.extend(saved_liveouts)
             self._open_pass(ctx, fn, params)
             self._lower_statements(ctx, seg[1], fn, view_regs)
-            if seen_pass < n_passes:
+            if seen_pass < n_passes or close_all:
                 self._close_pass(ctx, fn, strided)
         self._liveouts = saved_liveouts
         # no pass at all (scalar-only region): nothing stays open
-        if self._chunk is not None and seen_pass < n_passes:
+        if self._chunk is not None and (seen_pass < n_passes or close_all):
             self._close_pass(ctx, fn, strided)
+
+    def _compute_pass_params(self, segments: list) -> List[Optional[dict]]:
+        """The per-pass parameters (extent, SEW, vl, chunks) of one
+        segmentation -- the same decision the top-level lowering makes
+        (T014: the matrix regions' bodies compute their own)."""
+        params: List[Optional[dict]] = []
+        for seg in segments:
+            if seg[0] != "pass":
+                params.append(None)
+                continue
+            extent, sew = seg[2], seg[3] or 32
+            # the 32-lane cap: every register class stays within m2 (the
+            # allocator's declared budget; the e64 index class at 32 lanes
+            # is m2 -- wider SEWs simply use fewer lanes per chunk)
+            cap = min(self.target.vlmax(sew, 1), 32)
+            if extent <= cap:
+                chunks = self.target.chunk_plan(extent, sew, 1)
+                vls = {vl for vl, _ in chunks}
+                if len(vls) != 1:
+                    raise self._err(
+                        None, "tl.arange",
+                        f"block extent {extent} does not split into "
+                        f"uniform vector chunks at SEW {sew} "
+                        "(mixed-chunk tails are not in the slice)")
+                vl = vls.pop()
+            else:
+                # the largest power-of-two chunk size at or below the cap
+                # that divides the extent (every iteration full)
+                vl = cap
+                while vl > 1 and extent % vl:
+                    vl //= 2
+                if extent % vl:
+                    raise self._err(
+                        None, "tl.arange",
+                        f"block extent {extent} does not split into "
+                        f"uniform vector chunks at SEW {sew}")
+                chunks = tuple((vl, 1) for _ in range(extent // vl))
+            params.append({"extent": extent, "sew": sew, "vl": vl,
+                           "chunks": chunks})
+        return params
 
     def _open_pass(self, ctx: _Ctx, fn: tir.Function, params: dict) -> None:
         """Open one pass's chunk loop at the pass's own extent/SEW (the
@@ -3153,6 +3739,9 @@ class SliceLowering:
                     view_regs: Dict[str, mir.VReg]) -> None:
         loc = stmt.loc or fn.loc
         names = self._names
+        if self._is_matrix_region(stmt):
+            self._lower_matrix_region(ctx, stmt, fn, view_regs)
+            return
         if stmt.cond is not None:
             self._lower_while(ctx, stmt, fn, view_regs, loc, names)
             return
@@ -3166,18 +3755,44 @@ class SliceLowering:
         upper = self._need(stmt.upper, loc)
         step = self._need(stmt.step, loc)
         # carried[0] IS the induction (the frontend's counted form); the
-        # builder adds the induction param itself
-        carried_inits = [self._need(init, loc) for _, init in stmt.carried]
+        # builder adds the induction param itself.  T014: a uniform
+        # pointer recurrence's carried block becomes a SCALAR offset
+        # param (the address-recurrence repair); its step is
+        # re-materialized at the loop level (a body-level register would
+        # not dominate the back edge).
+        entries = self._classify_carried(stmt)
+        carried_inits = []
+        step_regs = []
+        for entry in entries:
+            if entry[0] == "refused":
+                raise self._err(loc, "loop",
+                                f"carried '{entry[1]}': {entry[3]}")
+            if entry[0] == "recurrence":
+                zero = ctx.const(
+                    0, mir.ScalarType(entry[3].type.width, signed=True),
+                    loc)
+                carried_inits.append(zero)
+                step_regs.append(
+                    self._materialize_scalar_tree(ctx, entry[3], loc))
+            else:
+                carried_inits.append(self._need(entry[2], loc))
         tag = self._tag("loop")
         frame = scalar_mod.begin_counted_loop(
-            ctx, lower, upper, carried_inits[1:], loc, tag)
+            ctx, lower, upper, carried_inits, loc, tag)
 
         # inside the body, uses of a carried entry denote the current
-        # iteration's value (the head parameter)
-        override: Dict[int, mir.VReg] = {}
-        for (_, init), param in zip(stmt.carried, frame.params):
-            override[init.vid] = param
+        # iteration's value (the head parameter) -- the induction
+        # (carried[0] <-> params[0]) included
+        override: Dict[int, mir.VReg] = {
+            stmt.carried[0][1].vid: frame.params[0]}
+        rec_layer: Dict[int, tuple] = {}
+        for entry, param in zip(entries, frame.params[1:]):
+            if entry[0] == "recurrence":
+                rec_layer[entry[2].vid] = (entry[2], param)
+            else:
+                override[entry[2].vid] = param
         self._overrides.append(override)
+        self._ptr_recurrences.append(rec_layer)
 
         names.push()
         for (cname, init), param in zip(stmt.carried, frame.params):
@@ -3186,43 +3801,103 @@ class SliceLowering:
         self._lower_statements(ctx, stmt.body.statements, fn, view_regs)
         self._region_depth -= 1
         back = []
-        for cname, _ in stmt.carried:
-            v = names.get(cname)
-            if v is None:
-                raise self._err(
-                    loc, "loop",
-                    f"carried '{cname}' has no value at the body end")
-            back.append(self._need(v, loc))
+        ind_v = names.get(stmt.carried[0][0])
+        if ind_v is None:
+            raise self._err(
+                loc, "loop",
+                f"carried '{stmt.carried[0][0]}' has no value at the "
+                "body end")
+        back.append(self._need(ind_v, loc))
+        step_i = 0
+        for entry, param in zip(entries, frame.params[1:]):
+            if entry[0] == "recurrence":
+                add = ctx.emit(mir.MOp(
+                    "sadd", [param, step_regs[step_i]],
+                    [ctx.vreg(param.type, hint="rof", loc=loc)], loc=loc))
+                back.append(add)
+                step_i += 1
+            else:
+                v = names.get(entry[1])
+                if v is None:
+                    raise self._err(
+                        loc, "loop",
+                        f"carried '{entry[1]}' has no value at the body "
+                        "end")
+                back.append(self._need(v, loc))
         scalar_mod.close_loop(ctx, frame, back)
         self._overrides.pop()
+        self._ptr_recurrences.pop()
         names.pop()
+        # the back edge's registers (the copy loop's cached workspace
+        # base among them) do not dominate the exit
+        self._ws_private = None
+        self._ws_shared = None
+        self._wid64 = None
 
         ctx.switch(frame.exit)
-        for value, param in zip(stmt.join_results, frame.exit.params):
-            if value.vid in self._stage_out:
+        # the joins: position-aligned with the carried entries; a
+        # recurrence entry's join keeps the frame's exit offset (the
+        # layer is popped, so the join vid gets its own mapping)
+        exit_rec: Dict[int, tuple] = {}
+        rec_param_by_init: Dict[int, mir.VReg] = {}
+        for entry, param in zip(entries, frame.exit.params[1:]):
+            if entry[0] == "recurrence":
+                rec_param_by_init[entry[2].vid] = param
+        for (cname, init), jv, param in zip(stmt.carried, stmt.join_results,
+                                            frame.exit.params):
+            if init.vid in rec_param_by_init:
+                exit_rec[jv.vid] = (init, rec_param_by_init[init.vid])
+                continue
+            if jv.vid in self._stage_out:
                 raise self._err(
-                    loc, "layout",
-                    f"a loop join value ('{value.name}') cannot cross a "
+                    loc, "loop",
+                    f"a loop join value ('{jv.name}') cannot cross a "
                     "pass boundary (the layout lane stages top-level "
                     "values only)")
-            self.values[value.vid] = param
-            for key in value.scope_names():
-                names.define(key, value)
+            self.values[jv.vid] = param
+            for key in jv.scope_names():
+                names.define(key, jv)
+        if exit_rec:
+            self._ptr_recurrences.append(exit_rec)
+        if exit_rec:
+            self._ptr_recurrences.append(exit_rec)
 
     def _lower_while(self, ctx: _Ctx, stmt: tir.Loop, fn: tir.Function,
                      view_regs: Dict[str, mir.VReg], loc, names) -> None:
         cond_init = self._bool_scalar(ctx, self._need(stmt.cond, loc), loc)
         # carried[0] IS the condition (the frontend's while form); the
-        # builder adds the cond param itself
-        carried_inits = [self._need(init, loc) for _, init in stmt.carried]
+        # builder adds the cond param itself.  T014: the uniform pointer
+        # recurrences become scalar offset params (see _lower_loop).
+        entries = self._classify_carried(stmt)
+        carried_inits = []
+        step_regs = []
+        for entry in entries:
+            if entry[0] == "refused":
+                raise self._err(loc, "while",
+                                f"carried '{entry[1]}': {entry[3]}")
+            if entry[0] == "recurrence":
+                zero = ctx.const(
+                    0, mir.ScalarType(entry[3].type.width, signed=True),
+                    loc)
+                carried_inits.append(zero)
+                step_regs.append(
+                    self._materialize_scalar_tree(ctx, entry[3], loc))
+            else:
+                carried_inits.append(self._need(entry[2], loc))
         tag = self._tag("while")
-        frame = scalar_mod.begin_while_loop(
-            ctx, cond_init, carried_inits[1:], loc, tag)
+        frame = scalar_mod.begin_while_loop(ctx, cond_init, carried_inits,
+                                            loc, tag)
 
-        override: Dict[int, mir.VReg] = {}
-        for (_, init), param in zip(stmt.carried, frame.params):
-            override[init.vid] = param
+        override: Dict[int, mir.VReg] = {
+            stmt.carried[0][1].vid: frame.params[0]}
+        rec_layer: Dict[int, tuple] = {}
+        for entry, param in zip(entries, frame.params[1:]):
+            if entry[0] == "recurrence":
+                rec_layer[entry[2].vid] = (entry[2], param)
+            else:
+                override[entry[2].vid] = param
         self._overrides.append(override)
+        self._ptr_recurrences.append(rec_layer)
 
         names.push()
         for (cname, init), param in zip(stmt.carried, frame.params):
@@ -3231,28 +3906,580 @@ class SliceLowering:
         self._lower_statements(ctx, stmt.body.statements, fn, view_regs)
         self._region_depth -= 1
         back = []
-        for cname, _ in stmt.carried:
-            v = names.get(cname)
-            if v is None:
+        cond_v = names.get(stmt.carried[0][0])
+        if cond_v is None:
+            raise self._err(
+                loc, "while",
+                f"carried '{stmt.carried[0][0]}' has no value at the "
+                "body end")
+        back.append(self._bool_scalar(ctx, self._need(cond_v, loc), loc))
+        step_i = 0
+        for entry, param in zip(entries, frame.params[1:]):
+            if entry[0] == "recurrence":
+                add = ctx.emit(mir.MOp(
+                    "sadd", [param, step_regs[step_i]],
+                    [ctx.vreg(param.type, hint="wof", loc=loc)], loc=loc))
+                back.append(add)
+                step_i += 1
+            else:
+                v = names.get(entry[1])
+                if v is None:
+                    raise self._err(
+                        loc, "while",
+                        f"carried '{entry[1]}' has no value at the body "
+                        "end")
+                back.append(self._need(v, loc))
+        scalar_mod.close_loop(ctx, frame, back)
+        self._overrides.pop()
+        self._ptr_recurrences.pop()
+        names.pop()
+        # the back edge's registers (the copy loop's cached workspace
+        # base among them) do not dominate the exit
+        self._ws_private = None
+        self._ws_shared = None
+        self._wid64 = None
+
+        ctx.switch(frame.exit)
+        exit_rec: Dict[int, tuple] = {}
+        rec_param_by_init: Dict[int, mir.VReg] = {}
+        for entry, param in zip(entries, frame.exit.params[1:]):
+            if entry[0] == "recurrence":
+                rec_param_by_init[entry[2].vid] = param
+        for (cname, init), jv, param in zip(stmt.carried, stmt.join_results,
+                                            frame.exit.params):
+            if init.vid in rec_param_by_init:
+                exit_rec[jv.vid] = (init, rec_param_by_init[init.vid])
+                continue
+            if jv.vid in self._stage_out:
                 raise self._err(
                     loc, "while",
-                    f"carried '{cname}' has no value at the body end")
+                    f"a while-join value ('{jv.name}') cannot cross a "
+                    "pass boundary (the layout lane stages top-level "
+                    "values only)")
+            self.values[jv.vid] = param
+            for key in jv.scope_names():
+                names.define(key, jv)
+        if exit_rec:
+            self._ptr_recurrences.append(exit_rec)
+
+    # -- T014: the matrix regions ------------------------------------------------
+
+    def _dot_plan_of(self, op: tir.Op):
+        """The breadth plan of one TIR dot (the planner's decision as
+        data: the IME family for int8/fp16, the vector-FP32 path for
+        fp32 IEEE and bf16 -- with the budget-bounded chunk record)."""
+        from a100c.plan import tiles as tiles_mod
+        attrs = op.attrs
+        a, b = op.operands[0], op.operands[1]
+        names = {}
+        for key, attr in (("a_dtype", "a_dtype"), ("b_dtype", "b_dtype"),
+                          ("out_dtype", "out_dtype")):
+            name = _TILES_DTYPE_NAME.get(attrs.get(attr))
+            if name is None:
+                raise self._err(
+                    op.loc, "tl.dot",
+                    f"dot {attr} {attrs.get(attr)!r} is not a declared "
+                    "operand dtype (F037: the corpus dtype surface)")
+            names[key] = name
+        extents = []
+        for v, axis in ((a, 0), (a, 1), (b, 1)):
+            e = v.shape[axis].value
+            if not isinstance(e, int) or isinstance(e, bool):
+                raise self._err(
+                    op.loc, "tl.dot",
+                    f"the dot's block extents must be compile-time "
+                    f"(axis {axis} of the {('a', 'b')[v is b]} operand is "
+                    "runtime-symbolic)")
+            extents.append(e)
+        desc = tiles_mod.BreadthDotDescription(
+            a_dtype=names["a_dtype"], b_dtype=names["b_dtype"],
+            out_dtype=names["out_dtype"],
+            block_m=extents[0], block_n=extents[2], block_k=extents[1],
+            acc_mode=attrs.get("acc_mode", "zero"),
+            source="matrix-breadth")
+        try:
+            return tiles_mod.plan_dot_breadth(desc)
+        except tiles_mod.TilePlanError as exc:
+            raise self._err(op.loc, "tl.dot", str(exc)) from None
+
+    def _lower_matrix_segment(self, ctx: _Ctx, fn: tir.Function,
+                              op: tir.Op) -> None:
+        """Emit one top-level dot as a matrix segment: the operands are
+        staged regions, the result becomes a staged region, and the tile
+        pipeline (IME) or the FMA path (vector) runs between the passes."""
+        from a100c.lower import matrix as matrix_mod
+        loc = op.loc
+        a, b = op.operands[0], op.operands[1]
+        acc = op.operands[2] if len(op.operands) > 2 else None
+        result = op.results[0]
+        plan = self._dot_plans.get(result.vid)
+        if plan is None:
+            raise self._err(
+                loc, "tl.dot",
+                "the dot has no plan (the staging analysis and the "
+                "emission disagree)")
+        for v, name in ((a, "input"), (b, "other"), (acc, "acc")):
+            if v is not None and v.vid not in self._staged:
+                raise self._err(
+                    loc, "tl.dot",
+                    f"the dot operand '{name}' is not staged (the "
+                    "segmentation and the staging analysis disagree)")
+        if result.vid not in self._staged:
+            raise self._err(
+                loc, "tl.dot",
+                "the dot result is not staged (the segmentation and the "
+                "staging analysis disagree)")
+        spec = matrix_mod.ComposedDotSpec(
+            plan=plan,
+            a_rec=self._staged[a.vid], b_rec=self._staged[b.vid],
+            acc_rec=self._staged[acc.vid] if acc is not None else None,
+            res_rec=self._staged[result.vid],
+            block_m=plan.block_m, block_n=plan.block_n,
+            block_k=plan.block_k,
+            stage_off=self._matrix_stage_off
+            if plan.path == "ime" else None,
+            loc=loc)
+        iface = _MatrixIface(self, ctx, loc=loc)
+        record = matrix_mod.emit_composed_dot(iface, spec)
+        row = {"loc": str(loc)}
+        row.update(plan.describe())
+        row.update(record)
+        self._matrix_segments.append(row)
+
+    def _materialize_scalar_tree(self, ctx: _Ctx, v: tir.Value,
+                                 loc) -> mir.VReg:
+        """Re-emit a loop-invariant scalar tree at the current position.
+
+        The uniform-recurrence step's TIR statement sits inside the loop
+        body (the frontend lowers ``p += BK * s`` there), where its
+        register would not dominate the back edge; the tree is pure over
+        outside values (checked by the classification), so it re-emits at
+        the loop level -- constants and scalar binops/comparisons only;
+        anything else is a located refusal (a non-scalar or impure step
+        is not a uniform recurrence)."""
+        # NOTE: no register reuse here -- a value already lowered may sit
+        # in a block that does not dominate this position (the two-phase
+        # split re-emits regions; the reuse crossed emissions and the
+        # verifier rejected the use).  Constants and pure scalar trees
+        # re-materialize: the cost is one instruction each.
+        prod = v.producer
+        if prod is None:
+            return self._need(v, loc)
+        if prod.op == "const":
+            return scalar_mod.lower_const(ctx, prod.attrs["value"], v.type,
+                                          loc)
+        if prod.op in tir.BIN_ARITH or prod.op in tir.BIN_BITWISE:
+            lreg = self._materialize_scalar_tree(ctx, prod.operands[0], loc)
+            rreg = self._materialize_scalar_tree(ctx, prod.operands[1], loc)
+            if lreg.type.width != rreg.type.width:
+                if lreg.type.width < rreg.type.width:
+                    lreg = scalar_mod.widen_to(ctx, lreg, rreg.type.width,
+                                               loc)
+                else:
+                    rreg = scalar_mod.widen_to(ctx, rreg, lreg.type.width,
+                                               loc)
+            return scalar_mod.lower_binop(ctx, prod, lreg, rreg, loc)
+        if prod.op in tir.CMP_PREDS:
+            lreg = self._materialize_scalar_tree(ctx, prod.operands[0], loc)
+            rreg = self._materialize_scalar_tree(ctx, prod.operands[1], loc)
+            if lreg.type.width != rreg.type.width:
+                if lreg.type.width < rreg.type.width:
+                    lreg = scalar_mod.widen_to(ctx, lreg, rreg.type.width,
+                                               loc)
+                else:
+                    rreg = scalar_mod.widen_to(ctx, rreg, lreg.type.width,
+                                               loc)
+            return scalar_mod.lower_cmp(ctx, prod, lreg, rreg, loc)
+        raise self._err(
+            loc, "ptradd",
+            f"the uniform pointer recurrence's step ('{v.name}') is not "
+            f"a simple scalar tree ('{prod.op}' is not re-materializable "
+            "at the loop level)")
+
+    def _lower_matrix_region(self, ctx: _Ctx, stmt, fn: tir.Function,
+                             view_regs: Dict[str, mir.VReg]) -> None:
+        """Lower one dot-hosting runtime region (T014): the MIR loop (or
+        two-arm if) runs at the SEGMENT level -- outside any pass chunk
+        loop -- and the body's statements lower through their own passes,
+        matrix segments and layout segments.  Block values flow through
+        the workspace (the staged carries); uniform pointer recurrences
+        become scalar offset params (the address-recurrence repair)."""
+        loc = stmt.loc or fn.loc
+        if isinstance(stmt, tir.If):
+            self._lower_matrix_if(ctx, stmt, fn, view_regs)
+            return
+        if not self.options.matrix_loop_dots:
+            # T014's recorded boundary: the restructured loop's staged
+            # regions lose chunks beyond the first 256 bytes (a
+            # reproduced wrong-answer defect -- the oneloop/kloop probes
+            # in test_matrix_breadth.py's census).  Refusing loudly
+            # rather than miscompiling quietly (MECH-DIAGNOSTIC-REFUSAL);
+            # the switch exists so the reproduction and the repair's
+            # regression can execute the defective path deliberately.
+            raise self._err(
+                loc, "tl.dot",
+                "a dot inside a runtime loop is not enabled on this "
+                "build: the restructured loop's staged regions lose "
+                "chunks beyond the first 256 bytes (the reproduced "
+                "wrong-answer defect recorded with the task) -- a "
+                "located refusal, never a silent miscompile")
+        if not isinstance(stmt, tir.Loop):  # pragma: no cover - dispatch
+            raise self._err(loc, "tl.dot", "unknown matrix region form")
+        names = self._names
+        is_while = stmt.cond is not None
+        entries = self._classify_carried(stmt)
+        for entry in entries:
+            if entry[0] == "refused":
+                raise self._err(loc, "loop" if not is_while else "while",
+                                f"carried '{entry[1]}': {entry[3]}")
+            if entry[0] == "block":
+                raise self._err(
+                    loc, "tl.dot",
+                    f"a block value ('{entry[1]}') is carried across a "
+                    "dot-hosting loop without staging or a uniform "
+                    "pointer recurrence: the restructured loop cannot "
+                    "keep a block register (route it through the dot "
+                    "pipeline's accumulator chain or stage it)")
+        # the matrix region runs at the segment level: close any open pass
+        if self._chunk is not None:
+            self._close_pass(ctx, fn, None)
+        # the MIR loop params: the induction/cond + the scalar entries +
+        # one scalar offset param per recurrence entry (staged entries
+        # carry through the workspace: no param)
+        carried_inits: List[mir.VReg] = []
+        step_regs: List[mir.VReg] = []
+        param_entries: List[tuple] = []
+        for entry in entries:
+            if entry[0] == "recurrence":
+                carried_inits.append(ctx.const(
+                    0, mir.ScalarType(entry[3].type.width, signed=True),
+                    loc))
+                step_regs.append(
+                    self._materialize_scalar_tree(ctx, entry[3], loc))
+                param_entries.append(entry)
+            elif entry[0] == "staged":
+                continue                    # the workspace is the carry
+            else:
+                carried_inits.append(self._need(entry[2], loc))
+                param_entries.append(entry)
+        if is_while:
+            cond_init = self._bool_scalar(ctx, self._need(stmt.cond, loc),
+                                          loc)
+            frame = scalar_mod.begin_while_loop(ctx, cond_init,
+                                                carried_inits, loc,
+                                                self._tag("mwhile"))
+        else:
+            if stmt.lower is None or stmt.upper is None or stmt.step is None:
+                raise self._err(loc, "loop", "malformed matrix loop form")
+            lower = self._need(stmt.lower, loc)
+            upper = self._need(stmt.upper, loc)
+            step = self._need(stmt.step, loc)
+            frame = scalar_mod.begin_counted_loop(
+                ctx, lower, upper, carried_inits, loc, self._tag("mloop"))
+
+        override: Dict[int, mir.VReg] = {}
+        rec_layer: Dict[int, tuple] = {}
+        for entry, param in zip(param_entries, frame.params[1:]):
+            if entry[0] == "recurrence":
+                rec_layer[entry[2].vid] = (entry[2], param)
+            else:
+                override[entry[2].vid] = param
+        self._overrides.append(override)
+        self._ptr_recurrences.append(rec_layer)
+
+        names.push()
+        for (cname, init), param in zip(stmt.carried, frame.params):
+            names.define(cname, init)
+        self._region_depth += 1
+        self._matrix_depth += 1
+        saved_items = self._path_items
+        saved_sew, saved_vl = self._sew, self._vl
+        try:
+            body_segments = self._segment_region(
+                list(stmt.body.statements))
+            # the trailing SCALAR carried-name definitions hoist out of
+            # the passes (the induction increment, the while condition's
+            # re-evaluation and the scalar carries' final values must
+            # dominate the back edge; the staged carries flow through
+            # the workspace and the recurrence steps need no register,
+            # so their defining statements stay where they are)
+            end_names = self._tir_end_names(stmt.body.statements)
+            carry_ids = set()
+            head_v = end_names.get(stmt.carried[0][0])
+            if head_v is not None and head_v.producer is not None:
+                carry_ids.add(id(head_v.producer))
+            for entry in entries:
+                if entry[0] == "scalar":
+                    v = end_names.get(entry[1])
+                    if v is not None and v.producer is not None:
+                        carry_ids.add(id(v.producer))
+            if carry_ids:
+                body_segments = self._hoist_carry_stmts(body_segments,
+                                                        carry_ids)
+            self._emit_segments_list(ctx, fn, view_regs, body_segments,
+                                     close_all=True)
+        finally:
+            self._matrix_depth -= 1
+            self._region_depth -= 1
+            # the body's registers (items chaining, pass parameters, the
+            # cached workspace bases) do not dominate the loop exit: the
+            # post-loop segments restart from the pre-loop state
+            self._path_items = saved_items
+            self._sew, self._vl = saved_sew, saved_vl
+            self._ws_private = None
+            self._ws_shared = None
+            self._wid64 = None
+
+        # the back edge: the induction/cond + the scalar entries re-read
+        # from the body-end name binding; the recurrence offsets advance
+        # by their (invariant) step; the staged carries copy their
+        # body-end region into the init's region (the loop-carried
+        # memory phi)
+        back = []
+        head_v = names.get(stmt.carried[0][0])
+        if head_v is None:
+            raise self._err(loc, "matrix loop",
+                            f"carried '{stmt.carried[0][0]}' has no value "
+                            "at the body end")
+        back.append(self._need(head_v, loc)
+                    if not is_while else
+                    self._bool_scalar(ctx, self._need(head_v, loc), loc))
+        step_i = 0
+        for entry in entries:
+            if entry[0] == "recurrence":
+                param = frame.params[len(back)]
+                back.append(ctx.emit(mir.MOp(
+                    "sadd", [param, step_regs[step_i]],
+                    [ctx.vreg(param.type, hint="mof", loc=loc)], loc=loc)))
+                step_i += 1
+                continue
+            if entry[0] == "staged":
+                self._copy_staged_region(ctx, entry[3], entry[2], loc)
+                continue
+            v = names.get(entry[1])
+            if v is None:
+                raise self._err(loc, "matrix loop",
+                                f"carried '{entry[1]}' has no value at the "
+                                "body end")
             back.append(self._need(v, loc))
         scalar_mod.close_loop(ctx, frame, back)
         self._overrides.pop()
+        self._ptr_recurrences.pop()
         names.pop()
+        # the back edge's registers (the copy loop's cached workspace
+        # base among them) do not dominate the exit
+        self._ws_private = None
+        self._ws_shared = None
+        self._wid64 = None
 
         ctx.switch(frame.exit)
-        for value, param in zip(stmt.join_results, frame.exit.params):
-            if value.vid in self._stage_out:
-                raise self._err(
-                    loc, "layout",
-                    f"a while-join value ('{value.name}') cannot cross a "
-                    "pass boundary (the layout lane stages top-level "
-                    "values only)")
+        # the joins: carried[i] <-> join_results[i]; the exit params align
+        # with the NON-staged entries in order (staged entries carry
+        # through the workspace -- their joins alias the init's record,
+        # which the back-edge copy left holding the final value)
+        rec_param_by_init: Dict[int, mir.VReg] = {}
+        scalar_param_by_init: Dict[int, mir.VReg] = {}
+        for entry, param in zip(param_entries, frame.exit.params[1:]):
+            if entry[0] == "recurrence":
+                rec_param_by_init[entry[2].vid] = param
+            else:
+                scalar_param_by_init[entry[2].vid] = param
+        exit_rec: Dict[int, tuple] = {}
+        for i, ((cname, init), jv) in enumerate(zip(stmt.carried,
+                                                    stmt.join_results)):
+            if i == 0:
+                # the induction / condition join: the exit's first param
+                self.values[jv.vid] = frame.exit.params[0]
+                for key in jv.scope_names():
+                    names.define(key, jv)
+                continue
+            if init.vid in rec_param_by_init:
+                exit_rec[jv.vid] = (init, rec_param_by_init[init.vid])
+                continue
+            if init.vid in scalar_param_by_init:
+                self.values[jv.vid] = scalar_param_by_init[init.vid]
+                for key in jv.scope_names():
+                    names.define(key, jv)
+                continue
+            # a staged carry: the join aliases the init's record
+            self._staged[jv.vid] = self._staged[init.vid]
+            for key in jv.scope_names():
+                names.define(key, jv)
+        if exit_rec:
+            self._ptr_recurrences.append(exit_rec)
+
+    def _lower_matrix_if(self, ctx: _Ctx, stmt: tir.If, fn: tir.Function,
+                         view_regs: Dict[str, mir.VReg]) -> None:
+        """A dot-hosting if: the region splits at the segment level; each
+        arm lowers its own segments; block joins refuse (a staged value
+        defined on one arm only has no joined region -- a located
+        refusal)."""
+        loc = stmt.loc or fn.loc
+        names = self._names
+        if self._chunk is not None:
+            self._close_pass(ctx, fn, None)
+        if stmt.cond.rank != 0:
+            raise self._err(
+                loc, "tl.dot",
+                "a dot-hosting if with a BLOCK condition is not in the "
+                "matrix lane (the block condition needs the chunk region "
+                "the dot cannot share)")
+        cond = self._bool_scalar(ctx, self._need(stmt.cond, loc), loc)
+        tag = self._tag("mif")
+        frame = scalar_mod.begin_if(ctx, cond, loc, tag)
+        outer = dict(names.stack[-1])
+        arm_values = []
+        for block, arm in ((frame.then_block, stmt.then),
+                           (frame.else_block, stmt.els)):
+            ctx.switch(block)
+            names.push()
+            self._region_depth += 1
+            self._matrix_depth += 1
+            saved_items = self._path_items
+            saved_sew, saved_vl = self._sew, self._vl
+            try:
+                self._emit_segments_list(
+                    ctx, fn, view_regs,
+                    self._segment_region(list(arm.statements)),
+                    close_all=True)
+            finally:
+                self._matrix_depth -= 1
+                self._region_depth -= 1
+                self._path_items = saved_items
+                self._sew, self._vl = saved_sew, saved_vl
+                self._ws_private = None
+                self._ws_shared = None
+                self._wid64 = None
+            values = []
+            for name in stmt.join_names:
+                v = names.get(name)
+                if v is None:
+                    raise self._err(
+                        loc, "if",
+                        f"join '{name}' has no value at the end of an "
+                        "arm (the frontend and the verifier disagree)")
+                if v.rank > 0:
+                    raise self._err(
+                        loc, "tl.dot",
+                        f"join '{name}' is a BLOCK value defined across a "
+                        "dot-hosting if: a region join of staged values "
+                        "is not in the matrix lane (the untaken arm "
+                        "would leave the region unwritten)")
+                values.append(self._need(v, loc))
+            scalar_mod.close_arm(ctx, frame, f"{tag}.join", values)
+            arm_values.append(values)
+            names.pop()
+        params = scalar_mod.join_if(ctx, frame, f"{tag}.join", arm_values,
+                                    loc)
+        ctx.switch(ctx.blocks[f"{tag}.join"])
+        for value, param in zip(stmt.join_results, params):
             self.values[value.vid] = param
             for key in value.scope_names():
                 names.define(key, value)
+
+    def _copy_staged_region(self, ctx: _Ctx, src: tir.Value,
+                           dst: tir.Value, loc) -> None:
+        """The loop-carried memory phi: copy the body-end value's staged
+        region into the carried init's region (both standard-convention
+        regions: >= 32-bit lanes, indexed forms are safe)."""
+        src_rec = self._staged.get(src.vid)
+        dst_rec = self._staged.get(dst.vid)
+        if src_rec is None or dst_rec is None:
+            raise self._err(
+                loc, "tl.dot",
+                f"the staged carry '{dst.name}' has no staged region at "
+                "the back edge (the staging analysis and the emission "
+                "disagree)")
+        n = src_rec.get("extent")
+        if n != dst_rec.get("extent") or src_rec.get("esz") != \
+                dst_rec.get("esz") or src_rec.get("lane_sew") != \
+                dst_rec.get("lane_sew"):
+            raise self._err(
+                loc, "tl.dot",
+                f"the staged carry '{dst.name}' changes shape or width "
+                "across the loop (the regions must match for the "
+                "back-edge copy)")
+        esz = src_rec["esz"]
+        sew = src_rec["lane_sew"]
+        kind = "float" if src_rec["type"].is_float() else \
+            ("uint" if src_rec["type"].is_int_unsigned() else "int")
+        vl = min(32, self.target.vlmax(sew, 1))
+        while vl > 1 and n % vl:
+            vl //= 2
+        if n % vl:
+            vl = 1
+        native = bool(src_rec.get("native"))
+        ws = self._workspace_private_reg(ctx, loc)
+        from_off = ctx.const(src_rec["offset"], mir.I64, loc)
+        to_off = ctx.const(dst_rec["offset"], mir.I64, loc)
+        # a scalar loop over n/vl chunks of vl lanes; the chunk's byte
+        # offset is i*esz (i counts lanes)
+        i_init = ctx.const(0, mir.I32, loc)
+        n_reg = ctx.const(n, mir.I32, loc)
+        vl_reg = ctx.const(vl, mir.I32, loc)
+        frame = scalar_mod.begin_counted_loop(
+            ctx, i_init, n_reg, [], loc, self._tag("mcarry"))
+        i_p = frame.params[0]
+        sb = ctx.emit(mir.MOp(
+            "sadd", [ws, from_off],
+            [ctx.vreg(mir.I64, hint="cvs", loc=loc)], loc=loc))
+        db = ctx.emit(mir.MOp(
+            "sadd", [ws, to_off],
+            [ctx.vreg(mir.I64, hint="cvd", loc=loc)], loc=loc))
+        if native:
+            # the sub-32 native records copy through the unit-stride
+            # forms at scalar addresses (the narrow indexed forms crash
+            # the pinned QEMU)
+            elem64 = scalar_mod.widen_to(ctx, i_p, 64, loc)
+            byteoff = ctx.emit(mir.MOp(
+                "smul", [elem64, ctx.const(esz, mir.I64, loc)],
+                [ctx.vreg(mir.I64, hint="cvb", loc=loc)], loc=loc))
+            sa = ctx.emit(mir.MOp(
+                "sadd", [sb, byteoff],
+                [ctx.vreg(mir.I64, hint="cva", loc=loc)], loc=loc))
+            da = ctx.emit(mir.MOp(
+                "sadd", [db, byteoff],
+                [ctx.vreg(mir.I64, hint="cve", loc=loc)], loc=loc))
+            vtype = mir.VectorType(sew, 1, kind)
+            self._vregion(ctx, vtype, loc, vl=vl)
+            opcode = "vuload8" if sew == 8 else "vuload16"
+            val = ctx.emit(mir.MOp(
+                opcode, [sa],
+                [ctx.vreg(vtype, hint="cvl", loc=loc)], loc=loc))
+            ctx.emit0(mir.MOp(
+                "vustore8" if sew == 8 else "vustore16", [da, val], [],
+                loc=loc))
+            self._restore_region(ctx, loc)
+        else:
+            # the standard convention: indexed forms (>= 32-bit lanes)
+            self._vregion(ctx, mir.VectorType(sew, 1, kind), loc, vl=vl)
+            ity = mir.VectorType(32, 1, "int")
+            self._vregion(ctx, ity, loc, vl=vl)
+            vid = ctx.emit(mir.MOp(
+                "vid", [], [ctx.vreg(ity, hint="cvd2", loc=loc)], loc=loc))
+            chunk_elem = ctx.emit(mir.MOp(
+                "sdivu", [i_p, vl_reg],
+                [ctx.vreg(mir.I32, hint="cvc", loc=loc)], loc=loc))
+            idx = ctx.emit(mir.MOp(
+                "vbinx", [vid, chunk_elem],
+                [ctx.vreg(ity, hint="cvx", loc=loc)], attrs={"op": "add"},
+                loc=loc))
+            scaled, _ = self._ws_scaled(ctx, idx, esz, loc, vl)
+            self._vregion(ctx, mir.VectorType(sew, 1, kind), loc, vl=vl)
+            val = ctx.emit(mir.MOp(
+                "vloadix", [sb, scaled],
+                [ctx.vreg(mir.VectorType(sew, 1, kind), hint="cvl",
+                          loc=loc)],
+                attrs={"eew": 64, "sew": sew}, loc=loc))
+            ctx.emit0(mir.MOp(
+                "vstoreix", [db, scaled, val], [],
+                attrs={"eew": 64, "sew": sew}, loc=loc))
+            self._restore_region(ctx, loc)
+        i2 = ctx.emit(mir.MOp(
+            "sadd", [i_p, vl_reg],
+            [ctx.vreg(mir.I32, hint="cvn", loc=loc)], loc=loc))
+        scalar_mod.close_loop(ctx, frame, [i2])
+        ctx.switch(frame.exit)
 
     # -- one TIR op --------------------------------------------------------------
     def _lower_tir_op(self, ctx: _Ctx, op: tir.Op, fn: tir.Function,
@@ -3262,6 +4489,18 @@ class SliceLowering:
         loc = op.loc
         code = op.op
 
+        if code == "linalg.dot":
+            # the matrix lane owns the dot: the segmentation routes it to
+            # a matrix segment (its own workspace tile pipeline).  Reaching
+            # this dispatch means the dot sits somewhere the segmentation
+            # did not restructure (inside an if-arm, a non-dot loop, ...) --
+            # a located refusal, never a chunk-sliced wrong answer.
+            raise self._err(
+                loc, "tl.dot",
+                "a dot inside this region form is not in the matrix lane "
+                "(the dot needs its whole operand blocks: it must sit at "
+                "a segment top level -- a dot inside an if-arm or an "
+                "unrestructured loop is a located refusal)")
         if code == "program_id":
             axis = op.attrs["axis"]
             reg = self._pid_axis_regs.get(axis)
@@ -3423,6 +4662,17 @@ class SliceLowering:
                 "the layout lane (the staging loops lower top-level layout "
                 "ops only)")
         if code == "ptradd":
+            base, offset = op.operands
+            if self._recurrence_of(base) is not None:
+                # the uniform pointer recurrence's back-edge step: the
+                # carried pointer's value IS the recurrence (no register
+                # exists); the loop's back edge advances the scalar offset
+                # param instead.  The result keeps only its name binding
+                # (the back edge and the join read it through the frame).
+                if self._names is not None:
+                    for key in op.results[0].scope_names():
+                        self._names.define(key, op.results[0])
+                return
             self.pointer_ops[op.results[0].vid] = op
             self.values[op.results[0].vid] = self._need(op.operands[0], loc)
             return
@@ -5101,6 +6351,37 @@ class SliceLowering:
         return reg
 
     # -- memory ops --------------------------------------------------------------
+    def _recurrence_byte_adjust(self, ctx: _Ctx, ptr: tir.Value,
+                               pointee: tir.Type, loc) -> mir.VReg:
+        """The uniform pointer recurrences' byte adjustment of one access:
+        every active layer over the pointer's chain adds its scalar
+        offset (in elements) scaled by the pointee size.  The WIDE
+        (unit-stride) access path bypasses _address_of, so it must apply
+        the same adjustment the indexed path does (the pre-repair
+        miscompile: the proof's scalar terms never see the carried
+        step)."""
+        esz = pointee.bitwidth() // 8
+        rec_offsets: List[mir.VReg] = []
+        node = ptr
+        while True:
+            rec_offsets.extend(self._active_recurrence_offsets(node))
+            if node.producer is None or node.producer.op != "ptradd":
+                break
+            node = node.producer.operands[0]
+        if not rec_offsets:
+            return None
+        total = ctx.const(0, mir.I64, loc)
+        for extra in rec_offsets:
+            wide = scalar_mod.widen_to(ctx, extra, 64, loc) \
+                if extra.type.width != 64 else extra
+            scaled = ctx.emit(mir.MOp(
+                "smul", [wide, ctx.const(esz, mir.I64, loc)],
+                [ctx.vreg(mir.I64, hint="rwb", loc=loc)], loc=loc))
+            total = ctx.emit(mir.MOp(
+                "sadd", [total, scaled],
+                [ctx.vreg(mir.I64, hint="rwa", loc=loc)], loc=loc))
+        return total
+
     def _address_of(self, ctx: _Ctx, ptr: tir.Value, loc):
         """Resolve one TIR pointer value to (base reg, offset reg, pointee).
 
@@ -5109,10 +6390,33 @@ class SliceLowering:
         off) in one expression -- never accumulated one dimension at a
         time (FE-ADDRESS-EXPRESSIONS, IR-LOWERING-CONTRACT).  A bare
         pointer parameter (``tl.load(w_ptr)``) is the zero-offset form.
+
+        T014 (the uniform pointer-recurrence repair): when the chain
+        passes a loop-carried pointer block whose back edge is a uniform
+        ``p += step``, the carried value has no register (a vector of
+        addresses cannot be an MIR loop param alongside the whole-tree
+        scalar-base address form).  Every active recurrence layer's
+        scalar offset param is added to the tree sum instead -- the
+        carried pointer at iteration i addresses exactly ``tree + i *
+        step``, which is what the source recurrence computes.  A JOIN
+        use of a carried pointer resolves through the frame's init value
+        (the static tree) plus the exit offset register.
         """
+        # a join (or bare) use of a carried pointer: the static chain is
+        # the frame's init value; the walk below adds the offsets
+        if ptr.producer is None or \
+                ptr.producer.op not in ("ptradd", "bitcast", "hint",
+                                        "select.where"):
+            rec = self._recurrence_of(ptr)
+            if rec is not None:
+                ptr = rec[0]
         offsets = []
+        rec_offsets: List[mir.VReg] = []
         node = ptr
-        while node.producer is not None and node.producer.op == "ptradd":
+        while True:
+            rec_offsets.extend(self._active_recurrence_offsets(node))
+            if node.producer is None or node.producer.op != "ptradd":
+                break
             base_value, offset_value = node.producer.operands
             offsets.append(offset_value)
             node = base_value
@@ -5132,7 +6436,40 @@ class SliceLowering:
         if not offsets:
             offset_reg = ctx.const(0, mir.I32, loc)
         else:
-            offset_reg = self._sum_offsets(ctx, list(reversed(offsets)), loc)
+            offset_reg = self._sum_offsets(ctx, list(reversed(offsets)),
+                                           loc)
+        for extra in rec_offsets:
+            if offset_reg.is_vector():
+                # the tree's index class is a vector: the scalar offset
+                # adds lane-wise (the region discipline of _sum_offsets)
+                if extra.type.width > offset_reg.type.sew:
+                    raise self._err(
+                        loc, "ptradd",
+                        f"recurrence offset width {extra.type.width} "
+                        f"exceeds the vector index SEW "
+                        f"{offset_reg.type.sew}")
+                switched = self._open_region(ctx, offset_reg.type, loc)
+                try:
+                    offset_reg = ctx.emit(mir.MOp(
+                        "vbinx", [offset_reg, extra],
+                        [ctx.vreg(offset_reg.type, hint="rof",
+                                  loc=loc)],
+                        attrs={"op": "add"}, loc=loc))
+                finally:
+                    if switched:
+                        self._restore_region(ctx, loc)
+            else:
+                if offset_reg.type.width < extra.type.width:
+                    offset_reg = scalar_mod.widen_to(ctx, offset_reg,
+                                                     extra.type.width, loc)
+                elif extra.type.width < offset_reg.type.width:
+                    extra = scalar_mod.widen_to(ctx, extra,
+                                                offset_reg.type.width,
+                                                loc)
+                offset_reg = ctx.emit(mir.MOp(
+                    "sadd", [offset_reg, extra],
+                    [ctx.vreg(offset_reg.type, hint="rof", loc=loc)],
+                    loc=loc))
         return base_reg, offset_reg, node.type.pointee
 
     def _sum_offsets(self, ctx: _Ctx, values, loc) -> mir.VReg:
@@ -5226,6 +6563,14 @@ class SliceLowering:
         unit_base = self._unit_stride_base(ctx, wide, base_reg, pointee,
                                            loc) if wide is not None else None
         if unit_base is not None:
+            # T014: the unit-stride base must carry the uniform pointer
+            # recurrences' adjustment (the proof's scalar terms do not
+            # see the carried step)
+            adjust = self._recurrence_byte_adjust(ctx, ptr, pointee, loc)
+            if adjust is not None:
+                unit_base = ctx.emit(mir.MOp(
+                    "sadd", [unit_base, adjust],
+                    [ctx.vreg(mir.I64, hint="wra", loc=loc)], loc=loc))
             rtype = self._vtype(op.results[0].type)
             self._vregion(ctx, rtype, loc)
             operands = [unit_base]
@@ -5243,6 +6588,20 @@ class SliceLowering:
             self._wide_selections.append(
                 {"op": "load", "source": wide.source,
                  "detail": wide.detail, "loc": str(loc)})
+        elif self._sew < 32:
+            # T014: the narrow-data fallback -- an unproven-contiguous
+            # sub-32-bit block load lowers as a per-lane scalar loop
+            # through the workspace (every indexed form with sub-32-bit
+            # data faults the pinned QEMU, probed across index widths
+            # and register assignments; the width-matched scalar loads
+            # are the slice's proven safe form).  The masked form
+            # performs no access at disabled lanes and writes the
+            # declared ``other`` there.
+            reg = self._lower_load_narrow(ctx, op, base_reg, offset_reg,
+                                          pointee, mreg, other, default,
+                                          loc)
+            self._bind_result(op, reg)
+            return
         else:
             scaled, tree = addr_mod.materialize_address(
                 ctx, base_reg, offset_reg, pointee, loc, self._vl,
@@ -5277,6 +6636,212 @@ class SliceLowering:
                 "vsel", [v0, reg, oreg],
                 [ctx.vreg(reg.type, hint="ldo", loc=loc)], loc=loc))
         self._bind_result(op, reg)
+
+    # -- T014: the narrow-data load/store fallback ------------------------------
+
+    def _narrow_lane0(self, ctx: _Ctx, reg: mir.VReg, loc) -> mir.VReg:
+        """Lane 0 of a vector as a scalar (the slide+extract step of the
+        per-lane scalar loop; the op runs in the VALUE's own region --
+        the offsets ride e64m2 while the data region is narrower)."""
+        self._vregion(ctx, reg.type, loc)
+        sty = mir.ScalarType(reg.type.sew, signed=reg.type.kind != "uint",
+                             float=reg.type.kind == "float")
+        out = ctx.emit(mir.MOp(
+            "vextract", [reg], [ctx.vreg(sty, hint="nl0", loc=loc)],
+            loc=loc))
+        return out
+
+    def _narrow_slide(self, ctx: _Ctx, reg: mir.VReg, loc) -> mir.VReg:
+        """Slide one lane down (the per-lane walk; the value's own
+        region)."""
+        self._vregion(ctx, reg.type, loc)
+        return ctx.emit(mir.MOp(
+            "vslidedn", [reg],
+            [ctx.vreg(reg.type, hint="nsl", loc=loc)], loc=loc))
+
+    def _narrow_mask01(self, ctx: _Ctx, mreg: mir.VReg,
+                       rtype: mir.VectorType, loc) -> mir.VReg:
+        """The mask as a 0/1 vector at SEW 32 (the per-lane activity --
+        32-bit so the extracted lane scalar widens to i64 in the scalar
+        core; independent of the data SEW)."""
+        i32 = mir.VectorType(32, 1, "int")
+        self._vregion(ctx, i32, loc)
+        zero = self._splat_const(ctx, 0, i32, loc)
+        one = self._splat_const(ctx, 1, i32, loc)
+        v0 = ctx.emit(mir.MOp(
+            "vmovmask", [mreg],
+            [ctx.vreg(mir.MaskType(), hint="nm0", loc=loc,
+                      fixed_phys="v0")], loc=loc))
+        out = ctx.emit(mir.MOp(
+            "vsel", [v0, one, zero],
+            [ctx.vreg(i32, hint="nm1", loc=loc)], loc=loc))
+        return out
+
+    def _narrow_addr_vec(self, ctx: _Ctx, base_reg: mir.VReg,
+                          scaled: mir.VReg, m01: Optional[mir.VReg],
+                          redirect: mir.VReg, loc) -> mir.VReg:
+        """The per-lane byte addresses as ONE vector (T014): the masked
+        form redirects disabled lanes to the scratch slot (the
+        block-atomic carrier form -- no source access, no per-lane
+        branch): ``redirect + (base + off - redirect) & -active``."""
+        aty = scaled.type                     # (64, lmul)
+        self._vregion(ctx, aty, loc)
+        addr = ctx.emit(mir.MOp(
+            "vbinx", [scaled, base_reg],
+            [ctx.vreg(aty, hint="nva", loc=loc)], attrs={"op": "add"},
+            loc=loc))
+        if m01 is None:
+            return addr
+        # the activity at the address class: 0/1 i32 -> i64, negated
+        m32 = m01.type
+        self._vregion(ctx, m32, loc)
+        m64 = ctx.emit(mir.MOp(
+            "vwiden", [m01],
+            [ctx.vreg(mir.VectorType(64, m32.lmul * 2, "int"),
+                      hint="nvw", loc=loc)],
+            attrs={"mode": "zext"}, loc=loc))
+        self._vregion(ctx, aty, loc)
+        zero = self._splat_reg(ctx, ctx.const(0, mir.I64, loc), aty, loc)
+        neg = ctx.emit(mir.MOp(
+            "vbin", [zero, m64],
+            [ctx.vreg(aty, hint="nvn", loc=loc)], attrs={"op": "sub"},
+            loc=loc))
+        red_s = self._splat_reg(ctx, redirect, aty, loc)
+        diff = ctx.emit(mir.MOp(
+            "vbin", [addr, red_s],
+            [ctx.vreg(aty, hint="nvd", loc=loc)], attrs={"op": "sub"},
+            loc=loc))
+        sel = ctx.emit(mir.MOp(
+            "vbin", [diff, neg],
+            [ctx.vreg(aty, hint="nvs", loc=loc)], attrs={"op": "and"},
+            loc=loc))
+        out = ctx.emit(mir.MOp(
+            "vbin", [red_s, sel],
+            [ctx.vreg(aty, hint="nvo", loc=loc)], attrs={"op": "add"},
+            loc=loc))
+        self._restore_region(ctx, loc)
+        return out
+
+    def _lower_load_narrow(self, ctx: _Ctx, op: tir.Op, base_reg: mir.VReg,
+                           offset_reg: mir.VReg, pointee: tir.Type,
+                           mreg: Optional[mir.VReg], other, default,
+                           loc) -> mir.VReg:
+        """The per-lane scalar loop of one sub-32-bit block load (the
+        address vector's lanes redirect the disabled ones to the
+        scratch's ``other`` slot -- no source access there; the width-
+        matched scalar loads are the slice's proven safe form)."""
+        rtype = self._vtype(op.results[0].type)
+        sew = rtype.sew
+        esz = sew // 8
+        vl = self._vl
+        scaled, tree = addr_mod.materialize_address(
+            ctx, base_reg, offset_reg, pointee, loc, vl, (self._sew, 1))
+        self.trees.append(tree)
+        ws = self._workspace_private_reg(ctx, loc)
+        scratch = ctx.emit(mir.MOp(
+            "sadd", [ws, ctx.const(self._narrow_ws_offset, mir.I64, loc)],
+            [ctx.vreg(mir.I64, hint="nws", loc=loc)], loc=loc))
+        redirect = ctx.emit(mir.MOp(
+            "sadd", [scratch, ctx.const(32 * 4, mir.I64, loc)],
+            [ctx.vreg(mir.I64, hint="nwr", loc=loc)], loc=loc))
+        sty = mir.ScalarType(sew, signed=True, float=rtype.kind == "float")
+        m01 = self._narrow_mask01(ctx, mreg, rtype, loc) \
+            if mreg is not None else None
+        # the disabled lanes' declared default, staged into the redirect
+        # slot (a splat scalar stores once; a block other stores per lane
+        # off the address-class slide below)
+        ovec = None
+        if mreg is not None:
+            if other is not None or default == tir.MaskedDefault.VALUE:
+                oreg = self._need(other, loc)
+                if oreg.is_vector():
+                    ovec = oreg
+                else:
+                    ctx.emit0(mir.MOp(
+                        "sstore", [redirect, oreg], [],
+                        attrs={"width": sew, "offset": 0}, loc=loc))
+            else:
+                zero = ctx.const(0, sty, loc)
+                ctx.emit0(mir.MOp(
+                    "sstore", [redirect, zero], [],
+                    attrs={"width": sew, "offset": 0}, loc=loc))
+        addr_vec = self._narrow_addr_vec(ctx, base_reg, scaled, m01,
+                                         redirect, loc)
+        off = addr_vec
+        for j in range(vl):
+            addr = self._narrow_lane0(ctx, off, loc)
+            slot = ctx.emit(mir.MOp(
+                "sadd", [scratch, ctx.const(j * esz, mir.I64, loc)],
+                [ctx.vreg(mir.I64, hint="nls", loc=loc)], loc=loc))
+            if ovec is not None:
+                oval = self._narrow_lane0(ctx, ovec, loc)
+                ctx.emit0(mir.MOp(
+                    "sstore", [redirect, oval], [],
+                    attrs={"width": sew, "offset": 0}, loc=loc))
+                ovec = self._narrow_slide(ctx, ovec, loc)
+            val = ctx.emit(mir.MOp(
+                "sload", [addr],
+                [ctx.vreg(sty, hint="nlv", loc=loc)],
+                attrs={"width": sew, "offset": 0, "ext": "zext"},
+                loc=loc))
+            ctx.emit0(mir.MOp(
+                "sstore", [slot, val], [],
+                attrs={"width": sew, "offset": 0}, loc=loc))
+            off = self._narrow_slide(ctx, off, loc)
+        self._vregion(ctx, rtype, loc)
+        return ctx.emit(mir.MOp(
+            "vunit_load", [scratch],
+            [ctx.vreg(rtype, hint="nld", loc=loc)],
+            attrs={"sew": sew}, loc=loc))
+
+    def _lower_store_narrow(self, ctx: _Ctx, base_reg: mir.VReg,
+                            offset_reg: mir.VReg, pointee: tir.Type,
+                            vreg: mir.VReg, mask_reg: Optional[mir.VReg],
+                            loc) -> Optional[mir.VReg]:
+        """The per-lane scalar loop of one sub-32-bit block store (the
+        value staged to the workspace first; disabled lanes redirect to
+        the scratch's guard slot -- no source access)."""
+        stype = vreg.type if vreg.is_vector() else \
+            self._vtype(vreg.type)
+        sew = stype.sew
+        esz = sew // 8
+        vl = self._vl
+        scaled, tree = addr_mod.materialize_address(
+            ctx, base_reg, offset_reg, pointee, loc, vl, (self._sew, 1))
+        self.trees.append(tree)
+        ws = self._workspace_private_reg(ctx, loc)
+        scratch = ctx.emit(mir.MOp(
+            "sadd", [ws, ctx.const(self._narrow_ws_offset, mir.I64, loc)],
+            [ctx.vreg(mir.I64, hint="nws", loc=loc)], loc=loc))
+        redirect = ctx.emit(mir.MOp(
+            "sadd", [scratch, ctx.const(32 * 4, mir.I64, loc)],
+            [ctx.vreg(mir.I64, hint="nwr", loc=loc)], loc=loc))
+        self._vregion(ctx, stype, loc)
+        ctx.emit0(mir.MOp(
+            "vunit_store", [scratch, vreg], [],
+            attrs={"sew": sew}, loc=loc))
+        m01 = self._narrow_mask01(ctx, mask_reg, stype, loc) \
+            if mask_reg is not None else None
+        addr_vec = self._narrow_addr_vec(ctx, base_reg, scaled, m01,
+                                         redirect, loc)
+        off = addr_vec
+        for j in range(vl):
+            addr = self._narrow_lane0(ctx, off, loc)
+            slot = ctx.emit(mir.MOp(
+                "sadd", [scratch, ctx.const(j * esz, mir.I64, loc)],
+                [ctx.vreg(mir.I64, hint="nss", loc=loc)], loc=loc))
+            val = ctx.emit(mir.MOp(
+                "sload", [slot],
+                [ctx.vreg(mir.ScalarType(sew, signed=True,
+                                         float=stype.kind == "float"),
+                          hint="nsv", loc=loc)],
+                attrs={"width": sew, "offset": 0, "ext": "zext"},
+                loc=loc))
+            ctx.emit0(mir.MOp(
+                "sstore", [addr, val], [],
+                attrs={"width": sew, "offset": 0}, loc=loc))
+            off = self._narrow_slide(ctx, off, loc)
+        return mask_reg
 
     def _unit_stride_base(self, ctx: _Ctx, wide, base_reg: mir.VReg,
                           pointee: tir.Type, loc) -> Optional[mir.VReg]:
@@ -5339,6 +6904,13 @@ class SliceLowering:
         unit_base = self._unit_stride_base(ctx, wide, base_reg, pointee,
                                            loc) if wide is not None else None
         if unit_base is not None:
+            # T014: the store's unit-stride base carries the same
+            # recurrence adjustment
+            adjust = self._recurrence_byte_adjust(ctx, ptr, pointee, loc)
+            if adjust is not None:
+                unit_base = ctx.emit(mir.MOp(
+                    "sadd", [unit_base, adjust],
+                    [ctx.vreg(mir.I64, hint="wrs", loc=loc)], loc=loc))
             stype = vreg.type if vreg.is_vector() else \
                 self._vtype(op.operands[1].type)
             self._vregion(ctx, stype, loc)
@@ -5357,6 +6929,13 @@ class SliceLowering:
                 {"op": "store", "source": wide.source,
                  "detail": wide.detail, "loc": str(loc)})
             return mask_reg
+        if self._sew < 32:
+            # T014: the narrow-data fallback (the store half): the value
+            # goes to the workspace scratch, then per-lane scalar stores
+            # perform the writes the indexed form cannot (no access at
+            # disabled lanes)
+            return self._lower_store_narrow(ctx, base_reg, offset_reg,
+                                            pointee, vreg, mask_reg, loc)
         scaled, tree = addr_mod.materialize_address(
             ctx, base_reg, offset_reg, pointee, loc, self._vl, (self._sew, 1))
         self.trees.append(tree)
@@ -5442,6 +7021,8 @@ def lower_to_mir(tir_module: tir.Module, plan: ExecutionPlan,
     module = lowering.lower()
     module.meta["sew"] = lowering._sew
     module.meta["block_extent"] = plan.block_extent
+    module.meta["matrix_segments"] = list(lowering._matrix_segments)
+    module.meta["matrix_staging_offset"] = lowering._matrix_stage_off
     module.meta["chunks"] = [[vl, n] for vl, n in plan.chunks]
     module.meta["address_trees"] = [t.describe() for t in lowering.trees]
     module.meta["wide_selections"] = list(lowering._wide_selections)

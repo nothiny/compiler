@@ -97,6 +97,8 @@ __all__ = [
     "MatrixOptions", "DotBinding", "dot_binding", "lower_dot",
     "verify_module", "verify", "IME_OPCODES", "ime_repertoire_rows",
     "IMEInvariant",
+    # the composed pipeline's dot segment (T014)
+    "ComposedDotSpec", "emit_composed_dot",
 ]
 
 
@@ -1558,3 +1560,564 @@ def lower_dot(plan: DotPlan, binding: DotBinding, target: TargetModel,
     raise MatrixLoweringError(
         None, "dot", f"plan path {plan.path!r} is not a declared lowering "
         "path (ime | vector-fp32)")
+
+
+# ---------------------------------------------------------------------------
+# The composed pipeline's dot segment (T014: the matrix-breadth lane)
+#
+# One ``linalg.dot`` inside a kernel lowers as a SEGMENT between the
+# vectorize passes: the operands arrive as staged block values (flat,
+# compile-time-shaped regions in the worker-private workspace) and the
+# result becomes a staged value the epilogue consumes.  Everything here
+# reads the workspace through unit-stride or scalar forms at compiler-known
+# addresses -- the narrow-data indexed forms the pinned QEMU crashes on
+# (the probed e8/e16 + e64m2 constraint recorded in the staging analysis)
+# never appear.
+#
+# The IME path reuses the slice's proven tile structure (staging rows with
+# masked loads + zero merges, the column-major B pack, the m2 accumulator
+# chaining through the K loop); the vector path is the budget-bounded FMA
+# form (fp32 IEEE -- no tf32 anywhere on this input path, F052 -- and the
+# BF16 widening, exact by construction).
+# ---------------------------------------------------------------------------
+
+
+from dataclasses import dataclass as _dataclass, field as _field
+
+from a100c.plan.tiles import BreadthDotPlan
+
+
+@_dataclass
+class ComposedDotSpec:
+    """The composed-path dot contract: the plan, the staged-region
+    records (offset/extent/element-size/lane width) and the compile-time
+    block extents."""
+
+    plan: BreadthDotPlan
+    a_rec: dict
+    b_rec: dict
+    acc_rec: Optional[dict]
+    res_rec: dict
+    block_m: int
+    block_n: int
+    block_k: int
+    #: the transient staging area's byte offset in the private workspace
+    #: (the dense A/B tiles and the C accumulator staging; 512B when any
+    #: IME dot exists -- reserved by the lowering's workspace accounting)
+    stage_off: Optional[int] = None
+    loc: object = None
+
+
+class _Composed:
+    """One composed dot emission over the vectorize lowering's interface.
+
+    The interface (constructed by ``a100c/lower/vectorize.py``) supplies
+    the emission context, the private workspace base, region control, the
+    scalar loop forms, unique block tags and the 16-bit float conversions
+    -- the same services the slice's own ``_Ctx`` provides, so the tile
+    pipeline below is the slice's structure against the composed
+    program's address space.
+    """
+
+    def __init__(self, iface, spec: ComposedDotSpec):
+        self.if_ = iface
+        self.spec = spec
+        self.plan = spec.plan
+        fam = plan = self.plan
+        self.ime = plan.path == "ime"
+        if self.ime:
+            fam = plan.family
+            self.tm, self.tn, self.tk = fam.tile_m, fam.tile_n, fam.tile_k
+            self.mt = (spec.block_m + self.tm - 1) // self.tm
+            self.nt = (spec.block_n + self.tn - 1) // self.tn
+            self.in_sew = fam.in_width
+            self.esz = fam.in_width // 8
+            self.row_bytes = self.tk * self.esz      # 16 for both families
+            self.tile_lanes = 128 // self.esz        # the m1 tile register
+            self.in_type = mir.VectorType(
+                fam.in_width, 1,
+                "float" if fam.in_kind == "float"
+                else ("uint" if not plan.a_signed else "int"))
+            self.inb_type = mir.VectorType(
+                fam.in_width, 1,
+                "float" if fam.in_kind == "float"
+                else ("uint" if not plan.b_signed else "int"))
+            self.acc_type = mir.VectorType(fam.acc_sew, fam.mul_c,
+                                           fam.acc_kind)
+        self.M, self.N, self.K = spec.block_m, spec.block_n, spec.block_k
+        self.vt32m1 = mir.VectorType(32, 1, "int")
+        #: per-block constant cache (T014: the GPR live-set stays flat)
+        self._kcache: dict = {}
+
+    # -- the interface's small helpers (the slice's forms) -----------------
+    def _k(self, v: int):
+        """An i64 constant, materialized once per BLOCK (the composed
+        segment's bodies re-use a handful of distinct tile constants
+        dozens of times; per-block reuse keeps the GPR live set flat --
+        constants are pure, so a later block simply re-emits)."""
+        key = ("k", v, id(self.if_.ctx.cur))
+        reg = self._kcache.get(key)
+        if reg is None:
+            reg = self.if_.const(v, mir.I64, self.spec.loc)
+            self._kcache[key] = reg
+        return reg
+
+    def _k32(self, v: int):
+        key = ("k32", v, id(self.if_.ctx.cur))
+        reg = self._kcache.get(key)
+        if reg is None:
+            reg = self.if_.const(v, mir.I32, self.spec.loc)
+            self._kcache[key] = reg
+        return reg
+
+    def _sbin(self, code, a, b, hint):
+        return self.if_.emit(mir.MOp(
+            code, [a, b], [self.if_.vreg(a.type, hint=hint,
+                                        loc=self.spec.loc)],
+            loc=self.spec.loc))
+
+    def _sadd(self, a, b, hint="sa"):
+        return self._sbin("sadd", a, b, hint)
+
+    def _ssub(self, a, b, hint="ss"):
+        return self._sbin("ssub", a, b, hint)
+
+    def _smul(self, a, b, hint="sm"):
+        return self._sbin("smul", a, b, hint)
+
+    def _sand(self, a, b, hint="snd"):
+        return self._sbin("sand", a, b, hint)
+
+    def _slt(self, a, b, hint="slt"):
+        return self.if_.emit(mir.MOp(
+            "slt", [a, b], [self.if_.vreg(mir.I64, hint=hint,
+                                          loc=self.spec.loc)],
+            loc=self.spec.loc))
+
+    def _sltu(self, a, b, hint="sltu"):
+        return self.if_.emit(mir.MOp(
+            "sltu", [a, b], [self.if_.vreg(mir.I64, hint=hint,
+                                           loc=self.spec.loc)],
+            loc=self.spec.loc))
+
+    def _sdivu(self, a, b, hint="sdv"):
+        return self._sbin("sdivu", a, b, hint)
+
+    def _smin(self, a, b, hint="smn"):
+        """min(a, b) = a + ((b - a) & -(a < b)) -- i64."""
+        c = self._slt(a, b)
+        zero = self._k(0)
+        mask = self._ssub(zero, c, "mnk")
+        diff = self._ssub(b, a, "mnd")
+        sel = self._sand(diff, mask, "mns")
+        return self._sadd(a, sel, hint)
+
+    def _guard(self, cond01, raw, hint="grd"):
+        """raw if cond01 else 0 (i64): raw & -cond."""
+        zero = self._k(0)
+        mask = self._ssub(zero, cond01, hint + "g")
+        return self._sand(raw, mask, hint + "b")
+
+    def _narrow32(self, reg, hint):
+        return self.if_.emit(mir.MOp(
+            "strunc", [reg],
+            [self.if_.vreg(mir.I32, hint=hint, loc=self.spec.loc)],
+            loc=self.spec.loc))
+
+    def _sload(self, base, offset, width, ext, hint):
+        mtype = mir.I64 if width == 64 else \
+            mir.ScalarType(width, signed=(ext == "sext"))
+        return self.if_.emit(mir.MOp(
+            "sload", [base], [self.if_.vreg(mtype, hint=hint,
+                                            loc=self.spec.loc)],
+            attrs={"width": width, "offset": offset, "ext": ext},
+            loc=self.spec.loc))
+
+    def _splat(self, scalar, vtype, hint):
+        return self.if_.emit(mir.MOp(
+            "s2v", [scalar], [self.if_.vreg(vtype, hint=hint,
+                                            loc=self.spec.loc)],
+            loc=self.spec.loc))
+
+    def _vid(self, vl, hint):
+        self.if_.region(32, 1, vl, self.spec.loc)
+        return self.if_.emit(mir.MOp(
+            "vid", [], [self.if_.vreg(self.vt32m1, hint=hint,
+                                      loc=self.spec.loc)],
+            loc=self.spec.loc))
+
+    def _mask_lt(self, vid, bound32, hint, vl):
+        """lane < bound as a mask value, at the (32, 1, vl) region the
+        lane ids and the bound splat share."""
+        self.if_.region(32, 1, vl, self.spec.loc)
+        splat = self._splat(bound32, self.vt32m1, hint + "s")
+        return self.if_.emit(mir.MOp(
+            "vcmp", [vid, splat],
+            [self.if_.vreg(mir.MaskType(), hint=hint,
+                           loc=self.spec.loc)],
+            attrs={"pred": "lt"}, loc=self.spec.loc))
+
+    def _to_v0(self, mask, hint):
+        return self.if_.emit(mir.MOp(
+            "vmovmask", [mask],
+            [self.if_.vreg(mir.MaskType(), hint=hint, loc=self.spec.loc,
+                           fixed_phys="v0")], loc=self.spec.loc))
+
+    def _vload_unit(self, base, vtype, vl, v0=None, hint="ldu"):
+        """A unit-stride load at a compiler-known scalar address (the
+        safe form for every staged-region read: no index vector)."""
+        self.if_.region(vtype.sew, vtype.lmul, vl, self.spec.loc)
+        ops = [base]
+        attrs = {"sew": vtype.sew}
+        if v0 is not None:
+            ops.append(v0)
+            attrs["default"] = "undef"
+        return self.if_.emit(mir.MOp(
+            "vunit_load", ops,
+            [self.if_.vreg(vtype, hint=hint, loc=self.spec.loc)],
+            attrs=attrs, loc=self.spec.loc))
+
+    def _vstore_unit(self, base, val, vl, v0=None):
+        self.if_.region(val.type.sew, val.type.lmul, vl, self.spec.loc)
+        ops = [base, val] + ([v0] if v0 is not None else [])
+        self.if_.emit0(mir.MOp(
+            "vunit_store", ops, [],
+            attrs={"sew": val.type.sew,
+                   **({"default": "no-access"} if v0 is not None else {})},
+            loc=self.spec.loc))
+
+    def _vsel(self, v0, a, b, hint):
+        return self.if_.emit(mir.MOp(
+            "vsel", [v0, a, b],
+            [self.if_.vreg(a.type, hint=hint, loc=self.spec.loc)],
+            loc=self.spec.loc))
+
+    def _splat_const(self, value, vtype, hint):
+        wide = self.if_.const(int(value), mir.ScalarType(vtype.sew,
+                                                         True),
+                              self.spec.loc)
+        return self._splat(wide, vtype, hint)
+
+    # =====================================================================
+    # The IME path
+    # =====================================================================
+    def emit_ime(self) -> dict:
+        if_ = self.if_
+        spec, plan = self.spec, self.plan
+        loc = spec.loc
+        ws = if_.ws(loc)
+        stage = self._sadd(ws, self._k(spec.stage_off), "mstg")
+        a_stag = stage
+        b_stag = self._sadd(stage, self._k(128), "bstg")
+        c_stag = self._sadd(stage, self._k(256), "cstg")
+        fam = plan.family
+        res_rec, acc_rec = spec.res_rec, spec.acc_rec
+        res_esz = res_rec["esz"]
+        res_is16 = res_rec["type"].bitwidth() == 16
+
+        # the segment's entry: hoist the lane ids and the zero splats
+        vid_k = self._vid(self.tk, "mvid")       # the A-row lane ids
+        vid8 = self._vid(8, "mvd8")              # the C-row lane ids
+        self.if_.region(self.in_sew, 1, self.tile_lanes, loc)
+        zero_a = self._splat(self._k32(0), self.in_type, "mza")
+        zero_b = self._splat(self._k32(0), self.inb_type, "mzb")
+
+        # -- the tile loop -------------------------------------------------
+        tag = if_.tag("mtile")
+        tframe = if_.loop(self._k(0), self._k(self.mt * self.nt), [], loc,
+                          tag)
+        t = tframe.params[0]
+        nt_c = self._k(self.nt)
+        mtq = self._sdivu(t, nt_c, "mmt")
+        ntq = self._ssub(t, self._smul(mtq, nt_c, "mtn"), "mnt")
+        m0 = self._smul(mtq, self._k(self.tm), "mm0")
+        n0 = self._smul(ntq, self._k(self.tn), "mn0")
+
+        # the accumulator init: the acc tile (chain) or zeros
+        if plan.acc_mode == "chain":
+            acc = self._load_acc_tile(c_stag, m0, n0, vid8, acc_rec)
+        else:
+            self.if_.region(32, fam.mul_c, 64, loc)
+            acc = self._splat(self._k32(0), self.acc_type, "mz2")
+        kframe = if_.loop(self._k(0), self._k(self.K), [acc], loc,
+                          if_.tag("mk"))
+        kb = kframe.params[0]
+
+        # -- the A staging: 8 masked native row loads + zero merges -------
+        krem = self._ssub(self._k(self.K), kb, "mkrem")
+        self._stage_a_rows(ws, spec.a_rec, a_stag, m0, kb, krem, vid_k,
+                           zero_a)
+        # -- the B staging: the column-major scalar pack -------------------
+        self._pack_b_columns(ws, spec.b_rec, b_stag, n0, kb, krem, zero_b)
+
+        # -- the tile instruction -------------------------------------------
+        self.if_.region(self.in_sew, 1, self.tile_lanes, loc)
+        vs1 = self.if_.emit(mir.MOp(
+            "vuload8" if self.in_sew == 8 else "vuload16", [a_stag],
+            [self.if_.vreg(self.in_type, hint="mvs1", loc=loc)], loc=loc))
+        vs2 = self.if_.emit(mir.MOp(
+            "vuload8" if self.in_sew == 8 else "vuload16", [b_stag],
+            [self.if_.vreg(self.inb_type, hint="mvs2", loc=loc)], loc=loc))
+        acc2 = self.if_.emit(mir.MOp(
+            _tile_opcode_for_plan_breadth(plan), [kframe.params[1], vs1, vs2],
+            [self.if_.vreg(self.acc_type, hint="macc", loc=loc)], loc=loc))
+        k2 = self._sadd(kb, self._k(self.tk), "mk2")
+        if_.close(kframe, [k2, acc2], loc)
+
+        # -- the C staging tile + the masked result-region stores ----------
+        acc_c = kframe.exit.params[1]
+        self.if_.region(32, fam.mul_c, 64, loc)
+        self.if_.emit0(mir.MOp("vustore32", [c_stag, acc_c], [], loc=loc))
+        self._store_result_rows(ws, res_rec, c_stag, m0, n0, vid8)
+        t2 = self._sadd(t, self._k(1), "mt2")
+        if_.close(tframe, [t2], loc)
+        return {"path": "ime", "mnemonic": plan.mnemonic,
+                "tiles": self.mt * self.nt,
+                "k_steps": (self.K + self.tk - 1) // self.tk}
+
+    def _load_acc_tile(self, c_stag, m0, n0, vid8, acc_rec):
+        """The chain mode's accumulator tile: 8 masked rows from the acc
+        region (the out dtype; 16-bit rows widen exactly), staged into the
+        C staging tile then loaded as the m2 group."""
+        loc = self.spec.loc
+        ws = self.if_.ws(loc)
+        esz = acc_rec["esz"]
+        ty16 = acc_rec["type"]
+        is16 = ty16.bitwidth() == 16
+        rty = mir.VectorType(16, 1, "float") if is16 else \
+            mir.VectorType(32, 1, ty16.kind if not ty16.is_float()
+                           else "float")
+        zero = self._splat(self._k32(0), rty, "az")
+        for i in range(self.tm):
+            mi = self._sadd(m0, self._k(i), f"ami{i}")
+            guard = self._slt(mi, self._k(self.M), f"amg{i}")
+            nrem = self._ssub(self._k(self.N), n0, f"anr{i}")
+            bound = self._guard(guard, nrem, f"ab{i}")
+            bound32 = self._narrow32(bound, f"ab32{i}")
+            mask = self._mask_lt(vid8, bound32, f"amk{i}", 8)
+            v0 = self._to_v0(mask, f"av0{i}")
+            base = self._sadd(ws, self._k(acc_rec["offset"]),
+                              f"aab{i}")
+            base = self._sadd(base, self._smul(mi, self._k(self.N * esz),
+                                               f"aam{i}"), f"aar{i}")
+            base = self._sadd(base, self._smul(n0, self._k(esz),
+                                               f"aan{i}"), f"aac{i}")
+            row = self._vload_unit(base, rty, 8, v0, f"arw{i}")
+            row = self._vsel(v0, row, zero, f"azr{i}")
+            if is16:
+                row = self.if_.widen_f16(row, ty16)
+            stag_row = self._sadd(c_stag, self._k(i * 32), f"asr{i}")
+            self._vstore_unit(stag_row, row, 8)
+        self.if_.region(32, self.plan.family.mul_c, 64, loc)
+        return self.if_.emit(mir.MOp(
+            "vuload32", [c_stag],
+            [self.if_.vreg(self.acc_type, hint="macc0", loc=loc)], loc=loc))
+
+    def _stage_a_rows(self, ws, a_rec, a_stag, m0, kb, krem, vid_k, zero_a):
+        """The A tile: 8 rows of tk elements, masked (row guard + K tail),
+        zero-merged, stored to the dense tile staging."""
+        loc = self.spec.loc
+        esz = a_rec["esz"]
+        for i in range(self.tm):
+            mi = self._sadd(m0, self._k(i), f"tmi{i}")
+            guard = self._slt(mi, self._k(self.M), f"tmg{i}")
+            kmin = self._smin(krem, self._k(self.tk), f"tkb{i}")
+            bound = self._guard(guard, kmin, f"tb{i}")
+            bound32 = self._narrow32(bound, f"tb32{i}")
+            mask = self._mask_lt(vid_k, bound32, f"tmk{i}", self.tk)
+            v0 = self._to_v0(mask, f"tv0{i}")
+            base = self._sadd(
+                ws, self._k(a_rec["offset"]), f"tab{i}")
+            base = self._sadd(base, self._smul(mi, self._k(self.K * esz),
+                                               f"tam{i}"), f"tar{i}")
+            base = self._sadd(base, self._smul(kb, self._k(esz),
+                                               f"tak{i}"), f"tac{i}")
+            row = self._vload_unit(base, self.in_type, self.tk, v0,
+                                   f"trw{i}")
+            row = self._vsel(v0, row, zero_a, f"tzr{i}")
+            stag_row = self._sadd(a_stag, self._k(i * self.row_bytes),
+                                  f"tvs{i}")
+            self.if_.region(self.in_sew, 1, self.tk, loc)
+            self.if_.emit0(mir.MOp(
+                "vustore8" if self.in_sew == 8 else "vustore16",
+                [stag_row, row], [], loc=loc))
+
+    def _pack_b_columns(self, ws, b_rec, b_stag, n0, kb, krem, zero_b):
+        """The B tile: 8 columns of tk elements packed from the row-major
+        (K, N) region by guarded scalar copies (the slice's proven pack
+        form -- the strided column read has no safe vector form at the
+        native widths)."""
+        loc = self.spec.loc
+        esz = b_rec["esz"]
+        ebits = self.in_sew
+        # zero all 8 staging columns first
+        self.if_.region(self.in_sew, 1, self.tk, loc)
+        for j in range(self.tn):
+            stag_col = self._sadd(b_stag, self._k(j * self.row_bytes),
+                                  f"pzc{j}")
+            self.if_.emit0(mir.MOp(
+                "vustore8" if self.in_sew == 8 else "vustore16",
+                [stag_col, zero_b], [], loc=loc))
+        # the outer loop over columns j in [0, tn)
+        jf = self.if_.loop(self._k(0), self._k(self.tn), [], loc,
+                           self.if_.tag("pb"))
+        j = jf.params[0]
+        nj = self._sadd(n0, j, "pnj")
+        guard = self._slt(nj, self._k(self.N), "png")
+        kmin = self._smin(krem, self._k(self.tk), "pkb")
+        rem = self._guard(guard, kmin, "pbr")
+        # the inner loop over the K prefix
+        src0 = self._sadd(ws, self._k(b_rec["offset"]), "psb")
+        src0 = self._sadd(src0, self._smul(kb, self._k(self.N * esz),
+                                           "psk"), "psr")
+        src0 = self._sadd(src0, self._smul(nj, self._k(esz), "psn"),
+                          "psc")
+        dst0 = self._sadd(b_stag, self._smul(j, self._k(self.row_bytes),
+                                             "pdj"), "pds")
+        qf = self.if_.loop(self._k(0), rem, [], loc, self.if_.tag("pq"))
+        q = qf.params[0]
+        src = self._sadd(src0, self._smul(q, self._k(self.N * esz), "pqw"),
+                         "pqs")
+        dst = self._sadd(dst0, self._smul(q, self._k(esz), "pqs2"), "pqd")
+        val = self._sload(src, 0, ebits, "zext", "pv")
+        self.if_.emit0(mir.MOp(
+            "sstore", [dst, val], [],
+            attrs={"width": ebits, "offset": 0}, loc=loc))
+        q2 = self._sadd(q, self._k(1), "pq2")
+        self.if_.close(qf, [q2], loc)
+        j2 = self._sadd(j, self._k(1), "pj2")
+        self.if_.close(jf, [j2], loc)
+
+    def _store_result_rows(self, ws, res_rec, c_stag, m0, n0, vid8):
+        """The C tile: the staged m2 accumulator stored row by row to the
+        result region (masked: no access past the region's N tail or the
+        M rows; a 16-bit out converts with one final rounding)."""
+        loc = self.spec.loc
+        esz = res_rec["esz"]
+        ty = res_rec["type"]
+        is16 = ty.bitwidth() == 16
+        rty_in = mir.VectorType(32, 1, "float")
+        for i in range(self.tm):
+            mi = self._sadd(m0, self._k(i), f"cmi{i}")
+            guard = self._slt(mi, self._k(self.M), f"cmg{i}")
+            nrem = self._ssub(self._k(self.N), n0, f"cnr{i}")
+            bound = self._guard(guard, nrem, f"cb{i}")
+            bound32 = self._narrow32(bound, f"cb32{i}")
+            mask = self._mask_lt(vid8, bound32, f"cmk{i}", 8)
+            v0 = self._to_v0(mask, f"cv0{i}")
+            stag_row = self._sadd(c_stag, self._k(i * 32), f"csr{i}")
+            row = self._vload_unit(stag_row, rty_in, 8, hint=f"crw{i}")
+            base = self._sadd(ws, self._k(res_rec["offset"]), f"cab{i}")
+            base = self._sadd(base, self._smul(mi, self._k(self.N * esz),
+                                               f"cam{i}"), f"car{i}")
+            base = self._sadd(base, self._smul(n0, self._k(esz), f"can{i}"),
+                              f"cac{i}")
+            if is16:
+                row = self.if_.narrow_f32(row, ty)
+            self._vstore_unit(base, row, 8, v0)
+
+    # =====================================================================
+    # The vector-FP32 path (fp32 IEEE and bf16)
+    # =====================================================================
+    def emit_vector(self) -> dict:
+        if_ = self.if_
+        spec, plan = self.spec, self.plan
+        loc = spec.loc
+        ws = if_.ws(loc)
+        chunk = min(plan.vector_chunk, spec.block_n)
+        lmul = plan.vector_chunk_lmul
+        while chunk * 32 > 1024 * lmul:      # the chunk fits the group
+            lmul *= 2
+        f32 = mir.VectorType(32, lmul, "float")
+        a_rec, b_rec = spec.a_rec, spec.b_rec
+        res_rec, acc_rec = spec.res_rec, spec.acc_rec
+        M, N, K = self.M, self.N, self.K
+        # the lane ids for the N-tail masks
+        vid = self._vid(chunk, "vvid")
+        self.if_.region(32, lmul, chunk, loc)
+        zero = self._splat(self._k32(0), f32, "vz")
+
+        # the row loop
+        mf = if_.loop(self._k(0), self._k(M), [], loc, if_.tag("vm"))
+        m = mf.params[0]
+        # the chunk loop
+        cf = if_.loop(self._k(0), self._k(N), [], loc, if_.tag("vc"))
+        c = cf.params[0]
+        nrem = self._ssub(self._k(N), c, "vnr")
+        mask = self._mask_lt(vid, self._narrow32(nrem, "vnr32"), "vmk", chunk)
+        v0 = self._to_v0(mask, "vv0")
+        # the accumulator chunk: the acc region row (chain) or zeros
+        if plan.acc_mode == "chain":
+            base = self._sadd(ws, self._k(acc_rec["offset"]), "vab")
+            base = self._sadd(base, self._smul(m, self._k(N * 4), "vam"),
+                              "var")
+            base = self._sadd(base, self._smul(c, self._k(4), "vac"),
+                              "vao")
+            acc = self._vload_unit(base, f32, chunk, v0, "val")
+            acc = self._vsel(v0, acc, zero, "vaz")
+        else:
+            acc = zero
+        # the K loop: acc += A[m, k] * B[k, c:c+chunk] (IEEE fp32 FMA;
+        # the bf16 operands' regions hold their exact fp32 widening)
+        kf = if_.loop(self._k(0), self._k(K), [acc], loc, if_.tag("vk"))
+        k = kf.params[0]
+        a_base = self._sadd(ws, self._k(a_rec["offset"]), "vkb")
+        a_base = self._sadd(a_base, self._smul(m, self._k(K * 4), "vkm"),
+                            "vkr")
+        a_off = self._smul(k, self._k(4), "vko")
+        a_addr = self._sadd(a_base, a_off, "vae")
+        a_mk = self._sload(a_addr, 0, 32, "sext", "vka")
+        b_base = self._sadd(ws, self._k(b_rec["offset"]), "vbb")
+        b_base = self._sadd(b_base, self._smul(k, self._k(N * 4), "vbkr"),
+                            "vbr")
+        b_base = self._sadd(b_base, self._smul(c, self._k(4), "vbc"), "vbo")
+        b_row = self._vload_unit(b_base, f32, chunk, v0, "vbl")
+        b_row = self._vsel(v0, b_row, zero, "vbz")
+        a_splat = self._splat(a_mk, f32, "vbs")
+        acc2 = if_.emit(mir.MOp(
+            "vfmacc", [b_row, a_splat, kf.params[1]],
+            [self.if_.vreg(f32, hint="vfa", loc=loc)], loc=loc))
+        k2 = self._sadd(k, self._k(1), "vk2")
+        if_.close(kf, [k2, acc2], loc)
+        # the result-region store (masked at the N tail)
+        r_base = self._sadd(ws, self._k(res_rec["offset"]), "vrb")
+        r_base = self._sadd(r_base, self._smul(m, self._k(N * 4), "vrm"),
+                            "vrr")
+        r_base = self._sadd(r_base, self._smul(c, self._k(4), "vrc"), "vro")
+        self._vstore_unit(r_base, kf.exit.params[1], chunk, v0)
+        c2 = self._sadd(c, self._k(chunk), "vc2")
+        if_.close(cf, [c2], loc)
+        m2 = self._sadd(m, self._k(1), "vm2")
+        if_.close(mf, [m2], loc)
+        return {"path": "vector-fp32", "vector_chunk": chunk,
+                "ieee": plan.ieee,
+                "bf16_gap": plan.bf16_gap}
+
+
+def _tile_opcode_for_plan_breadth(plan) -> str:
+    if plan.path != "ime":
+        raise MatrixLoweringError(
+            None, "dot", "the vector-FP32 path emits no tile instruction")
+    if plan.family.key == "fp16":
+        return "vfwmadot"
+    suffix = plan.family.suffix_for(plan.a_signed, plan.b_signed)
+    return {"": "vmdot", "u": "vmdotu", "us": "vmdotus",
+            "su": "vmdotsu"}[suffix]
+
+
+def emit_composed_dot(iface, spec: ComposedDotSpec) -> dict:
+    """Emit one composed-path dot segment between the vectorize passes.
+
+    Returns the segment's observability record (the plan's path, the
+    mnemonic, the tile/chunk counts -- the counter the module meta
+    carries)."""
+    low = _Composed(iface, spec)
+    if low.ime:
+        if spec.stage_off is None:
+            raise MatrixLoweringError(
+                spec.loc, "dot",
+                "the IME tile pipeline needs its staging area reserved in "
+                "the private workspace (the lowering's accounting and the "
+                "segment disagree)")
+        return low.emit_ime()
+    return low.emit_vector()

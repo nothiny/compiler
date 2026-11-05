@@ -686,6 +686,12 @@ IMPLEMENTED_CONSTRUCTS = {
     "tl.div_rn", "tl.sigmoid", "tl.softmax",
     "tl.philox", "tl.rand", "tl.randn", "tl.randint",
     "tl.rand4x", "tl.randint4x", "tl.randn4x",
+    # T014: the matrix-breadth lane -- tl.dot through the real pipeline
+    # (the pinned typing rules; the acc/out_dtype parameters are semantic
+    # and carried by the linalg.dot TIR op; input_precision/allow_tf32
+    # are stripped from every kept operator by the declared subset, so
+    # fp32 dots are IEEE, F052)
+    "tl.dot",
     # dtype constants (no parameters): parse, compare, create
     "tl.float32", "tl.int64", "tl.int32", "tl.bfloat16", "tl.float16",
     "tl.float64", "tl.uint32", "tl.int1", "tl.uint64", "tl.int16", "tl.int8",

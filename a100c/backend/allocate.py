@@ -237,6 +237,17 @@ def _interference(fn: mir.MFunction) -> Tuple[Dict[int, Set[int]], Dict[int, Set
                 # live across them avoid those registers
                 for rid in after:
                     avoid.setdefault(rid, set()).update(CALLER_SAVED)
+            if op.opcode == "vloadix":
+                # T014: the indexed load reads its index vector while
+                # writing the destination -- vd == vs2 is a broken form
+                # under the pinned QEMU (probed: SIGILL; the mixed-LMUL
+                # case is already covered above, the same-LMUL narrow
+                # index class needed the explicit edge)
+                idx = op.operands[1] if len(op.operands) >= 2 else None
+                if idx is not None and idx.is_vector():
+                    for r in op.results:
+                        if r.is_vector():
+                            edge(r.rid, idx.rid)
             if op.opcode == "vrgather":
                 # RVV vrgather: the destination must not overlap either
                 # source (the index is read while the destination is

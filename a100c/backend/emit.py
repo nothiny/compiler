@@ -70,6 +70,22 @@ class _Emitter:
         # frame layout
         self.slot_offsets, self.scratch_offset = self._layout()
         self.saved_regs = self._saved()
+        #: the region state at the current emission position:
+        #: (sew, lmul, avl) -- updated at every vsetvli whose avl operand
+        #: is a materialized constant (the lowering's own discipline), so
+        #: the allocator's spill/reload vtype switches can restore it
+        #: (T014: a spill's vsetvli x0,x0 left the block's region at the
+        #: spilled value's vtype -- the following ops ran at the WRONG
+        #: SEW/LMUL, a pressure-dependent silent corruption)
+        self._cur_region = None
+        self._const_of = {}
+        for fn in module.functions:
+            for b in fn.blocks:
+                for mop in b.ops:
+                    if mop.opcode == "sconst":
+                        for r in mop.results:
+                            self._const_of[r.rid] = int(
+                                mop.attrs["value"])
 
     # -- frame ------------------------------------------------------------
     def _layout(self) -> Tuple[Dict[int, int], Optional[int]]:
@@ -82,6 +98,12 @@ class _Emitter:
         if self._needs_scratch():
             scratch = offset
             offset += 8
+        # T014: the spill/reload address scratch -- a dedicated 8-byte
+        # slot so a fully-allocated GPR file can still spill (any
+        # caller-saved register saves there, serves as the address, and
+        # restores)
+        self._spill_addr_slot = offset
+        offset += 8
         # T013: the libm element loops' buffer and pointer/counter slots.
         # The buffer holds one vector of the widest vmath element (the
         # operand spills there, the scalar loop rewrites it in place --
@@ -126,7 +148,8 @@ class _Emitter:
         body = max(sum(self.alloc.slots), 0) \
             + (8 if self.scratch_offset is not None else 0) \
             + (self._math_buffer_bytes() + 16 if self._math_buffer_bytes()
-               else 0)
+               else 0) \
+            + 8                     # the spill/reload address scratch slot
         return (body + 8 * len(self.saved_regs) + 8 + 15) & ~15
 
     # -- phys helpers -------------------------------------------------------
@@ -284,6 +307,9 @@ class _Emitter:
             values["sew"] = str(op.attrs["sew"])
             values["lmul"] = str(op.attrs["lmul"])
             values["policy"] = op.attrs["policy"]
+            avl = self._const_of.get(op.operands[0].rid) \
+                if op.operands else None
+            self._cur_region = (op.attrs["sew"], op.attrs["lmul"], avl)
         elif op.opcode in ("sspill", "sreload", "vspill", "vreload"):
             values["slot"] = str(self.slot_offsets[op.attrs["slot"]])
         text = _fmt(entry.form, values)
@@ -460,36 +486,86 @@ class _Emitter:
         if code == "vspill":
             sew, lmul = op.attrs["sew"], op.attrs["lmul"]
             off = self.slot_offsets[op.attrs["slot"]]
+            saved_region = self._cur_region
             self.emit(f"vsetvli x0, x0, e{sew}, m{lmul}, ta, ma", op)
             # vector unit-stride accesses take a bare base register (no
             # immediate offset form exists): materialize sp+off in a
-            # scratch GPR no allocated value owns
-            scratch = self._free_gpr()
-            if scratch is None:
-                raise EmissionError(op.loc, "vspill",
-                                    "no free GPR for the spill address "
-                                    "(a located refusal)")
+            # scratch GPR (a free one, or any caller-saved one saved to
+            # the dedicated slot first -- T014: a fully-allocated GPR
+            # file must still spill)
+            scratch, epilogue = self._spill_addr_gpr(op)
+            if epilogue:
+                self.emit(f"sd {scratch}, {self._spill_addr_slot}(sp)", op)
             self.emit(f"addi {scratch}, sp, {off}", op)
             self.emit(f"vse{sew}.v {self.phys(op.operands[0])}, "
                       f"({scratch})", op)
+            for line in epilogue:
+                self.emit(line, op)
+            self._restore_region(saved_region, op)
             return
         if code == "vreload":
             sew, lmul = op.attrs["sew"], op.attrs["lmul"]
             off = self.slot_offsets[op.attrs["slot"]]
+            saved_region = self._cur_region
             self.emit(f"vsetvli x0, x0, e{sew}, m{lmul}, ta, ma", op)
-            scratch = self._free_gpr()
-            if scratch is None:
-                raise EmissionError(op.loc, "vreload",
-                                    "no free GPR for the reload address "
-                                    "(a located refusal)")
+            scratch, epilogue = self._spill_addr_gpr(op)
+            if epilogue:
+                self.emit(f"sd {scratch}, {self._spill_addr_slot}(sp)", op)
             self.emit(f"addi {scratch}, sp, {off}", op)
             self.emit(f"vle{sew}.v {self.phys(op.results[0])}, "
                       f"({scratch})", op)
+            for line in epilogue:
+                self.emit(line, op)
+            self._restore_region(saved_region, op)
             return
         # generic template path (sconst, sload, smove, swext, sbin, s2v, vid,
         # vsetvli, vbin, vbinx)
         for text in self.op_text(op):
             self.emit(text, op)
+
+    def _spill_addr_gpr(self, op: mir.MOp) -> Tuple[str, List[str]]:
+        """A GPR usable as a spill/reload address: a free caller-saved
+        one when it exists, else any caller-saved one saved to the
+        dedicated slot first (and restored by the returned epilogue)."""
+        free = self._free_gpr()
+        if free is not None:
+            return free, []
+        order = [f"t{i}" for i in range(7)] + [f"a{i}" for i in range(1, 8)]
+        reg = order[0]
+        return reg, [f"ld {reg}, {self._spill_addr_slot}(sp)"]
+
+    def _restore_region(self, region, op: mir.MOp) -> None:
+        """Re-establish the region a spill/reload vtype switch displaced
+        (T014): ``vsetivli x0, <avl>, e<sew>, m<lmul>`` restores both the
+        vtype and the vl.  A region whose avl is not a materialized
+        constant cannot be restored -- a located refusal (never a silent
+        wrong region)."""
+        if region is None:
+            return
+        sew, lmul, avl = region
+        if avl is None:
+            raise EmissionError(op.loc, "vspill",
+                                "the displaced region's vl is not a "
+                                "materialized constant; the spill cannot "
+                                "restore it (a located refusal)")
+        if 0 <= int(avl) <= 31:
+            self.emit(f"vsetivli x0, {int(avl)}, e{int(sew)}, "
+                      f"m{int(lmul)}, ta, ma", op)
+        else:
+            # the CSR-immediate form's avl is 5 bits: a wider vl restores
+            # through the register form (li scratch, avl; vsetvli x0,
+            # scratch) -- the address scratch GPR serves (it is dead at
+            # this point: the spill's own address use has completed)
+            scratch, epilogue = self._spill_addr_gpr(op)
+            if epilogue:
+                self.emit(f"sd {scratch}, {self._spill_addr_slot}(sp)",
+                          op)
+            self.emit(f"li {scratch}, {int(avl)}", op)
+            self.emit(f"vsetvli x0, {scratch}, e{int(sew)}, "
+                      f"m{int(lmul)}, ta, ma", op)
+            for line in epilogue:
+                self.emit(line, op)
+        self._cur_region = region
 
     def _params(self, block_name: str) -> List[mir.VReg]:
         for fn in self.module.functions:

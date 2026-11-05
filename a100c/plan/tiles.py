@@ -37,6 +37,10 @@ __all__ = [
     "ImeFamily", "FAMILIES", "REFUSED_DOT_FORMS", "DotDescription",
     "DotPlan", "plan_dot", "tile_grid", "k_steps", "expected_tile_ops",
     "BF16_IME_GAP", "TilePlanError",
+    # the matrix-breadth lane (T014): the composed pipeline's planner
+    "BreadthDotDescription", "BreadthDotPlan", "plan_dot_breadth",
+    "VECTOR_FILE_BYTES", "register_demand", "chunk_plan",
+    "expected_ime_tile_ops_breadth",
 ]
 
 
@@ -162,6 +166,9 @@ REFUSED_DOT_FORMS: Dict[str, str] = {
                             "unit-stride B rows and C rows (the corpus "
                             "output form); general strides arrive with "
                             "matrix breadth (T014)"),
+    "fp64-storage": ("fp64 is outside the corpus dtype surface (F037: "
+                     "bfloat16/bool/float16/float32/int16/int32/int64/int8 "
+                     "only); the breadth lane refuses fp64 dot operands"),
 }
 
 
@@ -355,6 +362,334 @@ def expected_tile_ops(m: int, n: int, k: int, plan: DotPlan) -> int:
     (every step -- full or tail -- executes exactly one tile instruction).
     The vector path performs none.
     """
+    if plan.path != "ime":
+        return 0
+    mt, nt = tile_grid(m, n, plan.family.tile_m, plan.family.tile_n)
+    return mt * nt * k_steps(k, plan.k_step)
+
+
+# ---------------------------------------------------------------------------
+# The matrix-breadth lane (T014): the composed pipeline's dot planner
+#
+# The IME slice (``plan_dot`` above) plans the standalone three-view dot
+# program and keeps its own refusal surface.  The breadth planner serves
+# the composed pipeline, where the dot's operands arrive as staged block
+# values (flat compile-time-shaped regions in the worker-private
+# workspace) and the result feeds the epilogue through the same staging
+# machinery.  It widens the served forms exactly as the recorded slice
+# refusals deferred to this lane (REFUSED_DOT_FORMS: fp32-ieee,
+# out-dtype-narrow) and adds the vector-file-budget accounting every
+# tile/chunk decision is bounded by (F023/F028/F041).
+# ---------------------------------------------------------------------------
+
+#: the per-hart vector register file: 32 registers x 128B at VLEN=1024
+#: (F023/F028).  Every register-demand figure below is checked against
+#: this budget as data; an over-budget demand is chunked down or refused,
+#: never emitted silently.
+VECTOR_FILE_BYTES = 32 * 128
+
+#: the allocatable share: v0 is reserved for masks on this target, and the
+#: allocator keeps the group parity constraints (F040/F041); 31 groups of
+#: 128B, expressed in bytes for the demand arithmetic
+_VECTOR_FILE_ALLOCATABLE = 31 * 128
+
+#: legal LMUL values of the RVV register grouping (F028)
+_LEGAL_LMULS = (1, 2, 4, 8)
+
+
+def register_demand(lanes: int, sew: int, values: int) -> int:
+    """The byte demand of ``values`` simultaneously live vector values of
+    ``lanes`` elements at ``sew`` bits (the per-chunk register demand of a
+    tile or vector-chunk plan; the model the budget check consults)."""
+    return values * lanes * (sew // 8)
+
+
+def chunk_plan(lanes: int, sew: int, values: int,
+               budget_bytes: int = _VECTOR_FILE_ALLOCATABLE
+               ) -> Tuple[int, int, int]:
+    """Bound one chunking decision by the vector-file budget (data).
+
+    Given a desired chunk of ``lanes`` elements at ``sew`` with ``values``
+    simultaneously live vector values, return
+    ``(chunk_lanes, lmul, chunks)``: the widest legal chunk (a power-of-two
+    LMUL grouping) whose register demand fits the budget, and the number
+    of such chunks that cover the request.
+
+    A demand that does not fit even at one lane per value is a *diagnosed
+    refusal* (no chunking exists -- never a silent over-budget emission);
+    a demand that fits only narrower than requested is a *legal chunked
+    plan* (the ordinary path always stays available at the narrowest
+    legal chunk).
+    """
+    if values < 1:
+        raise TilePlanError("budget", "a register demand needs at least one value")
+    if lanes < 1:
+        raise TilePlanError("budget", "a chunk needs at least one lane")
+    if register_demand(1, sew, values) > budget_bytes:
+        raise TilePlanError(
+            "budget",
+            f"the register demand of {values} live values at SEW {sew} "
+            f"exceeds the vector file ({budget_bytes}B) even at one lane "
+            "per value -- no chunking exists (F023/F028/F041); refusing "
+            "rather than emitting over budget")
+    # the widest legal chunk whose demand fits: the register-group width
+    # in lanes at each legal LMUL (VLEN=1024, F028), capped by the request
+    best_lanes = 1
+    for lmul in _LEGAL_LMULS:
+        cand = min(lanes, lmul * (1024 // sew))
+        if register_demand(cand, sew, values) <= budget_bytes \
+                and cand >= best_lanes:
+            best_lanes = cand
+    if best_lanes < 1:
+        raise TilePlanError("budget", "no legal chunk under the budget")
+    # the grouping the chosen lane count requires (rounded up to a legal
+    # LMUL: 33 e32 lanes need m2 even though 32 would fit m1)
+    need = (best_lanes * sew + 1023) // 1024
+    lmul = 1
+    for cand in _LEGAL_LMULS:
+        if cand >= need:
+            lmul = cand
+            break
+    else:  # pragma: no cover - lanes are capped at m8 above
+        raise TilePlanError("budget", "no legal LMUL groups the chunk")
+    chunks = (lanes + best_lanes - 1) // best_lanes
+    return best_lanes, lmul, chunks
+
+
+@dataclass(frozen=True)
+class BreadthDotDescription:
+    """The composed pipeline's dot contract (T014).
+
+    ``block_m/n/k`` are the *compile-time block extents* of the operands
+    (the tl.dot shapes); the runtime matrix sizes entered through the
+    operand loads' masks and the epilogue's store masks and are never
+    baked here.  ``acc_mode``: ``zero`` or ``chain`` (the ``acc=``
+    parameter form; the accumulated block arrives staged).
+    """
+
+    a_dtype: str                # "int8" | "uint8" | "float16" | "bfloat16" | "float32"
+    b_dtype: str
+    out_dtype: str              # the tl.dot result dtype (the acc dtype)
+    block_m: int
+    block_n: int
+    block_k: int
+    acc_mode: str = "zero"      # "zero" | "chain"
+    source: str = "matrix-breadth"
+
+    def validate(self) -> None:
+        if self.acc_mode not in ("zero", "chain"):
+            raise TilePlanError("acc", f"acc_mode {self.acc_mode!r} is not "
+                                       "declared (zero | chain)")
+        for name in ("block_m", "block_n", "block_k"):
+            if getattr(self, name) < 1:
+                raise TilePlanError(
+                    name, f"{name}={getattr(self, name)} is not a block extent")
+        if self.block_m * self.block_n < 1 or self.block_k < 1:
+            raise TilePlanError("shape", "degenerate block shape")
+
+
+@dataclass(frozen=True)
+class BreadthDotPlan:
+    """The breadth plan one composed-path dot lowers under.
+
+    ``path``: ``"ime"`` (int8/uint8/float16 operands -- the tile pipeline)
+    or ``"vector-fp32"`` (fp32 IEEE and bfloat16 -- the FMA path; for
+    bf16 this is the recorded emulator-gap path, F010/F034).
+
+    ``demand`` is the plan's register-demand record (the budget-checked
+    chunking decision, as data): the live vector values per chunk, their
+    SEW/LMUL and the byte total against ``VECTOR_FILE_BYTES``.
+    """
+
+    path: str                           # "ime" | "vector-fp32"
+    family: Optional[ImeFamily]         # the IME family when path == "ime"
+    a_dtype: str = ""
+    b_dtype: str = ""
+    out_dtype: str = ""
+    acc_mode: str = "zero"
+    block_m: int = 0
+    block_n: int = 0
+    block_k: int = 0
+    a_signed: bool = True
+    b_signed: bool = True
+    #: the vector path's N chunk (lanes per FMA pass; budget-bounded)
+    vector_chunk: int = 32
+    vector_chunk_lmul: int = 1
+    #: the register-demand record (F023/F028/F041): live values, bytes,
+    #: the budget and the chunking decision it produced
+    demand: Dict[str, int] = field(default_factory=dict)
+    bf16_gap: Optional[str] = None
+    ieee: bool = False                  # fp32 operands: the IEEE class (F052)
+    source: str = "matrix-breadth"
+
+    @property
+    def mnemonic(self) -> str:
+        if self.family is None:
+            return ""
+        return self.family.mnemonic_for(self.a_signed, self.b_signed)
+
+    @property
+    def k_step(self) -> int:
+        return self.family.tile_k if self.family else 8
+
+    def describe(self) -> dict:
+        out = {
+            "path": self.path, "source": self.source,
+            "a_dtype": self.a_dtype, "b_dtype": self.b_dtype,
+            "out_dtype": self.out_dtype, "acc_mode": self.acc_mode,
+            "block": [self.block_m, self.block_n, self.block_k],
+            "ieee": self.ieee,
+            "demand": dict(self.demand),
+        }
+        if self.family is not None:
+            out["family"] = self.family.describe()
+            out["mnemonic"] = self.mnemonic
+        if self.path == "vector-fp32":
+            out["vector_chunk"] = self.vector_chunk
+            out["vector_chunk_lmul"] = self.vector_chunk_lmul
+        if self.bf16_gap:
+            out["bf16_gap"] = self.bf16_gap
+        return out
+
+
+#: operand dtype -> (family key | None, signed) on the breadth surface
+_BREADTH_DTYPE_TABLE: Dict[str, Tuple[Optional[str], bool]] = {
+    "int8": ("i8", True), "uint8": ("i8", False),
+    "float16": ("fp16", True),
+    "bfloat16": (None, True),          # vector-FP32 (the emulator gap)
+    "float32": (None, True),           # vector-FP32, IEEE class (F052)
+}
+
+
+def plan_dot_breadth(desc: BreadthDotDescription) -> BreadthDotPlan:
+    """Plan one composed-path dot (the breadth lane's planner).
+
+    Serves the forms the slice deferred here: fp32 IEEE operands (the
+    vector FP32 path -- no tf32 anywhere, F052), out_dtype narrowing
+    (fp16 results of fp16 dots: fp32 accumulation, one final rounding),
+    acc chaining, and every operand dtype the corpus surface declares.
+    Refusals stay located and data-driven: fp64 (outside the corpus
+    dtype surface, F037), non-i8 integers (the pinned Triton semantics
+    support int8-only integer dots) and bf16 out_dtype (the pinned
+    ValueError) are diagnosed, never approximated.
+    """
+    desc.validate()
+    a = _BREADTH_DTYPE_TABLE.get(desc.a_dtype)
+    b = _BREADTH_DTYPE_TABLE.get(desc.b_dtype)
+    if a is None or b is None:
+        dtype = desc.a_dtype if a is None else desc.b_dtype
+        if dtype == "float64":
+            _refuse("fp64-storage", dtype)
+        raise TilePlanError(
+            dtype, f"dtype {dtype!r} is not a declared dot operand "
+                   "(F037: the corpus dtype surface)")
+    fam_key, a_signed = a
+    _, b_signed = b
+    if desc.a_dtype != desc.b_dtype:
+        _refuse("mixed-dtypes", f"{desc.a_dtype} x {desc.b_dtype}")
+    if desc.out_dtype == "bfloat16":
+        # the pinned Triton 3.8 ValueError: out_dtype=bfloat16 is
+        # unsupported (cast with .to(tl.bfloat16) instead)
+        raise TilePlanError(
+            "out_dtype",
+            "out_dtype=bfloat16 is unsupported (the pinned Triton 3.8 "
+            "raises; cast the float32 result with .to(tl.bfloat16))")
+
+    if fam_key == "i8":
+        if desc.out_dtype != "int32":
+            raise TilePlanError(
+                "out_dtype",
+                f"integer dots accumulate int32 (the pinned semantics: "
+                f"only int8 integer dots exist and their result is int32); "
+                f"out {desc.out_dtype}")
+        family = FAMILIES["i8"]
+        # the tile pipeline's live set: the m2 accumulator group (2 regs),
+        # the vs1/vs2 tiles (2), the narrowed staging row and its source
+        # lanes (2) -- 6 registers of 128B against the 31-reg budget
+        demand = {"values": 6, "sew": 32, "lanes": 64,
+                  "bytes": register_demand(64, 32, 6),
+                  "budget_bytes": _VECTOR_FILE_ALLOCATABLE,
+                  "chunk_lanes": 64, "lmul": 2, "chunks": 1}
+        if demand["bytes"] > _VECTOR_FILE_ALLOCATABLE:
+            raise TilePlanError(
+                "budget", f"the IME tile pipeline demand {demand['bytes']}B "
+                          f"exceeds the vector file "
+                          f"({_VECTOR_FILE_ALLOCATABLE}B)")
+        return BreadthDotPlan(
+            path="ime", family=family, a_dtype=desc.a_dtype,
+            b_dtype=desc.b_dtype, out_dtype=desc.out_dtype,
+            acc_mode=desc.acc_mode, block_m=desc.block_m,
+            block_n=desc.block_n, block_k=desc.block_k,
+            a_signed=a_signed, b_signed=b_signed, demand=demand,
+            source=desc.source)
+
+    if fam_key == "fp16":
+        if desc.out_dtype not in ("float32", "float16"):
+            raise TilePlanError(
+                "out_dtype",
+                f"fp16 dots produce float32 (or float16 with one final "
+                f"rounding); out {desc.out_dtype}")
+        family = FAMILIES["fp16"]
+        demand = {"values": 6, "sew": 32, "lanes": 64,
+                  "bytes": register_demand(64, 32, 6),
+                  "budget_bytes": _VECTOR_FILE_ALLOCATABLE,
+                  "chunk_lanes": 64, "lmul": 2, "chunks": 1}
+        if demand["bytes"] > _VECTOR_FILE_ALLOCATABLE:
+            raise TilePlanError(
+                "budget", f"the IME tile pipeline demand {demand['bytes']}B "
+                          f"exceeds the vector file "
+                          f"({_VECTOR_FILE_ALLOCATABLE}B)")
+        return BreadthDotPlan(
+            path="ime", family=family, a_dtype=desc.a_dtype,
+            b_dtype=desc.b_dtype, out_dtype=desc.out_dtype,
+            acc_mode=desc.acc_mode, block_m=desc.block_m,
+            block_n=desc.block_n, block_k=desc.block_k,
+            demand=demand, source=desc.source)
+
+    # the vector-FP32 path: fp32 (IEEE, F052) and bfloat16 (the recorded
+    # emulator gap, F010/F034 -- never an IME instruction)
+    if desc.a_dtype == "float32":
+        if desc.out_dtype != "float32":
+            raise TilePlanError(
+                "out_dtype",
+                f"fp32 dots produce float32 (IEEE; F052); out "
+                f"{desc.out_dtype}")
+        ieee = True
+        gap = None
+    else:
+        if desc.out_dtype != "float32":
+            raise TilePlanError(
+                "out_dtype",
+                f"bf16 dots produce float32 (the pinned semantics); out "
+                f"{desc.out_dtype}")
+        ieee = False
+        gap = BF16_IME_GAP
+    # the FMA path's chunk decision, bounded by the vector-file budget:
+    # the live set is the accumulator chunk, the B row chunk and the
+    # broadcast A element (3 values) at SEW 32; the requested chunk is
+    # the full N extent, chunked down when the demand exceeds the file
+    want = max(1, desc.block_n)
+    lanes, lmul, chunks = chunk_plan(want, 32, 3,
+                                     _VECTOR_FILE_ALLOCATABLE)
+    demand = {"values": 3, "sew": 32, "lanes": lanes,
+              "bytes": register_demand(lanes, 32, 3),
+              "budget_bytes": _VECTOR_FILE_ALLOCATABLE,
+              "requested_lanes": want,
+              "chunk_lanes": lanes, "lmul": lmul, "chunks": chunks}
+    return BreadthDotPlan(
+        path="vector-fp32", family=None, a_dtype=desc.a_dtype,
+        b_dtype=desc.b_dtype, out_dtype=desc.out_dtype,
+        acc_mode=desc.acc_mode, block_m=desc.block_m,
+        block_n=desc.block_n, block_k=desc.block_k,
+        vector_chunk=lanes, vector_chunk_lmul=lmul, demand=demand,
+        bf16_gap=gap, ieee=ieee, source=desc.source)
+
+
+def expected_ime_tile_ops_breadth(m: int, n: int, k: int,
+                                  plan: BreadthDotPlan) -> int:
+    """The dynamic tile-instruction count of one composed-path IME dot
+    (the instruction-count plugin's expected value over the block
+    extents; the vector path performs none)."""
     if plan.path != "ime":
         return 0
     mt, nt = tile_grid(m, n, plan.family.tile_m, plan.family.tile_n)
