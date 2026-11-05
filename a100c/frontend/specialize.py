@@ -104,6 +104,14 @@ class DTypeValue:
                                 f"{self.name}")
         return self.ty.width
 
+    @property
+    def primitive_bitwidth(self) -> int:
+        # the pinned tl.dtype.primitive_bitwidth (the bit width of the
+        # primitive storage unit; equal to the width for every standard
+        # dtype -- the corpus's order-key bit-trick reads it on the
+        # element dtype to size a uint mask)
+        return self.ty.width
+
     def __eq__(self, other) -> bool:
         return isinstance(other, DTypeValue) and other.ty == self.ty
 
@@ -168,6 +176,31 @@ class _ConstexprMarker:
         return "tl.constexpr"
 
 
+class _DTypeConstructor:
+    """The ``tl.dtype`` callable in the constexpr domain: constructs a
+    dtype from its name (the pinned ``dtype(name)`` registry lookup; the
+    corpus's ``tl.dtype(f'uint{nbits}')`` order-key form).  An unknown
+    name raises -- the evaluator then declines the fold and the lowering
+    handler refuses with a located diagnostic."""
+
+    def __call__(self, name):
+        from a100c.frontend import types as ftypes
+        if isinstance(name, DTypeValue):
+            return name
+        if not isinstance(name, str):
+            raise FrontendError("<dtype>", 0, 0, "tl.dtype",
+                                f"tl.dtype(name) requires a dtype name "
+                                f"string, got {name!r}")
+        try:
+            return DTypeValue(ftypes.dtype_by_name(name))
+        except ftypes.TypeRuleError as exc:
+            raise FrontendError("<dtype>", 0, 0, "tl.dtype",
+                                exc.message) from None
+
+    def __repr__(self) -> str:  # pragma: no cover
+        return "tl.dtype"
+
+
 class _PropagateNanNamespace:
     """``tl.PropagateNan`` in the constexpr domain (T013: the
     maximum/minimum NaN policy selector folds to its member name)."""
@@ -187,6 +220,7 @@ class TlNamespace:
     def __init__(self):
         self.PropagateNan = _PropagateNanNamespace()
         self.constexpr = _ConstexprMarker()
+        self.dtype = _DTypeConstructor()
         self._dtypes = {n: DTypeValue(t) for t, n in _TYPE_NAMES.items()}
         # dtype aliases that appear in the pinned triton.language
         self._dtypes["fp16"] = DTypeValue(tir.FLOAT16)
@@ -199,6 +233,8 @@ class TlNamespace:
             return self._dtypes[name]
         if name == "constexpr":
             return self.constexpr
+        if name == "dtype":
+            return self.dtype
         if name == "PropagateNan":
             return self.PropagateNan
         return NOT_CONSTEXPR
@@ -321,10 +357,24 @@ class ConstexprEnv:
                     return base
                 if node.attr == "element_ty":
                     return base.element_ty
+                # the dtype members fold on ``x.dtype`` too (the pinned
+                # tensor's .dtype IS a tl.dtype: x.dtype.primitive_bitwidth,
+                # the corpus's order-key form)
+                elem = base.element_ty
+                if node.attr == "int_bitwidth":
+                    return elem.int_bitwidth
+                if node.attr == "primitive_bitwidth":
+                    return elem.primitive_bitwidth
+                if node.attr in ("is_floating", "is_standard_floating",
+                                 "is_int_signed", "is_int_unsigned", "is_int",
+                                 "is_bool"):
+                    return getattr(elem, node.attr)
                 return NOT_CONSTEXPR
             if isinstance(base, DTypeValue):
                 if node.attr == "int_bitwidth":
                     return base.int_bitwidth
+                if node.attr == "primitive_bitwidth":
+                    return base.primitive_bitwidth
                 if node.attr in ("is_floating", "is_standard_floating",
                                  "is_int_signed", "is_int_unsigned", "is_int",
                                  "is_bool"):
@@ -336,6 +386,17 @@ class ConstexprEnv:
                     return TypeObject(base.type.pointee if
                                       base.type.is_pointer() else base.type,
                                       base.type.is_pointer())
+                if node.attr == "shape":
+                    # the pinned constexpr shape tuple: block extents are
+                    # compile-time even though the value is not (a
+                    # symbolic extent declines the fold, never bakes)
+                    vals = []
+                    for e in (base.shape or ()):
+                        v = getattr(e, "value", e)
+                        if isinstance(v, bool) or not isinstance(v, int):
+                            return NOT_CONSTEXPR
+                        vals.append(int(v))
+                    return tuple(vals)
                 return NOT_CONSTEXPR
             if hasattr(base, node.attr) and not node.attr.startswith("_"):
                 attr = getattr(base, node.attr)
@@ -359,7 +420,14 @@ class ConstexprEnv:
             return self._unaryop(node.op, v)
         if isinstance(node, ast.BoolOp):
             vals = [self._eval(v, path) for v in node.values]
-            if any(v is NOT_CONSTEXPR for v in vals):
+            # a runtime symbol must never leak through Python and/or:
+            # ``below or above`` on runtime booleans once folded to the
+            # truthiness of the RuntimeValue objects themselves (True),
+            # silently baking a constant (sym_constrain_range, T016
+            # census).  Runtime operands decline the fold; the lowering's
+            # BoolOp branch refuses them with a located diagnostic.
+            if any(v is NOT_CONSTEXPR or isinstance(v, RuntimeValue)
+                   for v in vals):
                 return NOT_CONSTEXPR
             if isinstance(node.op, ast.And):
                 return all(vals)
@@ -427,6 +495,35 @@ class ConstexprEnv:
             if any(i is NOT_CONSTEXPR for i in items):
                 return NOT_CONSTEXPR
             return tuple(items)
+        if isinstance(node, ast.JoinedStr):
+            # an f-string over constexpr values (the corpus's
+            # ``tl.dtype(f'uint{nbits}')`` order-key form); each formatted
+            # value must itself be compile-time
+            parts = []
+            for value in node.values:
+                if isinstance(value, ast.Constant):
+                    parts.append(str(value.value))
+                    continue
+                if not isinstance(value, ast.FormattedValue):
+                    return NOT_CONSTEXPR
+                inner = self._eval(value.value, path)
+                if inner is NOT_CONSTEXPR:
+                    return NOT_CONSTEXPR
+                if value.format_spec is not None:
+                    spec = self._eval(value.format_spec, path)
+                    if spec is NOT_CONSTEXPR:
+                        return NOT_CONSTEXPR
+                    try:
+                        text = format(inner, spec)
+                    except Exception:
+                        return NOT_CONSTEXPR
+                else:
+                    text = str(inner)
+                if value.conversion in (ord("r"), ord("a")):
+                    text = repr(inner) if value.conversion == ord("r") \
+                        else ascii(inner)
+                parts.append(text)
+            return "".join(parts)
         return NOT_CONSTEXPR
 
     @staticmethod
@@ -583,6 +680,18 @@ def _wrap_constexpr(value):
         return value
     if isinstance(value, (list, tuple)):
         return tuple(value)
+    # a meta/launch_meta constexpr may carry the reference triton's own
+    # dtype object (``meta = {"OUT_DTYPE": tl.float32}`` -- the case
+    # builder puts the live constant in the payload).  Recognize it by
+    # its type shape, never by importing the reference environment, and
+    # map it through the declared dtype surface; an off-surface name
+    # (fp8, ...) passes through so the *use* refuses with a located
+    # diagnostic instead of the wrap silently inventing a type.
+    if (type(value).__module__ == "triton.language.core"
+            and type(value).__name__ == "dtype"):
+        ty = ftypes.DTYPE_BY_NAME.get(getattr(value, "name", None))
+        if ty is not None:
+            return DTypeValue(ty)
     return value
 
 

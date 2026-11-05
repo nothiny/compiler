@@ -163,6 +163,29 @@ def check_tir_reduction_forms():
                            for st in m2.functions[0].body.statements)
     check("sort-emits-tir-op", ok)
 
+    # T016: topk and histogram emit their TIR ops too (the declared-
+    # surface coverage evidence for the two reorder-family constructs
+    # that had no emitting check)
+    m4, errs4 = lower("""
+        i = tl.arange(0, BLOCK)
+        x = tl.load(x_ptr + i)
+        t = tl.topk(x, 4)
+        tl.store(o_ptr + tl.arange(0, 4), t)
+    """)
+    ok4 = not errs4 and any(isinstance(st, tir.Op) and st.op == "topk"
+                            for st in m4.functions[0].body.statements)
+    check("topk-emits-tir-op", ok4)
+
+    m5, errs5 = lower("""
+        i = tl.arange(0, BLOCK)
+        x = tl.load(x_ptr + i)
+        h = tl.histogram(tl.cast(x, tl.int32), num_bins=16)
+        tl.store(o_ptr + tl.arange(0, 16), tl.cast(h, tl.float32))
+    """)
+    ok5 = not errs5 and any(isinstance(st, tir.Op) and st.op == "histogram"
+                            for st in m5.functions[0].body.statements)
+    check("histogram-emits-tir-op", ok5)
+
 
 def check_tir_verifier_rejects_malformed():
     """Hand-built malformed reductions are rejected by the TIR verifier
@@ -687,11 +710,14 @@ def check_remaining_boundaries_refuse_located(compiler):
         ("ops/suite/dev/median_bool_from_counts_kernel.py",
          {"shape": (17, 3)},
          ("width 64", "SEW", "scalar bool stores", "scalar core")),
-        # cumsum family: needs tl.cast (a real conversion)
+        # cumsum family: T016 closed the meta-carried dtype-object
+        # boundary (tl.zeros((), dtype=ACC_KIND) with the live tl.float32
+        # constant in the case meta now folds), so the refusal moved to
+        # the partial-axis multi-block reduction (the T018 compile-sweep
+        # class) -- still a located refusal naming the missing construct
         ("ops/suite/dev/masked_cumsum_vec_kernel.py",
          {"shape": (17, 257), "dtype": "float32"},
-         ("cast", "conversion", "conversions",
-          "compile-time dtype")),
+         ("multi-axis", "partial axis", "rank 1")),
         # sort family: T012 implements flip, so the file's refusal boundary
         # moved past it -- it now refuses on tl.softmax's exp (the
         # math-ops lane owns that construct)

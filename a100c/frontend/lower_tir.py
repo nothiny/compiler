@@ -143,6 +143,10 @@ class PointerTypeVal:
 #: method-call forms that map to declared constructs (``.to`` is ``tl.cast``)
 _METHOD_CONSTRUCTS = {
     ".to": "tl.cast",
+    # the pinned tensor member ``cast`` (same parameter surface as ``.to``:
+    # dtype, fp_downcast_rounding, bitcast -- the corpus's geglu/vocab-CE/
+    # grpo-loss method-form calls)
+    ".cast": "tl.cast",
     # T012: the layout/shape method forms (the pinned tensor members)
     ".reshape": "tl.reshape", ".trans": "tl.trans", ".permute": "tl.permute",
     ".expand_dims": "tl.expand_dims", ".unsqueeze": "tl.unsqueeze",
@@ -163,6 +167,8 @@ _REQUIRED_PARAMS = {
     "tl.full": ("shape", "value", "dtype"),
     "tl.zeros_like": ("input",),
     "tl.constexpr": ("value",),
+    "tl.static_assert": ("cond",),
+    "tl.dtype": ("name",),
     "tl.multiple_of": ("input", "values"),
     "tl.max_contiguous": ("input", "values"),
     "tl.sum": ("input",),
@@ -1132,6 +1138,12 @@ class Lowering:
             if node.attr == "T":
                 base = self._lower_expr(node.value)
                 return self._lower_transpose_attr(base, node)
+            if node.attr == "shape":
+                # ``x.shape`` is constexpr in the pinned language (block
+                # extents are compile-time); fold it when every extent is
+                # an integer and refuse (located) when one is symbolic
+                base = self._lower_expr(node.value)
+                return self._lower_shape_attr(base, node)
             raise self._err(
                 node, f".{node.attr}",
                 "attribute is not in the elementwise core (only compile-time "
@@ -2043,6 +2055,53 @@ class Lowering:
                 node, "tl.constexpr",
                 "tl.constexpr(...) requires a compile-time value")
         return ConstVal(value)
+
+    def _lower_tl_static_assert(self, args, node, loc):
+        """tl.static_assert(cond, msg): the compile-time assertion (the
+        pinned builtin).  A constexpr-true condition emits nothing; a
+        constexpr-false condition is a located refusal carrying the
+        message; a runtime condition cannot be checked at compile time
+        and is a located refusal (never a silent no-op)."""
+        cond = self.env.evaluate(args["cond"], self.source.path)
+        if cond is NOT_CONSTEXPR:
+            raise self._err(
+                node, "tl.static_assert",
+                "tl.static_assert requires a compile-time condition (a "
+                "runtime condition cannot be checked at compile time)")
+        if not cond:
+            msg = ""
+            if "msg" in args:
+                m = self.env.evaluate(args["msg"], self.source.path)
+                if m is not NOT_CONSTEXPR and isinstance(m, str):
+                    msg = m
+            raise self._err(
+                node, "tl.static_assert",
+                f"static_assert failed{': ' + msg if msg else ''} "
+                f"(condition is {cond!r})")
+        return ConstVal(None)
+
+    def _lower_tl_dtype(self, args, node, loc) -> ConstVal:
+        """tl.dtype(name): the pinned dtype registry constructor -- a
+        constexpr dtype value from its name (the corpus's
+        ``tl.dtype(f'uint{nbits}')`` order-key form).  The result flows
+        as any dtype constant: a cast target, tl.full's dtype= operand."""
+        value = self.env.evaluate(args["name"], self.source.path)
+        if value is NOT_CONSTEXPR:
+            raise self._err(
+                node, "tl.dtype",
+                "tl.dtype(name) requires a compile-time dtype name")
+        if isinstance(value, DTypeValue):
+            return ConstVal(value)
+        if not isinstance(value, str):
+            raise self._err(
+                node, "tl.dtype",
+                f"tl.dtype(name) requires a dtype name string, got "
+                f"{value!r}")
+        try:
+            ty = ftypes.dtype_by_name(value)
+        except ftypes.TypeRuleError as exc:
+            raise self._err(node, "tl.dtype", exc.message) from None
+        return ConstVal(DTypeValue(ty))
 
     def _lower_tl_multiple_of(self, args, node, loc):
         """tl.multiple_of: the divisibility promise recorded on the value
@@ -2969,10 +3028,18 @@ class Lowering:
     def _lower_tl_fma(self, args: Dict[str, ast.expr], node: ast.Call,
                       loc, construct: str) -> tir.Value:
         """tl.fma: x * y + z with one rounding; the pinned legalization
-        chain unifies x/y, then z with each."""
-        x = self._lower_expr(args["x"])
-        y = self._lower_expr(args["y"])
-        z = self._lower_expr(args["z"])
+        chain unifies x/y, then z with each.
+
+        The pinned fma runs ``to_tensor`` on every operand *before* the
+        pairwise legalization, so a Python float scalar participates as a
+        full fp32 value (not as a non-participating scalar): fma(KC, x2,
+        K) with an fp16 x2 legalizes to fp32, unlike the plain binop
+        ``x * KC`` which stays fp16.  Materialize literal operands as
+        constants of their literal type first (T016: the gelu exp2
+        operand arrived fp16 and the pinned _check_dtype refused it)."""
+        x = self._fma_operand(args["x"], node, loc)
+        y = self._fma_operand(args["y"], node, loc)
+        z = self._fma_operand(args["z"], node, loc)
         if all(isinstance(v, ConstVal) for v in (x, y, z)):
             raise self._err(
                 node, construct,
@@ -2992,6 +3059,24 @@ class Lowering:
                 node, construct,
                 f"tl.fma requires floating operands, got {t!r}")
         return self._emit(tir.Op.fma(xb, yb, zb, loc), "fma")
+
+    def _fma_operand(self, node: ast.expr, call: ast.Call, loc):
+        """One tl.fma operand: a literal becomes a constant of its own
+        literal type (the pinned to_tensor-then-legalize order); a
+        runtime value passes through untouched."""
+        value = self._lower_expr(node)
+        if not isinstance(value, ConstVal):
+            return value
+        raw = py_scalar(value.value)
+        if isinstance(raw, (DTypeValue, TypeObject)):
+            raise self._err(
+                call, "tl.fma",
+                "a dtype value cannot participate in arithmetic")
+        try:
+            lit_ty = ftypes.literal_type(raw)
+        except ftypes.TypeRuleError as exc:
+            raise self._err(call, "tl.fma", exc.message) from None
+        return self._emit(tir.Op.const(raw, lit_ty, loc), "lit")
 
     def _lower_tl_div_rn(self, args: Dict[str, ast.expr], node: ast.Call,
                          loc, construct: str) -> tir.Value:
@@ -3616,6 +3701,13 @@ class Lowering:
     def _constexpr_shape(self, node: ast.expr, call: ast.Call,
                          construct: str) -> Tuple[int, ...]:
         value = py_scalar(self.env.evaluate(node, self.source.path))
+        if value is NOT_CONSTEXPR:
+            # ``x.shape`` of a runtime tensor folds in the lowering's
+            # attribute path (the extents are compile-time even though the
+            # value is not): tl.full(vals.shape, ...) -- the order-key form
+            lowered = self._lower_expr(node)
+            if isinstance(lowered, ConstVal):
+                value = py_scalar(lowered.value)
         if value is NOT_CONSTEXPR or not isinstance(value, (tuple, list)):
             raise self._err(
                 call, construct,
@@ -3924,6 +4016,25 @@ class Lowering:
         dims = (1, 0)
         return self._emit(tir.Op.permute(base, dims, self._loc(node)), "pm")
 
+    def _lower_shape_attr(self, base, node) -> ConstVal:
+        """``x.shape``: the pinned constexpr shape tuple.  Block extents
+        are compile-time in the source language, so every integer extent
+        folds; a runtime-symbolic extent is a located refusal (never a
+        baked value)."""
+        if isinstance(base, ConstVal):
+            raise self._err(
+                node, ".shape",
+                "a compile-time scalar has no shape")
+        symbolic = [i for i, e in enumerate(base.shape)
+                    if isinstance(e.value, tir.Sym)]
+        if symbolic:
+            raise self._err(
+                node, ".shape",
+                f"axis {symbolic[0]} of {base.name or 'value'} has a "
+                "runtime-symbolic extent; x.shape is compile-time in the "
+                "source language and a symbolic extent cannot be baked")
+        return ConstVal(tuple(int(e.value) for e in base.shape))
+
     def _lower_subscript(self, node: ast.Subscript):
         """``x[:, None]`` / ``x[None]``: the pinned ``__getitem__`` -- every
         ``None`` inserts an axis (expand_dims at that position), a full
@@ -3946,6 +4057,19 @@ class Lowering:
                 return values[idx]
         base = self._lower_expr(node.value)
         if isinstance(base, ConstVal):
+            # a compile-time sequence indexed by a constant integer folds
+            # (``x.shape[1]``: the pinned constexpr shape tuple)
+            if isinstance(node.slice, ast.Constant) and \
+                    isinstance(node.slice.value, int) and \
+                    not isinstance(node.slice.value, bool) and \
+                    isinstance(base.value, (tuple, list)):
+                idx = node.slice.value
+                if not 0 <= idx < len(base.value):
+                    raise self._err(
+                        node, "subscript",
+                        f"index {idx} outside the compile-time sequence "
+                        f"of length {len(base.value)}")
+                return ConstVal(base.value[idx])
             raise self._err(
                 node, "subscript",
                 "a compile-time value has no layout (indexing folds first)")
@@ -4239,6 +4363,8 @@ _CONSTRUCT_HANDLERS = {
     "tl.full": Lowering._lower_tl_full,
     "tl.zeros_like": Lowering._lower_tl_zeros_like,
     "tl.constexpr": Lowering._lower_tl_constexpr,
+    "tl.static_assert": Lowering._lower_tl_static_assert,
+    "tl.dtype": Lowering._lower_tl_dtype,
     "tl.multiple_of": Lowering._lower_tl_multiple_of,
     "tl.max_contiguous": Lowering._lower_tl_max_contiguous,
     # T011: memory access breadth and atomics

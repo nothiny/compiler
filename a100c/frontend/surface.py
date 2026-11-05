@@ -686,6 +686,13 @@ IMPLEMENTED_CONSTRUCTS = {
     "tl.div_rn", "tl.sigmoid", "tl.softmax",
     "tl.philox", "tl.rand", "tl.randn", "tl.randint",
     "tl.rand4x", "tl.randint4x", "tl.randn4x",
+    # T016: the declared-surface completion -- tl.static_assert (the
+    # compile-time assertion: constexpr-true emits nothing, constexpr-false
+    # and runtime conditions are located refusals; carried by the
+    # constexpr folding domain, no TIR op) and tl.dtype (the pinned dtype
+    # registry constructor: a constexpr dtype value from its name, the
+    # corpus's f-string order-key form; flows as any dtype constant)
+    "tl.static_assert", "tl.dtype",
     # T014: the matrix-breadth lane -- tl.dot through the real pipeline
     # (the pinned typing rules; the acc/out_dtype parameters are semantic
     # and carried by the linalg.dot TIR op; input_precision/allow_tf32

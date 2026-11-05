@@ -167,6 +167,18 @@ MATH_FORMS = [
     ("pow_exp2log2", "tl.exp2(3.0 * tl.log2(tl.abs(x) + 0.125))",
      "np.exp2(3.0 * np.log2(np.abs(x.astype(np.float64)) + 0.125))"
      ".astype(np.float32)", 1e-6, 1e-6),
+    # T016: the explicit function forms of the AST arithmetic operators
+    # (position_quantize's spelled-out tl.add/tl.sub/tl.mul) and the
+    # tl.cdiv (a+b-1)//b desugar, executed and compared like the rest
+    ("arith_add", "tl.add(x, 0.5)",
+     "(x + np.float32(0.5))", 0, 0),
+    ("arith_sub", "tl.sub(x, 0.25)",
+     "(x - np.float32(0.25))", 0, 0),
+    ("arith_mul", "tl.mul(x, -1.5)",
+     "(x * np.float32(-1.5))", 0, 0),
+    ("cdiv_desugar",
+     "tl.cast(tl.cdiv(tl.cast(tl.abs(x) * 8.0, tl.int32), 7), tl.float32)",
+     "np.floor((np.abs(x) * 8.0 + 6.0) / 7.0)", 0, 0),
 ]
 
 WORKDIR = Path(tempfile.mkdtemp(prefix="a100c-mathgen-"))

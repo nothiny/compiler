@@ -560,6 +560,267 @@ def second_kernel(y_ptr):
     check("source-contract-refusals-located", ok)
 
 
+# ---------------------------------------------------------------------------
+# 7. T016: the declared-surface completion constructs and forms
+# ---------------------------------------------------------------------------
+
+def check_static_assert():
+    """tl.static_assert: constexpr-true emits nothing, constexpr-false is
+    a located refusal carrying the message, a runtime condition refuses."""
+    plain = """
+v = tl.load(x_ptr + tl.arange(0, BLOCK))
+tl.store(y_ptr + tl.arange(0, BLOCK), v)
+"""
+    asserted = """
+v = tl.load(x_ptr + tl.arange(0, BLOCK))
+tl.static_assert(BLOCK == 8)
+tl.static_assert(BLOCK % 2 == 0, "BLOCK must be even")
+tl.store(y_ptr + tl.arange(0, BLOCK), v)
+"""
+    mod_plain, _, _, _ = compile_snippet(BASE_PARAMS, plain, BASE_ARGS,
+                                         {"BLOCK": 8})
+    mod_assert, _, _, _ = compile_snippet(BASE_PARAMS, asserted, BASE_ARGS,
+                                          {"BLOCK": 8})
+    ok = canonical_tir(mod_plain) == canonical_tir(mod_assert)
+    check("static_assert-true-emits-nothing", ok)
+
+    def refused(body, meta, needles):
+        try:
+            compile_snippet(BASE_PARAMS, body, BASE_ARGS, meta)
+            return False, "lowered (should have been refused)"
+        except FrontendError as exc:
+            if exc.construct != "tl.static_assert" or not (exc.line and exc.col):
+                return False, f"{exc.construct!r} at {exc.line}:{exc.col}"
+            if not any(n in exc.message for n in needles):
+                return False, exc.message
+            return True, exc.message[:70]
+
+    ok1, why1 = refused(
+        "tl.static_assert(BLOCK == 16, 'BLOCK must be 16')\n"
+        "tl.store(y_ptr + tl.arange(0, BLOCK), 1.0)",
+        {"BLOCK": 8}, ("BLOCK must be 16", "static_assert failed"))
+    check("static_assert-false-refuses-with-message", ok1, why1)
+    ok2, why2 = refused(
+        "tl.static_assert(n > 4)\n"
+        "tl.store(y_ptr + tl.arange(0, BLOCK), 1.0)",
+        {"BLOCK": 8}, ("compile-time", "runtime"))
+    check("static_assert-runtime-cond-refuses", ok2, why2)
+    # a false assert inside a dead constexpr branch is never evaluated
+    # (the pinned tracer does not visit dead branches)
+    mod_dead, _, _, _ = compile_snippet(
+        BASE_PARAMS,
+        "if BLOCK == 16:\n    tl.static_assert(False)\n"
+        "tl.store(y_ptr + tl.arange(0, BLOCK), 1.0)",
+        BASE_ARGS, {"BLOCK": 8})
+    check("static_assert-dead-branch-not-evaluated",
+          not tir.verify_module(mod_dead))
+
+
+def check_tl_dtype():
+    """tl.dtype: the pinned dtype registry constructor (f-string form),
+    .primitive_bitwidth folding on dtype values, the .cast method form,
+    .shape folding and the meta-carried dtype object."""
+    body = """
+v = tl.load(x_ptr + tl.arange(0, BLOCK))
+nb: tl.constexpr = v.dtype.primitive_bitwidth
+utype = tl.dtype(f'uint{nb}')
+key = v.cast(utype)
+tl.store(y_ptr + tl.arange(0, BLOCK), key.cast(tl.int32))
+"""
+    mod, _, _, _ = compile_snippet(
+        "x_ptr, y_ptr, n, BLOCK: tl.constexpr", body,
+        {"x_ptr": np.zeros(8, dtype=np.int32),
+         "y_ptr": np.zeros(8, dtype=np.int32), "n": 17}, {"BLOCK": 8})
+    errs = tir.verify_module(mod)
+    converts = [st for st in mod.functions[0].body.statements
+                if isinstance(st, tir.Op) and st.op in ("convert", "bitcast")]
+    check("tl.dtype-primitive-bitwidth-cast-method",
+          not errs and len(converts) >= 2,
+          f"{len(converts)} conversion ops, verify={errs[:1]}")
+
+    # .shape feeding a constexpr shape (tl.full) and the subscript form
+    body2 = """
+v = tl.load(x_ptr + tl.arange(0, BLOCK))
+f = tl.full(v.shape, 3, dtype=tl.int32)
+m: tl.constexpr = v.shape[0]
+tl.store(y_ptr + tl.arange(0, m), f)
+"""
+    mod2, _, _, _ = compile_snippet(
+        "x_ptr, y_ptr, n, BLOCK: tl.constexpr", body2,
+        {"x_ptr": np.zeros(8, dtype=np.int32),
+         "y_ptr": np.zeros(8, dtype=np.int32), "n": 17}, {"BLOCK": 8})
+    check("shape-attr-folds-into-constexpr-uses",
+          not tir.verify_module(mod2))
+
+    # the .cast method and .to produce the identical conversion
+    a = compile_snippet(BASE_PARAMS,
+                        "v = tl.load(x_ptr + tl.arange(0, BLOCK))\n"
+                        "tl.store(y_ptr + tl.arange(0, BLOCK),"
+                        " v.to(tl.float64))", BASE_ARGS, {"BLOCK": 8})[0]
+    b = compile_snippet(BASE_PARAMS,
+                        "v = tl.load(x_ptr + tl.arange(0, BLOCK))\n"
+                        "tl.store(y_ptr + tl.arange(0, BLOCK),"
+                        " v.cast(tl.float64))", BASE_ARGS, {"BLOCK": 8})[0]
+    check("cast-method-equals-to", canonical_tir(a) == canonical_tir(b))
+
+    # refusals: unknown name, runtime name
+    def refused(body, needles):
+        try:
+            compile_snippet(BASE_PARAMS, body, BASE_ARGS, {"BLOCK": 8})
+            return False, "lowered"
+        except FrontendError as exc:
+            if exc.construct != "tl.dtype" or not (exc.line and exc.col):
+                return False, f"{exc.construct!r} at {exc.line}:{exc.col}"
+            if not any(n in exc.message for n in needles):
+                return False, exc.message
+            return True, exc.message[:60]
+
+    ok1, why1 = refused("u = tl.dtype('float128')\n"
+                        "tl.store(y_ptr + tl.arange(0, BLOCK), 1.0)",
+                        ("unknown dtype",))
+    check("tl.dtype-unknown-name-refuses", ok1, why1)
+    ok2, why2 = refused("u = tl.dtype(n)\n"
+                        "tl.store(y_ptr + tl.arange(0, BLOCK), 1.0)",
+                        ("compile-time",))
+    check("tl.dtype-runtime-name-refuses", ok2, why2)
+
+    # a meta-carried live dtype object (the corpus case builders put
+    # tl.float32 itself into meta: OUT_DTYPE)
+    import triton.language as _tl
+    mod3, _, _, _ = compile_snippet(
+        "x_ptr, y_ptr, n, OUT_DTYPE: tl.constexpr, BLOCK: tl.constexpr",
+        "v = tl.load(x_ptr + tl.arange(0, BLOCK))\n"
+        "tl.store(y_ptr + tl.arange(0, BLOCK), v.to(OUT_DTYPE))",
+        {"x_ptr": fp32_arg(), "y_ptr": fp32_arg(), "n": 17},
+        {"OUT_DTYPE": _tl.float32, "BLOCK": 8})
+    check("meta-dtype-object-folds",
+          not tir.verify_module(mod3))
+
+
+def check_module_constexpr_global():
+    """``X = tl.constexpr(v)`` at module level: the pinned
+    _is_constexpr_global form the corpus's _MAX_FLOAT32_VAL uses."""
+    text = '''\
+"""probe operator"""
+OPERATOR = {"name": "probe", "group": "probe", "channel": "local",
+            "execution": "triton_kernel", "verification": "correctness",
+            "tags": []}
+import triton
+import triton.language as tl
+
+_MAXF = tl.constexpr(65504.0)
+_MINF = tl.constexpr(-65504.0)
+
+@triton.jit
+def probe_kernel(x_ptr, y_ptr, n, BLOCK: tl.constexpr):
+    v = tl.load(x_ptr + tl.arange(0, BLOCK))
+    clamped = tl.minimum(tl.maximum(v, _MINF), _MAXF)
+    tl.store(y_ptr + tl.arange(0, BLOCK), clamped)
+'''
+    src = source.load_operator_text(text, "<probe>", "probe.py")
+    spec = specialize.specialize(src, {
+        "args": {"x_ptr": fp32_arg(), "y_ptr": fp32_arg(), "n": 17},
+        "meta": {"BLOCK": 8}, "launch_meta": {}})
+    module = lower_tir.lower(src, spec)
+    consts = [st for st in module.functions[0].body.statements
+              if isinstance(st, tir.Op) and st.op == "const"
+              and st.attrs.get("value") in (65504.0, -65504.0)]
+    check("module-constexpr-global-call-form",
+          not tir.verify_module(module) and len(consts) == 2,
+          f"{len(consts)} module-global constants reach the body")
+
+
+def check_fma_scalar_legalization():
+    """tl.fma legalizes python-float scalars as full fp32 values (the
+    pinned to_tensor-then-legalize order): fma(KC, x2, K) with fp16 x2
+    is fp32, so the exp2 dependency accepts it (the gelu form)."""
+    body = """
+x = tl.load(x_ptr + tl.arange(0, BLOCK))
+x2 = x * x
+arg = x * tl.fma(0.07135481473610175, x2, 1.5957691216057308)
+s = tl.exp2(-arg * 1.4426950408889634)
+tl.store(y_ptr + tl.arange(0, BLOCK), s.to(tl.float16))
+"""
+    fp16 = {"x_ptr": np.zeros(8, dtype=np.float16),
+            "y_ptr": np.zeros(8, dtype=np.float16), "n": 17}
+    try:
+        module, _, _, _ = compile_snippet(BASE_PARAMS, body, fp16,
+                                          {"BLOCK": 8})
+        errs = tir.verify_module(module)
+        fmas = [st for st in module.functions[0].body.statements
+                if isinstance(st, tir.Op) and st.op == "fma"]
+        wide = all(r.type.name == "fp32" for f in fmas for r in f.results)
+        check("fma-scalar-participates-as-fp32",
+              not errs and fmas and wide,
+              f"{len(fmas)} fma op(s), result "
+              f"{[repr(f.results[0].type) for f in fmas[:1]]}")
+    except FrontendError as exc:
+        check("fma-scalar-participates-as-fp32", False,
+              f"{exc.construct}: {exc.message[:80]}")
+
+
+# ---------------------------------------------------------------------------
+# 8. The coverage matrix enumerates the declared surface (T016,
+#    IR-DECLARED-SPACE-COVERAGE): counted against the declaration, not
+#    against the corpus sample.  The control: removing one implementation
+#    entry from the surface table (or one matrix row) fails this check.
+# ---------------------------------------------------------------------------
+
+def check_coverage_matrix():
+    path = ROOT / "FRONTEND_COVERAGE.json"
+    if not check("coverage-artifact-exists", path.is_file(), str(path)):
+        return
+    data = json.loads(path.read_text())
+    rows = {str(r.get("item")).strip(): r for r in data.get("rows", [])}
+    with open(ROOT / "docs/compiler-agent/PROJECT_STATE.json") as fh:
+        api = json.load(fh)["workload"]["api_spec"]["items"]
+    problems = []
+    for item in api:
+        name = item["name"]
+        parameters = [str(p) for p in item.get("parameters") or []]
+        row = rows.get(name)
+        if row is None:
+            problems.append(f"{name}: no coverage row")
+            continue
+        status = str(row.get("status") or "").strip()
+        if status == "unimplemented":
+            problems.append(f"{name}: unimplemented")
+            continue
+        # the matrix and the surface table must agree: this is the
+        # enumeration control -- removing an implementation entry from
+        # IMPLEMENTED_CONSTRUCTS flips the table's answer while the row
+        # still claims implemented, and the check fails
+        table_implemented = DEFAULT_SURFACE.is_implemented(name)
+        if status == "implemented" and not table_implemented:
+            problems.append(f"{name}: row says implemented, table refuses")
+        if status == "declared-unsupported" and table_implemented:
+            problems.append(f"{name}: row says unsupported, table implements")
+        if status == "implemented":
+            if not str(row.get("evidence") or "").strip():
+                problems.append(f"{name}: implemented without evidence")
+            if not str(row.get("ir_construct") or "").strip():
+                problems.append(f"{name}: implemented without ir_construct")
+            covered = {str(p) for p in row.get("parameters_covered") or []}
+            missing = [p for p in parameters if p not in covered]
+            if missing:
+                problems.append(f"{name}: parameters {missing} not covered")
+        elif status == "declared-unsupported":
+            if not str(row.get("refusal_witness") or "").strip():
+                problems.append(f"{name}: unsupported without a witness")
+    declared = {str(i.get("name")).strip() for i in api}
+    extra = sorted(set(rows) - declared)
+    if extra:
+        problems.append(f"undeclared rows: {extra[:3]}")
+    implemented = sum(1 for r in rows.values()
+                      if str(r.get("status")) == "implemented")
+    unsupported = sum(1 for r in rows.values()
+                      if str(r.get("status")) == "declared-unsupported")
+    check("coverage-matrix-enumerates-declared-surface", not problems,
+          f"{len(rows)} rows ({implemented} implemented, {unsupported} "
+          f"declared-unsupported) of {len(api)} declared; "
+          + "; ".join(problems[:3]))
+
+
 def main() -> int:
     check_table_matches_api_spec()
     check_classification_walk()
@@ -570,6 +831,11 @@ def main() -> int:
     check_ignorable_params()
     check_control_semantic_param_marked_ignorable()
     check_source_contract_refusals()
+    check_static_assert()
+    check_tl_dtype()
+    check_module_constexpr_global()
+    check_fma_scalar_legalization()
+    check_coverage_matrix()
     if FAILURES:
         print(f"test_frontend_surface: {len(FAILURES)} check(s) FAILED: "
               f"{FAILURES}")
