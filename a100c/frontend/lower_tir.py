@@ -43,9 +43,9 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 from a100c.frontend import shapes as fshapes
 from a100c.frontend import types as ftypes
 from a100c.frontend.source import FrontendError, OperatorSource
-from a100c.frontend.specialize import (DTypeValue, NOT_CONSTEXPR,
-                                       Specialization, TypeObject,
-                                       py_scalar)
+from a100c.frontend.specialize import (ConstexprEnv, DTypeValue,
+                                       NOT_CONSTEXPR, Specialization,
+                                       TypeObject, py_scalar)
 from a100c.frontend.surface import (CLASS_IGNORABLE, CLASS_IMPLEMENTED,
                                     CLASS_REFUSED, EXCLUDED_CONSTRUCTS,
                                     Surface, DEFAULT_SURFACE)
@@ -126,6 +126,16 @@ class ConstVal:
     """A compile-time value flowing through the lowering (a literal, a
     constexpr parameter, a folded expression or a dtype)."""
     value: object
+    #: the pinned ``visit_Assign`` rule: a Python scalar bound to a plain
+    #: local name becomes a rank-0 TENSOR of its ``to_tensor`` type
+    #: (float -> fp32, int by range, bool -> i1) -- it PARTICIPATES in
+    #: binary-op type promotion exactly like a tensor operand, unlike a
+    #: source literal in a BinOp (``x_fp16 * alpha`` is fp32 when
+    #: ``alpha = 1.5`` is a name, fp16 when ``x_fp16 * 1.5`` is written
+    #: inline; probed against the pinned 3.8 tracer).  A constexpr
+    #: parameter or a ``tl.constexpr``-annotated binding stays a pure
+    #: compile-time value (``tensor_sem`` False).
+    tensor_sem: bool = False
 
 
 @dataclass
@@ -585,6 +595,14 @@ class Lowering:
                     "only plain-name assignment targets are in the "
                     "elementwise core (subscript stores are not)")
             value = self._lower_expr(st.value)
+            # the pinned ``visit_Assign`` sanitize rule: a plain Python
+            # scalar bound by assignment is a rank-0 TENSOR of its
+            # to_tensor type (it participates in promotion; a source
+            # literal in a BinOp does not -- ConstVal.tensor_sem)
+            if isinstance(value, ConstVal) and \
+                    isinstance(_py_scalar(value.value), (bool, int, float)) \
+                    and not isinstance(value.value, (DTypeValue, TypeObject)):
+                value = ConstVal(value.value, tensor_sem=True)
             self._bind(targets[0].id, value)
             for extra in targets[1:]:
                 self._bind(extra.id, value)
@@ -1591,16 +1609,23 @@ class Lowering:
 
     # ------------------------------------------------------------------ exprs
     def _lower_expr(self, node: ast.expr) -> Union[tir.Value, ConstVal]:
+        if isinstance(node, ast.Name):
+            # the symbol's own binding FIRST: a name-bound constant keeps
+            # its ``tensor_sem`` marker (the pinned visit_Assign to_tensor
+            # rule -- the plain env fold would erase it and the constant
+            # would stop participating in the promotion)
+            if node.id in self.symbols:
+                return self.symbols[node.id]
+            folded = self.env.evaluate(node, self.source.path)
+            if folded is not NOT_CONSTEXPR:
+                return ConstVal(folded)
+            raise self._err(node, node.id,
+                            f"name '{node.id}' is not defined")
         folded = self.env.evaluate(node, self.source.path)
         if folded is not NOT_CONSTEXPR:
             return ConstVal(folded)
         if isinstance(node, ast.Constant):
             return ConstVal(node.value)
-        if isinstance(node, ast.Name):
-            if node.id not in self.symbols:
-                raise self._err(node, node.id,
-                                f"name '{node.id}' is not defined")
-            return self.symbols[node.id]
         if isinstance(node, ast.BinOp):
             return self._lower_binop(node)
         if isinstance(node, ast.UnaryOp):
@@ -1631,6 +1656,20 @@ class Lowering:
                 "dtype attributes fold)")
         if isinstance(node, ast.Subscript):
             return self._lower_subscript(node)
+        if isinstance(node, (ast.Tuple, ast.List)):
+            # a compile-time sequence folds element-wise (the reshape
+            # shape ``(x.shape[0], 16)``: each element folds through the
+            # lowering's attribute path -- ``x.shape`` is constexpr in
+            # the pinned language, so a sequence of folded extents is a
+            # compile-time sequence).  A runtime element declines (the
+            # elementwise core never sees a runtime sequence).
+            items = [self._lower_expr(e) for e in node.elts]
+            if all(isinstance(i, ConstVal) for i in items):
+                return ConstVal(tuple(i.value for i in items))
+            raise self._err(
+                node, type(node).__name__,
+                "a runtime sequence is not in the elementwise core (a "
+                "compile-time sequence of folded constants is)")
         raise self._err(node, type(node).__name__,
                         "expression is not in the elementwise core")
 
@@ -1641,6 +1680,29 @@ class Lowering:
         op = node.op
         loc = self._loc(node)
         hint = "bin"
+
+        if isinstance(lhs, ConstVal) and isinstance(rhs, ConstVal):
+            # two folded constants: constexpr arithmetic (the pinned
+            # tracer folds a BinOp of two constexprs at trace time).  The
+            # operands fold here when the env could not see them -- a
+            # shape-derived extent (``16 // x.shape[1]``) whose operands
+            # fold only through the lowering's attribute path.
+            l, r = _py_scalar(lhs.value), _py_scalar(rhs.value)
+            if isinstance(l, (int, float)) and isinstance(r, (int, float)):
+                try:
+                    folded = ConstexprEnv._binop(op, l, r)
+                except (ZeroDivisionError, TypeError, ValueError,
+                        OverflowError):
+                    raise self._err(
+                        node, type(op).__name__,
+                        f"constexpr operation {l!r} "
+                        f"{type(op).__name__} {r!r} is not defined") from None
+                # a to_tensor'd operand (a name-bound constant) keeps the
+                # result a rank-0 tensor of the folded value's type (the
+                # pinned scalar rule: the tensor side types the result)
+                return ConstVal(folded,
+                                tensor_sem=(lhs.tensor_sem
+                                            or rhs.tensor_sem))
 
         if isinstance(op, ast.Add):
             return self._emit_addsub(lhs, rhs, loc, node, sub=False)
@@ -1980,23 +2042,36 @@ class Lowering:
     # -- the pinned unification ------------------------------------------------
     def _binary_operands(self, lhs, rhs, loc,
                          div_or_mod: bool = False,
-                         preserve_order: bool = False) -> Tuple[tir.Value,
-                                                            tir.Value,
-                                                            tir.Type]:
+                         preserve_order: bool = False,
+                         literal_participates: bool = False
+                         ) -> Tuple[tir.Value, tir.Value, tir.Type]:
         """Pinned binary_op_type_checking_impl: literals become constants of
         the computation type, tensor operands get explicit converts, shapes
         unify with explicit broadcast ops.
 
         ``preserve_order`` keeps the source operand order (a comparison's
         predicate is not commutative: ``flag > 0`` must compare flag
-        against the literal, never the literal against flag)."""
+        against the literal, never the literal against flag).
+
+        ``literal_participates`` marks the constructs whose pinned form
+        converts a scalar argument through ``to_tensor`` BEFORE the
+        unification (``tl.maximum`` / ``tl.minimum``: the constexpr call
+        argument becomes an fp32 rank-0 tensor and participates in the
+        promotion).  A ConstVal carrying ``tensor_sem`` (a plain-assignment
+        name binding) participates the same way in every binop; a source
+        literal in a BinOp does not (the scalar rule of
+        computation_type_impl)."""
         node = loc_node(loc)
         l_lit = isinstance(lhs, ConstVal)
         r_lit = isinstance(rhs, ConstVal)
+        l_sem = l_lit and (literal_participates or lhs.tensor_sem)
+        r_sem = r_lit and (literal_participates or rhs.tensor_sem)
         if l_lit and r_lit:
-            # two literals (e.g. tl.where(cond, 1.0, 0.0)): the expression
-            # did not fold because the *shape* comes from elsewhere; both
-            # become constants of their common computation type.
+            # two folded constants (e.g. tl.where(cond, 1.0, 0.0)): the
+            # expression did not fold because the *shape* comes from
+            # elsewhere; both become constants of their common
+            # computation type.  A to_tensor'd side participates with its
+            # own type (a source literal does not).
             l_value, r_value = _py_scalar(lhs.value), _py_scalar(rhs.value)
             for v in (l_value, r_value):
                 if isinstance(v, (DTypeValue, TypeObject)):
@@ -2006,8 +2081,8 @@ class Lowering:
             try:
                 l_ty = ftypes.literal_type(l_value)
                 r_ty = ftypes.literal_type(r_value)
-                comp = ftypes.computation_type(l_ty, True, r_ty, True,
-                                               div_or_mod)
+                comp = ftypes.computation_type(l_ty, not l_sem, r_ty,
+                                               not r_sem, div_or_mod)
             except ftypes.TypeRuleError as exc:
                 raise self._err(node, "binary op", exc.message)
             l = self._emit(tir.Op.const(l_value, comp, loc), "lit")
@@ -2015,6 +2090,7 @@ class Lowering:
             return self._broadcast_pair(l, r, loc)
         if l_lit or r_lit:
             lit, ten = (lhs, rhs) if l_lit else (rhs, lhs)
+            lit_sem = l_sem if l_lit else r_sem
             lit_value = _py_scalar(lit.value)
             if isinstance(lit_value, (DTypeValue, TypeObject)):
                 raise self._err(
@@ -2024,12 +2100,23 @@ class Lowering:
                 lit_ty = ftypes.literal_type(lit_value)
             except ftypes.TypeRuleError as exc:
                 raise self._err(node, "literal", exc.message)
-            try:
-                comp = ftypes.binop_unify(
-                    lit_ty, True, lit_value,
-                    ten.type, False, None, div_or_mod=div_or_mod)
-            except ftypes.TypeRuleError as exc:
-                raise self._err(node, "binary op", exc.message)
+            if lit_sem:
+                # the pinned to_tensor form: the scalar is a rank-0
+                # tensor of its own type and participates in the
+                # promotion (computation_type over two tensor types; the
+                # scalar range/negative checks do not apply)
+                try:
+                    comp = ftypes.computation_type(
+                        lit_ty, False, ten.type, False, div_or_mod)
+                except ftypes.TypeRuleError as exc:
+                    raise self._err(node, "binary op", exc.message)
+            else:
+                try:
+                    comp = ftypes.binop_unify(
+                        lit_ty, True, lit_value,
+                        ten.type, False, None, div_or_mod=div_or_mod)
+                except ftypes.TypeRuleError as exc:
+                    raise self._err(node, "binary op", exc.message)
             lit_v = self._emit(tir.Op.const(lit_value, comp, loc), "lit")
             ten_v = self._convert_if_needed(ten, comp, loc)
             if preserve_order and not l_lit:
@@ -3232,7 +3319,9 @@ class Lowering:
         sum promotes integer widths < 32 to the same-sign 32-bit type
         (overflow prevention); max/min/argmax/argmin additionally promote
         bfloat16 to fp32 (no FMAX/FMIN/CMP for bf16 in hardware) and every
-        <32-bit type to fp32/int32.  ``dtype=`` overrides (the input
+        <32-bit type to fp32/int32.  A bool block is pinned int1 (an
+        unsigned 1-bit integer): sum(uint32) and max/min(int32) (probed
+        against the pinned tracer).  ``dtype=`` overrides (the input
         converts before the reduction)."""
         ty = value.type
         if dtype_arg is not None:
@@ -3240,16 +3329,21 @@ class Lowering:
             return self._convert_if_needed(value, target, loc)
         target = ty
         if kind == "sum":
-            if ty.is_int() and ty.bitwidth() < 32:
-                target = tir.INT32 if ty.is_int_signed() else tir.UINT32
+            if (ty.is_int() or ty.is_bool()) and ty.bitwidth() < 32:
+                if ty.is_bool():
+                    target = tir.UINT32     # pinned: int1 is unsigned
+                else:
+                    target = tir.INT32 if ty.is_int_signed() else tir.UINT32
         elif kind in ("max", "min", "argmax", "argmin"):
             if ty.name == "bf16":
                 target = tir.FLOAT32
             elif ty.bitwidth() < 32:
                 if ty.is_float():
                     target = tir.FLOAT32
-                elif ty.is_int():
-                    target = tir.INT32 if ty.is_int_signed() else tir.UINT32
+                elif ty.is_int() or ty.is_bool():
+                    # pinned max/min convert every <32-bit non-float to
+                    # the SIGNED int32
+                    target = tir.INT32
         return self._convert_if_needed(value, target, loc)
 
     def _lower_tl_reduction(self, args: Dict[str, ast.expr], node: ast.Call,
@@ -3381,11 +3475,18 @@ class Lowering:
         the target's exactly-rounded vfdiv)."""
         from a100c.plan import stages as stages_mod
         x = self._reduction_operand(args, node, loc, construct)
-        if not x.type.is_float() or x.type.bitwidth() not in (32, 64):
+        if not x.type.is_float():
             raise self._err(
                 node, construct,
-                f"tl.softmax requires an fp32/fp64 block (the exp "
+                f"tl.softmax requires a floating block (the exp "
                 f"dependency's pinned _check_dtype), got {x.type!r}")
+        if x.type.bitwidth() < 32:
+            # the pinned composition promotes through its own max
+            # reduction (standard.max: bf16 -> fp32, then every <32-bit
+            # float -> fp32), so ``z = x - max(x)`` and every later stage
+            # is fp32 and exp's _check_dtype holds; the RESULT is fp32
+            # for a 16-bit input (probed against the pinned tracer)
+            x = self._emit_convert(x, tir.FLOAT32, loc)
         rank = x.rank
         if rank != 1:
             raise self._err(
@@ -3496,12 +3597,18 @@ class Lowering:
         propagate_nan = self._propagate_nan(args, node, construct)
         x = self._lower_expr(args["x"])
         y = self._lower_expr(args["y"])
-        if isinstance(x, ConstVal) and isinstance(y, ConstVal):
+        if isinstance(x, ConstVal) and isinstance(y, ConstVal) \
+                and not (x.tensor_sem or y.tensor_sem):
             raise self._err(
                 node, construct,
                 "two constexpr operands have no block lanes (Python "
                 "min/max folds at specialization)")
-        l, r, t = self._binary_operands(x, y, loc)
+        # the pinned core.maximum/minimum convert each argument through
+        # to_tensor BEFORE the unification: a scalar argument is an fp32
+        # (or integer) rank-0 tensor that participates in the promotion
+        # (``tl.maximum(a_fp16, 1e-12)`` is fp32)
+        l, r, t = self._binary_operands(x, y, loc,
+                                        literal_participates=True)
         if t.is_bool():
             raise self._err(
                 node, construct,
@@ -4242,6 +4349,18 @@ class Lowering:
             raise self._err(call, construct,
                             f"missing required parameter {param!r}")
         value = py_scalar(self.env.evaluate(node, self.source.path))
+        if value is NOT_CONSTEXPR:
+            # the lowering's own fold: a shape-derived bound (``16 //
+            # x.shape[1]``) is compile-time in the pinned language even
+            # though the constexpr env cannot see the local block
+            # (IR-SEMANTIC-FIDELITY: block extents are compile-time);
+            # anything that does not fold keeps the located refusal
+            try:
+                lowered = self._lower_expr(node)
+            except FrontendError:
+                lowered = None
+            if isinstance(lowered, ConstVal):
+                value = py_scalar(lowered.value)
         if value is NOT_CONSTEXPR or isinstance(value, bool) or \
                 not isinstance(value, int):
             raise self._err(
@@ -4321,6 +4440,16 @@ class Lowering:
             args = [args]
         if len(args) == 1:
             value = py_scalar(self.env.evaluate(args[0], self.source.path))
+            if value is NOT_CONSTEXPR:
+                # the lowering's fold (the pinned constexpr shape: a
+                # sequence of shape-derived extents folds element-wise
+                # -- ``(x.shape[0], 16)`` of a runtime block's extents)
+                try:
+                    lowered = self._lower_expr(args[0])
+                except FrontendError:
+                    lowered = None
+                if isinstance(lowered, ConstVal):
+                    value = py_scalar(lowered.value)
             if value is NOT_CONSTEXPR or not isinstance(value,
                                                         (tuple, list)):
                 raise self._err(
@@ -4328,8 +4457,17 @@ class Lowering:
                     "shape must be a compile-time sequence of integers")
             items = list(value)
         else:
-            items = [py_scalar(self.env.evaluate(a, self.source.path))
-                     for a in args]
+            items = []
+            for a in args:
+                v = py_scalar(self.env.evaluate(a, self.source.path))
+                if v is NOT_CONSTEXPR:
+                    try:
+                        lowered = self._lower_expr(a)
+                    except FrontendError:
+                        lowered = None
+                    if isinstance(lowered, ConstVal):
+                        v = py_scalar(lowered.value)
+                items.append(v)
             if any(v is NOT_CONSTEXPR for v in items):
                 raise self._err(
                     node, construct,
@@ -5118,9 +5256,19 @@ def _literal_tir_type(value, lowering, loc) -> tir.Type:
 def _const_value(value, ty: tir.Type):
     """Check a constant value is compatible with its type (bool for i1, and
     numeric for the rest)."""
-    if ty.is_bool() and not isinstance(value, bool):
+    if ty.is_bool():
+        # the pinned to_tensor route: a Python int/float reaches the i1
+        # target as a numeric tensor and converts by ``!= 0`` -- the
+        # full-constant form ``tl.full((N,), 1, tl.int1)`` is True
+        # (probed against the pinned tracer); a non-numeric value still
+        # refuses
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, (int, float)):
+            return value != 0
         raise FrontendError("<const>", 0, 0, "const",
-                            f"i1 constant requires a bool, got {value!r}")
+                            f"i1 constant requires a bool or a numeric "
+                            f"value, got {value!r}")
     if ty.is_int() and isinstance(value, bool):
         return int(value)
     if ty.is_float() and isinstance(value, bool):

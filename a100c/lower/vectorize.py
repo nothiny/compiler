@@ -112,6 +112,20 @@ class LowerOptions:
 _VECTOR_KIND = {"float": "float", "int": "int", "uint": "uint"}
 
 
+def _storage_pointee(pointee: tir.Type) -> tir.Type:
+    """The memory-lane view of one pointee type.
+
+    A bool pointee is backed by ONE BYTE per element (the bundle's bool
+    views are 1-byte numpy bools, native_io DTYPES['bool']), so its block
+    accesses run the i8 lane -- the same proven-safe forms int8 uses --
+    with the i1 value materialized as 0/1 bytes (loads test ``!= 0``,
+    stores write the mask's 0/1).  Every other pointee is its own
+    storage."""
+    if pointee.is_bool():
+        return tir.INT8
+    return pointee
+
+
 class _Ctx:
     """Emission helper: vreg creation and ordered op append.
 
@@ -1576,12 +1590,11 @@ class SliceLowering:
             if st.op in ("load", "store"):
                 if st.operands[0].rank > 0:
                     pointee = st.operands[0].type.pointee
-                    if pointee.is_bool():
-                        raise self._err(
-                            st.loc, st.op,
-                            "i1 pointee widths are not in the slice (a "
-                            "bool backing store is the dtype-surface lane)")
-                    sew = pointee.bitwidth()
+                    # a bool pointee is backed one byte per element (the
+                    # dtype-surface bool lane): the memory runs at SEW 8
+                    # with the i1 value materialized as 0/1 bytes
+                    # (_storage_pointee / the bool load-store lane)
+                    sew = _storage_pointee(pointee).bitwidth()
             return sew
         if isinstance(st, (tir.If, tir.Loop)):
             blocks = st.then.statements + st.els.statements \
@@ -1888,6 +1901,31 @@ class SliceLowering:
                     self._staged[v.vid] = {"pending": True}
                     self._stage_out.add(v.vid)
             seg_index += 1
+        # an IN-PASS runtime region's join consumed by a later pass: the
+        # join's register is the region-exit block param, which does not
+        # survive the pass close (the pre-check state emitted the param's
+        # use inside the later pass's chunk body and the MIR verifier
+        # rejected it as use-before-definition -- a silent-guess emission,
+        # never the designed boundary).  The layout lane stages top-level
+        # values only, so this is a located refusal.
+        seg_index = 0
+        for seg in flat:
+            if seg[0] == "pass":
+                for st in seg[1]:
+                    for jv in getattr(st, "join_results", ()):
+                        if jv.rank == 0 or jv.vid in self._staged:
+                            continue
+                        if self._join_used_later(jv, flat, seg_index):
+                            raise VectorizeError(
+                                jv.loc, "loop",
+                                f"the region join '{jv.name}' is consumed "
+                                "by a later pass (a block value crossing "
+                                "a pass boundary must stage; an in-pass "
+                                "runtime region's join rides the "
+                                "region-exit register, which does not "
+                                "survive the pass close -- the layout "
+                                "lane stages top-level values only)")
+            seg_index += 1
         # (c) T014: the matrix regions' staged loop carries -- the
         # body-end value must stage (the back-edge copy writes its
         # region); the loop's join aliases the init's record (resolved
@@ -1985,6 +2023,30 @@ class SliceLowering:
                 defined_in[v.vid] = seg_index
             for s in st.body.statements:
                 self._region_defs(s, defined_in, seg_index, depth + 1)
+
+    def _join_used_later(self, jv: tir.Value, flat: list,
+                         seg_index: int) -> bool:
+        """Is one region-join value consumed by a segment after its
+        defining segment?  (The def/use staging walk skips producer-less
+        values -- a join has no producer op -- so the cross-pass check
+        walks them explicitly.)"""
+        for later in range(seg_index + 1, len(flat)):
+            seg = flat[later]
+            uses: List[tir.Value] = []
+            if seg[0] == "scalar":
+                continue
+            if seg[0] in ("layout", "preduce"):
+                uses.extend(seg[1].operands)
+            elif seg[0] == "matrix" and isinstance(seg[1], tir.Op):
+                uses.extend(seg[1].operands)
+            elif seg[0] == "matrix_region_join":
+                uses.extend(self._region_uses(seg[1]))
+            else:
+                for st in seg[1]:
+                    uses.extend(self._region_uses(st))
+            if any(v.vid == jv.vid for v in uses):
+                return True
+        return False
 
     def _region_uses(self, st) -> List[tir.Value]:
         out: List[tir.Value] = []
@@ -2624,7 +2686,13 @@ class SliceLowering:
         # worker; the normal path decomposes the loop induction
         self._pid_axis_regs = {}
         if strided:
-            self._pid_axis_regs[0] = ctx.const(0, mir.I32, loc)
+            # the split path runs the single program -- program 0 on
+            # EVERY grid axis (a 2-axis grid's ``tl.program_id(1)`` is 0
+            # here exactly like axis 0; refusing because only axis 0 was
+            # populated rejected multi-axis kernels whose split gate can
+            # never fire for their real grids)
+            for axis in range(self.grid.ndim):
+                self._pid_axis_regs[axis] = ctx.const(0, mir.I32, loc)
         elif self.grid.ndim == 1:
             pid0 = ctx.emit(mir.MOp(
                 "strunc", [pid_b],
@@ -3259,7 +3327,33 @@ class SliceLowering:
         consumer boundary (value-exact for the class)."""
         width = frame.get("widen_exit") or 0
         if width and reg.type.width < width and not reg.type.float:
-            return scalar_mod.widen_to(ctx, reg, width, loc)
+            if reg.type.width == 32:
+                return scalar_mod.widen_to(ctx, reg, width, loc)
+            # a sub-32-bit data-SEW class (the bool lane's SEW 8, an
+            # fp16 pass's 16): the 0/1 class is non-negative, so the
+            # exact widening is the ZERO-extension -- splat, the vwiden
+            # zext chain, extract (the scalar core has no 8->64 / 16->64
+            # form and smove's 32->64 view convention does not hold for
+            # the byte/half GPRs; the 16->64 and 8->64 forms were
+            # located refusals)
+            unsigned = False
+            partial = frame.get("partial")
+            if partial is not None and getattr(partial, "dtype", None) \
+                    is not None:
+                unsigned = partial.dtype.is_int_unsigned()
+            vty = mir.VectorType(reg.type.width, 1,
+                                 "uint" if unsigned else "int")
+            self._vregion(ctx, vty, loc)
+            vec = ctx.emit(mir.MOp(
+                "s2v", [reg], [ctx.vreg(vty, hint="wxs", loc=loc)],
+                loc=loc))
+            wide = self._int_widen(ctx, vec, reg.type.width, width,
+                                   False, loc,
+                                   dst_kind="uint" if unsigned else "int")
+            self._vregion(ctx, wide.type, loc)
+            out = self._scalarize(ctx, wide, loc)
+            self._restore_region(ctx, loc)
+            return out
         return reg
 
     def _store_liveouts(self, ctx: _Ctx, loc) -> None:
@@ -6423,10 +6517,26 @@ class SliceLowering:
         # the typed result narrows back at the element type
         red_reg = vreg
         red_ty = value.type
+        fp32_policy = False
         if vreg.type.kind == "float" and vreg.type.sew == 16 \
                 and not index_form and not ret_idx:
             red_reg = self._f16_to_f32(ctx, vreg, value.type, loc)
             red_ty = tir.FLOAT32
+            fp32_policy = True
+        if not index_form and not ret_idx and kind in ("max", "min") \
+                and not vreg.is_mask() and vreg.type.sew < \
+                value.type.bitwidth() and value.type.is_int() \
+                and vreg.type.kind in ("int", "uint"):
+            # a bool-converted {0,1} class riding a lane below the
+            # promoted reduction type (i1 -> int32, the pinned max/min
+            # promotion): widen to the declared width so the vred AND the
+            # merge accumulator both ride it (the sum merge's own 0/1
+            # class keeps the pass lane by design)
+            red_reg = self._int_widen(
+                ctx, vreg, vreg.type.sew, value.type.bitwidth(), False,
+                loc, dst_kind="uint" if value.type.is_int_unsigned()
+                else "int")
+            red_ty = value.type
         part = self._vred(ctx, red_reg, vred_kind, loc, tir_type=red_ty)
         if index_form or ret_idx:
             self._vregion(ctx, vreg.type, loc)
@@ -6475,7 +6585,7 @@ class SliceLowering:
             return
         # the typed per-chunk value (the element type; the fp32 partial
         # below is what the merge accumulator combines)
-        if red_reg is not vreg:
+        if fp32_policy:
             # the fp32-lane policy's one rounding at the element type
             typed_vec = self._f32_to_ff(ctx, part, value.type, loc)
             self._vregion(ctx, typed_vec.type, loc)
@@ -6487,7 +6597,7 @@ class SliceLowering:
         # own class (the merge frame's vtype): record it so the back edge
         # combines the fp32 value, not the narrowed element-typed scalar
         partial_scalar = None
-        if red_reg is not vreg:
+        if fp32_policy:
             self._vregion(ctx, part.type, loc)
             partial_scalar = self._scalarize(ctx, part, loc)
         self._bind_result(op, typed)
@@ -6980,7 +7090,7 @@ class SliceLowering:
         # boundary refusal.
         if (sw == 64 and src.is_float()) or (dw == 64 and dst.is_float()):
             allowed = ((src.is_int() and dst.is_float()
-                        and sw == 64 and dw == 64)
+                        and dw == 64)
                        or (src.is_float() and dst.is_float()
                            and sw == 64 and dw == 32)
                        or (src.is_float() and dst.is_float()
@@ -6989,8 +7099,8 @@ class SliceLowering:
                 raise self._err(
                     loc, "convert",
                     f"fp64 conversions are not in the lane (the corpus "
-                    f"dtype surface has no fp64 tensors; the two internal-"
-                    f"compute routes i64->f64 and f64->f32 are the "
+                    f"dtype surface has no fp64 tensors; the internal-"
+                    f"compute routes int->f64 and f64->f32 are the "
                     f"exception): {src!r} -> {dst!r}")
         if src.is_bool():
             # bool -> X: the 0/1 class selected at the destination type.
@@ -7100,13 +7210,22 @@ class SliceLowering:
                 f32 = self._convert_vector(ctx, sreg, src, tir.FLOAT32,
                                            loc)
                 return self._f32_to_ff(ctx, f32, dst, loc)
-            # sw > dw and dw == 32: i64 -> f32 narrows the integer first
-            # (values above 2^31 would wrap) -- refused, never wrong
+            if sw == 64 and dw == 32:
+                # i64 -> f32: the exact two-step route (i64 -> f64 is the
+                # 53-bit RTNE rounding, f64 -> f32 the final RTNE
+                # narrowing).  For |x| < 2^53 the first step is exact and
+                # the result equals the single-rounding conversion; the
+                # corpus's int64 values (indices, extents, counts) are
+                # far below that bound.  Narrowing through i32 first
+                # would WRAP -- never done.
+                f64 = self._convert_vector(ctx, sreg, src, tir.FLOAT64,
+                                           loc)
+                return self._convert_vector(ctx, f64, tir.FLOAT64, dst,
+                                            loc)
             raise self._err(
                 loc, "convert",
-                f"int{sw} -> f{dw} narrows the integer first (values "
-                "beyond the narrower width would wrap); the exact route "
-                "needs the fp64 staging outside the corpus dtype surface")
+                f"int{sw} -> f{dw} has no exact route in the conversion "
+                "matrix")
         if src.is_float() and dst.is_int():
             if sw == dw:
                 op = "fcvt.xf" if dst.is_int_signed() else "fcvt.xuf"
@@ -7757,7 +7876,7 @@ class SliceLowering:
         the same adjustment the indexed path does (the pre-repair
         miscompile: the proof's scalar terms never see the carried
         step)."""
-        esz = pointee.bitwidth() // 8
+        esz = 1 if pointee.is_bool() else pointee.bitwidth() // 8
         rec_offsets: List[mir.VReg] = []
         node = ptr
         while True:
@@ -8025,10 +8144,14 @@ class SliceLowering:
         if ptr.rank == 0 and (mask is None or mask.rank == 0):
             # a rank-0 load: the scalar core
             if mask is not None:
-                raise self._err(loc, "tl.load",
-                                "a masked scalar load is not in the scalar "
-                                "core (the corpus scalar loads are "
-                                "unmasked)")
+                # the guarded scalar load (the pinned masked scalar form:
+                # NO access at a disabled position -- a branch around the
+                # load, the declared ``other`` on the disabled arm)
+                reg = self._lower_masked_scalar_load(
+                    ctx, base_reg, offset_reg, pointee, mask, other,
+                    default, loc)
+                self._bind_result(op, reg)
+                return
             reg = scalar_mod.scalar_load(ctx, base_reg, offset_reg, pointee,
                                          loc)
             self._bind_result(op, reg)
@@ -8038,6 +8161,12 @@ class SliceLowering:
                             "a block load appears outside the vector chunk "
                             "region (block values must live inside it)")
         mreg = self._need(mask, loc) if mask is not None else None
+        if pointee.is_bool():
+            # the dtype-surface bool lane: one byte per element on the
+            # i8 storage lane, the i1 result the != 0 lane test
+            self._lower_bool_load(ctx, op, ptr, base_reg, offset_reg,
+                                  mreg, other, default, loc)
+            return
         # the wide-access proof (T011): a proven-contiguous access selects
         # the unit-stride form; an unproven one keeps the indexed form
         # (MECH-MASKED-VECTOR-ACCESS -- the proof never guesses)
@@ -8213,12 +8342,16 @@ class SliceLowering:
     def _lower_load_narrow(self, ctx: _Ctx, op: tir.Op, base_reg: mir.VReg,
                            offset_reg: mir.VReg, pointee: tir.Type,
                            mreg: Optional[mir.VReg], other, default,
-                           loc) -> mir.VReg:
+                           loc, rtype_ty=None) -> mir.VReg:
         """The per-lane scalar loop of one sub-32-bit block load (the
         address vector's lanes redirect the disabled ones to the
         scratch's ``other`` slot -- no source access there; the width-
-        matched scalar loads are the slice's proven safe form)."""
-        rtype = self._vtype(op.results[0].type)
+        matched scalar loads are the slice's proven safe form).
+
+        ``rtype_ty`` overrides the result's register type (the bool
+        lane's i8 storage view; the op's own result type otherwise)."""
+        rtype = self._vtype(rtype_ty if rtype_ty is not None
+                            else op.results[0].type)
         sew = rtype.sew
         esz = sew // 8
         vl = self._vl
@@ -8282,6 +8415,233 @@ class SliceLowering:
             [ctx.vreg(rtype, hint="nld", loc=loc)],
             attrs={"sew": sew}, loc=loc))
 
+    # -- the dtype-surface bool lane (a 1-byte backing store) -----------------
+
+    def _guard_block_names(self, tag: str) -> Tuple[str, str, str]:
+        """Three unique block names for one scalar guard (then/else/join)."""
+        n = getattr(self, "_scalar_guard_n", 0) + 1
+        self._scalar_guard_n = n
+        return (f"{tag}.t{n}", f"{tag}.e{n}", f"{tag}.j{n}")
+
+    def _lower_masked_scalar_load(self, ctx: _Ctx, base_reg: mir.VReg,
+                                  offset_reg: mir.VReg, pointee: tir.Type,
+                                  mask, other, default,
+                                  loc) -> mir.VReg:
+        """The pinned masked SCALAR load: the disabled position performs
+        NO access (a branch around the load -- the address may be
+        out-of-range exactly there), the declared ``other`` (or an undef
+        zero when none) on the disabled arm; the join carries the value."""
+        mreg = self._need(mask, loc)
+        m64 = mreg if mreg.type == mir.I64 else \
+            scalar_mod.widen_to(ctx, mreg, 64, loc)
+        if pointee.is_bool():
+            rty = mir.I64          # the scalar-bool 0/1 convention
+        else:
+            rty = mir.ScalarType(pointee.bitwidth(), signed=True,
+                                 float=pointee.is_float())
+        tname, ename, jname = self._guard_block_names("msl")
+        then_b = ctx.add_block(tname, [], loc)
+        else_b = ctx.add_block(ename, [], loc)
+        res = mir.VReg(rty, name=f"mslv{self._scalar_guard_n}")
+        join_b = ctx.add_block(jname, [res], loc)
+        ctx.emit0(mir.MOp(
+            "brc", [m64], [],
+            attrs={"true_target": tname, "true_args": [],
+                   "false_target": ename, "false_args": []}, loc=loc))
+        ctx.switch(then_b)
+        val = scalar_mod.scalar_load(ctx, base_reg, offset_reg, pointee,
+                                     loc)
+        if val.type != rty:
+            val = scalar_mod.convert_width(ctx, val, rty.width, loc)
+        ctx.emit0(mir.MOp(
+            "br", [], [], attrs={"target": jname, "args": [val]},
+            loc=loc))
+        ctx.switch(else_b)
+        if other is not None or default == tir.MaskedDefault.VALUE:
+            oreg = self._need(other, loc)
+        else:
+            # no declared default: the value is undefined there -- any
+            # value is a legal compilation (a zero keeps it simple)
+            oreg = scalar_mod.lower_const(ctx, 0, pointee, loc)
+        if oreg.type != rty:
+            oreg = scalar_mod.convert_width(ctx, oreg, rty.width, loc)
+        ctx.emit0(mir.MOp(
+            "br", [], [], attrs={"target": jname, "args": [oreg]},
+            loc=loc))
+        ctx.switch(join_b)
+        return res
+
+    def _lower_masked_scalar_store(self, ctx: _Ctx, base_reg: mir.VReg,
+                                   offset_reg: mir.VReg, pointee: tir.Type,
+                                   value, mask, loc) -> None:
+        """The pinned masked SCALAR store: the disabled position performs
+        NO access (a branch around the store)."""
+        mreg = self._need(mask, loc)
+        m64 = mreg if mreg.type == mir.I64 else \
+            scalar_mod.widen_to(ctx, mreg, 64, loc)
+        vreg = self._need(value, loc)
+        tname, jname = self._guard_block_names("mss")[:2]
+        then_b = ctx.add_block(tname, [], loc)
+        join_b = ctx.add_block(jname, [], loc)
+        ctx.emit0(mir.MOp(
+            "brc", [m64], [],
+            attrs={"true_target": tname, "true_args": [],
+                   "false_target": jname, "false_args": []}, loc=loc))
+        ctx.switch(then_b)
+        scalar_mod.scalar_store(ctx, base_reg, offset_reg, vreg, pointee,
+                                loc)
+        ctx.emit0(mir.MOp(
+            "br", [], [], attrs={"target": jname, "args": []}, loc=loc))
+        ctx.switch(join_b)
+
+    def _mask01_at(self, ctx: _Ctx, mreg: mir.VReg, vtype: mir.VectorType,
+                   loc) -> mir.VReg:
+        """A mask as a 0/1 vector at an explicit type (the
+        _narrow_mask01 form generalized off i32: the bool lane's i8
+        bytes)."""
+        self._vregion(ctx, vtype, loc)
+        zero = self._splat_const(ctx, 0, vtype, loc)
+        one = self._splat_const(ctx, 1, vtype, loc)
+        v0 = ctx.emit(mir.MOp(
+            "vmovmask", [mreg],
+            [ctx.vreg(mir.MaskType(), hint="m01", loc=loc,
+                      fixed_phys="v0")], loc=loc))
+        out = ctx.emit(mir.MOp(
+            "vsel", [v0, one, zero],
+            [ctx.vreg(vtype, hint="m02", loc=loc)], loc=loc))
+        self._restore_region(ctx, loc)
+        return out
+
+    def _bool_mask_of(self, ctx: _Ctx, reg: mir.VReg,
+                      loc) -> mir.VReg:
+        """The mask form of one i1 value register: a mask register is
+        itself; the scalar-bool convention (an i64 0/1 GPR) tests against
+        zero; a data-vector-held i1 lane-compares against zero."""
+        if reg.is_mask():
+            return reg
+        if reg.is_vector():
+            self._vregion(ctx, reg.type, loc)
+            zero = self._splat_const(ctx, 0, reg.type, loc)
+            m = ctx.emit(mir.MOp(
+                "vcmp", [reg, zero],
+                [ctx.vreg(mir.MaskType(), hint="bmm", loc=loc)],
+                attrs={"pred": "ne", "fp": reg.type.kind == "float"},
+                loc=loc))
+            self._restore_region(ctx, loc)
+            return m
+        return self._mask_of_bool(ctx, reg, loc)
+
+    def _lower_bool_load(self, ctx: _Ctx, op: tir.Op, ptr,
+                         base_reg: mir.VReg, offset_reg: mir.VReg,
+                         mreg: Optional[mir.VReg], other, default,
+                         loc) -> None:
+        """A block load from a bool backing store: the storage is one
+        byte per element, so the access runs the i8 lane -- the unit-
+        stride form when the wide proof holds, else the per-lane narrow
+        fallback (the same proven-safe forms int8 uses) -- and the i1
+        result is the ``!= 0`` lane test.  The declared disabled-position
+        default substitutes at the i8 level BEFORE the test, so
+        ``other=True`` yields True exactly and the disabled lanes
+        perform no access."""
+        storage = _storage_pointee(op.operands[0].type.pointee)
+        stype = self._vtype(storage)
+        wide = scalar_mod.prove_wide_access(self, ptr, self._vl)
+        unit_base = self._unit_stride_base(ctx, wide, base_reg, storage,
+                                           loc) if wide is not None else None
+        if unit_base is not None:
+            adjust = self._recurrence_byte_adjust(ctx, ptr, storage, loc)
+            if adjust is not None:
+                unit_base = ctx.emit(mir.MOp(
+                    "sadd", [unit_base, adjust],
+                    [ctx.vreg(mir.I64, hint="bwa", loc=loc)], loc=loc))
+            self._vregion(ctx, stype, loc)
+            operands = [unit_base]
+            attrs = {"sew": stype.sew}
+            if mreg is not None \
+                    and not self.options.witness_drop_tail_predicates:
+                v0 = ctx.emit(mir.MOp(
+                    "vmovmask", [mreg],
+                    [ctx.vreg(mir.MaskType(), hint="bv0", loc=loc,
+                              fixed_phys="v0")], loc=loc))
+                operands.append(v0)
+                attrs["default"] = "undef"
+            raw = ctx.emit(mir.MOp(
+                "vunit_load", operands,
+                [ctx.vreg(stype, hint="bld", loc=loc)], attrs=attrs,
+                loc=loc))
+            self._wide_selections.append(
+                {"op": "load", "source": wide.source,
+                 "detail": wide.detail, "loc": str(loc)})
+        else:
+            # the narrow fallback at the i8 width (the default's own
+            # select happens after, at the i8 level)
+            raw = self._lower_load_narrow(ctx, op, base_reg, offset_reg,
+                                          storage, mreg, None, None, loc,
+                                          rtype_ty=storage)
+        if other is not None or default == tir.MaskedDefault.VALUE:
+            oreg = self._need(other, loc)
+            other8 = self._mask01_at(ctx, self._bool_mask_of(ctx, oreg,
+                                                             loc),
+                                     stype, loc)
+            v0 = ctx.emit(mir.MOp(
+                "vmovmask", [mreg],
+                [ctx.vreg(mir.MaskType(), hint="bo0", loc=loc,
+                          fixed_phys="v0")], loc=loc))
+            self._vregion(ctx, stype, loc)
+            raw = ctx.emit(mir.MOp(
+                "vsel", [v0, raw, other8],
+                [ctx.vreg(stype, hint="blo", loc=loc)], loc=loc))
+            self._restore_region(ctx, loc)
+        self._vregion(ctx, stype, loc)
+        zero = self._splat_const(ctx, 0, stype, loc)
+        b = ctx.emit(mir.MOp(
+            "vcmp", [raw, zero],
+            [ctx.vreg(mir.MaskType(), hint="blm", loc=loc)],
+            attrs={"pred": "ne", "fp": False}, loc=loc))
+        self._restore_region(ctx, loc)
+        self._bind_result(op, b)
+
+    def _lower_bool_store(self, ctx: _Ctx, op: tir.Op, ptr,
+                          base_reg: mir.VReg, offset_reg: mir.VReg,
+                          vreg: mir.VReg, mask_reg: Optional[mir.VReg],
+                          loc) -> None:
+        """A block store to a bool backing store: the i1 value (a mask)
+        materializes as 0/1 bytes on the i8 lane and the same
+        proven-safe access forms int8 uses perform the write (no access
+        at the disabled lanes)."""
+        storage = _storage_pointee(op.operands[0].type.pointee)
+        stype = self._vtype(storage)
+        bytes8 = self._mask01_at(ctx, self._bool_mask_of(ctx, vreg, loc),
+                                 stype, loc)
+        wide = scalar_mod.prove_wide_access(self, ptr, self._vl)
+        unit_base = self._unit_stride_base(ctx, wide, base_reg, storage,
+                                           loc) if wide is not None else None
+        if unit_base is not None:
+            adjust = self._recurrence_byte_adjust(ctx, ptr, storage, loc)
+            if adjust is not None:
+                unit_base = ctx.emit(mir.MOp(
+                    "sadd", [unit_base, adjust],
+                    [ctx.vreg(mir.I64, hint="bws", loc=loc)], loc=loc))
+            self._vregion(ctx, stype, loc)
+            operands = [unit_base, bytes8]
+            attrs = {"sew": stype.sew}
+            if mask_reg is not None \
+                    and not self.options.witness_drop_tail_predicates:
+                v0 = ctx.emit(mir.MOp(
+                    "vmovmask", [mask_reg],
+                    [ctx.vreg(mir.MaskType(), hint="bs0", loc=loc,
+                              fixed_phys="v0")], loc=loc))
+                operands.append(v0)
+                attrs["default"] = "no-access"
+            ctx.emit0(mir.MOp("vunit_store", operands, [], attrs=attrs,
+                              loc=loc))
+            self._wide_selections.append(
+                {"op": "store", "source": wide.source,
+                 "detail": wide.detail, "loc": str(loc)})
+            return
+        self._lower_store_narrow(ctx, base_reg, offset_reg, storage,
+                                 bytes8, mask_reg, loc)
+
     def _lower_store_narrow(self, ctx: _Ctx, base_reg: mir.VReg,
                             offset_reg: mir.VReg, pointee: tir.Type,
                             vreg: mir.VReg, mask_reg: Optional[mir.VReg],
@@ -8336,7 +8696,7 @@ class SliceLowering:
         """The scalar byte base of one proven-contiguous access:
         ``base + (elem + scalar terms) * esz`` (the arange's lanes are the
         consecutive elements from there)."""
-        esz = pointee.bitwidth() // 8
+        esz = 1 if pointee.is_bool() else pointee.bitwidth() // 8
         elem = self._chunk["elem"]
         acc = ctx.emit(mir.MOp(
             "smove", [elem],
@@ -8371,9 +8731,11 @@ class SliceLowering:
         base_reg, offset_reg, pointee = self._address_of(ctx, ptr, loc)
         if ptr.rank == 0 and (mask is None or mask.rank == 0):
             if mask is not None:
-                raise self._err(loc, "tl.store",
-                                "a masked scalar store is not in the scalar "
-                                "core")
+                # the pinned masked SCALAR store: no access at the
+                # disabled position (a branch around the store)
+                self._lower_masked_scalar_store(ctx, base_reg, offset_reg,
+                                                pointee, value, mask, loc)
+                return None
             vreg = self._need(value, loc)
             scalar_mod.scalar_store(ctx, base_reg, offset_reg, vreg, pointee,
                                     loc)
@@ -8386,6 +8748,12 @@ class SliceLowering:
         mask_reg = None
         if mask is not None:
             mask_reg = self._need(mask, loc)
+        if pointee.is_bool():
+            # the dtype-surface bool lane: 0/1 bytes on the i8 storage
+            # lane (no access at the disabled lanes)
+            self._lower_bool_store(ctx, op, ptr, base_reg, offset_reg,
+                                   vreg, mask_reg, loc)
+            return mask_reg
         # the wide-access proof (T011): the store side selects the same
         # unit-stride form a proven-contiguous access proves
         wide = scalar_mod.prove_wide_access(self, ptr, self._vl)
