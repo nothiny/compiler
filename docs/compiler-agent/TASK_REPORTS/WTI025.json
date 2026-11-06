@@ -1,0 +1,23 @@
+{
+  "invocation_id": "WTI025",
+  "task_id": "T029",
+  "attempt": 1,
+  "context_sha256": "f574df0cc5a09cb4f14fad3a2c16a857b07a7a8bb672882d3c1b37af820ddc0c",
+  "outcome": "FAILED",
+  "failure_kind": "implementation",
+  "summary": "Manager-filed report for a dead child: the dispatched worker session for T029 (index-width and allocation repairs) was terminated by the harness after 600000ms of inactivity and never filed its own TaskReport. No commands, acceptance coverage or evidence from the worker reached the engine; nothing it may have changed was verified. The task remains unfinished work and needs a fresh worker attempt.",
+  "files_changed": [],
+  "artifacts": [],
+  "commands": [],
+  "acceptance": [],
+  "tests": [],
+  "evidence": "The Agent-tool call returned only 'Subagent was inactive for 600000ms' with no report line; workflow_task_stats shows WTI025 (T029 attempt 1) unfinished with no recorded outcome.",
+  "design_issue": {},
+  "debug_request": {},
+  "attack": {},
+  "remaining_work": [
+    "Re-dispatch T029 to a fresh worker: repair the census ptradd width-64 index classes, LMUL-4 allocation and allocator non-convergence through the shared addressing/allocation paths, per the task contract in docs/compiler-agent/TASK_INPUTS/WTI025.prompt.md."
+  ],
+  "end_revision": "",
+  "at": "2026-11-06T01:33:16.446584+00:00"
+}

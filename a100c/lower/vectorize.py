@@ -421,7 +421,7 @@ class SliceLowering:
                 return layer[t.vid]
         return self.values.get(t.vid)
 
-    def _need(self, t: tir.Value, loc) -> mir.VReg:
+    def _need(self, t: tir.Value, loc, consumer_shape=None) -> mir.VReg:
         # a lazy view base re-materializes at every use (multi-view kernels
         # whose base registers would crowd the GPR file -- the target's own
         # register budget decided at entry binding)
@@ -445,8 +445,12 @@ class SliceLowering:
                 # a staged value: materialize its lanes from the private
                 # workspace at the current pass's chunk position
                 # (lane-aligned: the consumer pass's extent equals the
-                # value's extent -- the verifier's lane-alignment rules)
-                return self._load_staged(t, rec, loc)
+                # value's extent -- the verifier's lane-alignment rules;
+                # T029: a consumer that BROADCASTS the block's extent-1
+                # axes maps the flat position through the block's own
+                # axes instead)
+                return self._load_staged(t, rec, loc,
+                                         consumer_shape=consumer_shape)
             prod = t.producer
             if prod is not None and prod.op == "const":
                 # a constant whose register was bound in an earlier pass:
@@ -472,7 +476,104 @@ class SliceLowering:
                             "use (use-before-definition in the lowering)")
         return reg
 
-    def _load_staged(self, t: tir.Value, rec: dict, loc) -> mir.VReg:
+    def _staged_lane_index(self, ctx: _Ctx, t: tir.Value, consumer_shape,
+                           loc) -> mir.VReg:
+        """The staged-region lane index at the current chunk position.
+
+        The lane-aligned form (the consumer's flat extent equals the
+        block's) is ``elem + lane``.  When the consumer's shape
+        BROADCASTS the block's extent-1 axes (the ptradd offsets
+        ``(N, 1)`` and ``(1, M)`` feeding an ``(N, M)`` addressing
+        space), the flat chunk position decomposes over the consumer's
+        axes and re-composes over the block's own: an extent-1 axis
+        contributes its single element regardless of the consumer's
+        position along it.  T029: the unmapped flat read crossed into
+        the neighbouring staged regions, the materialized offsets were
+        garbage and the indexed access went out of bounds."""
+        vl = self._vl
+        ity = self._idx_vtype(vl)
+        self._vregion(ctx, ity, loc)
+        vid = ctx.emit(mir.MOp(
+            "vid", [], [ctx.vreg(ity, hint="svid", loc=loc)], loc=loc))
+        idx = ctx.emit(mir.MOp(
+            "vbinx", [vid, self._chunk["elem"]],
+            [ctx.vreg(ity, hint="sidx", loc=loc)],
+            attrs={"op": "add"}, loc=loc))
+        if consumer_shape is None:
+            return idx
+        cext = [e.value for e in consumer_shape]
+        bext = [e.value for e in t.shape]
+        cflat = 1
+        for e in cext:
+            cflat *= int(e)
+        bflat = 1
+        for e in bext:
+            bflat *= int(e)
+        if cflat == bflat:
+            return idx                     # lane-aligned (the standard rule)
+        if len(cext) != len(bext):
+            raise self._err(
+                loc, "layout",
+                f"the staged block '{t.name}' (rank {len(bext)}) is "
+                f"consumed at rank {len(cext)} with a different flat "
+                f"extent ({cflat} vs {bflat}); no axis map is derivable "
+                "(a located refusal, never a wrong region read)")
+        for ax, (b, c) in enumerate(zip(bext, cext)):
+            if b > 1 and b != c:
+                raise self._err(
+                    loc, "layout",
+                    f"the staged block '{t.name}' (axes {bext}) does not "
+                    f"align with its consumer's axes {cext} at axis {ax} "
+                    "(a broadcast axis map is not derivable; a located "
+                    "refusal)")
+        n = len(cext)
+        cstrides = [1] * n
+        for ax in range(n - 2, -1, -1):
+            cstrides[ax] = cstrides[ax + 1] * int(cext[ax + 1])
+        bstrides = [1] * n
+        for ax in range(n - 2, -1, -1):
+            bstrides[ax] = bstrides[ax + 1] * int(bext[ax + 1])
+
+        def _splat(value: int, hint: str) -> mir.VReg:
+            c = ctx.const(int(value), mir.I32, loc)
+            return ctx.emit(mir.MOp(
+                "s2v", [c], [ctx.vreg(ity, hint=hint, loc=loc)], loc=loc))
+
+        acc: Optional[mir.VReg] = None
+        for ax in range(n):
+            if int(bext[ax]) <= 1:
+                continue           # a broadcast axis contributes nothing
+            comp = idx
+            if cstrides[ax] > 1:
+                comp = ctx.emit(mir.MOp(
+                    "vbin", [comp, _splat(cstrides[ax], "sms")],
+                    [ctx.vreg(ity, hint="smd", loc=loc)],
+                    attrs={"op": "sdiv"}, loc=loc))
+            if ax > 0:
+                comp = ctx.emit(mir.MOp(
+                    "vbin", [comp, _splat(cext[ax], "smr")],
+                    [ctx.vreg(ity, hint="smm", loc=loc)],
+                    attrs={"op": "srem"}, loc=loc))
+            if bstrides[ax] > 1:
+                comp = ctx.emit(mir.MOp(
+                    "vbin", [comp, _splat(bstrides[ax], "smb")],
+                    [ctx.vreg(ity, hint="smu", loc=loc)],
+                    attrs={"op": "mul"}, loc=loc))
+            if acc is None:
+                acc = comp
+            else:
+                acc = ctx.emit(mir.MOp(
+                    "vbin", [acc, comp],
+                    [ctx.vreg(ity, hint="sma", loc=loc)],
+                    attrs={"op": "add"}, loc=loc))
+        if acc is None:
+            # every axis broadcast: the single staged element serves all
+            # lanes
+            acc = _splat(0, "smz")
+        return acc
+
+    def _load_staged(self, t: tir.Value, rec: dict, loc,
+                     consumer_shape=None) -> mir.VReg:
         """Materialize one staged value's lanes at the current position:
         ``ws[offset + (elem + lane) * esz]`` through the indexed load
         (the standard convention) or the unit-stride load at the scalar
@@ -515,14 +616,7 @@ class SliceLowering:
             return reg
         sew_v = lane_sew
         lmul = max(1, vl * sew_v // self.target.vlen_bits)
-        ity = self._idx_vtype(vl)
-        self._vregion(ctx, ity, loc)
-        vid = ctx.emit(mir.MOp(
-            "vid", [], [ctx.vreg(ity, hint="svid", loc=loc)], loc=loc))
-        idx = ctx.emit(mir.MOp(
-            "vbinx", [vid, self._chunk["elem"]],
-            [ctx.vreg(ity, hint="sidx", loc=loc)],
-            attrs={"op": "add"}, loc=loc))
+        idx = self._staged_lane_index(ctx, t, consumer_shape, loc)
         scaled, _ = self._ws_scaled(ctx, idx, rec["esz"], loc, vl)
         ws = self._workspace_private_reg(ctx, loc)
         base = ctx.emit(mir.MOp(
@@ -7557,18 +7651,22 @@ class SliceLowering:
         if not offsets:
             offset_reg = ctx.const(0, mir.I32, loc)
         else:
+            # T029: the ptradd chain's addressing space (the pointer
+            # block's shape) is the consumer shape for the staged offset
+            # reads -- a consumer that broadcasts an offset block's
+            # extent-1 axes maps its staged reads through the block's
+            # own axes
             offset_reg = self._sum_offsets(ctx, list(reversed(offsets)),
-                                           loc)
+                                           loc, consumer_shape=ptr.shape)
         for extra in rec_offsets:
             if offset_reg.is_vector():
                 # the tree's index class is a vector: the scalar offset
-                # adds lane-wise (the region discipline of _sum_offsets)
+                # adds lane-wise (the region discipline of _sum_offsets);
+                # a wider scalar widens the lane class first (T029: the
+                # sum never refuses on the offset width)
                 if extra.type.width > offset_reg.type.sew:
-                    raise self._err(
-                        loc, "ptradd",
-                        f"recurrence offset width {extra.type.width} "
-                        f"exceeds the vector index SEW "
-                        f"{offset_reg.type.sew}")
+                    offset_reg = self._widen_index_class(
+                        ctx, offset_reg, extra.type.width, loc)
                 switched = self._open_region(ctx, offset_reg.type, loc)
                 try:
                     offset_reg = ctx.emit(mir.MOp(
@@ -7593,16 +7691,67 @@ class SliceLowering:
                     loc=loc))
         return base_reg, offset_reg, node.type.pointee
 
-    def _sum_offsets(self, ctx: _Ctx, values, loc) -> mir.VReg:
+    def _widen_index_class(self, ctx: _Ctx, reg: mir.VReg, width: int,
+                           loc) -> mir.VReg:
+        """Widen one index-class vector to ``width`` (vi32 -> vi64): the
+        per-lane SIGNED extension through the legalized widening form,
+        LMUL doubled, executed in the source's own region (the
+        ``materialize_address`` convention).
+
+        T029 (the ptradd width repair): a 64-bit scalar offset meeting a
+        32-bit vector index widens the lane class -- never a refusal on
+        the width.  The semantics are the source's own promotion point:
+        the i32 lanes have already wrapped in i32 (``a wrapping index is
+        never widened before the wrap``), and sign extension distributes
+        over the remaining modular sum (sext((a+b) mod 2^32) ==
+        sext(a) + sext(b) mod 2^64), so summing the widened lanes at 64
+        bits equals the per-step pointer adds the source performs.
+        """
+        if not reg.is_vector() or reg.type.sew * 2 != width or width != 64:
+            raise self._err(
+                loc, "ptradd",
+                f"cannot widen the vector index class {reg.type!r} to "
+                f"width {width} (only the vi32 -> vi64 doubling is "
+                "lowered)")
+        lmul = reg.type.lmul * 2
+        if lmul not in (1, 2, 4, 8):
+            raise self._err(
+                loc, "ptradd",
+                f"the widened index class needs LMUL {lmul} "
+                "(outside 1..8)")
+        # the widening executes in the SOURCE's own region (the
+        # materialize_address form: result kind "int", mode sext -- the
+        # pinned ptradd semantics sign-extend i32 offsets); the caller's
+        # add re-opens the widened class itself
+        switched = self._open_region(ctx, reg.type, loc)
+        try:
+            return ctx.emit(mir.MOp(
+                "vwiden", [reg],
+                [ctx.vreg(mir.VectorType(64, lmul, "int"), hint="oix",
+                          loc=loc)],
+                attrs={"mode": "sext"}, loc=loc))
+        finally:
+            if switched:
+                self._restore_region(ctx, loc)
+
+    def _sum_offsets(self, ctx: _Ctx, values, loc,
+                     consumer_shape=None) -> mir.VReg:
         """Sum the flattened ptradd offsets, left-associatively, preserving
         each value's width and shape (modular i32 arithmetic associates).
         Index-class (i64/EMUL-2) accumulators open their own region for
-        the vector adds and restore the data region after."""
+        the vector adds and restore the data region after.
+
+        T029: a wider scalar (or a wider-SEW vector) operand widens the
+        vector lane class to the operand's width instead of refusing --
+        the equivalent addressing semantics at the source's own promotion
+        point (see :meth:`_widen_index_class`).  ``consumer_shape`` is
+        the addressing space's shape (the pointer block's), threading
+        the broadcast-axis map into the staged offset reads."""
         if len(values) == 1:
-            return self._need(values[0], loc)
-        acc = self._need(values[0], loc)
+            return self._need(values[0], loc, consumer_shape)
+        acc = self._need(values[0], loc, consumer_shape)
         for v in values[1:]:
-            reg = self._need(v, loc)
+            reg = self._need(v, loc, consumer_shape)
             if acc.is_scalar() and reg.is_scalar():
                 if acc.type.width != reg.type.width:
                     if acc.type.width < reg.type.width:
@@ -7616,10 +7765,8 @@ class SliceLowering:
                     [ctx.vreg(acc.type, hint="os", loc=loc)], loc=loc))
             elif acc.is_vector() and reg.is_scalar():
                 if reg.type.width > acc.type.sew:
-                    raise self._err(
-                        loc, "ptradd",
-                        f"scalar offset width {reg.type.width} exceeds the "
-                        f"vector index SEW {acc.type.sew}")
+                    acc = self._widen_index_class(ctx, acc,
+                                                  reg.type.width, loc)
                 switched = self._open_region(ctx, acc.type, loc)
                 acc = ctx.emit(mir.MOp(
                     "vbinx", [acc, reg],
@@ -7629,10 +7776,16 @@ class SliceLowering:
                     self._restore_region(ctx, loc)
             elif acc.is_scalar() and reg.is_vector():
                 if acc.type.width > reg.type.sew:
-                    raise self._err(
-                        loc, "ptradd",
-                        f"scalar offset width {acc.type.width} exceeds the "
-                        f"vector index SEW {reg.type.sew}")
+                    reg = self._widen_index_class(ctx, reg,
+                                                  acc.type.width, loc)
+                    switched = self._open_region(ctx, reg.type, loc)
+                    acc = ctx.emit(mir.MOp(
+                        "vbinx", [reg, acc],
+                        [ctx.vreg(reg.type, hint="os", loc=loc)],
+                        attrs={"op": "add"}, loc=loc))
+                    if switched:
+                        self._restore_region(ctx, loc)
+                    continue
                 switched = self._open_region(ctx, reg.type, loc)
                 acc = ctx.emit(mir.MOp(
                     "vbinx", [reg, acc],
@@ -7642,10 +7795,24 @@ class SliceLowering:
                     self._restore_region(ctx, loc)
             else:
                 if acc.type != reg.type:
-                    raise self._err(
-                        loc, "ptradd",
-                        f"vector offset types differ: {acc.type!r} vs "
-                        f"{reg.type!r}")
+                    if acc.type.sew != reg.type.sew:
+                        # T029: mixed-SEW vector offsets (a widened i64
+                        # class meeting a fresh vi32 term): widen the
+                        # narrower lane class, then add at the wider SEW
+                        if acc.type.sew < reg.type.sew:
+                            acc = self._widen_index_class(
+                                ctx, acc, reg.type.sew, loc)
+                        else:
+                            reg = self._widen_index_class(
+                                ctx, reg, acc.type.sew, loc)
+                    if acc.type != reg.type:
+                        # a same-SEW LMUL/kind mismatch (different lane
+                        # classes) is a different construct and keeps
+                        # its located refusal
+                        raise self._err(
+                            loc, "ptradd",
+                            f"vector offset types differ: {acc.type!r} vs "
+                            f"{reg.type!r}")
                 switched = self._open_region(ctx, acc.type, loc)
                 acc = ctx.emit(mir.MOp(
                     "vbin", [acc, reg],
@@ -7813,29 +7980,35 @@ class SliceLowering:
             loc=loc))
         if m01 is None:
             return addr
-        # the activity at the address class: 0/1 i32 -> i64, negated
-        m32 = m01.type
-        self._vregion(ctx, m32, loc)
-        m64 = ctx.emit(mir.MOp(
-            "vwiden", [m01],
-            [ctx.vreg(mir.VectorType(64, m32.lmul * 2, "int"),
-                      hint="nvw", loc=loc)],
-            attrs={"mode": "zext"}, loc=loc))
+        # the disabled lanes redirect to the scratch slot through the
+        # v0 activity mask (the select form -- T029: the previous
+        # ``& -active`` widened the 0/1 mask to the doubled class and
+        # met the address class in a vbin; a NATIVE i64 index class
+        # (m1 at the pass's lanes) and the doubled mask class (m2) hold
+        # the same active lanes but the vbin demanded matching types --
+        # the mask register is LMUL-free, so the select never crosses
+        # classes)
+        self._vregion(ctx, m01.type, loc)
+        zero32 = self._splat_reg(ctx, ctx.const(0, mir.I32, loc),
+                                 m01.type, loc)
+        m = ctx.emit(mir.MOp(
+            "vcmp", [m01, zero32],
+            [ctx.vreg(mir.MaskType(), hint="nnm", loc=loc)],
+            attrs={"pred": "ne", "fp": False}, loc=loc))
+        v0 = ctx.emit(mir.MOp(
+            "vmovmask", [m],
+            [ctx.vreg(mir.MaskType(), hint="nv0", loc=loc,
+                      fixed_phys="v0")], loc=loc))
         self._vregion(ctx, aty, loc)
         zero = self._splat_reg(ctx, ctx.const(0, mir.I64, loc), aty, loc)
-        neg = ctx.emit(mir.MOp(
-            "vbin", [zero, m64],
-            [ctx.vreg(aty, hint="nvn", loc=loc)], attrs={"op": "sub"},
-            loc=loc))
         red_s = self._splat_reg(ctx, redirect, aty, loc)
         diff = ctx.emit(mir.MOp(
             "vbin", [addr, red_s],
             [ctx.vreg(aty, hint="nvd", loc=loc)], attrs={"op": "sub"},
             loc=loc))
         sel = ctx.emit(mir.MOp(
-            "vbin", [diff, neg],
-            [ctx.vreg(aty, hint="nvs", loc=loc)], attrs={"op": "and"},
-            loc=loc))
+            "vsel", [v0, diff, zero],
+            [ctx.vreg(aty, hint="nvs", loc=loc)], loc=loc))
         out = ctx.emit(mir.MOp(
             "vbin", [red_s, sel],
             [ctx.vreg(aty, hint="nvo", loc=loc)], attrs={"op": "add"},

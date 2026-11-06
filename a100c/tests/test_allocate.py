@@ -185,17 +185,22 @@ def check_vector_spill():
 
 def check_scalar_spill():
     """More simultaneously-live scalars than allocatable GPRs: spill/split
-    through the stack."""
-    module = _high_pressure_function(40, mtype=mir.I64)
-    # retype: the pressure builder used vid (vector); build scalar pressure
+    through the stack (T029: the pressure values are NON-constant -- a
+    chain of dependent sadds -- because constant pressure now resolves
+    through rematerialization, which uses no stack slot at all)."""
     fn = mir.MFunction("gpr_pressure", [])
     entry = mir.Block("entry")
     fn.blocks.append(entry)
+    base = mir.VReg(mir.I64, name="gbase")
+    entry.ops.append(mir.MOp("sconst", [], [base], attrs={"value": 7}))
     regs = []
+    prev = base
     for i in range(40):
         reg = mir.VReg(mir.I64, name=f"g{i}")
-        entry.ops.append(mir.MOp("sconst", [], [reg], attrs={"value": i}))
+        # a computed (non-constant) definition: remat cannot dissolve it
+        entry.ops.append(mir.MOp("sadd", [prev, base], [reg]))
         regs.append(reg)
+        prev = reg
     acc = regs[0]
     for r in regs[1:]:
         nxt = mir.VReg(mir.I64, name=f"a{r.name}")
@@ -216,6 +221,48 @@ def check_scalar_spill():
           and "sreload" in ops, str(allocation.stats))
     errors = mir.verify_module(module)
     check("post-scalar-spill-verifies", not errors,
+          str(errors[0]) if errors else "")
+
+
+def check_constant_pressure_remats():
+    """T029: constant pressure resolves through REMATERIALIZATION -- every
+    use of a spilled constant becomes a fresh sconst at the use, no stack
+    slot, no spill traffic; the allocation still verifies and colors."""
+    fn = mir.MFunction("const_pressure", [])
+    entry = mir.Block("entry")
+    fn.blocks.append(entry)
+    regs = []
+    for i in range(40):
+        reg = mir.VReg(mir.I64, name=f"k{i}")
+        entry.ops.append(mir.MOp("sconst", [], [reg], attrs={"value": i}))
+        regs.append(reg)
+    acc = regs[0]
+    for r in regs[1:]:
+        nxt = mir.VReg(mir.I64, name=f"a{r.name}")
+        entry.ops.append(mir.MOp("sadd", [acc, r], [nxt]))
+        acc = nxt
+    entry.ops.append(mir.MOp("ret", [], []))
+    module = mir.MModule("const_pressure", "<probe>")
+    module.functions.append(fn)
+    try:
+        allocation = alloc_mod.allocate(module, DEFAULT_TARGET)
+    except alloc_mod.AllocationError as exc:
+        check("constant-pressure-remats", False, str(exc)[:120])
+        return
+    ops = {op.opcode for fn in module.functions for b in fn.blocks
+           for op in b.ops}
+    # the constants dissolved into per-use remat products (named .cK)
+    # with no stack slots for them
+    names = [r.name for fn in module.functions for b in fn.blocks
+             for op in b.ops for r in op.results]
+    remat_products = [n for n in names if ".c" in n]
+    check("constant-pressure-remats",
+          remat_products and "sreload" not in ops
+          and allocation.stats["spilled_values"] == 0,
+          f"{len(remat_products)} remat products, "
+          f"{allocation.stats['spilled_values']} spilled")
+    errors = mir.verify_module(module)
+    check("post-remat-module-verifies", not errors,
           str(errors[0]) if errors else "")
 
 
@@ -264,6 +311,7 @@ def main() -> int:
     check_slice_allocation()
     check_vector_spill()
     check_scalar_spill()
+    check_constant_pressure_remats()
     check_mask_refusal()
     if FAILURES:
         print(f"FAILED: {len(FAILURES)} check(s)")
