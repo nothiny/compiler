@@ -1364,10 +1364,14 @@ def _lower_atomic(sl, ctx, op: tir.Op, loc, is_cas: bool) -> None:
             c = extract(cmp_vec if cmp_vec is not None else cmp_scalar,
                         "ac")
             old_b = _scalar_atomic_cas(ctx, safe, c, v, pointee, ordering,
-                                       loc)
+                                       loc, tag=atag + "c")
         else:
+            # T030: the retry loop's blocks derive from the atomic's own
+            # unique tag -- the default tag made a SECOND float atomic in
+            # one kernel branch into the FIRST one's synthesis blocks
+            # (duplicate block names; gemm_rowstats' sum+max pair)
             old_f = _scalar_atomic_fp(sl, ctx, safe, v, op_kind, pointee,
-                                      ordering, loc)
+                                      ordering, loc, tag=atag + "f")
             old_b = _bit_view(ctx, old_f,
                               mir.ScalarType(width, signed=True), loc)
     else:

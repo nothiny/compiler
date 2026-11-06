@@ -464,6 +464,27 @@ class SliceLowering:
                     for key in t.scope_names():
                         self._names.define(key, t)
                 return creg
+            if prod is not None and t.rank == 0 \
+                    and all(getattr(o, "rank", 0) == 0
+                            for o in prod.operands) \
+                    and (prod.op in tir.BIN_ARITH
+                         or prod.op in tir.BIN_BITWISE
+                         or prod.op in tir.CMP_PREDS
+                         or prod.op in tir.MAXMIN_OPS):
+                # T030: a PURE scalar tree re-materializes at the current
+                # position -- a value bound inside an earlier pass's
+                # chunk body does not survive the pass loop (the strength
+                # reduced pid*BLOCK term of one pass's addresses, reused
+                # by a later pass's store: the register did not dominate
+                # and the verifier rejected it)
+                creg = self._materialize_scalar_tree(self._ctx, t, loc)
+                self.values[t.vid] = creg
+                if self._chunk is not None:
+                    self._pass_bound.add(t.vid)
+                if self._names is not None:
+                    for key in t.scope_names():
+                        self._names.define(key, t)
+                return creg
             raise self._err(loc, t.name,
                             f"TIR value '{t.name}' is not lowered before its "
                             "use (use-before-definition in the lowering)")
@@ -997,12 +1018,20 @@ class SliceLowering:
             defined = self._pass_defined_vids(seg[1])
             later_uses: set = set()
             for later in self._segments[si + 1:]:
-                if later[0] == "scalar":
-                    continue
+                # T030: a SCALAR segment's statements consume values too
+                # (the rng lane's converts of a pass-1 scalar load) --
+                # skipping them left the cross-pass scalar without its
+                # liveout slot, and the register (bound inside the closed
+                # chunk body) did not dominate the use
                 if later[0] in ("layout", "matrix", "preduce"):
                     later_uses.update(v.vid for v in
                                       self._region_uses(later[1])
                                       if v.rank == 0)
+                elif later[0] == "scalar":
+                    for st in later[1]:
+                        later_uses.update(v.vid
+                                          for v in self._region_uses(st)
+                                          if v.rank == 0)
                 else:
                     for st in later[1]:
                         later_uses.update(v.vid for v in self._region_uses(st)
@@ -1041,8 +1070,8 @@ class SliceLowering:
                 defined = self._pass_defined_vids(seg[1])
                 later_uses: set = set()
                 for later in segments[si + 1:]:
-                    if later[0] == "scalar":
-                        continue
+                    # T030: scalar segments consume values too (the same
+                    # fix as the top-level walk above)
                     if later[0] in ("layout", "matrix", "preduce"):
                         later_uses.update(v.vid for v in
                                           self._region_uses(later[1])
@@ -1800,7 +1829,15 @@ class SliceLowering:
                 op = seg[1]
                 for r in op.results:
                     defined_in[r.vid] = seg_index
-                    self._staged[r.vid] = {"pending": True}
+                    # T030: never clobber an existing record -- part (a)
+                    # already staged a dot-operand layout result with its
+                    # NATIVE convention (the transposed fp16 A tile of
+                    # matmul_at_b: the overwrite silently dropped the
+                    # native flag, the permute's staging loop wrote
+                    # 32-bit lanes into the region the IME tile pipeline
+                    # reads as raw 16-bit)
+                    if r.vid not in self._staged:
+                        self._staged[r.vid] = {"pending": True}
                 seg_index += 1
                 continue
             if seg[0] == "preduce":
@@ -1864,8 +1901,21 @@ class SliceLowering:
                 continue
             for entry in self._classify_carried(st):
                 if entry[0] == "staged":
+                    init_rec = self._staged.get(entry[2].vid)
                     if entry[3].vid not in self._staged:
                         self._staged[entry[3].vid] = {"pending": True}
+                        # T030: the back-edge copy moves bytes between
+                        # the end value's region and the init's region,
+                        # so the end value stages under the INIT's
+                        # convention -- an IME dot operand's native
+                        # 8/16-bit record propagates to the body-end
+                        # value (the double-buffered prefetch carry:
+                        # the load before the loop and the rebind inside
+                        # it are the same logical block next iteration;
+                        # a standard end record beside a native init
+                        # record is the width mismatch the copy refuses)
+                        if init_rec is not None and init_rec.get("native"):
+                            self._staged[entry[3].vid]["native"] = True
                     # the body's definition of the end value stores to
                     # its region (the back-edge copy reads it); without a
                     # later TIR use the def/use walk would have missed it
@@ -3626,28 +3676,41 @@ class SliceLowering:
         registers drop)."""
         loc = fn.loc
         self._close_chunk_back_edge(ctx, fn, strided=strided)
+        # T030: every value bound inside the pass's chunk body drops
+        # BEFORE the exit bindings -- a chunk-body register does not
+        # dominate the pass exit (a zero-trip pass leaves it undefined)
+        # and must not survive into a later pass.  Constants and pure
+        # scalar trees re-materialize at their next use; staged values
+        # reload from their regions; the merge/liveout bindings below are
+        # made AT the exit and stay.  The liveout vids keep their (stale)
+        # body binding until _reload_liveouts reads its TYPE and rebinds
+        # to the reloaded register.  (The old const-only drop left a
+        # pass-1 address term live in pass 33's body -- the use-before-
+        # definition the MIR verifier rejected on triton_linear_activation.)
+        liveout_vids = {vid for vid, _slot in self._liveouts}
+        for vid in self._staged:
+            if vid in liveout_vids:
+                continue
+            self.values.pop(vid, None)
+        for vid in list(self._pass_bound):
+            if vid in liveout_vids:
+                continue
+            self.values.pop(vid, None)
+        self._pass_bound = set()
         exit_name = self._chunk["exit"]
         ctx.switch(ctx.blocks[exit_name])
         self._bind_chunk_merges(ctx, loc)
         self._reload_liveouts(ctx, loc)
         # the next pass's entry items: this pass's accumulated count
         self._path_items = self._chunk["exit_params_items"]
-        # staged values' registers do not survive the pass loop; constants
-        # re-emit at their next use; the workspace base registers were
-        # defined inside the closed loop and no longer dominate -- the
-        # next pass/staging loop reloads them
-        for vid in self._staged:
-            self.values.pop(vid, None)
-        for vid in list(self._pass_bound):
-            v = self._value_by_vid(vid)
-            if v.producer is not None and v.producer.op == "const":
-                self.values.pop(vid, None)
+        # the workspace base registers were defined inside the closed
+        # loop and no longer dominate -- the next pass/staging loop
+        # reloads them
         self._ws_private = None
         self._ws_shared = None
         self._wid64 = None
         self._chunk = None
         self._count_reg = None
-        self._pass_bound = set()
 
     def _lower_layout_segment(self, ctx: _Ctx, fn: tir.Function,
                               op: tir.Op) -> None:
@@ -4304,6 +4367,19 @@ class SliceLowering:
             raise self._err(loc, "layout",
                             "a layout op's sources must share the element "
                             "type (join/split/interleave preserve it)")
+        # T030: a NATIVE source record (an IME dot operand/result at its
+        # own 8/16-bit width) cannot be read through the indexed form --
+        # the narrow indexed loads crash the pinned QEMU (the probed
+        # constraint); a located refusal, never a crashing emission
+        for s_rec, _map in sources:
+            if s_rec.get("native") and s_rec["lane_sew"] < 32:
+                raise self._err(
+                    loc, "layout",
+                    f"a layout op over a matrix-native staged operand "
+                    f"('{result.name}'s source) is not in the lane (the "
+                    "record's narrow native lanes have no safe indexed "
+                    "read here; a located refusal, never a crashing "
+                    "emission)")
         # the loop's lanes move the staged lane width (16-bit floats
         # ride their exact fp32 widening; the maps address elements of
         # esz)
@@ -4365,16 +4441,50 @@ class SliceLowering:
         else:
             merged = vals[0]
         # store at the result's flat positions (the lane width; the
-        # widened lane carries the value's bytes exactly)
+        # widened lane carries the value's bytes exactly).  T030: a
+        # NATIVE result record (an IME dot operand staged at its own
+        # narrow width) stores at ITS lane width through the UNIT-STRIDE
+        # form at a scalar address (the narrow indexed forms crash the
+        # pinned QEMU -- the probed e8/e16 + e64-index constraint, the
+        # same rule _store_staged's native path follows): the source's
+        # widened lanes narrow exactly (fp16: the RTNE round trip of the
+        # exact widening; a narrow int: the low-bit view).  Without the
+        # conversion the loop wrote 32-bit lanes into the 16-bit region
+        # at 2-byte spacing (matmul_at_b's transposed fp16 A operand:
+        # every element wrong).
         doff, _ = self._ws_scaled(ctx, idx, rec["esz"], loc, vl)
         dbase = ctx.emit(mir.MOp(
             "sadd", [ws, ctx.const(rec["offset"], mir.I64, loc)],
             [ctx.vreg(mir.I64, hint="ldb", loc=loc)], loc=loc))
-        self._vregion(ctx, mir.VectorType(lane_sew, 1, lane_kind),
-                      loc, vl=vl)
-        ctx.emit0(mir.MOp(
-            "vstoreix", [dbase, doff, merged], [],
-            attrs={"eew": 64, "sew": lane_sew}, loc=loc))
+        if rec.get("native") and rec["lane_sew"] != lane_sew:
+            store_val = merged
+            if merged.type.kind == "float":
+                store_val = self._f32_to_ff(ctx, merged, rec["type"], loc)
+            else:
+                store_val = self._int_narrow(ctx, merged, lane_sew,
+                                             rec["type"].bitwidth(), loc)
+            # the unit-stride store at the chunk's scalar base: the
+            # iteration's lanes are the CONSECUTIVE flat positions
+            # [elem, elem+vl) of the result region
+            elem64 = scalar_mod.widen_to(ctx, elem, 64, loc)
+            byteoff = ctx.emit(mir.MOp(
+                "smul", [elem64, ctx.const(rec["esz"], mir.I64, loc)],
+                [ctx.vreg(mir.I64, hint="lnb", loc=loc)], loc=loc))
+            naddr = ctx.emit(mir.MOp(
+                "sadd", [dbase, byteoff],
+                [ctx.vreg(mir.I64, hint="lna", loc=loc)], loc=loc))
+            nvtype = mir.VectorType(rec["lane_sew"], 1, lane_kind)
+            self._vregion(ctx, nvtype, loc, vl=vl)
+            ctx.emit0(mir.MOp(
+                "vustore8" if rec["lane_sew"] == 8 else "vustore16",
+                [naddr, store_val], [], loc=loc))
+            self._restore_region(ctx, loc)
+        else:
+            self._vregion(ctx, mir.VectorType(lane_sew, 1, lane_kind),
+                          loc, vl=vl)
+            ctx.emit0(mir.MOp(
+                "vstoreix", [dbase, doff, merged], [],
+                attrs={"eew": 64, "sew": lane_sew}, loc=loc))
         # the step
         step = ctx.const(vl, mir.I32, loc)
         elem2 = ctx.emit(mir.MOp(
@@ -4745,9 +4855,19 @@ class SliceLowering:
         names = self._names
         outer: Dict[str, tir.Value] = dict(names.stack[-1])
 
+        # T030: the register cache is scoped to the dominance rule -- a
+        # value lazily materialized inside one arm (a staged region's
+        # reload, a re-emitted constant) does not dominate the sibling arm
+        # or the code after the join, so each arm starts from the pre-if
+        # cache and neither arm's bindings survive the join (the joins are
+        # the only values that may cross; conv1x1_pool_fc's staged
+        # materialization cached in the then-arm, reused by the else-arm's
+        # back edge -- a use-before-definition the MIR verifier rejected)
+        saved_values = dict(self.values)
         arm_values = []
         for block, arm in ((frame.then_block, stmt.then),
                            (frame.else_block, stmt.els)):
+            self.values = dict(saved_values)
             ctx.switch(block)
             names.push()
             self._region_depth += 1
@@ -4765,6 +4885,7 @@ class SliceLowering:
             scalar_mod.close_arm(ctx, frame, join_name, values)
             arm_values.append(values)
             names.pop()
+        self.values = dict(saved_values)
 
         params = scalar_mod.join_if(ctx, frame, join_name, arm_values, loc)
         ctx.switch(ctx.blocks[join_name])
@@ -4821,6 +4942,11 @@ class SliceLowering:
             else:
                 carried_inits.append(self._need(entry[2], loc))
         tag = self._tag("loop")
+        # T030: the register cache is scoped to the dominance rule -- a
+        # value lazily materialized inside the body does not dominate the
+        # exit, so the cache restores at the close (the joins bind fresh;
+        # see _lower_if for the arm form)
+        saved_values = dict(self.values)
         frame = scalar_mod.begin_counted_loop(
             ctx, lower, upper, carried_inits, loc, tag)
 
@@ -4873,7 +4999,9 @@ class SliceLowering:
         self._ptr_recurrences.pop()
         names.pop()
         # the back edge's registers (the copy loop's cached workspace
-        # base among them) do not dominate the exit
+        # base among them) do not dominate the exit; the body's cache
+        # bindings do not either (the joins bind fresh)
+        self.values = dict(saved_values)
         self._ws_private = None
         self._ws_shared = None
         self._wid64 = None
@@ -4929,6 +5057,9 @@ class SliceLowering:
             else:
                 carried_inits.append(self._need(entry[2], loc))
         tag = self._tag("while")
+        # T030: the register cache is scoped to the dominance rule (see
+        # _lower_loop): the body's bindings do not dominate the exit
+        saved_values = dict(self.values)
         frame = scalar_mod.begin_while_loop(ctx, cond_init, carried_inits,
                                             loc, tag)
 
@@ -4978,7 +5109,9 @@ class SliceLowering:
         self._ptr_recurrences.pop()
         names.pop()
         # the back edge's registers (the copy loop's cached workspace
-        # base among them) do not dominate the exit
+        # base among them) do not dominate the exit; the body's cache
+        # bindings do not either (the joins bind fresh)
+        self.values = dict(saved_values)
         self._ws_private = None
         self._ws_shared = None
         self._wid64 = None
@@ -5112,6 +5245,18 @@ class SliceLowering:
         if prod.op == "const":
             return scalar_mod.lower_const(ctx, prod.attrs["value"], v.type,
                                           loc)
+        if prod.op in ("program_id", "num_programs"):
+            # the entry-level invariant registers (the axis decomposition
+            # at the program/phase level): dominant wherever the phase's
+            # own lowering could bind them, so a dropped in-pass binding
+            # re-binds to the same register (T030: a pid consumed by a
+            # later pass's addresses after its in-region binding dropped)
+            axis = prod.attrs.get("axis")
+            table = self._pid_axis_regs if prod.op == "program_id" \
+                else self._np_regs
+            reg = table.get(axis)
+            if reg is not None:
+                return reg
         if prod.op in tir.BIN_ARITH or prod.op in tir.BIN_BITWISE:
             lreg = self._materialize_scalar_tree(ctx, prod.operands[0], loc)
             rreg = self._materialize_scalar_tree(ctx, prod.operands[1], loc)
@@ -5134,11 +5279,38 @@ class SliceLowering:
                     rreg = scalar_mod.widen_to(ctx, rreg, lreg.type.width,
                                                loc)
             return scalar_mod.lower_cmp(ctx, prod, lreg, rreg, loc)
+        if prod.op in tir.MAXMIN_OPS:
+            # the scalar maxmin form (the same splat/extract sequence the
+            # ordinary lowering uses): a clamp term of one pass's addresses,
+            # re-materialized at a later pass's use
+            lhs, rhs = prod.operands
+            if lhs.rank or rhs.rank:
+                raise self._err(
+                    loc, "ptradd",
+                    f"the scalar value '{v.name}' is not a re-materializable "
+                    f"scalar tree (a maxmin with a block operand)")
+            lreg = self._materialize_scalar_tree(ctx, lhs, loc)
+            rreg = self._materialize_scalar_tree(ctx, rhs, loc)
+            vtype = mir.VectorType(
+                lreg.type.width if lreg.type.width >= rreg.type.width
+                else rreg.type.width, 1,
+                "float" if lreg.type.float or rreg.type.float
+                else ("uint" if lreg.type.signed is False
+                      and rreg.type.signed is False else "int"))
+            self._vregion(ctx, vtype, loc)
+            ls = self._splat_reg(ctx, lreg, vtype, loc)
+            rs = self._splat_reg(ctx, rreg, vtype, loc)
+            res = self._vector_maxmin(ctx, prod.op, ls, rs, loc)
+            self._vregion(ctx, res.type, loc)
+            out = self._scalarize(ctx, res, loc)
+            self._restore_region(ctx, loc)
+            return out
         raise self._err(
             loc, "ptradd",
-            f"the uniform pointer recurrence's step ('{v.name}') is not "
-            f"a simple scalar tree ('{prod.op}' is not re-materializable "
-            "at the loop level)")
+            f"the scalar value '{v.name}' is not a re-materializable "
+            f"scalar tree ('{prod.op}' is not pure over outside values; "
+            "the uniform-recurrence step and the cross-pass re-materialization "
+            "share this rule)")
 
     def _lower_matrix_region(self, ctx: _Ctx, stmt, fn: tir.Function,
                              view_regs: Dict[str, mir.VReg]) -> None:
@@ -5202,6 +5374,7 @@ class SliceLowering:
         if is_while:
             cond_init = self._bool_scalar(ctx, self._need(stmt.cond, loc),
                                           loc)
+            saved_values = dict(self.values)
             frame = scalar_mod.begin_while_loop(ctx, cond_init,
                                                 carried_inits, loc,
                                                 self._tag("mwhile"))
@@ -5211,6 +5384,7 @@ class SliceLowering:
             lower = self._need(stmt.lower, loc)
             upper = self._need(stmt.upper, loc)
             step = self._need(stmt.step, loc)
+            saved_values = dict(self.values)
             frame = scalar_mod.begin_counted_loop(
                 ctx, lower, upper, carried_inits, loc, self._tag("mloop"))
 
@@ -5317,7 +5491,12 @@ class SliceLowering:
         self._ptr_recurrences.pop()
         names.pop()
         # the back edge's registers (the copy loop's cached workspace
-        # base among them) do not dominate the exit
+        # base among them) do not dominate the exit; the body's cache
+        # bindings do not either (T030: the dominance-scoped register
+        # cache -- a const or staged reload materialized inside one
+        # matrix region's body must not surface in a sibling region;
+        # the joins and the staged aliases bind fresh)
+        self.values = dict(saved_values)
         self._ws_private = None
         self._ws_shared = None
         self._wid64 = None
@@ -5378,9 +5557,14 @@ class SliceLowering:
         tag = self._tag("mif")
         frame = scalar_mod.begin_if(ctx, cond, loc, tag)
         outer = dict(names.stack[-1])
+        # T030: the register cache is scoped to the dominance rule (see
+        # _lower_if): each arm starts from the pre-if cache and neither
+        # arm's bindings survive the join
+        saved_values = dict(self.values)
         arm_values = []
         for block, arm in ((frame.then_block, stmt.then),
                            (frame.else_block, stmt.els)):
+            self.values = dict(saved_values)
             ctx.switch(block)
             names.push()
             self._region_depth += 1
@@ -5419,6 +5603,7 @@ class SliceLowering:
             scalar_mod.close_arm(ctx, frame, f"{tag}.join", values)
             arm_values.append(values)
             names.pop()
+        self.values = dict(saved_values)
         params = scalar_mod.join_if(ctx, frame, f"{tag}.join", arm_values,
                                     loc)
         ctx.switch(ctx.blocks[f"{tag}.join"])
@@ -7616,12 +7801,13 @@ class SliceLowering:
         """
         # a join (or bare) use of a carried pointer: the static chain is
         # the frame's init value; the walk below adds the offsets
+        join_offset: Optional[mir.VReg] = None
         if ptr.producer is None or \
                 ptr.producer.op not in ("ptradd", "bitcast", "hint",
                                         "select.where"):
             rec = self._recurrence_of(ptr)
             if rec is not None:
-                ptr = rec[0]
+                ptr, join_offset = rec[0], rec[1]
         offsets = []
         rec_offsets: List[mir.VReg] = []
         node = ptr
@@ -7632,6 +7818,17 @@ class SliceLowering:
             base_value, offset_value = node.producer.operands
             offsets.append(offset_value)
             node = base_value
+        # T030: the join-resolved layer's own offset register (the loop's
+        # EXIT param) joins the tree sum here -- the walk above only sees
+        # layers keyed by the CHAIN's vids, and the exit layer is keyed by
+        # the JOIN's vid.  Without it, the store after a matrix region
+        # addressed the pre-loop tile: matmul_k32_persistent_n_2stage's
+        # final store overwrote tile 0 with tile 1's data and left the
+        # last tile unwritten.  (The membership check keeps a bare
+        # carried pointer -- whose head param the walk already collected
+        # -- from double-counting.)
+        if join_offset is not None and join_offset not in rec_offsets:
+            rec_offsets.append(join_offset)
         if node.producer is not None \
                 and node.producer.op not in ("bitcast", "hint",
                                              "select.where"):

@@ -328,7 +328,10 @@ class Compiler:
                 mir.dump_module(mir_module)
                 + "\n// allocation: " + json.dumps(allocation.describe(),
                                                    sort_keys=True) + "\n")
-        # 10. emission (complete program-level assembly)
+        # 10. emission (complete program-level assembly).  T030: an
+        #     emission refusal is located (construct + source position) --
+        #     surfaced as a PipelineError so the census counts it as a
+        #     located refusal, never as an unclassified crash
         header = [
             f"# a100c emitted program: {tir_module.name}",
             f"# source: {src.rel_path}",
@@ -342,10 +345,15 @@ class Compiler:
             "# every instruction below traces to a selected MIR op: "
             "[opN] carries the source location",
         ]
-        program = emit_mod.emit_assembly(mir_module, allocation, self.target,
-                                         workspace=(plan.workspace_private,
-                                                    plan.workspace_shared),
-                                         selection=selection, header=header)
+        try:
+            program = emit_mod.emit_assembly(
+                mir_module, allocation, self.target,
+                workspace=(plan.workspace_private,
+                           plan.workspace_shared),
+                selection=selection, header=header)
+        except emit_mod.EmissionError as exc:
+            raise PipelineError(exc.loc, f"emission:{exc.construct}",
+                                exc.message) from None
         asm_path = entry / "program.S"
         asm_path.write_text(program.text)
         # 11. cross as + ld + precompiled runtime -> ELF

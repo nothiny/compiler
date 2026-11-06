@@ -198,10 +198,18 @@ class FactoryCompiler(Compiler):
         ]
         if any(self.pass_config.enabled.values()):
             header.append(f"# passes: {self.pass_config.identity_part()}")
-        program = emit_mod.emit_assembly(mir_module, allocation, self.target,
-                                         workspace=(plan.workspace_private,
-                                                    plan.workspace_shared),
-                                         selection=selection, header=header)
+        # T030: an emission refusal is located (construct + source
+        # position) -- surfaced as a PipelineError so the census counts it
+        # as a located refusal, never as an unclassified crash
+        try:
+            program = emit_mod.emit_assembly(
+                mir_module, allocation, self.target,
+                workspace=(plan.workspace_private,
+                           plan.workspace_shared),
+                selection=selection, header=header)
+        except emit_mod.EmissionError as exc:
+            raise PipelineError(exc.loc, f"emission:{exc.construct}",
+                                exc.message) from None
         asm_path = entry / "program.S"
         asm_path.write_text(program.text)
         # 12. cross as + ld + precompiled runtime -> ELF

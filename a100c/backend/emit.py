@@ -22,7 +22,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
-from a100c.backend.allocate import Allocation, CALLER_SAVED, GPR_NAMES
+from a100c.backend.allocate import Allocation, CALLER_SAVED, GPR_NAMES, \
+    _live_before
 from a100c.backend.select import Selected, select
 from a100c.ir import mir
 from a100c.target import TargetModel
@@ -283,13 +284,44 @@ class _Emitter:
         regs = self._free_gprs(1)
         return regs[0] if regs else None
 
-    def _free_gprs(self, count: int) -> Optional[List[str]]:
+    def _free_gprs(self, count: int,
+                   live_after: Optional[set] = None) -> Optional[List[str]]:
         """``count`` distinct caller-saved GPRs no allocated value owns
-        (the same rule as :meth:`_free_gpr`; None when fewer exist)."""
-        used = set(self.alloc.assignment.values())
+        (the same rule as :meth:`_free_gpr`; None when fewer exist).
+
+        ``live_after`` narrows the exclusion to the values live at the
+        borrowing position (T030: the libm loop's scratch pair): the
+        allocator's avoid-sets already keep every value live across a
+        vmath op out of the caller-saved file, so a caller-saved GPR
+        assigned to a value that is DEAD at the op (or not yet defined)
+        is borrowable -- the global "no value anywhere owns it" check
+        starved the pair on heavily-allocated kernels (fused_conv3d's
+        post-GEMM erf) even though every live-across value sat safely in
+        callee-saved registers."""
+        if live_after is None:
+            used = set(self.alloc.assignment.values())
+        else:
+            used = {self.alloc.assignment[rid] for rid in live_after
+                    if rid in self.alloc.assignment}
         order = [f"t{i}" for i in range(7)] + [f"a{i}" for i in range(1, 8)]
         free = [name for name in order if name not in used]
         return free[:count] if len(free) >= count else None
+
+    def _live_after_at(self, op: mir.MOp) -> set:
+        """The rid set live immediately after ``op`` (the allocator's own
+        liveness, keyed by op index; computed once per function)."""
+        cache = getattr(self, "_live_after_by_index", None)
+        if cache is None:
+            cache = {}
+            for fn in self.module.functions:
+                befores = _live_before(fn)
+                for b in fn.blocks:
+                    n = len(b.ops)
+                    for i, mop in enumerate(b.ops):
+                        cache[mop.index] = befores[b.name][i + 1] \
+                            if i + 1 <= n else befores[b.name][-1]
+            self._live_after_by_index = cache
+        return cache.get(op.index, set())
 
     def _emit_move(self, dst: str, src: str, dstv: mir.VReg, op: mir.MOp) -> None:
         if dstv.is_scalar():
@@ -665,11 +697,17 @@ class _Emitter:
         esz = sew // 8
         load = {4: "flw", 8: "fld"}[esz]
         store = {4: "fsw", 8: "fsd"}[esz]
-        regs = self._free_gprs(2)
+        # T030: the pair borrows caller-saved GPRs free AT THIS OP (the
+        # allocator's avoid-sets keep live-across values out of the whole
+        # caller-saved file); the global check starved on kernels whose
+        # every GPR is assigned somewhere but dead here
+        regs = self._free_gprs(2, live_after=self._live_after_at(op))
         if regs is None:
             raise EmissionError(op.loc, "vmath",
                                 "no free caller-saved GPR pair for the "
-                                "libm loop (a located refusal)")
+                                "libm loop at this position (values live "
+                                "across the call occupy every caller-saved "
+                                "GPR -- a located refusal)")
         scratch, second = regs
         buf = self._math_slots["buf"]
         ptr = self._math_slots["ptr"]
