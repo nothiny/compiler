@@ -708,12 +708,16 @@ def check_remaining_boundaries_refuse_located(compiler):
         # loop_sum: the identity .to(float32) folds, but the int64
         # median family refuses on the element width
         # T012 widened the conversion matrix, so the int64 element path
-        # now reaches the scalar bool store boundary instead of the
-        # element-width refusal -- both are located refusals naming the
-        # construct that is out of the lane
-        ("ops/suite/dev/median_bool_from_counts_kernel.py",
-         {"shape": (17, 3)},
-         ("width 64", "SEW", "scalar bool stores", "scalar core")),
+        # reached the scalar bool store boundary; T031 then IMPLEMENTED
+        # the bool backing-store lane (the 0/1 byte store of the i64
+        # scalar-bool GPR, the rank-0 bool's GPR convention at its
+        # consumers), so this family left the boundary list too -- the
+        # median_bool_from_counts cases now compile and execute PASS at
+        # the exact bool comparison (verified end-to-end in T031's
+        # execution probe: median_bool_from_counts [17,3]/[97,33] int64
+        # both PASS, and median_bool_dim_finish -- the same lane plus
+        # the per-chunk-partial repair -- passes its bool+index outputs)
+        # ("ops/suite/dev/median_bool_from_counts_kernel.py" removed)
         # cumsum family: T016 closed the meta-carried dtype-object
         # boundary; T028's partial-axis staging lane then lowered the
         # multi-block reduction itself, so the refusal moved to the grid

@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-06T11:33:03.970780+00:00",
+  "updated_at": "2026-11-06T14:31:47.974855+00:00",
   "facts": [
     {
       "id": "F001",
@@ -2976,14 +2976,14 @@
       "tags": [
         "compile-sweep-repair"
       ],
-      "status": "RUNNING",
+      "status": "DONE",
       "assignee": "coder",
       "attempts": 2,
-      "evidence": "",
+      "evidence": "worker report WTI030: Judged the dead attempt-1 tree (its reshape/arange constexpr-shape fold in lower_tir.py, the multi-axis program_id decomposition, the fp16/bf16 math class, const-i1, the masked scalar load/store and the block bool load/store were sound and are kept; verified by probes before building on them) and completed the remaining small construct classes. All owned classes are at ZERO in the definitive filtered compile sweep over the 46 census operators carrying them (162 identities: 110 artifacts + 49 located refusals of OTHER constructs + 3 over-budget + 0 crash; docs/compiler-agent/COMPILE_CENSUS.t031-owned-classes.json): tl.reshape (runtime-shape forms fold -- block extents are compile-time in the pinned language; genuinely runtime bounds keep the located tl.arange.end/tl.reshape refusal, kept as a negative test), tl.arange.end, store/load i1 pointee, scalar bool loads/stores, const-i1, tl.softmax/erf/sqrt/rsqrt/floor/log, tl.program_id axis, masked scalar store, convert (int64->f32, fp64 internal routes). Repairs behind the zeros: (1) the bool backing-store lane -- scalar_store writes the scalar-bool GPR's low 0/1 byte (the dead attempt's convert_width crashed reading .width off a MaskType and refused 64->8), a rank-0 bool result of convert binds the scalar-bool i64 0/1 GPR convention instead of a mask, block vcmp unifies integer operands that agree in TIR but ride different lane widths (the 0/1 class at the data SEW vs the broadcast splat), and a 0/1 reduction class narrower than its merge accumulator widens to it (the e8 bool-storage pass feeding an i32 sum; also removes the e8 overflow risk); (2) per-chunk-partial wrong answers exposed by first execution -- a rank-0 top-level reduce consumed only inside the region now escapes through the region's own statements AND through runtime regions' carried values/joins (median_bool_dim_finish, std_dim_kernel_inner), the pass splits at the first consumer, the per-pass liveout tables no longer clobber the me",
       "last_error": "Manager-filed report for a dead child: the dispatched worker session for T031 (remaining small construct-refusal classes) was terminated by the harness after 600000ms of inactivity and never filed its own TaskReport. No commands, acceptance coverage or evidence from the worker reached the engine; n\u2026",
       "failure_kind": "",
       "start_revision": "031c1da9e37fe687ee9024669596dbcf20ba8680",
-      "end_revision": "",
+      "end_revision": "1c1ecd31754e2148f58251ccbfcf24b3676d1ad5",
       "completed_seq": 0,
       "debug_required": false,
       "debug_request_id": "",
@@ -2991,7 +2991,7 @@
       "debug_pending_attempts": -1,
       "debug_pending_failures": 0,
       "worker_debug_request": {},
-      "coding_failures": 1,
+      "coding_failures": 0,
       "started_at": "2026-11-06T11:33:03.408518+00:00",
       "deferrals": 0,
       "debug_verified_patterns": [],
@@ -8191,6 +8191,24 @@
       "phase": "IMPLEMENTATION",
       "event": "task-delegate",
       "detail": "WTI030 task=T031 attempt=2 profile=general-purpose"
+    },
+    {
+      "at": "2026-11-06T14:31:47.929382+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "task-report-out-of-contract",
+      "detail": "T031: a100c/cache/b0935d364dd2041c5213603ea249447e3b78e899c93de2c6cfcd01710ed5c664/operator_exec, a100c/cache/9ee9bb07e4c70ad4a7780fd386f371137c1c1a7c30fad305838e960fbcf9c32a/program.S, a100c/cache/4cadb630bae9351b2cdd888edfe2842360579eea2875b09ff5b070d83370c971/stage.selection.txt, a100c/cache/0fa9b9c3c0311425604baa32cb560256d2ccbee50d7e3a212f34050a130cfa77/program.S, a100c/cache/56fb83fdda7a72249819adc09258465daaf410f22a29de314fac46e229e8d874/stage.mir.legalized.txt"
+    },
+    {
+      "at": "2026-11-06T14:31:47.946402+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "task-report",
+      "detail": "WTI030 COMPLETED attempt=2 [acceptance[0] reports exit_code 1, not 0; nonzero command reported; verify input results before optimization, without treating record checks as coding failures; changes outside the declared paths: a100c/cache/b0935d364dd2041c5213603ea249447e3b78e899c93de2c6cfcd01710ed5c664/operator_exec, a100c/cache/9ee9bb07e4c70ad4a7780fd386f371137c1c1a7c30fad305838e960fbcf9c32a/program.S, a100c/cache/4cadb630bae9351b2cdd888edfe2842360579eea2875b09ff5b070d83370c971/stage.selection.txt, a100c/cache/0fa9b9c3c0311425604baa32cb560256d2ccbee50d7e3a212f34050a130cfa77/program.S, a100c/cache/56fb83fdda7a72249819adc09258465daaf410f22a29de314fac46e229e8d874/stage.mir.legalized.txt]"
+    },
+    {
+      "at": "2026-11-06T14:31:47.974842+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "complete-task",
+      "detail": "T031 worker report WTI030: Judged the dead attempt-1 tree (its reshape/arange constexpr-shape fold in lower_tir.py, the multi-axis program_id decomposition, the fp16/bf16 math class, const-i1, the masked scalar load/store and the block bool load/store were sound and are kept; verified by probes before building on them) and completed the remaining small construct classes. All owned classes are at ZERO in the definitive filtered compile sweep over the 46 census operators carrying them (162 identities: 110 artifacts + 49 located refusals of OTHER constructs + 3 over-budget + 0 crash; docs/compiler-agent/COMPILE_CENSUS.t031-owned-classes.json): tl.reshape (runtime-shape forms fold -- block extents are compile-time in the pinned language; genuinely runtime bounds keep the located tl.arange.end/tl.reshape refusal, kept as a negative test), tl.arange.end, store/load i1 pointee, scalar bool loads/stores, const-i1, tl.softmax/erf/sqrt/rsqrt/floor/log, tl.program_id axis, masked scalar store, convert (int64->f32, fp64 internal routes). Repairs behind the zeros: (1) the bool backing-store lane -- scalar_store writes the scalar-bool GPR's low 0/1 byte (the dead attempt's convert_width crashed reading .width off a MaskType and refused 64->8), a rank-0 bool result of convert binds the scalar-bool i64 0/1 GPR convention instead of a mask, block vcmp unifies integer operands that agree in TIR but ride different lane widths (the 0/1 class at the data SEW vs the broadcast splat), and a 0/1 reduction class narrower than its merge accumulator widens to it (the e8 bool-storage pass feeding an i32 sum; also removes the e8 overflow risk); (2) per-chunk-partial wrong answers exposed by first execution -- a rank-0 top-level reduce consumed only inside the region now escapes through the region's own statements AND through runtime regions' carried values/joins (median_bool_dim_finish, std_dim_kernel_inner), the pass splits at the first consumer, the per-pass liveout tables no longer clobber the me"
     }
   ]
 }

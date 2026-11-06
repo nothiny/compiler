@@ -493,11 +493,22 @@ def scalar_load(ctx, base_reg: mir.VReg, offset_reg: mir.VReg,
 def scalar_store(ctx, base_reg: mir.VReg, offset_reg: mir.VReg,
                  value_reg: mir.VReg, pointee: tir.Type, loc) -> None:
     if pointee.is_bool():
-        # the bool backing store: the scalar-bool 0/1 (i64 or i1-held)
-        # narrows to one 0/1 byte
+        # the bool backing store: the scalar-bool 0/1 GPR stores its low
+        # byte directly (the value is exactly 0 or 1 -- the scalar core
+        # has no sub-32-bit narrowing convert, and none is needed: sb
+        # writes the register's low byte).  A mask-held bool (the vector
+        # lane's form reaching a scalar consumer) normalizes through the
+        # lane-count test first.
         addr = _scalar_address(ctx, base_reg, offset_reg, pointee, loc)
-        byte = convert_width(ctx, value_reg, 8, loc)
-        ctx.emit0(mir.MOp("sstore", [addr, byte], [],
+        val = value_reg
+        if val.is_mask():
+            cnt = ctx.emit(mir.MOp(
+                "vpopc", [val],
+                [ctx.vreg(mir.I64, hint="sbc", loc=loc)], loc=loc))
+            val = ctx.emit(mir.MOp(
+                "sltu", [ctx.const(0, mir.I64, loc), cnt],
+                [ctx.vreg(mir.I64, hint="sbs", loc=loc)], loc=loc))
+        ctx.emit0(mir.MOp("sstore", [addr, val], [],
                           attrs={"width": 8, "offset": 0}, loc=loc))
         return
     width = pointee.bitwidth()

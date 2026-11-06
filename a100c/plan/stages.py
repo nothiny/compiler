@@ -416,6 +416,18 @@ def _walk_statements(statements):
             yield from _walk_statements(st.body.statements)
 
 
+def _walk_statements_depth(statements, depth: int = 0):
+    """The statement walk with each statement's region-nesting depth (0 =
+    the region's own top level; the runtime regions' bodies descend)."""
+    for st in statements:
+        yield st, depth
+        if isinstance(st, tir.If):
+            yield from _walk_statements_depth(st.then.statements, depth + 1)
+            yield from _walk_statements_depth(st.els.statements, depth + 1)
+        elif isinstance(st, tir.Loop):
+            yield from _walk_statements_depth(st.body.statements, depth + 1)
+
+
 # ---------------------------------------------------------------------------
 # 3. Workspace ownership and the two-phase plan
 # ---------------------------------------------------------------------------
@@ -657,14 +669,65 @@ SOFTMAX_COMPOSITE = {
 # 4. Plan construction and validation
 # ---------------------------------------------------------------------------
 
+def _binding_of_name(block: tir.Block, name: str) -> Optional[tir.Value]:
+    """The body-end value bound to a source name in one region body: the
+    LAST op in walk order whose result carries ``name`` among its scope
+    names (the region's exit binding for that name)."""
+    found = None
+    for st in _walk_statements(block.statements):
+        if isinstance(st, tir.Op):
+            for r in st.results:
+                if name in r.scope_names():
+                    found = r
+    return found
+
+
+def _carried_binding_tainted(body: tir.Block, cname: str, jv: tir.Value,
+                             tainted: Set[int]) -> bool:
+    """Is the body-end binding of one carried name tainted (so the loop's
+    join carries the taint out of the body)?"""
+    v = _binding_of_name(body, cname)
+    return v is not None and v.vid in tainted
+
+
+def _join_binding_tainted(then: tir.Block, els: tir.Block, jv: tir.Value,
+                           tainted: Set[int]) -> bool:
+    """Is an if-join's name bound to a tainted value at the end of an
+    arm (the join merges the arms' bindings)?"""
+    name = None
+    # the join's own scope names identify the merged source name
+    for key in jv.scope_names():
+        name = key
+        break
+    if name is None:
+        return False
+    for arm in (then, els):
+        v = _binding_of_name(arm, name)
+        if v is not None and v.vid in tainted:
+            return True
+    return False
+
+
 def _escapes_region(value: tir.Value, region_stmts: Sequence,
-                    stmts_after: Sequence) -> bool:
+                    stmts_after: Sequence,
+                    taint_region: bool = False) -> bool:
     """Does the value flow into an observable effect after the region?
 
     Transitive through the suffix's own statements: a region value escapes
     when it reaches a store, a loop bound, a region condition or a region
     carried init (control or memory effect) after the region closes --
-    not merely when a dead suffix value mentions it."""
+    not merely when a dead suffix value mentions it.
+
+    ``taint_region`` (the rank-0 reduce form) also flows the taint
+    through the region's OWN later statements: a reduction consumed only
+    inside the region by a chain that ends in a store still escapes --
+    its consumer must read the MERGED value, never the per-chunk partial
+    (median_bool_dim_finish found the gap: sum -> sub -> cmp -> where ->
+    store never left the region, so the sum had no partial and the
+    compare read the last chunk's partial).  Block-valued joins keep the
+    suffix-only walk: a loop-carried BLOCK accumulator is chunk-local by
+    design (the source loop nests inside the chunk region), so an
+    in-region consumer reads exactly the right per-chunk value."""
     ids = {id(s) for s in region_stmts}
 
     def statements(stmts):
@@ -678,10 +741,24 @@ def _escapes_region(value: tir.Value, region_stmts: Sequence,
             elif isinstance(st, tir.Loop):
                 yield from statements(st.body.statements)
 
+    def all_statements(stmts):
+        for st in stmts:
+            yield st
+            if isinstance(st, tir.If):
+                yield from all_statements(st.then.statements)
+                yield from all_statements(st.els.statements)
+            elif isinstance(st, tir.Loop):
+                yield from all_statements(st.body.statements)
+
     # fixpoint: the set of values tainted by `value`
     tainted = {value.vid}
     changed = True
+    # the region's own statements join the taint walk only in the
+    # rank-0 reduce form (SSA: a use sits after its definition, so
+    # tainting them cannot reach an earlier statement)
     stmt_list = list(statements(stmts_after))
+    if taint_region:
+        stmt_list = stmt_list + list(all_statements(region_stmts))
     while changed:
         changed = False
         for st in stmt_list:
@@ -694,12 +771,31 @@ def _escapes_region(value: tir.Value, region_stmts: Sequence,
             elif isinstance(st, tir.If):
                 if st.cond.vid in tainted:
                     return True
+                # the taint flows through the join: a branch-end binding
+                # of a joined name taints the join value (std_dim's mean
+                # feeds the second loop's body through its accumulator)
+                for jv in st.join_results:
+                    if jv.vid in tainted:
+                        continue
+                    if _join_binding_tainted(st.then, st.els, jv, tainted):
+                        tainted.add(jv.vid)
+                        changed = True
             elif isinstance(st, tir.Loop):
                 for bound in (st.lower, st.upper, st.step, st.cond):
                     if bound is not None and bound.vid in tainted:
                         return True
                 if any(init.vid in tainted for _, init in st.carried):
                     return True
+                # the taint flows through the carried values: the body-end
+                # binding of a carried name taints the loop's join (the
+                # exit value a later statement consumes)
+                for (cname, _init), jv in zip(st.carried, st.join_results):
+                    if jv.vid in tainted:
+                        continue
+                    if _carried_binding_tainted(st.body, cname, jv,
+                                                tainted):
+                        tainted.add(jv.vid)
+                        changed = True
     # observable effect: a store whose value or pointer is tainted --
     # including a store INSIDE the region (a region-internal store of a
     # partial would write the per-chunk value; its final write needs the
@@ -856,11 +952,21 @@ def build_stage_plan(module: tir.Module) -> TwoPhasePlan:
             consumed.add(join.vid)
 
     # (c) reduce results that escape (the plain block-reduction form)
-    for st in _walk_statements(region):
+    for st, depth in _walk_statements_depth(region):
         if isinstance(st, tir.Op) and st.op == "reduce":
             for value in st.results:
-                if value.vid in consumed or \
-                        not _escapes_region(value, region, suffix):
+                if value.vid in consumed:
+                    continue
+                # a rank-0 TOP-LEVEL reduce result taints through the
+                # region's own statements too (its mid-region consumers
+                # must read the merged value); a block result, and any
+                # reduce inside a runtime region (its own loop/if
+                # machinery owns the chunk discipline), keep the
+                # suffix-only walk
+                escapes = _escapes_region(value, region, suffix,
+                                          taint_region=value.rank == 0
+                                          and depth == 0)
+                if not escapes:
                     continue
                 attrs = st.attrs
                 kind = attrs["kind"]

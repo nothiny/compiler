@@ -1,0 +1,3073 @@
+{
+  "schema": "a100-compile-census/v1",
+  "generator": "a100c/tests/test_compile_sweep.py",
+  "command": "a100c/tests/test_compile_sweep.py --operator suite/dev/any_kernel_1.py --operator suite/dev/any_kernel_2.py --operator suite/dev/arange_func.py --operator suite/dev/backends__ascend__ops__grpo_loss__selective_log_softmax_kernel.py --operator suite/dev/blackman_window_kernel.py --operator suite/dev/blocked_jacobi_pair_svals_kernel.py --operator suite/dev/bn_inc_and_write_momentum_kernel.py --operator suite/dev/chunk_abc_fwd_kernel_intra_K.py --operator suite/dev/chunk_gdn2_fwd_kernel_inter_solve_fused.py --operator suite/dev/chunk_gdn2_fwd_kernel_intra_sub_chunk.py --operator suite/dev/chunk_generalized_iplr_delta_rule_fwd_kernel_o.py --operator suite/dev/chunk_transform_qk_fwd_kernel.py --operator suite/dev/complex_svd_pick_orthonormal_v_kernel.py --operator suite/dev/count_nonzero_combin_kernel.py --operator suite/dev/cumprod_dim1_grouped_mixed_kernel.py --operator suite/dev/cyclic_jacobi_norm_kernel.py --operator suite/dev/cyclic_jacobi_pair_kernel.py --operator suite/dev/final_mean_kernel.py --operator suite/dev/grpo_loss__selective_log_softmax_kernel.py --operator suite/dev/linspace_kernel.py --operator suite/dev/local_ne_consecutive_kernel.py --operator suite/dev/local_ne_flat_impl.py --operator suite/dev/logspace_kernel.py --operator suite/dev/median_bool_count_kernel.py --operator suite/dev/median_bool_dim_count_chunks_kernel.py --operator suite/dev/median_bool_dim_finish_kernel.py --operator suite/dev/median_bool_dim_reduce_chunks_kernel.py --operator suite/dev/median_bool_from_counts_kernel.py --operator suite/dev/min_reduce_lastdim_partials_kernel.py --operator suite/dev/mode_kernel.py --operator suite/dev/pairwise_distance_general_kernel_1.py --operator suite/dev/pairwise_distance_min_kernel_1.py --operator suite/dev/parallel_attn_fwd_kernel.py --operator suite/dev/parallel_based_fwd_kernel.py --operator suite/dev/parallel_path_fwd_kernel_prepare_k_cache.py --operator suite/dev/position_quantize.py --operator suite/dev/ranked_distribution_semantic.py --operator suite/dev/round_kernel.py --operator suite/dev/std_dim_kernel_inner.py --operator suite/dev/synthesis_kernel.py --operator suite/dev/unique_dim_row_diff_reduce_kernel.py --operator suite/dev/unique_dim_row_single_chunk_first_kernel.py --operator suite/perf/add_gelu.py --operator suite/perf/cos_signbit.py --operator suite/perf/fused_index_select_eq.py --operator suite/perf/signbit_bitwise_and.py --census-out docs/compiler-agent/COMPILE_CENSUS.t031-owned-classes.json",
+  "seed": 30,
+  "manifest": "ops/suite/manifest.json",
+  "compiler_revision": "b23a2d9d8ffd2c84",
+  "pass_config": "passes=default",
+  "restricted": true,
+  "cache": {
+    "root": "/tmp/a100-compile-sweep-b1ascmvo",
+    "isolated_temporary": true
+  },
+  "budget_s_per_identity": 120.0,
+  "census": {
+    "operators": 46,
+    "cases": 204,
+    "cases_classified": 204,
+    "identities": 162,
+    "cases_per_identity": 1.259,
+    "declared_full_corpus": {
+      "cases": 2734,
+      "identities": 2161
+    },
+    "identities_with_multiple_cases": 42
+  },
+  "partition": {
+    "artifacts": 110,
+    "refused": 49,
+    "over_budget": 3,
+    "crash": 0,
+    "case_build_failures": 0,
+    "sums_to_identity_census": true
+  },
+  "compile": {
+    "count": 162,
+    "cache_hits": 30,
+    "attempts_one_per_identity": 162,
+    "cold_ms": [
+      43.9,
+      48.1,
+      49.7,
+      49.9,
+      50.2,
+      50.7,
+      51.4,
+      51.9,
+      52.4,
+      56.4,
+      56.5,
+      63.2,
+      63.3,
+      63.9,
+      64.5,
+      65.7,
+      66.2,
+      67.7,
+      68.2,
+      68.9,
+      69.0,
+      70.4,
+      70.8,
+      70.9,
+      71.0,
+      73.0,
+      73.1,
+      73.6,
+      74.4,
+      74.9,
+      75.0,
+      75.2,
+      75.4,
+      75.5,
+      75.7,
+      77.0,
+      77.2,
+      77.4,
+      78.1,
+      78.2,
+      78.4,
+      79.6,
+      79.7,
+      79.7,
+      79.9,
+      81.2,
+      81.4,
+      82.6,
+      82.9,
+      83.7,
+      84.2,
+      88.5,
+      90.2,
+      92.2,
+      92.4,
+      92.7,
+      93.3,
+      94.4,
+      94.9,
+      96.1,
+      97.7,
+      98.1,
+      98.5,
+      98.7,
+      101.8,
+      104.4,
+      106.5,
+      112.3,
+      116.6,
+      118.3,
+      121.3,
+      125.2,
+      125.6,
+      129.4,
+      132.1,
+      134.4,
+      138.6,
+      160.6,
+      161.7,
+      164.7,
+      167.7,
+      177.6,
+      187.1,
+      188.5,
+      194.2,
+      194.5,
+      214.7,
+      241.0,
+      247.8,
+      257.0,
+      258.5,
+      260.5,
+      260.9,
+      281.6,
+      287.4,
+      298.5,
+      332.0,
+      335.3,
+      349.5,
+      372.9,
+      413.8,
+      496.5,
+      3059.1,
+      5641.5,
+      5879.8,
+      6582.4,
+      10735.7,
+      13090.7,
+      20851.7,
+      23297.3
+    ],
+    "cold_ms_median": 92.7,
+    "cold_ms_max": 23297.3,
+    "declared_identity_bound_1_25x": 2701,
+    "within_declared_economics": true
+  },
+  "artifact_reuse": {
+    "repeat_case_checks": 30,
+    "all_reused_one_artifact": true,
+    "violations": []
+  },
+  "passes": {
+    "totals_fired": {
+      "constprop": 153,
+      "copyprop": 6,
+      "strength_reduction": 233,
+      "cse": 2030,
+      "licm": 131,
+      "dce": 266
+    },
+    "markers_read": 110,
+    "markers_with_enabled_config": 110
+  },
+  "refusals": {
+    "count": 49,
+    "by_construct": {
+      "tl.dot": 13,
+      "mir-verifier": 9,
+      "grid": 8,
+      "loop": 6,
+      "tl.sort": 6,
+      "if": 3,
+      "tl.cumsum/cumprod": 3,
+      "layout": 1
+    },
+    "by_operator": {
+      "suite/dev/chunk_abc_fwd_kernel_intra_K.py": 6,
+      "suite/dev/grpo_loss__selective_log_softmax_kernel.py": 6,
+      "suite/dev/parallel_attn_fwd_kernel.py": 6,
+      "suite/dev/parallel_based_fwd_kernel.py": 6,
+      "suite/dev/ranked_distribution_semantic.py": 6,
+      "suite/dev/backends__ascend__ops__grpo_loss__selective_log_softmax_kernel.py": 3,
+      "suite/dev/chunk_gdn2_fwd_kernel_inter_solve_fused.py": 3,
+      "suite/dev/chunk_gdn2_fwd_kernel_intra_sub_chunk.py": 3,
+      "suite/dev/chunk_generalized_iplr_delta_rule_fwd_kernel_o.py": 3,
+      "suite/dev/cumprod_dim1_grouped_mixed_kernel.py": 3,
+      "suite/dev/synthesis_kernel.py": 3,
+      "suite/dev/chunk_transform_qk_fwd_kernel.py": 1
+    },
+    "rows": [
+      {
+        "identity": "e2b2cd821915",
+        "operator": "suite/dev/backends__ascend__ops__grpo_loss__selective_log_softmax_kernel.py",
+        "cases": 2,
+        "first_case": {
+          "shape": [
+            2,
+            7,
+            17
+          ],
+          "dtype": "float32"
+        },
+        "construct": "mir-verifier",
+        "location": null,
+        "detail": "mir-verifier: type-mismatch: 'smove' preserves width (32->64 only for values already held extended in the register) (at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/backends__ascend__ops__grpo_loss__selective_log_softmax_kernel.py:27:24)"
+      },
+      {
+        "identity": "4cb6e72f5e38",
+        "operator": "suite/dev/backends__ascend__ops__grpo_loss__selective_log_softmax_kernel.py",
+        "cases": 2,
+        "first_case": {
+          "shape": [
+            2,
+            7,
+            17
+          ],
+          "dtype": "float16"
+        },
+        "construct": "mir-verifier",
+        "location": null,
+        "detail": "mir-verifier: type-mismatch: 'smove' preserves width (32->64 only for values already held extended in the register) (at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/backends__ascend__ops__grpo_loss__selective_log_softmax_kernel.py:27:24)"
+      },
+      {
+        "identity": "ac866eb55331",
+        "operator": "suite/dev/backends__ascend__ops__grpo_loss__selective_log_softmax_kernel.py",
+        "cases": 2,
+        "first_case": {
+          "shape": [
+            2,
+            7,
+            17
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "mir-verifier",
+        "location": null,
+        "detail": "mir-verifier: type-mismatch: 'smove' preserves width (32->64 only for values already held extended in the register) (at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/backends__ascend__ops__grpo_loss__selective_log_softmax_kernel.py:27:24)"
+      },
+      {
+        "identity": "b1fe37c293cf",
+        "operator": "suite/dev/chunk_abc_fwd_kernel_intra_K.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            2,
+            2,
+            17,
+            9,
+            8,
+            4
+          ],
+          "dtype": "float32"
+        },
+        "construct": "grid",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:109:1",
+        "detail": "grid: grid input $shape_extent(0,) (case-shape axis 0) cannot be proven equal to a bundle-visible quantity (no scalar argument and no view extent shares its origin); refusing to bake a launch geometry"
+      },
+      {
+        "identity": "3a1862a4f1a0",
+        "operator": "suite/dev/chunk_abc_fwd_kernel_intra_K.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            2,
+            2,
+            17,
+            9,
+            8,
+            4
+          ],
+          "dtype": "float16"
+        },
+        "construct": "grid",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:109:1",
+        "detail": "grid: grid input $shape_extent(0,) (case-shape axis 0) cannot be proven equal to a bundle-visible quantity (no scalar argument and no view extent shares its origin); refusing to bake a launch geometry"
+      },
+      {
+        "identity": "44edb09b8614",
+        "operator": "suite/dev/chunk_abc_fwd_kernel_intra_K.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            2,
+            2,
+            17,
+            9,
+            8,
+            4
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "grid",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:109:1",
+        "detail": "grid: grid input $shape_extent(0,) (case-shape axis 0) cannot be proven equal to a bundle-visible quantity (no scalar argument and no view extent shares its origin); refusing to bake a launch geometry"
+      },
+      {
+        "identity": "52987f2c2c88",
+        "operator": "suite/dev/chunk_abc_fwd_kernel_intra_K.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            1,
+            3,
+            33,
+            13,
+            16,
+            4
+          ],
+          "dtype": "float32"
+        },
+        "construct": "grid",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:109:1",
+        "detail": "grid: grid input $shape_extent(0,) (case-shape axis 0) cannot be proven equal to a bundle-visible quantity (no scalar argument and no view extent shares its origin); refusing to bake a launch geometry"
+      },
+      {
+        "identity": "a068ef19606a",
+        "operator": "suite/dev/chunk_abc_fwd_kernel_intra_K.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            1,
+            3,
+            33,
+            13,
+            16,
+            4
+          ],
+          "dtype": "float16"
+        },
+        "construct": "grid",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:109:1",
+        "detail": "grid: grid input $shape_extent(0,) (case-shape axis 0) cannot be proven equal to a bundle-visible quantity (no scalar argument and no view extent shares its origin); refusing to bake a launch geometry"
+      },
+      {
+        "identity": "a3f44fd9b9a1",
+        "operator": "suite/dev/chunk_abc_fwd_kernel_intra_K.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            1,
+            3,
+            33,
+            13,
+            16,
+            4
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "grid",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:109:1",
+        "detail": "grid: grid input $shape_extent(0,) (case-shape axis 0) cannot be proven equal to a bundle-visible quantity (no scalar argument and no view extent shares its origin); refusing to bake a launch geometry"
+      },
+      {
+        "identity": "af40ab94995e",
+        "operator": "suite/dev/chunk_gdn2_fwd_kernel_inter_solve_fused.py",
+        "cases": 2,
+        "first_case": {
+          "shape": [
+            17
+          ],
+          "dtype": "float32"
+        },
+        "construct": "if",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_gdn2_fwd_kernel_inter_solve_fused.py:142:5",
+        "detail": "if: a runtime region mixes block extents 4 and 16 (the layout lane lowers extent-homogeneous regions)"
+      },
+      {
+        "identity": "f03c1973da2d",
+        "operator": "suite/dev/chunk_gdn2_fwd_kernel_inter_solve_fused.py",
+        "cases": 2,
+        "first_case": {
+          "shape": [
+            17
+          ],
+          "dtype": "float16"
+        },
+        "construct": "if",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_gdn2_fwd_kernel_inter_solve_fused.py:142:5",
+        "detail": "if: a runtime region mixes block extents 4 and 16 (the layout lane lowers extent-homogeneous regions)"
+      },
+      {
+        "identity": "6b87b46435fa",
+        "operator": "suite/dev/chunk_gdn2_fwd_kernel_inter_solve_fused.py",
+        "cases": 2,
+        "first_case": {
+          "shape": [
+            17
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "if",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_gdn2_fwd_kernel_inter_solve_fused.py:142:5",
+        "detail": "if: a runtime region mixes block extents 4 and 16 (the layout lane lowers extent-homogeneous regions)"
+      },
+      {
+        "identity": "b6d2a8770961",
+        "operator": "suite/dev/chunk_gdn2_fwd_kernel_intra_sub_chunk.py",
+        "cases": 2,
+        "first_case": {
+          "shape": [
+            2,
+            17,
+            3,
+            7,
+            8,
+            4
+          ],
+          "dtype": "float32"
+        },
+        "construct": "loop",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_gdn2_fwd_kernel_intra_sub_chunk.py:89:5",
+        "detail": "loop: a runtime region mixes block extents 16 and 4 (the layout lane lowers extent-homogeneous regions)"
+      },
+      {
+        "identity": "60a289297508",
+        "operator": "suite/dev/chunk_gdn2_fwd_kernel_intra_sub_chunk.py",
+        "cases": 2,
+        "first_case": {
+          "shape": [
+            2,
+            17,
+            3,
+            7,
+            8,
+            4
+          ],
+          "dtype": "float16"
+        },
+        "construct": "loop",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_gdn2_fwd_kernel_intra_sub_chunk.py:89:5",
+        "detail": "loop: a runtime region mixes block extents 16 and 4 (the layout lane lowers extent-homogeneous regions)"
+      },
+      {
+        "identity": "0b90236d00a9",
+        "operator": "suite/dev/chunk_gdn2_fwd_kernel_intra_sub_chunk.py",
+        "cases": 2,
+        "first_case": {
+          "shape": [
+            2,
+            17,
+            3,
+            7,
+            8,
+            4
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "loop",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_gdn2_fwd_kernel_intra_sub_chunk.py:89:5",
+        "detail": "loop: a runtime region mixes block extents 16 and 4 (the layout lane lowers extent-homogeneous regions)"
+      },
+      {
+        "identity": "762de1caee99",
+        "operator": "suite/dev/chunk_generalized_iplr_delta_rule_fwd_kernel_o.py",
+        "cases": 2,
+        "first_case": {
+          "shape": [
+            17
+          ],
+          "dtype": "float32"
+        },
+        "construct": "tl.dot",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_generalized_iplr_delta_rule_fwd_kernel_o.py:76:394",
+        "detail": "tl.dot: fp64 tl.dot is outside the corpus dtype surface (F037: bfloat16/bool/float16/float32/int16/int32/int64/int8 only)"
+      },
+      {
+        "identity": "2faa0a399bd5",
+        "operator": "suite/dev/chunk_generalized_iplr_delta_rule_fwd_kernel_o.py",
+        "cases": 2,
+        "first_case": {
+          "shape": [
+            17
+          ],
+          "dtype": "float16"
+        },
+        "construct": "grid",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_generalized_iplr_delta_rule_fwd_kernel_o.py:96:1",
+        "detail": "grid: a grid axis is not provenance-tracked (it depends on values the model cannot see: ?(symbolic conditional expression))"
+      },
+      {
+        "identity": "d9da693c10dc",
+        "operator": "suite/dev/chunk_generalized_iplr_delta_rule_fwd_kernel_o.py",
+        "cases": 2,
+        "first_case": {
+          "shape": [
+            17
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "grid",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_generalized_iplr_delta_rule_fwd_kernel_o.py:96:1",
+        "detail": "grid: a grid axis is not provenance-tracked (it depends on values the model cannot see: ?(symbolic conditional expression))"
+      },
+      {
+        "identity": "26e9259622e3",
+        "operator": "suite/dev/chunk_transform_qk_fwd_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            6,
+            33,
+            11,
+            13,
+            16
+          ],
+          "dtype": "float16"
+        },
+        "construct": "layout",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_transform_qk_fwd_kernel.py:31:353",
+        "detail": "layout: a layout op over a matrix-native staged operand ('pm's source) is not in the lane (the record's narrow native lanes have no safe indexed read here; a located refusal, never a crashing emission)"
+      },
+      {
+        "identity": "46f0f6a7c459",
+        "operator": "suite/dev/cumprod_dim1_grouped_mixed_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            1,
+            1
+          ],
+          "dtype": "float32"
+        },
+        "construct": "tl.cumsum/cumprod",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/cumprod_dim1_grouped_mixed_kernel.py:49:25",
+        "detail": "tl.cumsum/cumprod: scans along a non-last axis of a multi-axis block are not in this path (the layout lane owns multi-axis blocks)"
+      },
+      {
+        "identity": "d9115226b525",
+        "operator": "suite/dev/cumprod_dim1_grouped_mixed_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            1,
+            1
+          ],
+          "dtype": "float16"
+        },
+        "construct": "tl.cumsum/cumprod",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/cumprod_dim1_grouped_mixed_kernel.py:49:25",
+        "detail": "tl.cumsum/cumprod: scans along a non-last axis of a multi-axis block are not in this path (the layout lane owns multi-axis blocks)"
+      },
+      {
+        "identity": "aede24eba08a",
+        "operator": "suite/dev/cumprod_dim1_grouped_mixed_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            1,
+            1
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "tl.cumsum/cumprod",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/cumprod_dim1_grouped_mixed_kernel.py:49:25",
+        "detail": "tl.cumsum/cumprod: scans along a non-last axis of a multi-axis block are not in this path (the layout lane owns multi-axis blocks)"
+      },
+      {
+        "identity": "8489e1c5a084",
+        "operator": "suite/dev/grpo_loss__selective_log_softmax_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            2,
+            7,
+            17
+          ],
+          "dtype": "float32"
+        },
+        "construct": "mir-verifier",
+        "location": null,
+        "detail": "mir-verifier: type-mismatch: 'smove' preserves width (32->64 only for values already held extended in the register) (at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grpo_loss__selective_log_softmax_kernel.py:19:20)"
+      },
+      {
+        "identity": "23a48d2a0873",
+        "operator": "suite/dev/grpo_loss__selective_log_softmax_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            2,
+            7,
+            17
+          ],
+          "dtype": "float16"
+        },
+        "construct": "mir-verifier",
+        "location": null,
+        "detail": "mir-verifier: type-mismatch: 'smove' preserves width (32->64 only for values already held extended in the register) (at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grpo_loss__selective_log_softmax_kernel.py:19:20)"
+      },
+      {
+        "identity": "8e8ea4e3b20e",
+        "operator": "suite/dev/grpo_loss__selective_log_softmax_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            2,
+            7,
+            17
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "mir-verifier",
+        "location": null,
+        "detail": "mir-verifier: type-mismatch: 'smove' preserves width (32->64 only for values already held extended in the register) (at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grpo_loss__selective_log_softmax_kernel.py:19:20)"
+      },
+      {
+        "identity": "fe3d1a002dda",
+        "operator": "suite/dev/grpo_loss__selective_log_softmax_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            3,
+            11,
+            67
+          ],
+          "dtype": "float32"
+        },
+        "construct": "mir-verifier",
+        "location": null,
+        "detail": "mir-verifier: type-mismatch: 'smove' preserves width (32->64 only for values already held extended in the register) (at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grpo_loss__selective_log_softmax_kernel.py:19:20)"
+      },
+      {
+        "identity": "144104b2c270",
+        "operator": "suite/dev/grpo_loss__selective_log_softmax_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            3,
+            11,
+            67
+          ],
+          "dtype": "float16"
+        },
+        "construct": "mir-verifier",
+        "location": null,
+        "detail": "mir-verifier: type-mismatch: 'smove' preserves width (32->64 only for values already held extended in the register) (at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grpo_loss__selective_log_softmax_kernel.py:19:20)"
+      },
+      {
+        "identity": "b11f905468ba",
+        "operator": "suite/dev/grpo_loss__selective_log_softmax_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            3,
+            11,
+            67
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "mir-verifier",
+        "location": null,
+        "detail": "mir-verifier: type-mismatch: 'smove' preserves width (32->64 only for values already held extended in the register) (at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grpo_loss__selective_log_softmax_kernel.py:19:20)"
+      },
+      {
+        "identity": "2d7864cc1cc6",
+        "operator": "suite/dev/parallel_attn_fwd_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            2,
+            17,
+            2,
+            4,
+            7,
+            9,
+            8,
+            9
+          ],
+          "dtype": "float32"
+        },
+        "construct": "tl.dot",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/parallel_attn_fwd_kernel.py:79:5",
+        "detail": "tl.dot: the staged carry 'b_acc' has no staged region at the back edge (the staging analysis and the emission disagree)"
+      },
+      {
+        "identity": "9dc7093b1241",
+        "operator": "suite/dev/parallel_attn_fwd_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            2,
+            17,
+            2,
+            4,
+            7,
+            9,
+            8,
+            9
+          ],
+          "dtype": "float16"
+        },
+        "construct": "tl.dot",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/parallel_attn_fwd_kernel.py:79:5",
+        "detail": "tl.dot: the staged carry 'b_acc' has no staged region at the back edge (the staging analysis and the emission disagree)"
+      },
+      {
+        "identity": "fa8e2f6392ac",
+        "operator": "suite/dev/parallel_attn_fwd_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            2,
+            17,
+            2,
+            4,
+            7,
+            9,
+            8,
+            9
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "tl.dot",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/parallel_attn_fwd_kernel.py:79:5",
+        "detail": "tl.dot: the staged carry 'b_acc' has no staged region at the back edge (the staging analysis and the emission disagree)"
+      },
+      {
+        "identity": "0b0b205382dc",
+        "operator": "suite/dev/parallel_attn_fwd_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            3,
+            17,
+            2,
+            4,
+            7,
+            9,
+            8,
+            9
+          ],
+          "dtype": "float32"
+        },
+        "construct": "tl.dot",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/parallel_attn_fwd_kernel.py:79:5",
+        "detail": "tl.dot: the staged carry 'b_acc' has no staged region at the back edge (the staging analysis and the emission disagree)"
+      },
+      {
+        "identity": "0f016b4299d2",
+        "operator": "suite/dev/parallel_attn_fwd_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            3,
+            17,
+            2,
+            4,
+            7,
+            9,
+            8,
+            9
+          ],
+          "dtype": "float16"
+        },
+        "construct": "tl.dot",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/parallel_attn_fwd_kernel.py:79:5",
+        "detail": "tl.dot: the staged carry 'b_acc' has no staged region at the back edge (the staging analysis and the emission disagree)"
+      },
+      {
+        "identity": "5e7954955185",
+        "operator": "suite/dev/parallel_attn_fwd_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            3,
+            17,
+            2,
+            4,
+            7,
+            9,
+            8,
+            9
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "tl.dot",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/parallel_attn_fwd_kernel.py:79:5",
+        "detail": "tl.dot: the staged carry 'b_acc' has no staged region at the back edge (the staging analysis and the emission disagree)"
+      },
+      {
+        "identity": "8da48f50e1a4",
+        "operator": "suite/dev/parallel_based_fwd_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            4,
+            17,
+            7,
+            9,
+            8
+          ],
+          "dtype": "float32"
+        },
+        "construct": "tl.dot",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/parallel_based_fwd_kernel.py:42:5",
+        "detail": "tl.dot: the staged carry 'b_o' has no staged region at the back edge (the staging analysis and the emission disagree)"
+      },
+      {
+        "identity": "cc4d0d57bf78",
+        "operator": "suite/dev/parallel_based_fwd_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            4,
+            17,
+            7,
+            9,
+            8
+          ],
+          "dtype": "float16"
+        },
+        "construct": "tl.dot",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/parallel_based_fwd_kernel.py:42:5",
+        "detail": "tl.dot: the staged carry 'b_o' has no staged region at the back edge (the staging analysis and the emission disagree)"
+      },
+      {
+        "identity": "73672c5d6dbb",
+        "operator": "suite/dev/parallel_based_fwd_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            4,
+            17,
+            7,
+            9,
+            8
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "tl.dot",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/parallel_based_fwd_kernel.py:42:5",
+        "detail": "tl.dot: the staged carry 'b_o' has no staged region at the back edge (the staging analysis and the emission disagree)"
+      },
+      {
+        "identity": "cc96f6198bef",
+        "operator": "suite/dev/parallel_based_fwd_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            6,
+            33,
+            11,
+            13,
+            16
+          ],
+          "dtype": "float32"
+        },
+        "construct": "tl.dot",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/parallel_based_fwd_kernel.py:42:5",
+        "detail": "tl.dot: the staged carry 'b_o' has no staged region at the back edge (the staging analysis and the emission disagree)"
+      },
+      {
+        "identity": "4f97a5e67935",
+        "operator": "suite/dev/parallel_based_fwd_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            6,
+            33,
+            11,
+            13,
+            16
+          ],
+          "dtype": "float16"
+        },
+        "construct": "tl.dot",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/parallel_based_fwd_kernel.py:42:5",
+        "detail": "tl.dot: the staged carry 'b_o' has no staged region at the back edge (the staging analysis and the emission disagree)"
+      },
+      {
+        "identity": "27f59ea7e4c0",
+        "operator": "suite/dev/parallel_based_fwd_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            6,
+            33,
+            11,
+            13,
+            16
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "tl.dot",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/parallel_based_fwd_kernel.py:42:5",
+        "detail": "tl.dot: the staged carry 'b_o' has no staged region at the back edge (the staging analysis and the emission disagree)"
+      },
+      {
+        "identity": "dd1921f7b79a",
+        "operator": "suite/dev/ranked_distribution_semantic.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            16
+          ],
+          "dtype": "float32"
+        },
+        "construct": "tl.sort",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/ranked_distribution_semantic.py:25:13",
+        "detail": "tl.sort: a whole-block reorder needs the block-materialization protocol of the layout lane (multi-shape blocks); the sort semantics (dim, descending, stability) are declared in a100c/plan/stages.py (a located refusal, never a wrong order)"
+      },
+      {
+        "identity": "2d956f1ffc12",
+        "operator": "suite/dev/ranked_distribution_semantic.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            16
+          ],
+          "dtype": "float16"
+        },
+        "construct": "tl.sort",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/ranked_distribution_semantic.py:25:13",
+        "detail": "tl.sort: a whole-block reorder needs the block-materialization protocol of the layout lane (multi-shape blocks); the sort semantics (dim, descending, stability) are declared in a100c/plan/stages.py (a located refusal, never a wrong order)"
+      },
+      {
+        "identity": "0cbe41c4b30f",
+        "operator": "suite/dev/ranked_distribution_semantic.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            16
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "tl.sort",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/ranked_distribution_semantic.py:25:13",
+        "detail": "tl.sort: a whole-block reorder needs the block-materialization protocol of the layout lane (multi-shape blocks); the sort semantics (dim, descending, stability) are declared in a100c/plan/stages.py (a located refusal, never a wrong order)"
+      },
+      {
+        "identity": "cb3125fc52a6",
+        "operator": "suite/dev/ranked_distribution_semantic.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            64
+          ],
+          "dtype": "float32"
+        },
+        "construct": "tl.sort",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/ranked_distribution_semantic.py:25:13",
+        "detail": "tl.sort: a whole-block reorder needs the block-materialization protocol of the layout lane (multi-shape blocks); the sort semantics (dim, descending, stability) are declared in a100c/plan/stages.py (a located refusal, never a wrong order)"
+      },
+      {
+        "identity": "1a79371539ab",
+        "operator": "suite/dev/ranked_distribution_semantic.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            64
+          ],
+          "dtype": "float16"
+        },
+        "construct": "tl.sort",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/ranked_distribution_semantic.py:25:13",
+        "detail": "tl.sort: a whole-block reorder needs the block-materialization protocol of the layout lane (multi-shape blocks); the sort semantics (dim, descending, stability) are declared in a100c/plan/stages.py (a located refusal, never a wrong order)"
+      },
+      {
+        "identity": "db3310b7b5fa",
+        "operator": "suite/dev/ranked_distribution_semantic.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            64
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "tl.sort",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/ranked_distribution_semantic.py:25:13",
+        "detail": "tl.sort: a whole-block reorder needs the block-materialization protocol of the layout lane (multi-shape blocks); the sort semantics (dim, descending, stability) are declared in a100c/plan/stages.py (a located refusal, never a wrong order)"
+      },
+      {
+        "identity": "dccc272989c5",
+        "operator": "suite/dev/synthesis_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            1,
+            4,
+            16,
+            64
+          ],
+          "dtype": "float32"
+        },
+        "construct": "loop",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/synthesis_kernel.py:45:5",
+        "detail": "loop: a runtime region mixes block extents 64 and 32 (the layout lane lowers extent-homogeneous regions)"
+      },
+      {
+        "identity": "76ce26fb0254",
+        "operator": "suite/dev/synthesis_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            1,
+            4,
+            16,
+            64
+          ],
+          "dtype": "float16"
+        },
+        "construct": "loop",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/synthesis_kernel.py:45:5",
+        "detail": "loop: a runtime region mixes block extents 64 and 32 (the layout lane lowers extent-homogeneous regions)"
+      },
+      {
+        "identity": "d83be32e1b00",
+        "operator": "suite/dev/synthesis_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            1,
+            4,
+            16,
+            64
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "loop",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/synthesis_kernel.py:45:5",
+        "detail": "loop: a runtime region mixes block extents 64 and 32 (the layout lane lowers extent-homogeneous regions)"
+      }
+    ]
+  },
+  "over_budget_rows": [
+    {
+      "identity": "42c31d18b3a2",
+      "operator": "suite/dev/complex_svd_pick_orthonormal_v_kernel.py",
+      "first_case": {
+        "shape": [
+          17
+        ],
+        "dtype": "float32"
+      },
+      "detail": "compile exceeded its 120s budget; recorded, not retried"
+    },
+    {
+      "identity": "4c67086b459f",
+      "operator": "suite/dev/complex_svd_pick_orthonormal_v_kernel.py",
+      "first_case": {
+        "shape": [
+          17
+        ],
+        "dtype": "float16"
+      },
+      "detail": "compile exceeded its 120s budget; recorded, not retried"
+    },
+    {
+      "identity": "66c459b8d141",
+      "operator": "suite/dev/complex_svd_pick_orthonormal_v_kernel.py",
+      "first_case": {
+        "shape": [
+          17
+        ],
+        "dtype": "bfloat16"
+      },
+      "detail": "compile exceeded its 120s budget; recorded, not retried"
+    }
+  ],
+  "crash_rows": [],
+  "crashes": {
+    "count": 0,
+    "by_exception_class": {}
+  },
+  "case_build_failures": [],
+  "wall": {
+    "total_s": 537.6,
+    "build_s": 0.2,
+    "compile_s": 537.2
+  },
+  "identities": [
+    {
+      "identity": "f38ec229e6cb",
+      "operator": "suite/dev/any_kernel_1.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "52dcffb2b768d7f56cde25471978d59245aff0b3dc41ca008ccffdb993434e7f",
+      "sha256": "203aea20e038c93795c2bbef93f24b6f8a0d870baee29f05fb27c775e70cabe3",
+      "compile_ms": 496.5,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "23a0d8047789",
+      "operator": "suite/dev/any_kernel_2.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "ccfc64a8b152ccc3feac1a325f2b24ed1cceaa0707542737b723156b4021ba2b",
+      "sha256": "92130c909fd1855fdc5b864665a528e4ab71ef0aead9217d004045cf643124bc",
+      "compile_ms": 69.0,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "ce33edb75c00",
+      "operator": "suite/dev/arange_func.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "1e435371ec26611870b8ff65ea6accb933699c379cebe4fb119da89792045004",
+      "sha256": "8d0e70afdcd62c3f54a9cb3519afc35fcdbe8ab43a51f9c26e924971209d2c8f",
+      "compile_ms": 67.7,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "55cd8d24cce5",
+      "operator": "suite/dev/arange_func.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "b8bd5eef015fea26f0ca5136cd22413ff54999b6d6728bf1e1728933ea5bcb61",
+      "sha256": "b1016b6dfbdf6cee36746409a7c239622e90e78c27e8ca56ef09ef66e5259991",
+      "compile_ms": 68.2,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "1254d360ded7",
+      "operator": "suite/dev/arange_func.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "bc23fa5b3b49ba0a29c9bd65d71e9fc4f502450f5636926d9bcd45ab09f9b8f9",
+      "sha256": "537ce59e9ea75412ebc74de8915508a7a45c6f85589f4bcb7b1eb9aa575540a4",
+      "compile_ms": 88.5,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "e2b2cd821915",
+      "operator": "suite/dev/backends__ascend__ops__grpo_loss__selective_log_softmax_kernel.py",
+      "cases": 2,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "mir-verifier",
+      "location": null
+    },
+    {
+      "identity": "4cb6e72f5e38",
+      "operator": "suite/dev/backends__ascend__ops__grpo_loss__selective_log_softmax_kernel.py",
+      "cases": 2,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "mir-verifier",
+      "location": null
+    },
+    {
+      "identity": "ac866eb55331",
+      "operator": "suite/dev/backends__ascend__ops__grpo_loss__selective_log_softmax_kernel.py",
+      "cases": 2,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "mir-verifier",
+      "location": null
+    },
+    {
+      "identity": "5d5b64ba3fe5",
+      "operator": "suite/dev/blackman_window_kernel.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "4badbb7db52107e8892326815527f49ed8ef586e31d9274ede284faac82818bc",
+      "sha256": "40561beab71ace436af2e6c88b4e67972952419ce052baf39481d8f0d53426e5",
+      "compile_ms": 68.9,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "1915048ee3e9",
+      "operator": "suite/dev/blackman_window_kernel.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "56fb83fdda7a72249819adc09258465daaf410f22a29de314fac46e229e8d874",
+      "sha256": "ef3bcf51a42fe4825f2168033cc5ee1ff4729362f5dd605517ef039a1130b9d0",
+      "compile_ms": 92.4,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "4d5590c72ae7",
+      "operator": "suite/dev/blackman_window_kernel.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "0085973e8ea13386a573992dba0f66d915e51e04897cb44e7b179dcbfda3db8f",
+      "sha256": "9cd37ee55ed79b7a495645ec2f90567d2acbc411f2822a48c906d40d89e73c85",
+      "compile_ms": 98.1,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "e42dac9e2748",
+      "operator": "suite/dev/blocked_jacobi_pair_svals_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "85bd6c383efcdc41ab5d9fa45f61941a3a4e4f83bf532dcb7e6df6858d6c4d61",
+      "sha256": "800a92d3ca907301ae2ab50d05564f30bcc832925a175ea342a5e64d56a99df5",
+      "compile_ms": 177.6,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "ebc41cc95a4c",
+      "operator": "suite/dev/blocked_jacobi_pair_svals_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "39f6d33338d30f5942bbde7c87c87822a7e3cf14bb916a404ea332066df77d28",
+      "sha256": "4929690044143e109000250b3672d743a2d9db838755307d113a42fe79a7bdfd",
+      "compile_ms": 257.0,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "ead2971b4267",
+      "operator": "suite/dev/blocked_jacobi_pair_svals_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "349f52c3dee4eefa3889551b058202474252845de2ddcdf5ab1a3b4e846c3ee0",
+      "sha256": "305bc3294dab2030082fcab5e1dd7e443461fff9c71e632cf45816e62e6b9728",
+      "compile_ms": 287.4,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "4500f63fa98a",
+      "operator": "suite/dev/bn_inc_and_write_momentum_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "c4dc0efacc4e499a28c43b471461a66c8d72d5a8f7bbe6951b1e48e249d26a0f",
+      "sha256": "e90f9fe279825e60d9e8029f6e44a31296bf752962d4c5eefa3c4d63a4809e97",
+      "compile_ms": 56.5,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "634698c8bf16",
+      "operator": "suite/dev/bn_inc_and_write_momentum_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "7491b3f019d7b39896844382ed1f5678be4fa0e06050c657727047722fbc9557",
+      "sha256": "33e82ac8cb285f9e67ce5bdd8cd5cff9c10bf1f485669b7b4c1a86260304a28d",
+      "compile_ms": 52.4,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "221067053aa3",
+      "operator": "suite/dev/bn_inc_and_write_momentum_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "83465ea4b71e0418158c9c20cb67bce781ab1a65ec5e163a9fdbc42708cb5424",
+      "sha256": "d0cfdc335e614e618973dd0edf9e0136ee9fcb1f4792df838eb5589e6c5a4ca9",
+      "compile_ms": 56.4,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "09ce6fbe4903",
+      "operator": "suite/dev/bn_inc_and_write_momentum_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "5ffb162680cf4ec304ed13dbb0a184a93165a0c97cb1bbacd4f19112f30f39fe",
+      "sha256": "29cc9f26811652dc5df3d7c95884d1fc82a74693f56fa0fca9d0acb7e1e70fee",
+      "compile_ms": 43.9,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "abdeff788128",
+      "operator": "suite/dev/bn_inc_and_write_momentum_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "a83563855ee863821e16b0ae3bf7d9cf6e183efcbb1fe71e414fb7b9e8dec3b0",
+      "sha256": "74edf72c8e62d8f1c7da584ab6fc4a5545017fa3a564a0cd2d9b63f1b85d6a2b",
+      "compile_ms": 48.1,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "ca675957f9b4",
+      "operator": "suite/dev/bn_inc_and_write_momentum_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "06d0b5aed18fc1e35f22740222213fe93baf3be24860c4ed2716f7cb808bd28b",
+      "sha256": "85fb2ef1caa137536a0578fa0c3c75278d0f54ab10a9494a47c0c4ecde810074",
+      "compile_ms": 51.4,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "b1fe37c293cf",
+      "operator": "suite/dev/chunk_abc_fwd_kernel_intra_K.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "grid",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:109:1"
+    },
+    {
+      "identity": "3a1862a4f1a0",
+      "operator": "suite/dev/chunk_abc_fwd_kernel_intra_K.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "grid",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:109:1"
+    },
+    {
+      "identity": "44edb09b8614",
+      "operator": "suite/dev/chunk_abc_fwd_kernel_intra_K.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "grid",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:109:1"
+    },
+    {
+      "identity": "52987f2c2c88",
+      "operator": "suite/dev/chunk_abc_fwd_kernel_intra_K.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "grid",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:109:1"
+    },
+    {
+      "identity": "a068ef19606a",
+      "operator": "suite/dev/chunk_abc_fwd_kernel_intra_K.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "grid",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:109:1"
+    },
+    {
+      "identity": "a3f44fd9b9a1",
+      "operator": "suite/dev/chunk_abc_fwd_kernel_intra_K.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "grid",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:109:1"
+    },
+    {
+      "identity": "af40ab94995e",
+      "operator": "suite/dev/chunk_gdn2_fwd_kernel_inter_solve_fused.py",
+      "cases": 2,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "if",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_gdn2_fwd_kernel_inter_solve_fused.py:142:5"
+    },
+    {
+      "identity": "f03c1973da2d",
+      "operator": "suite/dev/chunk_gdn2_fwd_kernel_inter_solve_fused.py",
+      "cases": 2,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "if",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_gdn2_fwd_kernel_inter_solve_fused.py:142:5"
+    },
+    {
+      "identity": "6b87b46435fa",
+      "operator": "suite/dev/chunk_gdn2_fwd_kernel_inter_solve_fused.py",
+      "cases": 2,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "if",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_gdn2_fwd_kernel_inter_solve_fused.py:142:5"
+    },
+    {
+      "identity": "b6d2a8770961",
+      "operator": "suite/dev/chunk_gdn2_fwd_kernel_intra_sub_chunk.py",
+      "cases": 2,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "loop",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_gdn2_fwd_kernel_intra_sub_chunk.py:89:5"
+    },
+    {
+      "identity": "60a289297508",
+      "operator": "suite/dev/chunk_gdn2_fwd_kernel_intra_sub_chunk.py",
+      "cases": 2,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "loop",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_gdn2_fwd_kernel_intra_sub_chunk.py:89:5"
+    },
+    {
+      "identity": "0b90236d00a9",
+      "operator": "suite/dev/chunk_gdn2_fwd_kernel_intra_sub_chunk.py",
+      "cases": 2,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "loop",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_gdn2_fwd_kernel_intra_sub_chunk.py:89:5"
+    },
+    {
+      "identity": "762de1caee99",
+      "operator": "suite/dev/chunk_generalized_iplr_delta_rule_fwd_kernel_o.py",
+      "cases": 2,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "tl.dot",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_generalized_iplr_delta_rule_fwd_kernel_o.py:76:394"
+    },
+    {
+      "identity": "2faa0a399bd5",
+      "operator": "suite/dev/chunk_generalized_iplr_delta_rule_fwd_kernel_o.py",
+      "cases": 2,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "grid",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_generalized_iplr_delta_rule_fwd_kernel_o.py:96:1"
+    },
+    {
+      "identity": "d9da693c10dc",
+      "operator": "suite/dev/chunk_generalized_iplr_delta_rule_fwd_kernel_o.py",
+      "cases": 2,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "grid",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_generalized_iplr_delta_rule_fwd_kernel_o.py:96:1"
+    },
+    {
+      "identity": "d2ac79876447",
+      "operator": "suite/dev/chunk_transform_qk_fwd_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "36478d173205d1ae3521150609f1fe00d57a28fa36f3f9a0b6b1c3aff04a2bf6",
+      "sha256": "19e1961c58b89a8bb9ef7d78a92ed006655b2a963d3fc7388e819a4d461901ff",
+      "compile_ms": 13090.7,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "8e6a2c626283",
+      "operator": "suite/dev/chunk_transform_qk_fwd_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "dfa1a37fa7396e9edf0133c60605bdecd39d4ca3419c1cea6d0a318fcba467ee",
+      "sha256": "65c0a402841c07de8d0373ed7762eedb88262e0182e471da94d122b25eda39b3",
+      "compile_ms": 20851.7,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "2b59c79f78ab",
+      "operator": "suite/dev/chunk_transform_qk_fwd_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "bca265147df79725af57e3ca7c7fc9e9c491c4121758bc64b7bf869795054aca",
+      "sha256": "3c28077a14c33952b8a31d10adf12db2476769a0cc7332486ae5a705b652d451",
+      "compile_ms": 23297.3,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "5c82c54d8fa1",
+      "operator": "suite/dev/chunk_transform_qk_fwd_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "838ea8806162e6116378950e2bdc79fafb63454f92728e124bcd411a50291a36",
+      "sha256": "b5ca09c266aeab089ffd2742f4ad65d8c039ad78864dbf9f6820736874cf126d",
+      "compile_ms": 5879.8,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "26e9259622e3",
+      "operator": "suite/dev/chunk_transform_qk_fwd_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "layout",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_transform_qk_fwd_kernel.py:31:353"
+    },
+    {
+      "identity": "5e333802e462",
+      "operator": "suite/dev/chunk_transform_qk_fwd_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "e0de40b49e3ec0299c9f8d826e7ade072f3f0d901fb4b120e626316a38bba902",
+      "sha256": "2d8a4ccd35c02ceb076a6eb672ba76817c9204b45daf1a7101c48844aa6fd7ef",
+      "compile_ms": 10735.7,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "42c31d18b3a2",
+      "operator": "suite/dev/complex_svd_pick_orthonormal_v_kernel.py",
+      "cases": 1,
+      "status": "over-budget",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "4c67086b459f",
+      "operator": "suite/dev/complex_svd_pick_orthonormal_v_kernel.py",
+      "cases": 1,
+      "status": "over-budget",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "66c459b8d141",
+      "operator": "suite/dev/complex_svd_pick_orthonormal_v_kernel.py",
+      "cases": 1,
+      "status": "over-budget",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "a71e6bc3e8ee",
+      "operator": "suite/dev/count_nonzero_combin_kernel.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "07aa1c9b1d9bcdd430239f4e04b77588684a37999f634d0988a2d9ed8e6f253f",
+      "sha256": "1924a3cf8d16129b78bc94cf42ec0c98c18176d71afc8d715875f9b8a74eae25",
+      "compile_ms": 90.2,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "3f9884d73455",
+      "operator": "suite/dev/count_nonzero_combin_kernel.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "d1311e211ed69aa6d84a2e9a62dc293da776b1c20e1f27011d2b59f373e822f1",
+      "sha256": "c092b8120586d1ae685d7811e10b958b5ff9dd0705d6d1dfac6492eafbdb9cce",
+      "compile_ms": 161.7,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "5ac633a2ca6d",
+      "operator": "suite/dev/count_nonzero_combin_kernel.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "464fc82eab2133ad7c343b0162fea4f58cc5673d82445f521dd612689475cc7f",
+      "sha256": "0ed8815608fff5eac1ec2ffba19a9f92494d6ac049e92f1d97e81f0f5e773696",
+      "compile_ms": 281.6,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "46f0f6a7c459",
+      "operator": "suite/dev/cumprod_dim1_grouped_mixed_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "tl.cumsum/cumprod",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/cumprod_dim1_grouped_mixed_kernel.py:49:25"
+    },
+    {
+      "identity": "d9115226b525",
+      "operator": "suite/dev/cumprod_dim1_grouped_mixed_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "tl.cumsum/cumprod",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/cumprod_dim1_grouped_mixed_kernel.py:49:25"
+    },
+    {
+      "identity": "aede24eba08a",
+      "operator": "suite/dev/cumprod_dim1_grouped_mixed_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "tl.cumsum/cumprod",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/cumprod_dim1_grouped_mixed_kernel.py:49:25"
+    },
+    {
+      "identity": "ce37641a23a3",
+      "operator": "suite/dev/cyclic_jacobi_norm_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "7dc8029cfa059b4ad87d9434a7840b84796f504ca444eb5b2080f2af605d48f9",
+      "sha256": "47d22709dc1a2667b51fcc7709b4cb5cfede49c70851fa86c9f19d761cba496c",
+      "compile_ms": 84.2,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "3d7c805b9634",
+      "operator": "suite/dev/cyclic_jacobi_pair_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "adb0fc62b07c094a22f08bddb74e8dedcbef84e785492d37ecfb86e2381d3831",
+      "sha256": "2e494616252d0a1cd1755eb5d50eb089e22c29edc77a59651522560ff3c9304e",
+      "compile_ms": 349.5,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "3a010bf2cc29",
+      "operator": "suite/dev/cyclic_jacobi_pair_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "4aaf2731320f0b6ac64f6e462af464d3f965dae2fb5f08e6aefa88c1abe17a82",
+      "sha256": "bb6e38fa48c4177c0fe9ab47d1fb55bf536ed3c273c9cdf6dccd8a3e2676ae1c",
+      "compile_ms": 372.9,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "ba2e92720c97",
+      "operator": "suite/dev/cyclic_jacobi_pair_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "ddcef01d866e16a9b447e8c3e7a7bbc9e32947fc89e29292c5edae79c4866a30",
+      "sha256": "7f0566151a1b69f0821933a593d82f5a0a7a3d00d33eeb8e2809b560e788a3e7",
+      "compile_ms": 413.8,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "56459f05a0ec",
+      "operator": "suite/dev/final_mean_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "751ab0e612eb6ac27b9bd153ccafe310305afbdc4fea9edcf5a798f0ffd08b6c",
+      "sha256": "22519eeea5ad6fadc4088046d54ec01c5505e46819649fc1dcb39322e448c4f5",
+      "compile_ms": 49.9,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "330ef7568df9",
+      "operator": "suite/dev/final_mean_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "036635dc8a797ed5a0d1d7b104111ad1bdb9287397076a3e3d468788e2f6b290",
+      "sha256": "4c69cdd14b3d781f55f5ac1fca6457a323e6b110111de9d791e821fc239b707c",
+      "compile_ms": 50.7,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "a38a9db8e589",
+      "operator": "suite/dev/final_mean_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "c854d7d2a70c417a563e617bbce98299fa501895ad7fa03a9928a1564a86673d",
+      "sha256": "9ed6c79b3888cc89a1cae4d2da7c86f24da8234f0e31415c91415d0b3930e019",
+      "compile_ms": 51.9,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "aaf2d35c30fe",
+      "operator": "suite/dev/final_mean_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "e5f633db67efe6381f5f4a88143ae93f7b14ce082f9bfc5ab6b358fe312cfedd",
+      "sha256": "4ee080e96bf181700b0fd0e2da7964229488329ae163f31363d5c0f78dab9a86",
+      "compile_ms": 49.7,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "ed435eca8ebe",
+      "operator": "suite/dev/final_mean_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "d26ba1d478b8bac4529681838f3eeb497644294ab29697fa6c67640e75662e9a",
+      "sha256": "c2676262e378e308c8ae886ffb5eb020f1476f3baceb76a88f1e3f9dfd216a32",
+      "compile_ms": 50.2,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "09e79a78899a",
+      "operator": "suite/dev/final_mean_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "91b57d5700f86b7c24dd5b46de9bd977dbef43a0ec19e0332f43f1c34cfd6ce0",
+      "sha256": "82213bbbd269f2149272235229605931c8481bcf8ac5337df512b7bdccf8fda5",
+      "compile_ms": 79.6,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "8489e1c5a084",
+      "operator": "suite/dev/grpo_loss__selective_log_softmax_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "mir-verifier",
+      "location": null
+    },
+    {
+      "identity": "23a48d2a0873",
+      "operator": "suite/dev/grpo_loss__selective_log_softmax_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "mir-verifier",
+      "location": null
+    },
+    {
+      "identity": "8e8ea4e3b20e",
+      "operator": "suite/dev/grpo_loss__selective_log_softmax_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "mir-verifier",
+      "location": null
+    },
+    {
+      "identity": "fe3d1a002dda",
+      "operator": "suite/dev/grpo_loss__selective_log_softmax_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "mir-verifier",
+      "location": null
+    },
+    {
+      "identity": "144104b2c270",
+      "operator": "suite/dev/grpo_loss__selective_log_softmax_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "mir-verifier",
+      "location": null
+    },
+    {
+      "identity": "b11f905468ba",
+      "operator": "suite/dev/grpo_loss__selective_log_softmax_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "mir-verifier",
+      "location": null
+    },
+    {
+      "identity": "21e298b91c04",
+      "operator": "suite/dev/linspace_kernel.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "42dbe164f595d48690702d14538ece4be5b6d98dbf929410006840f57b06294d",
+      "sha256": "2f1e378d0beb8ad451e1e9e21e5765613331ef1efad6f57f1299b9aafc797e82",
+      "compile_ms": 78.2,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "720bf1b2a474",
+      "operator": "suite/dev/linspace_kernel.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "62e9379d8309854136f4cf639970abf37888095e4e6d7fa219ff984b2054257c",
+      "sha256": "ee94cd0a8d469976042f5a7c407a86f61ebff4dc9cd81d5c35e0865a01794a79",
+      "compile_ms": 94.4,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "18f3d76835de",
+      "operator": "suite/dev/linspace_kernel.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "390e6d8057fd3ecd7c3e0b9579e854fb8e84e6ecd9a8bc3298e1b4700432e342",
+      "sha256": "1f2e96d33ee66db446e9ce0d5775fbde32959807cf98a7301c3d8afbf834e6e5",
+      "compile_ms": 98.5,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "b9d6e04d1963",
+      "operator": "suite/dev/local_ne_consecutive_kernel.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "bac357edff87cc1327fa97fd3f0c6ee58068073e13a5d859f23be2ec1031b3ff",
+      "sha256": "9768436a9ed8c29c28836d426870ca04cbb6b79ea702f21dae34f41b80759a54",
+      "compile_ms": 116.6,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "7316406a94e4",
+      "operator": "suite/dev/local_ne_flat_impl.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "87d3eaf0e87a81530c0342edc63984eff8b98bce26580bc540207564758e7a83",
+      "sha256": "936b98c1c745bfef7f1160018a5d3b7f1a89936c74a47aeb09880e6632f286fb",
+      "compile_ms": 82.6,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "6fcacaba7762",
+      "operator": "suite/dev/local_ne_flat_impl.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "536bd0d7f8fca08001b30bf6316b5f89f65dff1f331074c7deb254c853151b49",
+      "sha256": "521ae29cbebf07ad59c9b5d6742aee89339ba3a4e674a61fe12b3e055fba6f58",
+      "compile_ms": 79.7,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "04e29ce87130",
+      "operator": "suite/dev/logspace_kernel.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "79fdfdc63894b075e96f105ac522ba78110514dd9687ce4014a6bd1127d9944e",
+      "sha256": "6a93d1a1fd9cd4b1f17c43881ddd7d2941fc2af63f3b85e0e472ef2040707b8f",
+      "compile_ms": 70.8,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "3b7c2d2ed165",
+      "operator": "suite/dev/logspace_kernel.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "fddcd170eb3ccb197119e59e52f84da1790232fa9e7ba97b338826191d1b87ec",
+      "sha256": "8d71af46249a3a244d566998286660f13f47548f1ac6e86b96daf13956f53bc7",
+      "compile_ms": 96.1,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "da8ba8d85251",
+      "operator": "suite/dev/logspace_kernel.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "e1da6dfa3468629cab18a1c3058f632610c08654f0bebc2eca6e793c8a3a21f6",
+      "sha256": "483cf1533591693f96079a2295f39b517e5530f86551e52396956f660a2daf66",
+      "compile_ms": 97.7,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "ded00b1de804",
+      "operator": "suite/dev/median_bool_count_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "201082ae01834498b08114f5ac1dfa26706179db434d3a418568bc70d53de6eb",
+      "sha256": "f96d8c51ec12b69c185c10f4d7666e6dde97b2747db7891d1d8c3ee7a2f8e28c",
+      "compile_ms": 77.4,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "7ca439dd3aa6",
+      "operator": "suite/dev/median_bool_count_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "fc62ee4c47e308b6d7171f0b94b6573f64fb7e2c875953398ac78fe74ac9b1c9",
+      "sha256": "1aa0bfc03b2aaaedd54be3b067ed9cc37f359405f9874379f056b7a9ab12d952",
+      "compile_ms": 75.4,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "f29720a57faf",
+      "operator": "suite/dev/median_bool_dim_count_chunks_kernel.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "e3025d48de0454ac720fb344b18e5e90e5aea5d8649264a8942f5f4f77ffc38d",
+      "sha256": "7d4cc9ea68737df6911c3fa13d620c124a947685a0b03c562a75607a9cad1589",
+      "compile_ms": 194.5,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "b5c5cfe55445",
+      "operator": "suite/dev/median_bool_dim_finish_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "32737bd33577c5bece309ffa559a25efa7e4aa5816d0b41a255eb7169a1075ef",
+      "sha256": "713b6abdf4e699839a2d7fefc3a5e123ba101178bdac7e4153904db37901e722",
+      "compile_ms": 93.3,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "67583a4efd04",
+      "operator": "suite/dev/median_bool_dim_finish_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "890800f634d1be6d0cf52523e07fbdaa88b3208b3f1246138d1d6fcf3869c7e2",
+      "sha256": "f5fb013556721d7651687c760e831818d8160e6f5fd9f80241022bfdd6208f68",
+      "compile_ms": 92.7,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "084303c2c05a",
+      "operator": "suite/dev/median_bool_dim_reduce_chunks_kernel.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "cc46a4139fd1abcbac9c3bb66d5190a089cbb84d33572aaf07c526e5a816d3c0",
+      "sha256": "3d22aeb31c6c55ddd3adb6fa433d2f26b0b7482b4f15f7bf1d279ee2014ee320",
+      "compile_ms": 112.3,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "a31dec024940",
+      "operator": "suite/dev/median_bool_from_counts_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "09250041eeeb63900829014fc13947cf792372fd4cb52baba958d87dbb3dbf03",
+      "sha256": "d49eb54bb283a279398043114676887eaf520ec8364f5b13b98d7a8e405a452a",
+      "compile_ms": 66.2,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "cfbe242d1574",
+      "operator": "suite/dev/median_bool_from_counts_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "7d7253e1cdfb67b00373fd7cb91a539af696688cd026c71d2e0a8576c451ab7d",
+      "sha256": "7f8ec917fa5cb3c23611442872affb0479a376c8452119951f95d033cd4dfbcf",
+      "compile_ms": 65.7,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "03bf8f22e345",
+      "operator": "suite/dev/min_reduce_lastdim_partials_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "05cb58bde9ba36dcd62391cc20c88f97b474f90ca7ed70becf8229645c29a4b5",
+      "sha256": "f30e56db32676c3473e5f2583dc28b5f2bbdbd4c150de8a2c7336f86516b3426",
+      "compile_ms": 74.9,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "dd204861336d",
+      "operator": "suite/dev/min_reduce_lastdim_partials_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "abd145acee2cb862f90fdff378bf612b962e6c9792e35bb7e04f20ef1dcc0877",
+      "sha256": "10fcfc7bbafe4e1664d00e1eb58f0f43c3c5991847ecdc781fc5d6b811605907",
+      "compile_ms": 73.0,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "64b99d78ac7c",
+      "operator": "suite/dev/min_reduce_lastdim_partials_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "e2f227aba295d988a90b9a4e256d432afe6ecfad0b390341a977ea70cbb7ec5d",
+      "sha256": "04cfc5986eb86beec7c89362e59dfbde39f39f69342c3657be2c1c0fcbb14b67",
+      "compile_ms": 70.9,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "027fe81e8141",
+      "operator": "suite/dev/mode_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "6216f43092bc1fce1c7fcfccbe2b155c5a74758b28b381ddf8acf3107b4b5804",
+      "sha256": "258e811b9c9b8aa4ae956726e5f73deab44d76759b9d08eff75b3a0dad598add",
+      "compile_ms": 106.5,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "579d482939af",
+      "operator": "suite/dev/mode_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "98c6fc5a80e6a59e91192659ba5902c1c7b10f193c63bde352c06f92e7df112d",
+      "sha256": "f5657b4243860cc92058a432357e1a4a169e5c8608d1d3ae8e9466b4d4565d2d",
+      "compile_ms": 134.4,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "cfe312c6fb6d",
+      "operator": "suite/dev/mode_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "2696638984ef7478e7b37e736eb1c5cf81a1be11a04f7be6e833a41bbfac09bf",
+      "sha256": "8419a89eae88f82bca60b027d643c417217323d5333426158ad217689036c385",
+      "compile_ms": 138.6,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "0764842ad652",
+      "operator": "suite/dev/mode_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "f4ccb5319c84fc7607bcf1a8db662a4bdfbecf49f952c12f4175e1ce3d539049",
+      "sha256": "5d0b78a76fa9fda07fed996162aee5b42f56315e4f545c6044241d06b6c0fdfc",
+      "compile_ms": 104.4,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "968e55b5fa9d",
+      "operator": "suite/dev/mode_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "64698dcd58e46c092b4e473829546bdf08b21cf960f28c4fac5aa18d771cdaec",
+      "sha256": "03103a33aca092e11c0c9ea64cd2cee8a08ea7e0fdcdff8490d6457ba648fc61",
+      "compile_ms": 132.1,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "f7dce45e99f4",
+      "operator": "suite/dev/mode_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "8b90f508f5ef1d0c0bd1c7e8ad0ecef4f7e2209f11d857f9548cf93c51f72126",
+      "sha256": "bb72afb0f0eef4c012724c85a85e07ba4bbc9d05a24a52717c09125b35e5f76b",
+      "compile_ms": 160.6,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "5e723e17fed3",
+      "operator": "suite/dev/pairwise_distance_general_kernel_1.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "5364413d1266b35e06909e8142ad51488466b1f0932bd2d5eee4d504c2623441",
+      "sha256": "3dcda14b74f71b4bc5c3b9bd3de05d362bf1e3a0a87ac5f9d6d6e271812fa2d6",
+      "compile_ms": 121.3,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "3743cf4cf95e",
+      "operator": "suite/dev/pairwise_distance_general_kernel_1.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "d854a002f3b18811a66a27bed3903f75e9ac8aa608414683ac24a06ec9984125",
+      "sha256": "140b3ed5013434ce462225a528054f0f8db7817b61f78e63eaaba689854efb52",
+      "compile_ms": 167.7,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "af21ba62eeb3",
+      "operator": "suite/dev/pairwise_distance_general_kernel_1.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "6fb7c71827ddafc02372e4218128b39192ae3a69d44a1253ca9390391b24b1e2",
+      "sha256": "799768f7ba450f9ce706c0163815f6198c6e4c8b852d8ea88eaaaea5961ffcf7",
+      "compile_ms": 188.5,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "19b5a425f9cf",
+      "operator": "suite/dev/pairwise_distance_general_kernel_1.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "40fecf14e249d0ba2cd7dcdda20f2eadd2848ce8c1d82f209affad2e634210bd",
+      "sha256": "52b269a475ea05a893243ec5fa7b58cf2a6c57db36aefcd88135332a8cc8b4cd",
+      "compile_ms": 118.3,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "07d5c21cb12e",
+      "operator": "suite/dev/pairwise_distance_general_kernel_1.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "9917e2642e57206dab5765141c1d2541c9c66d4f507312b85c9b5d3a6eebddaf",
+      "sha256": "caee40cdd433200911ca65fed369028ab0e5d24c1875e7f86fd888a50920759d",
+      "compile_ms": 194.2,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "1226802d9cd7",
+      "operator": "suite/dev/pairwise_distance_general_kernel_1.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "c99a4afa0f2c5118f74f4d3d5d035092a17744442f31e8d703987e2b1ab5291b",
+      "sha256": "49cff3519f00af1bab3e3f99b39232840b791faa3e5ee9228d81ff68157971a2",
+      "compile_ms": 187.1,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "c64f30e14075",
+      "operator": "suite/dev/pairwise_distance_min_kernel_1.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "95a0bc21c86b47fb6f8b295c95bb297995bbc56e273ef30e0f7d43f900aef82b",
+      "sha256": "e4a91a5d58e16b2adcf80b9b8e5dda9ffe4562b3e40a0f8eebe1ed49981e8b2d",
+      "compile_ms": 82.9,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "a47e00792470",
+      "operator": "suite/dev/pairwise_distance_min_kernel_1.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "ec4b8cf50ae24a1d0be1a78c8631b7861b9ece01720fb82f364f2db0f157212d",
+      "sha256": "b5649be3e8d20feeb89fe5e9b87d9f0039381f80d7e32a95b56de3dd6e21a0e4",
+      "compile_ms": 92.2,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "8eb56a0e7ba3",
+      "operator": "suite/dev/pairwise_distance_min_kernel_1.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "d66346f57c317efe04b9008e338aa6506a2b2c8d71d902291390b8217bee5eba",
+      "sha256": "6e935655e4073f73f7dcbf39f08e73194fc5b54100fdf1101396da5571fd6e8d",
+      "compile_ms": 101.8,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "db200b5fbf58",
+      "operator": "suite/dev/pairwise_distance_min_kernel_1.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "81f3d34ebd03a1da6d43b8b153b20aafbfc1c65a1efff05cf829f94b76046bf1",
+      "sha256": "5915352b395620cf8f0124000f4136889c4c954fa3c8e1af33e22a957d33fbd0",
+      "compile_ms": 79.7,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "63efc2818324",
+      "operator": "suite/dev/pairwise_distance_min_kernel_1.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "7dd59d769ce614ec9b47565f72b5fe3e29b2eb8072ca19e369f1822621db4174",
+      "sha256": "b43cc8bb0bec79d86d075a0cbb703d5a685489c87702458a09e41d2eb8561c11",
+      "compile_ms": 94.9,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "433b691d9f85",
+      "operator": "suite/dev/pairwise_distance_min_kernel_1.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "4c8512a12d6c179d2f864ccb31ad923561c8624a948e85caf773385d886f24ed",
+      "sha256": "5ecb14c65eaf29b7d0dc494a11847ee0ce1b5ff258b5e61a86fc93be72c23fd7",
+      "compile_ms": 125.2,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "2d7864cc1cc6",
+      "operator": "suite/dev/parallel_attn_fwd_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "tl.dot",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/parallel_attn_fwd_kernel.py:79:5"
+    },
+    {
+      "identity": "9dc7093b1241",
+      "operator": "suite/dev/parallel_attn_fwd_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "tl.dot",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/parallel_attn_fwd_kernel.py:79:5"
+    },
+    {
+      "identity": "fa8e2f6392ac",
+      "operator": "suite/dev/parallel_attn_fwd_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "tl.dot",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/parallel_attn_fwd_kernel.py:79:5"
+    },
+    {
+      "identity": "0b0b205382dc",
+      "operator": "suite/dev/parallel_attn_fwd_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "tl.dot",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/parallel_attn_fwd_kernel.py:79:5"
+    },
+    {
+      "identity": "0f016b4299d2",
+      "operator": "suite/dev/parallel_attn_fwd_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "tl.dot",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/parallel_attn_fwd_kernel.py:79:5"
+    },
+    {
+      "identity": "5e7954955185",
+      "operator": "suite/dev/parallel_attn_fwd_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "tl.dot",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/parallel_attn_fwd_kernel.py:79:5"
+    },
+    {
+      "identity": "8da48f50e1a4",
+      "operator": "suite/dev/parallel_based_fwd_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "tl.dot",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/parallel_based_fwd_kernel.py:42:5"
+    },
+    {
+      "identity": "cc4d0d57bf78",
+      "operator": "suite/dev/parallel_based_fwd_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "tl.dot",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/parallel_based_fwd_kernel.py:42:5"
+    },
+    {
+      "identity": "73672c5d6dbb",
+      "operator": "suite/dev/parallel_based_fwd_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "tl.dot",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/parallel_based_fwd_kernel.py:42:5"
+    },
+    {
+      "identity": "cc96f6198bef",
+      "operator": "suite/dev/parallel_based_fwd_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "tl.dot",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/parallel_based_fwd_kernel.py:42:5"
+    },
+    {
+      "identity": "4f97a5e67935",
+      "operator": "suite/dev/parallel_based_fwd_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "tl.dot",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/parallel_based_fwd_kernel.py:42:5"
+    },
+    {
+      "identity": "27f59ea7e4c0",
+      "operator": "suite/dev/parallel_based_fwd_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "tl.dot",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/parallel_based_fwd_kernel.py:42:5"
+    },
+    {
+      "identity": "bf649961ca08",
+      "operator": "suite/dev/parallel_path_fwd_kernel_prepare_k_cache.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "d6a0f0080979d28f9e4abe38398111476af6abd5e42f5b23320966725b5b0abb",
+      "sha256": "b7a02c5139ac22deb6a1d5e5139522c4f5dd92bb98bd821bffc451b85e3c6d10",
+      "compile_ms": 3059.1,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "2a8c366cab52",
+      "operator": "suite/dev/parallel_path_fwd_kernel_prepare_k_cache.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "45372138d2e93faf7df730c9d6eb437251cb45f0c2f7918475ee333263a922cc",
+      "sha256": "3a577597ef514b490d304195e0f99f918f0199d7963ebdec08c8e4f2623e37b0",
+      "compile_ms": 5641.5,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "bc7211826184",
+      "operator": "suite/dev/parallel_path_fwd_kernel_prepare_k_cache.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "64a66ef06acf22cf2dd51dd4da209929cea90b69a670a97f4be9a026d13dc055",
+      "sha256": "031e52179cd9932ee4d559dacd537725566f31e3ddc48049342b311314bd1eb2",
+      "compile_ms": 6582.4,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "7edb9fdeb3de",
+      "operator": "suite/dev/position_quantize.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "0ba12f5f4c1a2f52a4371a44b3d3dee55d192b1e70e1ea3f6e79e33300cb645d",
+      "sha256": "c3ab7b2605161b592b0464e3fd5156d5b8832e7ebb76d1d9483a5d7239234d23",
+      "compile_ms": 241.0,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "e972da18fa37",
+      "operator": "suite/dev/position_quantize.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "8851a47008cd2c1777806e14904f19e8a8aa7cbe58bb22a9caef5a5d8ad3aaef",
+      "sha256": "6a043c1b4f2a05be913d903deeb40245dc6bc0fdab70195c3d45881702ec2908",
+      "compile_ms": 258.5,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "ba9d0d47d5bc",
+      "operator": "suite/dev/position_quantize.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "10182ba7e114e5ed479681d421e88875734001e8e97f52a70ac2a2273cd774b7",
+      "sha256": "f5772bb676a8ba67d495acc70fed87b40eeaf41706c9021ea45674675b6f9976",
+      "compile_ms": 298.5,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "b975dd63e2fa",
+      "operator": "suite/dev/position_quantize.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "6c1477068429935e2f170d06945a016af07f6be2dc85d6f38ac6d07b3adb84f9",
+      "sha256": "b5fea4391553cefdac5e11af90dd677a2a229d47d0157a751dea1ca25e89183d",
+      "compile_ms": 247.8,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "88ae462d6392",
+      "operator": "suite/dev/position_quantize.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "c287caff4130036f96fb66f6049fce7cc9c45bf37c0cc734187c4a812fb8a7f8",
+      "sha256": "8ca7db7a396d1f9beae9b5c419a4e45919f8afa40d57262f8ca61df51661f60e",
+      "compile_ms": 260.5,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "e255d4a34a89",
+      "operator": "suite/dev/position_quantize.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "a2bcee1f8bf29b003d0b4f8bc6b9d27102c6cf4e9a52380fce018b6968d06b50",
+      "sha256": "acd5d166e6b03341b4103bb0251460d835646115cffce940b2d101c478404eef",
+      "compile_ms": 335.3,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "9e58685a33bc",
+      "operator": "suite/dev/position_quantize.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "6d3a91e7631dfe1ed381b2c6883bfa52ab300adbc20d6dea46447ebfb8a121a2",
+      "sha256": "808251477dd282e9028db59e2283c16adf77877f190f3887fa93c8e3abdafb35",
+      "compile_ms": 214.7,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "eeccfbbbd09a",
+      "operator": "suite/dev/position_quantize.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "e8e92539ee3a74d8cf217a885a336425db3c45d76be1a5e52182a28df9fc64c7",
+      "sha256": "78efa7c84055736619c42b340f9e2f0dc59b1f64e8b51790f22169ec0e5bc622",
+      "compile_ms": 260.9,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "d72c79bace08",
+      "operator": "suite/dev/position_quantize.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "b36e46d39a3778428136eafe19fcb11819c329184858b08b42239f938411d9db",
+      "sha256": "06343436909877321e120d8c826fb578b1b724ab4f252d137b8dd2df46a6e5f9",
+      "compile_ms": 332.0,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "dd1921f7b79a",
+      "operator": "suite/dev/ranked_distribution_semantic.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "tl.sort",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/ranked_distribution_semantic.py:25:13"
+    },
+    {
+      "identity": "2d956f1ffc12",
+      "operator": "suite/dev/ranked_distribution_semantic.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "tl.sort",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/ranked_distribution_semantic.py:25:13"
+    },
+    {
+      "identity": "0cbe41c4b30f",
+      "operator": "suite/dev/ranked_distribution_semantic.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "tl.sort",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/ranked_distribution_semantic.py:25:13"
+    },
+    {
+      "identity": "cb3125fc52a6",
+      "operator": "suite/dev/ranked_distribution_semantic.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "tl.sort",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/ranked_distribution_semantic.py:25:13"
+    },
+    {
+      "identity": "1a79371539ab",
+      "operator": "suite/dev/ranked_distribution_semantic.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "tl.sort",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/ranked_distribution_semantic.py:25:13"
+    },
+    {
+      "identity": "db3310b7b5fa",
+      "operator": "suite/dev/ranked_distribution_semantic.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "tl.sort",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/ranked_distribution_semantic.py:25:13"
+    },
+    {
+      "identity": "73c4eba36ea3",
+      "operator": "suite/dev/round_kernel.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "4121c779d5cd570fe111430a030214510dff8b4917afb114a45ff8fb557fc383",
+      "sha256": "b86b2e2d8c92bb287c7352c301b08260066a1a433df8b130e6c9da2fdd5317a1",
+      "compile_ms": 75.2,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "b692bb4f927a",
+      "operator": "suite/dev/round_kernel.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "1e4fd92ff7131c4904457e2e628e361ed70e2830c65b3b23c10e7e892c272681",
+      "sha256": "6542ab5705e32d13eea87b4b679651b861771463198dcf3fc673c5a4f282302a",
+      "compile_ms": 81.4,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "9deea99e18ad",
+      "operator": "suite/dev/round_kernel.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "b0935d364dd2041c5213603ea249447e3b78e899c93de2c6cfcd01710ed5c664",
+      "sha256": "9d421538f21a42f030eec4731f85f9b3f32295453bdbeebcc8a6e6c720e12984",
+      "compile_ms": 81.2,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "3c9dbbf22623",
+      "operator": "suite/dev/std_dim_kernel_inner.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "b940592dbd048e6d29798d9fcdc1dbe285e05ceaa8ccfe00665d585451591f77",
+      "sha256": "7b6c8748f1a4b500e1f59b7227ccb2a36045bdb44b2c52fbe8c585ae17da6c46",
+      "compile_ms": 129.4,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "896464ba16a8",
+      "operator": "suite/dev/std_dim_kernel_inner.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "63c21edd9475013300bc952b95d0837e41256318a196e9aa5375c5aca1c28cea",
+      "sha256": "b975d4d897cdd388b0b60045f7dd073e2ae69bd33dac034f462e1513d3d59bd9",
+      "compile_ms": 125.6,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "66bfdb390dac",
+      "operator": "suite/dev/std_dim_kernel_inner.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "19e4dfd4954ea4eaaa61a97c8c04afeb490dfd447b203534d269b1a20e66dfce",
+      "sha256": "2aa3156dbde0fe43a6e61ed5b797c07a3aa5ff1908a2310770422f798436b6c2",
+      "compile_ms": 164.7,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "dccc272989c5",
+      "operator": "suite/dev/synthesis_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "loop",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/synthesis_kernel.py:45:5"
+    },
+    {
+      "identity": "76ce26fb0254",
+      "operator": "suite/dev/synthesis_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "loop",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/synthesis_kernel.py:45:5"
+    },
+    {
+      "identity": "d83be32e1b00",
+      "operator": "suite/dev/synthesis_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "loop",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/synthesis_kernel.py:45:5"
+    },
+    {
+      "identity": "28ab3d5a6c87",
+      "operator": "suite/dev/unique_dim_row_diff_reduce_kernel.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "4d6c150d5f31facc996eb66343965d5561ee846f7eb0cd1a8f52fd7c2e508349",
+      "sha256": "ef641d28f2d1d63614c4920130b117d88226f72c6481ae1da6aa99d22698abdc",
+      "compile_ms": 70.4,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "4bf5c288c32b",
+      "operator": "suite/dev/unique_dim_row_single_chunk_first_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "bb7f50ec6dd4238dd68ed1e8b28ac774c71ce32a1ff0ae9992057a38eaed1fbb",
+      "sha256": "82c147b1ab3c53ae59cfb64b8d2eefdb36042870d302f17a3a4c6a0aef30d647",
+      "compile_ms": 64.5,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "ddba23b9514b",
+      "operator": "suite/dev/unique_dim_row_single_chunk_first_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "b8ca62e1f966029b89348b75257ba6248e31bea35a3868a4e7729262c2fe2684",
+      "sha256": "edcc17a528fe1556ae571621b8713b2e9dbb5b1c0fc06693fc771893f927cda5",
+      "compile_ms": 63.9,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "491007dde51c",
+      "operator": "suite/perf/add_gelu.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "804b6bbb6d98bb91f4351b62fff72e369d28da81aebee844aef277a68e6f85cc",
+      "sha256": "a2e04d39047716e95efbbda021c9315f0444dee50784b046485b02325d51327d",
+      "compile_ms": 78.4,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "19c9f6b482ca",
+      "operator": "suite/perf/add_gelu.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "282c944353c022b2421ae2d11e8be849cb7c05e4a53edb6980220226c6172dba",
+      "sha256": "4460cd6c4cdeb0b26a88624e09fabb27a8a5218777c8406ad50246e5ef9c55cb",
+      "compile_ms": 63.3,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "09d8d9528ca2",
+      "operator": "suite/perf/add_gelu.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "fe5874eab16cfd67485cad0e0bb036be9a378d3d63f126cbff8f92490ad8dd77",
+      "sha256": "3ae24d9be82d7562fbd8ad342c0410071fa0365457852806e403139dd726aa6c",
+      "compile_ms": 75.0,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "bb1d1ff22bc7",
+      "operator": "suite/perf/add_gelu.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "58dfc24bd1a95ecbeb67263ac8c16096e33d70bf2587047850b59f3e54a9c2fa",
+      "sha256": "ec88ae5c3f2d0f8368a173f2e57f51241276c87168662f5d4f265aa6cecca42f",
+      "compile_ms": 78.1,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "7c018836052e",
+      "operator": "suite/perf/add_gelu.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "ef5b19c37ab7343027c9637309b051cc033adcfa1b6bba25ba3908a2e614c86d",
+      "sha256": "bc9a7c58d1c121257a4c9e295e547fdf7556ea70a6ae9320fbf37a9361c277f1",
+      "compile_ms": 63.2,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "dbb0d17d1ecf",
+      "operator": "suite/perf/add_gelu.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "a76194a0d0a8102a4242ec0f870d423e00e9f9f4fa4bbc8df4f9d496a70c135b",
+      "sha256": "70d7849228a351e92c979ef50346dcf86dc0863fc70770789a6a0320f7cb69f3",
+      "compile_ms": 73.1,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "2915c6594f61",
+      "operator": "suite/perf/cos_signbit.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "23a26ac3717560bb6c3aebd2b85c3e8072d83d5e12c031436310ce229c74f276",
+      "sha256": "cd6ff78d0abb8bdf2909888b72ff4a6c901e5132d96845a36434efce9ba8cf7f",
+      "compile_ms": 77.2,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "e235e199ac28",
+      "operator": "suite/perf/cos_signbit.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "b2d5492a69b418bc645df95dcc58976206868cf0447ef13317714941b17dbe22",
+      "sha256": "43d2926b42a5b89652cc9a4368051888f4ccb97a73e1e19c38f6e30c068ecb59",
+      "compile_ms": 77.0,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "67397a35d1b9",
+      "operator": "suite/perf/fused_index_select_eq.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "66b79e2a336c65eab17bb3607d9014631188eed0d94177a8f0f47e0d0e9c7511",
+      "sha256": "33469087ca6769b656f34a80e12b1e83ecd3f3144406a77aef1b7d34714d8ad0",
+      "compile_ms": 75.7,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "6aa0a5e97163",
+      "operator": "suite/perf/fused_index_select_eq.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "4cadb630bae9351b2cdd888edfe2842360579eea2875b09ff5b070d83370c971",
+      "sha256": "07c3e3f00bd0c7e25267d213c07bc3aa5e4cd7ece9c4644cc09ada396a12b283",
+      "compile_ms": 71.0,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "e8e4aba2ff20",
+      "operator": "suite/perf/fused_index_select_eq.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "d041285a20c4f54b854d6c7d0591155ade137471128cc6a75df12bb114d31b6d",
+      "sha256": "a9f87c5565320a0b4ca41f6f1fdc10c8352e1ff187d4f05a4295ff01432a3a4e",
+      "compile_ms": 73.6,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "e0d89a084ca4",
+      "operator": "suite/perf/fused_index_select_eq.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "8bb374b96598ed2d2684bb18a335a0f57019a94b90b4dbc4f9672ef507e4cf2f",
+      "sha256": "2057830c4214739dd31491585b74b022753bff882b35dc2fc9a2b3be5aac5ccd",
+      "compile_ms": 74.4,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "1282d7b07a20",
+      "operator": "suite/perf/fused_index_select_eq.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "ce3fcddea29f35f193a55683187d95a4f8d266d2b7e8e2ba44713bcb9b1a6b8a",
+      "sha256": "18ce739452f4725dae33daad7db693b7ec0518b50b8482fce1d046dbd70023f7",
+      "compile_ms": 98.7,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "90c3143e7b89",
+      "operator": "suite/perf/fused_index_select_eq.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "2081740b9b7c21f5cbc80d373decc994d0404da1690d6fcb79c52a8baf96cb0c",
+      "sha256": "a7287a0c69e387eac718d5a763d64972850fb2381b0551c4774c63584e236c8e",
+      "compile_ms": 75.5,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "c52f5c06dfca",
+      "operator": "suite/perf/signbit_bitwise_and.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "26cefe47b6c1de594d2625a852edc9b07cf8db46ca3c24a0659a8cdd28a9a155",
+      "sha256": "87f3b234931cbd0ca531e5710f631283f9bfbe2d795846386914372402dc41d0",
+      "compile_ms": 83.7,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "95e70493b9ca",
+      "operator": "suite/perf/signbit_bitwise_and.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "883d6486a7b0081fc6f81b50bb1234b65270aceb80624f0716d772ab01060ad5",
+      "sha256": "be2bf8af29dd6083d334852b3974fc96e2bdbd0f4b3fa229251e6003b25c0929",
+      "compile_ms": 79.9,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    }
+  ],
+  "expected_operators": [
+    "suite/dev/any_kernel_1.py",
+    "suite/dev/any_kernel_2.py",
+    "suite/dev/arange_func.py",
+    "suite/dev/backends__ascend__ops__grpo_loss__selective_log_softmax_kernel.py",
+    "suite/dev/blackman_window_kernel.py",
+    "suite/dev/blocked_jacobi_pair_svals_kernel.py",
+    "suite/dev/bn_inc_and_write_momentum_kernel.py",
+    "suite/dev/chunk_abc_fwd_kernel_intra_K.py",
+    "suite/dev/chunk_gdn2_fwd_kernel_inter_solve_fused.py",
+    "suite/dev/chunk_gdn2_fwd_kernel_intra_sub_chunk.py",
+    "suite/dev/chunk_generalized_iplr_delta_rule_fwd_kernel_o.py",
+    "suite/dev/chunk_transform_qk_fwd_kernel.py",
+    "suite/dev/complex_svd_pick_orthonormal_v_kernel.py",
+    "suite/dev/count_nonzero_combin_kernel.py",
+    "suite/dev/cumprod_dim1_grouped_mixed_kernel.py",
+    "suite/dev/cyclic_jacobi_norm_kernel.py",
+    "suite/dev/cyclic_jacobi_pair_kernel.py",
+    "suite/dev/final_mean_kernel.py",
+    "suite/dev/grpo_loss__selective_log_softmax_kernel.py",
+    "suite/dev/linspace_kernel.py",
+    "suite/dev/local_ne_consecutive_kernel.py",
+    "suite/dev/local_ne_flat_impl.py",
+    "suite/dev/logspace_kernel.py",
+    "suite/dev/median_bool_count_kernel.py",
+    "suite/dev/median_bool_dim_count_chunks_kernel.py",
+    "suite/dev/median_bool_dim_finish_kernel.py",
+    "suite/dev/median_bool_dim_reduce_chunks_kernel.py",
+    "suite/dev/median_bool_from_counts_kernel.py",
+    "suite/dev/min_reduce_lastdim_partials_kernel.py",
+    "suite/dev/mode_kernel.py",
+    "suite/dev/pairwise_distance_general_kernel_1.py",
+    "suite/dev/pairwise_distance_min_kernel_1.py",
+    "suite/dev/parallel_attn_fwd_kernel.py",
+    "suite/dev/parallel_based_fwd_kernel.py",
+    "suite/dev/parallel_path_fwd_kernel_prepare_k_cache.py",
+    "suite/dev/position_quantize.py",
+    "suite/dev/ranked_distribution_semantic.py",
+    "suite/dev/round_kernel.py",
+    "suite/dev/std_dim_kernel_inner.py",
+    "suite/dev/synthesis_kernel.py",
+    "suite/dev/unique_dim_row_diff_reduce_kernel.py",
+    "suite/dev/unique_dim_row_single_chunk_first_kernel.py",
+    "suite/perf/add_gelu.py",
+    "suite/perf/cos_signbit.py",
+    "suite/perf/fused_index_select_eq.py",
+    "suite/perf/signbit_bitwise_and.py"
+  ]
+}

@@ -1025,6 +1025,19 @@ class SliceLowering:
         # instead (pure); staged block values ride the layout regions.
         self._pass_liveouts = {}
         suffix = self._body_split[2] if self._body_split else []
+        # the values whose exit binding is a MERGE, never a per-chunk
+        # liveout spill: a rank-0 plan partial binds its merged value at
+        # the pass exit (the chunk accumulator's back edge); a liveout
+        # reload would clobber that binding with the LAST chunk's partial
+        # (the same exclusion the region-level liveout table applies)
+        merge_bound_vids = {p.value_id for p in
+                            (self.stage_plan.partials
+                             if self.stage_plan else [])}
+        merge_bound_vids.update(
+            p.pair_value_id for p in (self.stage_plan.partials
+                                      if self.stage_plan else [])
+            if p.pair_value_id is not None)
+        merge_bound_vids.update(f["vid"] for f in self._scan_accs)
         seg_index = 0
         for si, seg in enumerate(self._segments):
             if seg[0] != "pass":
@@ -1057,6 +1070,8 @@ class SliceLowering:
             cross = set()
             for vid in defined:
                 if vid in later_uses and vid not in self._staged:
+                    if vid in merge_bound_vids:
+                        continue    # the merged value binds at the exit
                     v = self._value_by_vid(vid)
                     if v.producer is not None and v.producer.op == "const":
                         continue          # constants re-emit at their uses
@@ -1098,6 +1113,8 @@ class SliceLowering:
                 cross = set()
                 for vid in defined:
                     if vid in later_uses and vid not in self._staged:
+                        if vid in merge_bound_vids:
+                            continue    # the merged value binds at the exit
                         v = self._value_by_vid(vid)
                         if v.producer is not None \
                                 and v.producer.op == "const":
@@ -1622,6 +1639,13 @@ class SliceLowering:
         cur: list = []
         cur_extent = None
         cur_sew = None
+        # the rank-0 partials the plan declares (their merged value binds
+        # at the pass exit) and whether one has been defined yet -- a
+        # BETWEEN-passes consumer of one is as unhostable for the
+        # worker-strided two-phase split as a mid-pass consumer (phase 1
+        # would read the worker's own partial, not the merged value)
+        partial_vids = self._rank0_partial_vids()
+        partial_seen = False
 
         def close():
             nonlocal cur, cur_extent, cur_sew
@@ -1636,6 +1660,8 @@ class SliceLowering:
                 # the dot lowers through the workspace tile pipeline
                 close()
                 segs.append(("matrix", st))
+                partial_seen = partial_seen or \
+                    self._produces_partial(st, partial_vids)
                 continue
             if self._is_mixed_extent_region(st):
                 # T028: a mixed-extent (or layout/preduce-hosting) runtime
@@ -1644,6 +1670,8 @@ class SliceLowering:
                 # loop cannot host mixed extents homogeneously)
                 close()
                 segs.append(("matrix", st))
+                partial_seen = partial_seen or \
+                    self._produces_partial(st, partial_vids)
                 continue
             if self._is_partial_reduce(st):
                 # T028: a partial-axis reduction -- the result block has
@@ -1651,6 +1679,8 @@ class SliceLowering:
                 # staging loop materializes the reduced block
                 close()
                 segs.append(("preduce", st))
+                partial_seen = partial_seen or \
+                    self._produces_partial(st, partial_vids)
                 continue
             if self._is_layout_op(st):
                 close()
@@ -1666,6 +1696,15 @@ class SliceLowering:
             # splats the merged scalar.
             if cur and self._consumes_partial_defined_in(st, cur):
                 close()
+                self._pass_split_at_partial = True
+            elif not cur and partial_seen and partial_vids and \
+                    self._consumes_partial(st, partial_vids, ()):
+                # a BETWEEN-passes consumer of an earlier pass's merged
+                # partial (the pass closed on an extent/SEW change before
+                # the consumer): the merged value binds at the pass exit,
+                # so the consumer is correct on the normal per-program
+                # path -- but the worker-strided two-phase split cannot
+                # host it (phase 1 would read the worker's own partial)
                 self._pass_split_at_partial = True
             if self._seg_is_scalar(st):
                 if cur:
@@ -1696,8 +1735,25 @@ class SliceLowering:
                 if sew is not None:
                     cur_sew = sew if cur_sew is None else max(cur_sew, sew)
             cur.append(st)
+            partial_seen = partial_seen or \
+                self._produces_partial(st, partial_vids)
         close()
         return segs
+
+    def _rank0_partial_vids(self) -> set:
+        """The plan partials whose merged value binds at a pass exit (the
+        rank-0 ones; a block-valued partial is chunk-local by design)."""
+        if self.stage_plan is None or not self.stage_plan.partials:
+            return set()
+        vids = set()
+        for p in self.stage_plan.partials:
+            v = self._value_by_vid(p.value_id)
+            if v.rank > 0:
+                continue
+            vids.add(p.value_id)
+            if p.pair_value_id is not None:
+                vids.add(p.pair_value_id)
+        return vids
 
     def _consumes_partial_defined_in(self, st, cur: list) -> bool:
         """Does the statement consume a plan partial that a statement in
@@ -1906,8 +1962,11 @@ class SliceLowering:
         # survive the pass close (the pre-check state emitted the param's
         # use inside the later pass's chunk body and the MIR verifier
         # rejected it as use-before-definition -- a silent-guess emission,
-        # never the designed boundary).  The layout lane stages top-level
-        # values only, so this is a located refusal.
+        # never the designed boundary).  T031: the join STAGES -- its
+        # lanes store to the private workspace at the region's join (the
+        # chunk body's top level, where the region's own register still
+        # dominates) and the later pass materializes them chunk by chunk,
+        # exactly like a top-level staged value.
         seg_index = 0
         for seg in flat:
             if seg[0] == "pass":
@@ -1916,15 +1975,8 @@ class SliceLowering:
                         if jv.rank == 0 or jv.vid in self._staged:
                             continue
                         if self._join_used_later(jv, flat, seg_index):
-                            raise VectorizeError(
-                                jv.loc, "loop",
-                                f"the region join '{jv.name}' is consumed "
-                                "by a later pass (a block value crossing "
-                                "a pass boundary must stage; an in-pass "
-                                "runtime region's join rides the "
-                                "region-exit register, which does not "
-                                "survive the pass close -- the layout "
-                                "lane stages top-level values only)")
+                            self._staged[jv.vid] = {"pending": True}
+                            self._stage_out.add(jv.vid)
             seg_index += 1
         # (c) T014: the matrix regions' staged loop carries -- the
         # body-end value must stage (the back-edge copy writes its
@@ -2252,11 +2304,47 @@ class SliceLowering:
                 if v.vid in frame]
 
     def _value_by_vid(self, vid: int) -> tir.Value:
-        for fn in self.tir_module.functions:
-            found = self._find_value(fn.body, vid)
-            if found is not None:
-                return found
-        raise self._err(None, "layout", f"no TIR value with vid {vid}")
+        # MECH-COMPILE-COST-LINEAR: an indexed map built once per module,
+        # never a rebuild-and-scan per query (the per-statement partial
+        # checks of the segmentation made the walk cubic on big unrolled
+        # bodies -- complex_svd's ~1400-statement static_range nest went
+        # from seconds past every budget to linear)
+        index = getattr(self, "_vid_index", None)
+        if index is None:
+            index = {}
+            for fn in self.tir_module.functions:
+                for v in self._walk_values(fn.body):
+                    index.setdefault(v.vid, v)
+            self._vid_index = index
+        v = index.get(vid)
+        if v is None:
+            raise self._err(None, "layout", f"no TIR value with vid {vid}")
+        return v
+
+    def _walk_values(self, block: tir.Block):
+        """Every TIR value mentioned in the block (results, operands,
+        region bounds and joins), nested regions included."""
+        for stmt in block.statements:
+            if isinstance(stmt, tir.Op):
+                for r in stmt.results:
+                    yield r
+                for o in stmt.operands:
+                    yield o
+            elif isinstance(stmt, tir.If):
+                yield stmt.cond
+                for v in stmt.join_results:
+                    yield v
+                for b in (stmt.then, stmt.els):
+                    yield from self._walk_values(b)
+            elif isinstance(stmt, tir.Loop):
+                for v in (stmt.lower, stmt.upper, stmt.step, stmt.cond):
+                    if v is not None:
+                        yield v
+                for _, init in stmt.carried:
+                    yield init
+                for v in stmt.join_results:
+                    yield v
+                yield from self._walk_values(stmt.body)
 
     def _find_value(self, block: tir.Block, vid: int) -> Optional[tir.Value]:
         for stmt in block.statements:
@@ -3089,6 +3177,16 @@ class SliceLowering:
                 "sltu", [ctx.const(0, mir.I64, loc), cnt],
                 [ctx.vreg(mir.I64, hint="bs", loc=loc)], loc=loc))
         return reg
+
+    def _scalar_bool_gpr(self, ctx: _Ctx, reg: mir.VReg,
+                         loc) -> mir.VReg:
+        """The rank-0 bool's register: the scalar-bool convention is the
+        i64 0/1 GPR (scalar comparisons, scalar bool loads, branch
+        conditions); a mask-held rank-0 bool (a convert that ran through
+        the vector lane's vcmp) normalizes through the lane-count test --
+        the mask's lanes all carry the splatted scalar's bit, so any set
+        lane means True and an all-zero mask means False."""
+        return self._bool_scalar(ctx, reg, loc)
 
     def _scalarize(self, ctx: _Ctx, reg: mir.VReg, loc) -> mir.VReg:
         """The scalar form of a value: lane-0 vectors extract to a GPR
@@ -4985,11 +5083,13 @@ class SliceLowering:
         ctx.switch(ctx.blocks[join_name])
         for value, param in zip(stmt.join_results, params):
             if value.vid in self._stage_out:
-                raise self._err(
-                    loc, "layout",
-                    f"a region join value ('{value.name}') cannot cross a "
-                    "pass boundary (the layout lane stages top-level "
-                    "values only)")
+                # T031: a block join crossing a pass boundary stages HERE
+                # (the chunk body's top level -- the join register still
+                # dominates): each chunk's lanes store to the private
+                # workspace; the register stays bound for same-pass
+                # consumers and _close_pass drops it (later passes
+                # materialize the staged region chunk by chunk)
+                self._store_staged(value, param, loc)
             self.values[value.vid] = param
             for key in value.scope_names():
                 names.define(key, value)
@@ -5115,11 +5215,11 @@ class SliceLowering:
                 exit_rec[jv.vid] = (init, rec_param_by_init[init.vid])
                 continue
             if jv.vid in self._stage_out:
-                raise self._err(
-                    loc, "loop",
-                    f"a loop join value ('{jv.name}') cannot cross a "
-                    "pass boundary (the layout lane stages top-level "
-                    "values only)")
+                # T031: a block join crossing a pass boundary stages at
+                # the loop exit (the chunk body's top level); the register
+                # stays bound for same-pass consumers and _close_pass
+                # drops it (later passes materialize the staged region)
+                self._store_staged(jv, param, loc)
             self.values[jv.vid] = param
             for key in jv.scope_names():
                 names.define(key, jv)
@@ -5222,11 +5322,11 @@ class SliceLowering:
                 exit_rec[jv.vid] = (init, rec_param_by_init[init.vid])
                 continue
             if jv.vid in self._stage_out:
-                raise self._err(
-                    loc, "while",
-                    f"a while-join value ('{jv.name}') cannot cross a "
-                    "pass boundary (the layout lane stages top-level "
-                    "values only)")
+                # T031: a block join crossing a pass boundary stages at
+                # the while exit (the chunk body's top level); the register
+                # stays bound for same-pass consumers and _close_pass
+                # drops it (later passes materialize the staged region)
+                self._store_staged(jv, param, loc)
             self.values[jv.vid] = param
             for key in jv.scope_names():
                 names.define(key, jv)
@@ -6068,6 +6168,25 @@ class SliceLowering:
                             "a boolean block comparison is not in the slice "
                             "(mask values have no element width; only "
                             "and/or/complement combine them)")
+                    if lreg.is_vector() and rreg.is_vector() \
+                            and lreg.type != rreg.type \
+                            and lreg.type.kind != "float" \
+                            and rreg.type.kind != "float":
+                        # the operands AGREE in TIR but ride different lane
+                        # widths (the bool->int 0/1 class keeps the data SEW
+                        # while the broadcast splat runs at the declared
+                        # type): widen the narrower side to the wider -- the
+                        # 0/1 class is exact under either extension
+                        if lreg.type.sew < rreg.type.sew:
+                            lreg = self._int_widen(
+                                ctx, lreg, lreg.type.sew, rreg.type.sew,
+                                rreg.type.kind != "uint", loc,
+                                dst_kind=rreg.type.kind)
+                        elif rreg.type.sew < lreg.type.sew:
+                            rreg = self._int_widen(
+                                ctx, rreg, rreg.type.sew, lreg.type.sew,
+                                lreg.type.kind != "uint", loc,
+                                dst_kind=lreg.type.kind)
                     switched = self._open_region(
                         ctx, lreg.type if lreg.is_vector() else rreg.type,
                         loc)
@@ -6537,6 +6656,32 @@ class SliceLowering:
                 loc, dst_kind="uint" if value.type.is_int_unsigned()
                 else "int")
             red_ty = value.type
+        elif not index_form and not ret_idx and not vreg.is_mask() \
+                and vreg.type.kind in ("int", "uint") \
+                and vreg.type.sew < value.type.bitwidth():
+            # T031: a 0/1 class narrower than its MERGE ACCUMULATOR (the
+            # bool backing store's e8 pass feeding an i32 sum): the
+            # accumulator rides the declared width (the frame's generic
+            # form), so the vred widens to it -- exact for the {0,1}
+            # class, and the per-chunk partial can no longer overflow
+            # the narrow lane (a 128-lane block of 1s sums past 255 in
+            # e8).  The i64-promoted 0/1 SUM keeps its own design (the
+            # accumulator rides the pass lane and the exit widens) --
+            # its vreg already sits at the accumulator's width, so this
+            # branch does not fire for it.
+            frame_sew = None
+            for f in self._chunk_merges:
+                if f.get("vid") == op.results[0].vid \
+                        and f.get("source") == "plan" and not f.get("index"):
+                    frame_sew = f["vtype"].sew
+                    break
+            if frame_sew is not None and frame_sew > vreg.type.sew \
+                    and frame_sew <= value.type.bitwidth():
+                red_reg = self._int_widen(
+                    ctx, vreg, vreg.type.sew, frame_sew, False, loc,
+                    dst_kind="int")
+                if frame_sew == value.type.bitwidth():
+                    red_ty = value.type
         part = self._vred(ctx, red_reg, vred_kind, loc, tir_type=red_ty)
         if index_form or ret_idx:
             self._vregion(ctx, vreg.type, loc)
@@ -7341,7 +7486,11 @@ class SliceLowering:
         if sreg.is_mask() or src.type.is_bool():
             # bool (a mask register): the 0/1 class through the vector
             # path; a block result keeps the vector, a scalar result
-            # extracts lane 0
+            # extracts lane 0 -- and a scalar BOOL result binds the
+            # scalar-bool GPR convention (the i64 0/1 the comparisons,
+            # the scalar bool loads and the branch conditions speak);
+            # a mask-held rank-0 bool would crash the scalar consumers
+            # (the any_kernel store class: 'MaskType' has no width)
             reg = self._convert_vector(ctx, sreg, src.type, dst.type, loc,
                                        rounding=rounding)
             if op.results[0].rank > 0:
@@ -7349,7 +7498,8 @@ class SliceLowering:
             else:
                 if reg.is_vector():
                     self._vregion(ctx, reg.type, loc)
-                self._bind_result(op, self._scalarize(ctx, reg, loc))
+                self._bind_result(
+                    op, self._scalar_bool_gpr(ctx, reg, loc))
             return
         if src.type.is_int() and dst.type.is_int():
             # the scalar core's own widen (and the 64->32 narrow; the
@@ -7385,7 +7535,8 @@ class SliceLowering:
         # mixed-SEW pass would mis-extract the wider result)
         if cvt.is_vector():
             self._vregion(ctx, cvt.type, loc)
-        reg = self._scalarize(ctx, cvt, loc)
+        reg = self._scalar_bool_gpr(ctx, self._scalarize(ctx, cvt, loc),
+                                    loc)
         self._restore_region(ctx, loc)
         self._bind_result(op, reg)
 
@@ -7685,11 +7836,44 @@ class SliceLowering:
     # -- scalar float arithmetic through the vector path -------------------------
     def _scalar_float_binop(self, ctx: _Ctx, op: tir.Op, lreg: mir.VReg,
                             rreg: mir.VReg, loc) -> mir.VReg:
-        vtype = mir.VectorType(32, 1, "float") if (lreg.type.float or
-                                                   rreg.type.float) \
-            else self._vtype(op.results[0].type)
-        # the computation type: both operands at the float width
+        # the computation type: both operands at the float width (the
+        # frontend converts both sides to one type before the op)
         width = lreg.type.width if lreg.type.float else rreg.type.width
+        rty = op.results[0].type
+        vop = {"arith.add": "add", "arith.sub": "sub", "arith.mul": "mul",
+               "arith.fdiv": "fdiv",
+               "arith.div_rn": "fdiv"}.get(op.op)
+        if vop is None:
+            raise self._err(loc, op.op,
+                            "scalar floating op is not in the vector path")
+        if width == 16:
+            # T031: the fp32-lane policy for 16-bit float SCALARS (the
+            # vector binop's own declared policy -- the scalar path ran
+            # the bits through the e16 lanes, which are FP16 on this
+            # target: bf16 bits read as fp16 silently miscompiled
+            # blocked_jacobi's alpha * beta).  Widen (exact), compute at
+            # e32, one rounding back at the 16-bit type.
+            ty16 = op.operands[0].type
+            if not (ty16.is_float() and ty16.bitwidth() == 16):
+                ty16 = op.operands[1].type
+            v16 = mir.VectorType(16, 1, "float")
+            self._vregion(ctx, v16, loc)
+            ls = self._splat_reg(ctx, lreg, v16, loc)
+            rs = self._splat_reg(ctx, rreg, v16, loc)
+            l32 = self._f16_to_f32(ctx, ls, ty16, loc)
+            r32 = self._f16_to_f32(ctx, rs, ty16, loc)
+            self._vregion(ctx, l32.type, loc)
+            res = ctx.emit(mir.MOp(
+                "vbin", [l32, r32],
+                [ctx.vreg(l32.type, hint="fb", loc=loc)],
+                attrs={"op": vop}, loc=loc))
+            if rty.is_float() and rty.bitwidth() == 16:
+                back = self._f32_to_ff(ctx, res, rty, loc)
+                out = self._scalarize(ctx, back, loc)
+            else:
+                out = self._scalarize(ctx, res, loc)
+            self._restore_region(ctx, loc)
+            return out
         vtype = mir.VectorType(width, 1, "float")
         # the region is opened EXPLICITLY (never assumed): the scalar float
         # path may run in a block whose implicit region is a non-float pass
@@ -7698,12 +7882,6 @@ class SliceLowering:
         self._vregion(ctx, vtype, loc)
         ls = self._splat_reg(ctx, lreg, vtype, loc)
         rs = self._splat_reg(ctx, rreg, vtype, loc)
-        vop = {"arith.add": "add", "arith.sub": "sub", "arith.mul": "mul",
-               "arith.fdiv": "fdiv",
-               "arith.div_rn": "fdiv"}.get(op.op)
-        if vop is None:
-            raise self._err(loc, op.op,
-                            "scalar floating op is not in the vector path")
         res = ctx.emit(mir.MOp(
             "vbin", [ls, rs], [ctx.vreg(vtype, hint="fb", loc=loc)],
             attrs={"op": vop}, loc=loc))
@@ -7717,6 +7895,25 @@ class SliceLowering:
         scalar's MIR form; branch conditions scalarize it via vpopc, the
         where path consumes it directly)."""
         width = lreg.type.width if lreg.type.float else rreg.type.width
+        if width == 16:
+            # T031: the fp32-lane policy (bf16 bits at the e16 lanes are
+            # fp16 -- the comparison would read the wrong values)
+            ty16 = op.operands[0].type
+            if not (ty16.is_float() and ty16.bitwidth() == 16):
+                ty16 = op.operands[1].type
+            v16 = mir.VectorType(16, 1, "float")
+            self._vregion(ctx, v16, loc)
+            ls = self._splat_reg(ctx, lreg, v16, loc)
+            rs = self._splat_reg(ctx, rreg, v16, loc)
+            l32 = self._f16_to_f32(ctx, ls, ty16, loc)
+            r32 = self._f16_to_f32(ctx, rs, ty16, loc)
+            self._vregion(ctx, l32.type, loc)
+            reg = ctx.emit(mir.MOp(
+                "vcmp", [l32, r32],
+                [ctx.vreg(mir.MaskType(), hint="fm", loc=loc)],
+                attrs={"pred": op.op.split(".")[1], "fp": True}, loc=loc))
+            self._restore_region(ctx, loc)
+            return reg
         vtype = mir.VectorType(width, 1, "float")
         self._vregion(ctx, vtype, loc)
         ls = self._splat_reg(ctx, lreg, vtype, loc)
@@ -8431,7 +8628,7 @@ class SliceLowering:
         NO access (a branch around the load -- the address may be
         out-of-range exactly there), the declared ``other`` (or an undef
         zero when none) on the disabled arm; the join carries the value."""
-        mreg = self._need(mask, loc)
+        mreg = self._bool_scalar(ctx, self._need(mask, loc), loc)
         m64 = mreg if mreg.type == mir.I64 else \
             scalar_mod.widen_to(ctx, mreg, 64, loc)
         if pointee.is_bool():
@@ -8458,7 +8655,9 @@ class SliceLowering:
             loc=loc))
         ctx.switch(else_b)
         if other is not None or default == tir.MaskedDefault.VALUE:
-            oreg = self._need(other, loc)
+            oreg = self._scalar_bool_gpr(ctx, self._need(other, loc),
+                                         loc) \
+                if pointee.is_bool() else self._need(other, loc)
         else:
             # no declared default: the value is undefined there -- any
             # value is a legal compilation (a zero keeps it simple)
@@ -8476,7 +8675,7 @@ class SliceLowering:
                                    value, mask, loc) -> None:
         """The pinned masked SCALAR store: the disabled position performs
         NO access (a branch around the store)."""
-        mreg = self._need(mask, loc)
+        mreg = self._bool_scalar(ctx, self._need(mask, loc), loc)
         m64 = mreg if mreg.type == mir.I64 else \
             scalar_mod.widen_to(ctx, mreg, 64, loc)
         vreg = self._need(value, loc)
