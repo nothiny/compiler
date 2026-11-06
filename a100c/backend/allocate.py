@@ -588,12 +588,122 @@ def _remat_constant(fn: mir.MFunction, reg: mir.VReg,
     return products
 
 
+def _argload_chains(fn: mir.MFunction) -> Dict[int, List[mir.MOp]]:
+    """rid -> the reproducing op chain (root first) for scalar ARGUMENT
+    LOADS (T032's convergence repair for the restructured-region
+    pressure): a value whose whole definition is ``sload`` over the
+    function's launch/bundle descriptor chain (constant offsets) plus
+    the width-view ops ``strunc``/``swext``/``smove``.
+
+    Pure within the program: the launch struct and the bundle descriptors
+    are read-only for the program's duration (the program's stores go to
+    the view buffers and the stats area, never the descriptors), and the
+    chain's root is the entry parameter (fixed, always available).  The
+    i32 argument views (``in_h`` narrowed, the strides) live across whole
+    restructured loop nests -- adaptive_avg_pool2d holds eight of them
+    against 25 allocatable GPRs -- so rematerializing them at their uses
+    dissolves the long ranges exactly like the constants."""
+    params = {p.rid for b in fn.blocks for p in b.params}
+    defs: Dict[int, mir.MOp] = {}
+    for b in fn.blocks:
+        for op in b.ops:
+            for r in op.results:
+                defs[r.rid] = op
+    chains: Dict[int, List[mir.MOp]] = {}
+
+    def chain_of(rid: int, depth: int) -> Optional[List[mir.MOp]]:
+        if rid in chains:
+            return chains[rid]
+        if depth > 4:
+            return None
+        op = defs.get(rid)
+        if op is None:
+            return None
+        if op.opcode in ("strunc", "swext", "smove"):
+            sub = chain_of(op.operands[0].rid, depth + 1)
+            if sub is None:
+                return None
+            chains[rid] = sub + [op]
+            return chains[rid]
+        if op.opcode == "sload" and len(op.operands) == 1 \
+                and isinstance(op.attrs.get("offset"), int) \
+                and op.operands[0].rid in params:
+            chains[rid] = [op]
+            return chains[rid]
+        if op.opcode == "sload" and len(op.operands) == 1 \
+                and isinstance(op.attrs.get("offset"), int):
+            sub = chain_of(op.operands[0].rid, depth + 1)
+            if sub is not None:
+                chains[rid] = sub + [op]
+                return chains[rid]
+        return None
+
+    for rid, op in defs.items():
+        chain_of(rid, 0)
+    # a block-parameter occurrence breaks the single-def assumption --
+    # exclude any value that is also a parameter
+    for b in fn.blocks:
+        for p in b.params:
+            chains.pop(p.rid, None)
+    return chains
+
+
+def _remat_argload(fn: mir.MFunction, reg: mir.VReg,
+                   chain: List[mir.MOp]) -> Set[int]:
+    """Rematerialize one scalar argument load at each of its uses: the
+    value's OWN def op is re-emitted with fresh vregs immediately before
+    every use, and the use is rewritten to the fresh value.
+
+    T032 (the single-op form): the operands' ranges already span the
+    whole function (the entry's descriptor loads and views), so a fresh
+    use adds no range extension and exactly ONE register at the use --
+    the full-chain re-emission instead held the chain's intermediates
+    live at the hottest points and made the pressure worse (the measured
+    adaptive_avg_pool2d round burn).  A later split of an operand
+    rewrites these uses like any other (the split walks the current
+    module's ops)."""
+    products: Set[int] = set()
+    fresh = [0]
+    def_op = chain[-1]
+    for b in fn.blocks:
+        new_ops: List[mir.MOp] = []
+        for i, op in enumerate(b.ops):
+            is_term = op is b.ops[-1]
+            uses_it = any(o.rid == reg.rid for o in op.operands)
+            if is_term:
+                uses_it = uses_it or any(
+                    a.rid == reg.rid
+                    for args in b.branch_args().values() for a in args)
+            if uses_it:
+                fresh[0] += 1
+                cv = mir.VReg(reg.type, name=f"{reg.name}.a{fresh[0]}",
+                              loc=reg.loc)
+                products.add(cv.rid)
+                new_ops.append(mir.MOp(def_op.opcode,
+                                       tuple(def_op.operands), [cv],
+                                       attrs=dict(def_op.attrs),
+                                       loc=op.loc))
+                op.operands = tuple(cv if o.rid == reg.rid else o
+                                    for o in op.operands)
+                if is_term:
+                    op.attrs = dict(op.attrs)
+                    for key in ("args", "true_args", "false_args"):
+                        if key in op.attrs:
+                            op.attrs[key] = [
+                                cv if a.rid == reg.rid else a
+                                for a in op.attrs[key]]
+            new_ops.append(op)
+        b.ops = new_ops
+    return products
+
+
 def _pick_victim(fn: mir.MFunction, fixed: Dict[int, str],
                  exclude: Set[int],
                  failed: Optional[mir.VReg] = None,
                  graph: Optional[Dict[int, set]] = None,
                  consts: Optional[Dict[int, int]] = None,
-                 rematted: Optional[Set[int]] = None
+                 rematted: Optional[Set[int]] = None,
+                 argloads: Optional[Dict[int, List[mir.MOp]]] = None
                  ) -> Optional[mir.VReg]:
     """The fallback spill/remat candidate.
 
@@ -603,9 +713,10 @@ def _pick_victim(fn: mir.MFunction, fixed: Dict[int, str],
     pressure (the globally least-used value may live nowhere near the
     failure and split uselessly).  Among the neighbours, a
     rematerializable constant comes first (the whole range dissolves
-    with no stack traffic), then the least-used spillable one.  Masks,
-    reload values and non-m1/m2/m4/m8 vectors are not spillable in this
-    slice.
+    with no stack traffic), then an argument-load chain (T032: the same
+    dissolution, a few pure loads per use), then the least-used
+    spillable one.  Masks, reload values and non-m1/m2/m4/m8 vectors are
+    not spillable in this slice.
     """
     use_counts: Dict[int, int] = {}
     regs: Dict[int, mir.VReg] = {}
@@ -630,6 +741,13 @@ def _pick_victim(fn: mir.MFunction, fixed: Dict[int, str],
             and (rematted is None or reg.rid not in rematted) \
             and reg.rid not in reload_defs
 
+    def argloadable(reg: mir.VReg) -> bool:
+        return argloads is not None and reg.rid in argloads \
+            and reg.rid not in consts \
+            and reg.rid not in exclude \
+            and (rematted is None or reg.rid not in rematted) \
+            and reg.rid not in reload_defs
+
     def spillable(reg: mir.VReg) -> bool:
         if reg.rid in fixed or reg.rid in exclude or reg.is_mask():
             return False
@@ -642,8 +760,12 @@ def _pick_victim(fn: mir.MFunction, fixed: Dict[int, str],
     if failed is not None and graph is not None:
         neighbours = [regs[n] for n in graph.get(failed.rid, ())
                       if n in regs and (spillable(regs[n])
-                                        or rematable(regs[n]))]
+                                        or rematable(regs[n])
+                                        or argloadable(regs[n]))]
         for reg in sorted((r for r in neighbours if rematable(r)),
+                          key=lambda r: (use_counts.get(r.rid, 0), r.rid)):
+            return reg
+        for reg in sorted((r for r in neighbours if argloadable(r)),
                           key=lambda r: (use_counts.get(r.rid, 0), r.rid)):
             return reg
         for reg in sorted((r for r in neighbours if spillable(r)),
@@ -652,6 +774,8 @@ def _pick_victim(fn: mir.MFunction, fixed: Dict[int, str],
     for reg in sorted(regs.values(), key=lambda r: (use_counts.get(r.rid, 0),
                                                     r.rid)):
         if rematable(reg):
+            return reg
+        if argloadable(reg):
             return reg
         if spillable(reg):
             return reg
@@ -710,13 +834,17 @@ def _allocate_function(module: mir.MModule, fn: mir.MFunction,
                 f" vector registers -- a register-pressure pattern the "
                 "splitter cannot resolve (a bounded, located refusal)")
         consts = _const_values(fn)
+        argloads = _argload_chains(fn)
         reloads = _reload_defs(fn)
         consumed = split_once | rematted | remat_products
         # T029: a reload value's range is already minimal (its def sits
         # immediately before its use) -- splitting it again only adds
         # ops, never relieves pressure; it is never the victim.  The
         # failing value itself is the victim only on its first
-        # intervention
+        # intervention; T032 extends its remat classes with the argument
+        # loads (a failing argument view dissolves exactly like a
+        # failing constant -- adaptive_avg_pool2d's eight narrow views
+        # live across whole restructured loop nests)
         victim = None
         if failed is not None and failed.rid not in consumed \
                 and failed.rid not in reloads:
@@ -729,7 +857,8 @@ def _allocate_function(module: mir.MModule, fn: mir.MFunction,
             # so the neighbour preference targets the CURRENT pressure
             graph_now, _ = _interference(fn)
             victim = _pick_victim(fn, fixed, consumed, failed, graph_now,
-                                  consts=consts, rematted=rematted)
+                                  consts=consts, rematted=rematted,
+                                  argloads=argloads)
         if victim is None:
             raise AllocationError(
                 None, f"register pressure in '{fn.name}' exceeds the "
@@ -739,6 +868,13 @@ def _allocate_function(module: mir.MModule, fn: mir.MFunction,
             # rematerialization: no slot, no store -- every use gets a
             # fresh sconst immediately before it
             products = _remat_constant(fn, victim, consts[victim.rid])
+            rematted.add(victim.rid)
+            remat_products.update(products)
+            continue
+        if victim.rid in argloads and victim.rid not in rematted:
+            # T032: the argument-load chain rematerializes the same way
+            # (a few pure loads per use, no stack traffic)
+            products = _remat_argload(fn, victim, argloads[victim.rid])
             rematted.add(victim.rid)
             remat_products.update(products)
             continue

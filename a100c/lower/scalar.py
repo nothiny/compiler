@@ -461,18 +461,15 @@ def scalar_load(ctx, base_reg: mir.VReg, offset_reg: mir.VReg,
     width-exact scalar load at displacement 0."""
     if pointee.is_bool():
         # the bool backing store: one byte, the scalar-bool i64 0/1 form
-        # (the same convention the comparisons produce).  The zext byte
-        # load's GPR already holds the zero-extended value: the smove
-        # view realizes the i64 class (widen_to's 32->64-only rule does
-        # not cover the byte class)
+        # (the same convention the comparisons produce).  T032: the zext
+        # byte load (lbu) writes the FULL GPR zero-extended, so the i64
+        # result binds directly at the load -- the previous smove(i8 ->
+        # i64) view move broke the verifier's width rule (only 32->64 is
+        # expressible; selective_log_softmax's bool scalar load)
         addr = _scalar_address(ctx, base_reg, offset_reg, pointee, loc)
-        byte = ctx.emit(mir.MOp(
-            "sload", [addr], [ctx.vreg(mir.ScalarType(8, signed=True),
-                                       hint="sbl", loc=loc)],
-            attrs={"width": 8, "offset": 0, "ext": "zext"}, loc=loc))
         wide = ctx.emit(mir.MOp(
-            "smove", [byte],
-            [ctx.vreg(mir.I64, hint="sbw", loc=loc)], loc=loc))
+            "sload", [addr], [ctx.vreg(mir.I64, hint="sbw", loc=loc)],
+            attrs={"width": 8, "offset": 0, "ext": "zext"}, loc=loc))
         return ctx.emit(mir.MOp(
             "sltu", [ctx.const(0, mir.I64, loc), wide],
             [ctx.vreg(mir.I64, hint="sbm", loc=loc)], loc=loc))
