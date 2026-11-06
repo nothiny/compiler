@@ -957,15 +957,19 @@ def build_stage_plan(module: tir.Module) -> TwoPhasePlan:
             for value in st.results:
                 if value.vid in consumed:
                     continue
-                # a rank-0 TOP-LEVEL reduce result taints through the
-                # region's own statements too (its mid-region consumers
-                # must read the merged value); a block result, and any
-                # reduce inside a runtime region (its own loop/if
-                # machinery owns the chunk discipline), keep the
-                # suffix-only walk
+                # a rank-0 reduce result taints through the region's
+                # own statements too (its mid-region consumers must read
+                # the merged value).  T032: the taint now covers reduces
+                # INSIDE runtime regions as well -- argmax's remainder
+                # branch consumes the reduce inside the same if-arm, and
+                # the hosting region restructures (vectorize's
+                # _region_hosts_consumed_partial) so its body's own pass
+                # discipline owns the chunk merge; without the partial
+                # the consumer read the per-chunk vred state mid-loop
+                # (the recorded wrong-index defect).  A block result
+                # keeps the suffix-only walk
                 escapes = _escapes_region(value, region, suffix,
-                                          taint_region=value.rank == 0
-                                          and depth == 0)
+                                          taint_region=value.rank == 0)
                 if not escapes:
                     continue
                 attrs = st.attrs

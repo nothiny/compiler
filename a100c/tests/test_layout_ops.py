@@ -673,14 +673,11 @@ def check_refusals(workdir, compiler):
                   "    a, b = tl.swizzle2d(m, m, N // 2, 2, 1)\n"
                   "    tl.store(Y + tl.arange(0, N), a)\n",
                   ("integer", "swizzle2d")))
-    # a layout op inside a runtime region
-    cases.append(("layout_in_loop",
-                  "    v = tl.load(X + tl.arange(0, N)).to(tl.float32)\n"
-                  "    for i in range(0, 2):\n"
-                  "        w = tl.trans(tl.reshape(v, (N // 2, 2)))\n"
-                  "        v = tl.reshape(w, (N,))\n"
-                  "    tl.store(Y + tl.arange(0, N), v)\n",
-                  ("runtime region", "inside", "layout")))
+    # T032: the layout op inside a runtime region left the refusal list --
+    # the restructured region lowers it (the loop body's own segments:
+    # the extent-8 pass stores the carry, the layout staging loop lowers
+    # the trans, the back-edge copy moves the bytes); see
+    # check_layout_in_loop_executes below for the executed witness
     for name, body, needles in cases:
         module = _operator_file(workdir, name, body,
                                 "    out = x.reshape(-1)\n", 8, "(n,)", 8, 8)
@@ -692,6 +689,34 @@ def check_refusals(workdir, compiler):
                   any(nd in str(exc) for nd in needles)
                   and "at ops/" in str(exc) or ".py:" in str(exc),
                   str(exc)[:100])
+
+
+# ---------------------------------------------------------------------------
+# T032: a layout op inside a runtime region EXECUTES (the restructured
+# region's staged block carry)
+# ---------------------------------------------------------------------------
+
+def check_layout_in_loop_executes(workdir, compiler):
+    """The T028 hang-mode witness, executed: a block value carried across
+    a loop that hosts a layout op (trans of a reshape) restructures at
+    the segment level -- the carry stages through the private workspace
+    (the back-edge copy is the loop-carried memory phi) and the layout
+    staging loop lowers the trans inside the body.  Compares against the
+    independent numpy reference at one and four workers."""
+    module = _operator_file(
+        workdir, "layout_in_loop_exec",
+        "    v = tl.load(X + tl.arange(0, N)).to(tl.float32)\n"
+        "    for i in range(0, 2):\n"
+        "        w = tl.trans(tl.reshape(v, (N // 2, 2)))\n"
+        "        v = tl.reshape(w, (N,))\n"
+        "    tl.store(Y + tl.arange(0, N), v)\n",
+        "    out = x.copy()\n"
+        "    for _ in range(2):\n"
+        "        out = out.reshape(-1, 2).T.reshape(-1)\n",
+        8, "(n,)", 8, 8)
+    bad = _run_threads(compiler, module, threads_list=(1, 4))
+    check("layout-in-loop-executes-1-4-workers", not bad,
+          "; ".join(bad[:1]))
 
 
 # ---------------------------------------------------------------------------
@@ -744,6 +769,7 @@ def main() -> int:
         check_strided_broadcast(workdir, compiler)
         check_constructs(workdir, compiler)
         check_refusals(workdir, compiler)
+        check_layout_in_loop_executes(workdir, compiler)
         check_staging_observability(workdir, compiler)
     finally:
         import shutil

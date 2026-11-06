@@ -24,6 +24,7 @@ from typing import Dict, List, Optional, Tuple
 
 from a100c.backend.allocate import Allocation, CALLER_SAVED, GPR_NAMES, \
     _live_before
+from a100c.backend.repertoire import DEFAULT_REPERTOIRE
 from a100c.backend.select import Selected, select
 from a100c.ir import mir
 from a100c.target import TargetModel
@@ -65,6 +66,7 @@ class _Emitter:
         self.target = target
         self.workspace = workspace
         self.header = header
+        self.repertoire = DEFAULT_REPERTOIRE
         self.lines: List[str] = []
         self.label_of = {b.name: f".L{b.name}" for fn in module.functions
                          for b in fn.blocks}
@@ -584,6 +586,27 @@ class _Emitter:
             values = {"rd": self.phys(op.results[0]),
                       "imm": str(op.attrs["value"])}
             self.emit(_fmt("li {rd}, {imm}", values), op)
+            return
+        if op.index not in self.selection and \
+                code in ("sload", "swext", "strunc", "smove"):
+            # allocator-inserted argument-load rematerialization (T032:
+            # never selected -- selection runs before allocation); the
+            # repertoire's own forms, re-found by the generic matcher so
+            # the table stays the one source (MECH-TARGET-DESCRIPTION-
+            # AS-DATA)
+            features = {"opcode": code}
+            if code == "sload":
+                features["width"] = op.attrs["width"]
+                features["ext"] = op.attrs["ext"]
+            entry = self.repertoire.find(code, features)
+            if entry is None:                    # pragma: no cover
+                raise EmissionError(op.loc, code,
+                                    "no repertoire entry for the "
+                                    "rematerialized argument load")
+            values = {"rd": self.phys(op.results[0]),
+                      "rs1": self.phys(op.operands[0]),
+                      "imm": str(op.attrs.get("offset", 0))}
+            self.emit(_fmt(entry.form, values), op)
             return
         if code == "vspill":
             sew, lmul = op.attrs["sew"], op.attrs["lmul"]

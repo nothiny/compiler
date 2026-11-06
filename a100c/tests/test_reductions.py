@@ -978,12 +978,15 @@ def check_t028_block_forms(workdir, compiler):
         return {"o_ptr": np.array([x[0] / x[1]], np.float64)}
     """, ARGS, False, False,
         ("float32",)))
-    # the mixed-extent region keeps its LOCATED refusal: T028 implemented
-    # the segment-level restructure and reproduced a staging-path hang
-    # under QEMU (a staged block carry; and a masked 2-D access with a
-    # ragged row tail at verified extents) -- the boundary is recorded in
-    # vectorize._is_mixed_extent_region's docstring for the repair loop
-    # that owns the staging-path defect
+    # T032: the mixed-extent region EXECUTES (the restructure T028
+    # disabled is repaired -- the block carry stages through the
+    # workspace, the back-edge copy indexes by the element counter, and
+    # the masked 2-D ragged tail lowers through the region's own
+    # extent-homogeneous passes).  The probe's reference and buffer are
+    # the execution-grade ones: o_ptr is sized R*C (the store offsets
+    # reach (R-1)*C + 7) and w is x.flat[rows] + 1 (the kernel's own
+    # load), executed at 1 and 4 workers on the ragged-tail shapes that
+    # reproduced the T028 hang.
     forms.append((
         "t028_mixed_extent", """
         pid = tl.program_id(0)
@@ -999,15 +1002,16 @@ def check_t028_block_forms(workdir, compiler):
             tl.store(o_ptr + rows[:, None] * C + cols[None, :], y,
                      mask=cm)
     """, """
-        x = np.asarray(args["x_ptr"], np.float64).reshape(
-            args["R"], args["C"])
-        w = x.max(axis=1, keepdims=True) + 1.0
-        out = np.zeros((4 * max(args["R"], args["C"]),), np.float64)
-        acc = x * w
-        out[:acc.size] = acc.ravel()
+        x = np.asarray(args["x_ptr"], np.float64).ravel()
+        R, C = int(args["R"]), int(args["C"])
+        out = np.zeros((R * C,), np.float64)
+        for r in range(R):
+            w_r = x[r] + 1.0
+            for c in range(min(8, C)):
+                out[r * C + c] = x[r * C + c] * w_r
         return {"o_ptr": out}
-    """, ARGS, True, False,
-        ("float32",), True))
+    """, ARGS, True, True,
+        ("float32", "float16", "bfloat16")))
     bad = []
     for form in forms:
         name, body, ref_body, args_decl, grid_rows, buf_rc = form[:6]

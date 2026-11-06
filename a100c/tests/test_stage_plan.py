@@ -324,8 +324,14 @@ def check_two_phase_plan_forms():
     """)
     check("vdot-form-lowers-and-verifies", not errs, str(errs[:1]))
     plan = stages.build_stage_plan(mod)
-    ok = plan.eligible and len(plan.partials) == 1 and \
-        plan.partials[0].merge == stages.MERGE_SUM
+    # T032: the accumulate form carries TWO partials now -- the loop's
+    # carried join (the original partial) AND the in-loop reduce itself
+    # (the rank-0 taint generalization: a reduce consumed inside its
+    # region must bind its MERGED value; the hosting loop restructures
+    # and its body pass owns the reduce's chunk merge -- the executed
+    # form compares PASS at 1 and 4 workers)
+    ok = plan.eligible and len(plan.partials) == 2 and \
+        any(p.merge == stages.MERGE_SUM for p in plan.partials)
     check("vdot-form-plan-eligible-sum-merge", ok, plan.describe()["reason"])
     check("vdot-form-plan-validates",
           not stages.validate_stage_plan(plan))
