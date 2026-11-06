@@ -38,7 +38,9 @@ address form is tuned to SEW=32), masked loads with ``other=``,
 conversions, reductions and every matrix-routed construct (lower/matrix
 refuses those); a block value escaping the chunk region (used after the
 program body's last block-level statement) and early ``return`` are
-refused by the frontend.
+refused by the frontend.  Dots inside runtime loops lower through the
+matrix region path (T030: the staged carries' back-edge copy repaired;
+T014's located refusal removed).
 """
 from __future__ import annotations
 
@@ -93,13 +95,6 @@ class LowerOptions:
     #: fp16 native lanes exist (probed) and the switch selects the
     #: single-rounding policy.  Recorded in the artifact identity.
     fp16_bf16_fp32_lanes: bool = True
-    #: T014's recorded boundary: dots inside runtime loops (the matrix
-    #: regions) refuse located by default -- the restructured loop's
-    #: staged regions lose chunks beyond the first 256 bytes (a
-    #: reproduced wrong-answer defect).  The switch exists so the
-    #: reproduction and the repair's regression can execute the
-    #: defective path deliberately; recorded in the artifact identity.
-    matrix_loop_dots: bool = False
 
     def identity_part(self) -> str:
         parts = []
@@ -111,8 +106,6 @@ class LowerOptions:
             parts.append("witness-drop-atomic-masks")
         if not self.fp16_bf16_fp32_lanes:
             parts.append("native-fp16-lanes")
-        if self.matrix_loop_dots:
-            parts.append("matrix-loop-dots-defective-path")
         return ",".join(parts) if parts else "default"
 
 
@@ -5159,24 +5152,14 @@ class SliceLowering:
         if isinstance(stmt, tir.If):
             self._lower_matrix_if(ctx, stmt, fn, view_regs)
             return
-        if self._contains_dot(stmt) and not self.options.matrix_loop_dots:
-            # T014's recorded boundary: the restructured loop's staged
-            # regions lose chunks beyond the first 256 bytes (a
-            # reproduced wrong-answer defect -- the oneloop/kloop probes
-            # in test_matrix_breadth.py's census).  Refusing loudly
-            # rather than miscompiling quietly (MECH-DIAGNOSTIC-REFUSAL);
-            # the switch exists so the reproduction and the repair's
-            # regression can execute the defective path deliberately.
-            # (T028: only DOT-hosting restructured loops take this
-            # boundary -- the mixed-extent restructure without dots has
-            # no tile pipeline and its correctness is executed-compared.)
-            raise self._err(
-                loc, "tl.dot",
-                "a dot inside a runtime loop is not enabled on this "
-                "build: the restructured loop's staged regions lose "
-                "chunks beyond the first 256 bytes (the reproduced "
-                "wrong-answer defect recorded with the task) -- a "
-                "located refusal, never a silent miscompile")
+        # T030: the dot-in-loop boundary is REPAIRED -- the staged carries'
+        # back-edge copy (the loop-carried memory phi) now indexes its lanes
+        # by the element counter (the reproduced defect copied elements
+        # 1..vl on the second chunk, losing everything beyond the first
+        # chunk's lane 0).  Dots inside runtime-bound loops lower through
+        # the same staged tile pipeline as top-level dots; T014's located
+        # refusal is gone.  (T028: the mixed-extent restructure without
+        # dots shares this path and stays executed-compared.)
         if not isinstance(stmt, tir.Loop):  # pragma: no cover - dispatch
             raise self._err(loc, "tl.dot", "unknown matrix region form")
         names = self._names
@@ -5231,7 +5214,18 @@ class SliceLowering:
             frame = scalar_mod.begin_counted_loop(
                 ctx, lower, upper, carried_inits, loc, self._tag("mloop"))
 
-        override: Dict[int, mir.VReg] = {}
+        # inside the body, uses of a carried entry denote the current
+        # iteration's value (the head parameter) -- the induction /
+        # condition (carried[0] <-> params[0]) included, exactly as the
+        # ordinary loop and while paths.  T030: the missing induction
+        # override made every body-level use of the induction (the k-rem
+        # tail bound, the hoisted induction increment) resolve to the
+        # PRE-LOOP init constant -- the increment then re-computed
+        # init+step every iteration, the loop never exited and the
+        # pointer recurrences advanced until the loads left the buffers
+        # (the multi-iteration k-loop segfault behind T014's guard).
+        override: Dict[int, mir.VReg] = {
+            stmt.carried[0][1].vid: frame.params[0]}
         rec_layer: Dict[int, tuple] = {}
         for entry, param in zip(param_entries, frame.params[1:]):
             if entry[0] == "recurrence":
@@ -5513,11 +5507,14 @@ class SliceLowering:
             self._vregion(ctx, ity, loc, vl=vl)
             vid = ctx.emit(mir.MOp(
                 "vid", [], [ctx.vreg(ity, hint="cvd2", loc=loc)], loc=loc))
-            chunk_elem = ctx.emit(mir.MOp(
-                "sdivu", [i_p, vl_reg],
-                [ctx.vreg(mir.I32, hint="cvc", loc=loc)], loc=loc))
+            # T030: the lane index is vid + i, with i the loop's ELEMENT
+            # counter (the back edge steps i by vl).  The recorded defect
+            # divided i by vl first -- the second iteration then copied
+            # elements 1..vl instead of vl..2*vl-1, and the carried region
+            # lost every element beyond lane 0 of chunk two (the reproduced
+            # wrong-answer defect behind T014's dot-in-loop guard).
             idx = ctx.emit(mir.MOp(
-                "vbinx", [vid, chunk_elem],
+                "vbinx", [vid, i_p],
                 [ctx.vreg(ity, hint="cvx", loc=loc)], attrs={"op": "add"},
                 loc=loc))
             scaled, _ = self._ws_scaled(ctx, idx, esz, loc, vl)
