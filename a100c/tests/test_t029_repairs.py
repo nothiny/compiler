@@ -436,10 +436,12 @@ def _constant_pressure_module():
     launch = mir.VReg(mir.I64, name="launch")
     fn = mir.MFunction("const_loop_pressure", [launch])
     entry = mir.Block("entry", [launch])
-    fn.blocks.append(entry)
     head = mir.Block("loop.head")
     body = mir.Block("loop.body")
     exit_ = mir.Block("loop.exit")
+    # T030: the entry block is appended exactly once -- the verifier's
+    # duplicate-block-name rejection (branch targets are names) caught
+    # this fixture appending it twice
     fn.blocks.extend([entry, head, body, exit_])
     k = mir.VReg(mir.I64, name="k0")
     entry.ops.append(mir.MOp("sconst", [], [k], attrs={"value": 0}))

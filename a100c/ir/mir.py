@@ -400,11 +400,25 @@ def _loc_text(loc) -> str:
 
 
 def _check_terminators(fn: MFunction, errors: List[MirError]) -> None:
-    names = {b.name for b in fn.blocks}
     if not fn.blocks:
         errors.append(MirError(Invariant.BLOCK_STRUCTURE, fn.loc,
                                f"function '{fn.name}' has no blocks"))
         return
+    # T030: block names are branch targets -- two blocks sharing a name
+    # make every branch to that name ambiguous (the verifier resolves to
+    # the first, silently rerouting the second emitter's control flow;
+    # the duplicate fpsyn blocks of two float atomics in one kernel)
+    seen_names: Dict[str, str] = {}
+    for b in fn.blocks:
+        if b.name in seen_names:
+            errors.append(MirError(
+                Invariant.BLOCK_STRUCTURE, b.loc or fn.loc,
+                f"block name '{b.name}' is defined twice (block names are "
+                f"branch targets; the first definition is in "
+                f"'{seen_names[b.name]}')"))
+        else:
+            seen_names[b.name] = b.name
+    names = set(seen_names)
     for b in fn.blocks:
         if not b.ops or b.ops[-1].opcode not in ("br", "brc", "ret"):
             errors.append(MirError(

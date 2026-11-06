@@ -1162,13 +1162,25 @@ def check_kloop_reproduction():
             rows = [r for r in counts["instructions"]
                     if r["mnemonic"] == mnemonic]
             total = sum(r["executions"] for r in rows)
-            # the tile model: 1 output tile x K/BK k-steps
-            model = Kx // 16
+            # the tile model: the declared pure model per SOURCE k-loop
+            # iteration (each iteration's dot covers the block extents
+            # BM x BN x BK; the family's tile_k decides the tile ops a
+            # block needs -- int8 tile_k 16: one op, fp16 tile_k 8: two
+            # for BK 16), times the executed source iterations K/BK
+            plan4 = tiles_mod.plan_dot_breadth(
+                tiles_mod.BreadthDotDescription(
+                    a_dtype=adtype, b_dtype=adtype, out_dtype=odtype,
+                    block_m=Mx, block_n=Nx, block_k=16))
+            per_dot = tiles_mod.expected_ime_tile_ops_breadth(
+                Mx, Nx, 16, plan4)
+            model = (Kx + 15) // 16 * per_dot
             check(f"kloop-{label}-kloop-compares", good, why)
             check(f"kloop-{label}-ime-counts-{mnemonic}",
                   rc == 0 and good and total >= 1 and total == model,
-                  f"counted {total} (model {model}: 1 tile x {Kx}//16 "
-                  f"k-steps), artifact {staged.artifact_sha256[:12]}, "
+                  f"counted {total} (model {model}: {Kx}//16 source "
+                  f"k-steps x {per_dot} tile op(s) per dot at "
+                  f"tile_k {plan4.family.tile_k}), artifact "
+                  f"{staged.artifact_sha256[:12]}, "
                   f"compare {'PASS' if good else 'FAIL'}")
             EVIDENCE["cases"].append(
                 {"form": f"kloop-ime-{label}-{Mx}x{Nx}x{Kx}",

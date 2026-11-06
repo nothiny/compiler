@@ -1,0 +1,108 @@
+{
+  "invocation_id": "WTI028",
+  "task_id": "T030",
+  "attempt": 2,
+  "context_sha256": "546b27dfa30f865bf1911eaddd1e3fc14e693c035b3c7de057c1278d2137b574",
+  "outcome": "COMPLETED",
+  "failure_kind": "implementation",
+  "summary": "The tl.dot-in-runtime-loop class is repaired and at zero. Triage of the dead attempt-1 worker's uncommitted tree found its core repair sound (the staged-carries back-edge copy indexing by the element counter and the matrix region's induction override) but incomplete: I kept it and fixed the defect classes it exposed. (1) The register cache now follows the dominance rule: if-arms, loop bodies and matrix regions scope their lazily-materialized values, and _close_pass drops every chunk-body binding (constants and pure scalar trees -- including program_id, maxmin and address terms -- re-materialize at their next use); the liveout analysis now counts scalar-segment uses (the rng seed load). (2) _address_of adds the loop-exit offset register for a join use of a carried pointer (matmul_k32_persistent_n_2stage wrote tile 1 over tile 0 and left the last tile unwritten). (3) The staging analysis no longer clobbers a dot operand's native record on layout results, and the staging loop converts + unit-stride-stores native results (the transposed fp16 A of the matmul_at_b family wrote 32-bit lanes into the 16-bit IME region); native sources refuse located. (4) The carried end value inherits the init record's native convention; (5) float atomics derive their retry-loop blocks from the per-atomic tag (gemm_rowstats' sum+max pair branched into the first atomic's duplicate-named blocks); (6) the MIR verifier rejects duplicate block names; (7) the vmath scratch pair borrows caller-saved GPRs free at the call (fused_conv3d's erf); (8) emission refusals surface as located PipelineErrors. Final: the 44-operator sweep shows the class at zero (187 artifacts + 16 located refusals of other constructs, 0 crash/over-budget); 443+ execution rows PASS at 1 and 4 workers under the declared policies with positive smt.vmadot/smt.vfwmadot counts bound to k-loop artifacts; the T014 reproduction passes; every a100c test file passes. Remaining, recorded honestly: gqa segfaults at 1 worker with CSE on (CSE off, the plain driver, and 4 workers all PASS -- a CSE x matrix-region interaction, bisected, reproduction and trace recorded), and 16 identities refuse at three declared boundaries (block joins across dot-hosting ifs, multi-lane broadcasts inside non-restructured runtime regions, 16-bit atomics).",
+  "files_changed": [
+    "a100c/lower/vectorize.py",
+    "a100c/lower/scalar.py",
+    "a100c/ir/mir.py",
+    "a100c/backend/emit.py",
+    "a100c/driver.py",
+    "a100c/factory.py",
+    "a100c/tests/test_matrix_breadth.py",
+    "a100c/tests/test_t029_repairs.py"
+  ],
+  "artifacts": [
+    "/tmp/t030_postsweep2_0.json through /tmp/t030_postsweep2_7.json (the final 44-operator compile-sweep censuses, one per chunk)",
+    "/tmp/t030_reports_0..7/report_t1.json and report_t4.json (the final execution campaign's input-regression/v1 reports)",
+    "/tmp/a100c-matrix-breadth-s2tftxao/matrix-breadth-evidence.json (test_matrix_breadth's evidence: k-loop reproductions, IME counts, thread matrix)",
+    "/tmp/t030_breadth3.log (test_matrix_breadth full output, exit 0)",
+    "/tmp/t030_verify10.log, /tmp/t030_verify11.log, /tmp/t030_verify12.log (the wrong-answer repair verifications)",
+    "/tmp/t030_gqa_bisect.log (the gqa CSE bisect: all-on/off-each-pass/off-cse/all-off)"
+  ],
+  "commands": [
+    {
+      "command": "for i in 0..7: set -a; . ./.env; set +a; timeout 7200 python3 a100c/tests/test_compile_sweep.py --operator <chunk i's operators> --budget 600 --census-out /tmp/t030_postsweep2_<i>.json",
+      "exit_code": 0,
+      "observed": "all 8 chunks exit 0, 'all compile-sweep checks PASS'; aggregate: 203 identities = 187 artifacts + 16 located refusals, 0 crash, 0 over-budget; zero rows carry the 'a dot inside a runtime loop is not enabled on this build' detail (was 203/203 at the census revision)"
+    },
+    {
+      "command": "for i in 0..7: /tmp/t030_runexec2.sh <i> (A100C_CACHE_DIR per chunk; tools/run_scan.py run --operator <chunk> --threads 1 --case-timeout 240 --report .../report_t1.json, then --threads 4 .../report_t4.json)",
+      "exit_code": 0,
+      "observed": "498 rows over 249 cases at 1 and 4 workers: 443 PASS; 48 COMPILE_REFUSED (the 16 refused identities' cases); 3 gqa LAUNCH_FAIL at 1 worker (exit -11, the recorded CSE interaction; gqa PASSes at 4 workers); 2 generalized_delta stage-budget timeouts under load-average-190 contention (both cases PASS at 4 workers; the [17] fp16 re-run PASSes standalone in 234s)"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; timeout 3000 python3 a100c/tests/test_matrix_breadth.py",
+      "exit_code": 0,
+      "observed": "test_matrix_breadth: all checks PASS (24 PASS lines, 0 FAIL): 14/14 dot forms, fp32 IEEE bit-exact, bf16 gap recorded with zero smt.*, int8 smt.vmadot count 4 == model 4 (threads 2, artifact c3d9178d4148), fp16 smt.vfwmadot count 8 == model 8 (threads 4, artifact abeed8eeb654), kloop-int8 count 2 == model 2 (artifact fb13cde7c90c), kloop-fp16 count 4 == model 4 (artifact 2f4e360a5bbf), the oneloop T014 reproduction PASS (0/64 bad; was 30/64), multi-iteration k-loops PASS at 1 and 4 threads, 1/2/4/8 threads one artifact"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; python3 a100c/tests/<every test_*.py file>",
+      "exit_code": 0,
+      "observed": "all 36 test files pass: test_lower_matrix, test_ime_evidence, test_matrix_breadth, test_atomics, test_control_flow, test_layout_ops, test_lower_vector, test_mir_verifier, test_emit, test_allocate, test_build, test_compile_regressions, test_conversions, test_driver_cache, test_e2e_slice, test_frontend_*, test_grid_model, test_legalize, test_lower_scalar, test_math_ops, test_memory_forms, test_passes_basic, test_partition, test_reductions, test_rng, test_runtime_smoke, test_scalar_binding, test_select, test_specialize, test_stage_plan, test_t029_repairs, test_tir_verifier"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; timeout 590 python3 /tmp/t030_v10.py + /tmp/t030_v11.py + /tmp/t030_v12.py (factory compiler, execute-and-compare the previously mismatching cases)",
+      "exit_code": 0,
+      "observed": "PASS: matmul_at_b_kernel_043f2a05 [128]/[127] fp16, matmul_at_b_kernel_db_551a9cda [128] fp16, matmul_at_b_kernel_opt_84f19043 [128] fp16, matmul_at_kernel_optimized_8461cac3 [128] fp16, fused_conv3d_kernel_2 [2,4,7,6,5,6,2,2,2] fp16, batched_vecmat_mult [32,32,32]+[33,33,33] fp16 at 1 and 4 workers, matmul_k32_persistent_n_2stage [256] fp32/fp16, generalized_delta_rule [17] fp16"
+    }
+  ],
+  "acceptance": [
+    {
+      "ref": "acceptance[0]",
+      "command": "8 parallel chunks of: python3 a100c/tests/test_compile_sweep.py --operator <the 44 census operators carrying the dot-in-runtime-loop refusal> --budget 600 --census-out /tmp/t030_postsweep2_<i>.json",
+      "exit_code": 0,
+      "observed": "203 owned identities: 187 artifacts + 16 located refusals of other constructs (6 tl.dot block-join-across-dot-hosting-if on transposed_conv3d/block_sparse_attn, 6 broadcast-in-runtime-region on tril_matmul, 4 atomic-pointee-width-16 on conv1x1 fp16/bf16); 0 crash, 0 over-budget; the dot-in-runtime-loop class is at ZERO (every chunk's own checks PASS)"
+    },
+    {
+      "ref": "acceptance[1]",
+      "command": "tools/run_scan.py run --operator <the 44 owned operators> --threads 1 and --threads 4 --case-timeout 240 (8 chunks, per-chunk caches and report dirs)",
+      "exit_code": 0,
+      "observed": "443 PASS rows at 1 and 4 workers under each case's declared policy; every k-loop dot operator that compiles executes and compares PASS at both thread counts (matmul_kernel*, matmul_at*, matmul_k32*, fused_conv3d, batched_vecmat, triton_linear_activation, gqa at 4 workers, ...); representative int8/fp16 dot-in-loop cases show positive counts bound to their artifacts: kloop-int8 smt.vmadot 2 == model 2 (artifact fb13cde7c90c), kloop-fp16 smt.vfwmadot 4 == model 4 (artifact 2f4e360a5bbf), composed int8 4 == 4 and fp16 8 == 8; non-PASS rows are the 48 refused-identity cases, gqa 1-worker (the CSE interaction below), and 2 load-contention stage timeouts that PASS at 4 workers / standalone"
+    },
+    {
+      "ref": "acceptance[2]",
+      "command": "python3 a100c/tests/test_matrix_breadth.py (check_kloop_reproduction) and grep -rn 'not enabled on this build' a100c/ tools/",
+      "exit_code": 0,
+      "observed": "kloop-dot-compiles-by-default PASS (no refusal; the runtime-bound k-loop lowers through the staged tile pipeline); kloop-oneloop-reproduction-passes: 0/64 bad elements (the T014 record was 30/64 wrong -- the staged regions lost the carried accumulator's second chunk); the guard's text no longer exists anywhere in the compiler; the remaining dot refusals are the narrowed, genuinely-unlowerable forms (a dot in an unrestructured region, a block join across a dot-hosting if)"
+    },
+    {
+      "ref": "acceptance[3]",
+      "command": "python3 a100c/tests/test_lower_matrix.py; python3 a100c/tests/test_ime_evidence.py; python3 a100c/tests/test_matrix_breadth.py; <all 36 test files>",
+      "exit_code": 0,
+      "observed": "every pre-existing test file passes on the final tree, including test_lower_matrix.py (all checks PASS), test_ime_evidence.py (all checks PASS) and test_matrix_breadth.py (all checks PASS); two test fixtures needed repair for defects my new invariants exposed: test_t029_repairs' hand-built module appended its entry block twice, and test_matrix_breadth's fp16 k-loop count model assumed one tile op per source k-iteration (the fp16 family's tile_k is 8, so BK 16 needs two -- now computed by the declared pure model expected_ime_tile_ops_breadth, making the check stricter)"
+    }
+  ],
+  "tests": [
+    {
+      "ref": "tests[0]",
+      "command": "set -a; . ./.env; set +a; python3 a100c/tests/test_compile_sweep.py --operator <owned operators> (run as 8 chunks with --budget 600 because the heaviest identities compile in 175-243s, above the 120s default per-identity budget; the budget is a driver flag recorded in each census)",
+      "exit_code": 0,
+      "observed": "class at zero: 187 artifacts + 16 located refusals of other constructs over all 203 owned identities; all 8 chunk runs exit 0 with 'all compile-sweep checks PASS'"
+    },
+    {
+      "ref": "tests[1]",
+      "command": "python3 a100c/tests/test_lower_matrix.py; python3 a100c/tests/test_matrix_breadth.py; python3 a100c/tests/test_ime_evidence.py; and the full a100c test suite (all 36 files)",
+      "exit_code": 0,
+      "observed": "all pass (see acceptance[3])"
+    }
+  ],
+  "evidence": "The final 8-chunk compile sweep over the 44 census operators carrying the refusal (/tmp/t030_postsweep2_*.json): the 'tl.dot: a dot inside a runtime loop is not enabled on this build' class is at zero -- 187 of 203 identities produce artifacts, the other 16 are located refusals of other constructs, and no row is a crash or over-budget. The execution campaign (/tmp/t030_reports_*/report_t{1,4}.json): 443 rows PASS at 1 and 4 workers under the case-declared policies, including every previously-mismatching operator after the exit-offset and native-staging repairs (verified individually in /tmp/t030_verify10-12.log). test_matrix_breadth's evidence (/tmp/a100c-matrix-breadth-s2tftxao/matrix-breadth-evidence.json) binds the T014 reproduction (0/64 bad), multi-iteration k-loops at 1/4 threads, and positive smt.vmadot/smt.vfwmadot counts to k-loop artifact hashes.",
+  "design_issue": {},
+  "debug_request": {},
+  "attack": {
+    "cases": []
+  },
+  "remaining_work": [
+    "gqa (3 identities) segfaults at 1 worker when CSE is enabled: bisected (only 'off-cse' and all-off PASS; every other single-pass-off still exits -11; the plain driver PASSES; 4 workers PASS); the crash is in the v-load pass's staged pointer materialization inside the matrix region (qemu -d nochain,exec trace at /tmp/gqa_exec.log, last TB 0x14058); needs the pinned QEMU's indexed-load semantics pinned for the e64-data gather and the widening-op region discipline audited -- a CSE x matrix-region interaction the dot-in-loop guard previously made unreachable",
+    "16 identities still refuse at declared boundaries: block joins across dot-hosting ifs (transposed_conv3d, block_sparse_attn -- per-arm staged copies into a common join region would extend the staged-carry machinery), multi-lane broadcasts inside non-restructured runtime regions (tril_matmul -- needs the T028-disabled region restructure or an in-region broadcast form), and 16-bit atomic pointees (conv1x1_pool_fc fp16/bf16 -- the AMO 32/64-bit slice boundary)",
+    "the heaviest dot-in-loop identities compile in 175-243s (vs the 120s default sweep budget) -- compile-time scaling of the restructured-region emission is worth a follow-up under MECH-COMPILE-COST-LINEAR",
+    "the flaky resource-evidence capture (batched_vecmat [32,32,32] fp16 FileNotFoundError under load-190 parallelism, PASS on re-run at both thread counts) deserves a retry in the scan driver"
+  ],
+  "end_revision": "",
+  "at": "2026-11-06T09:43:51.239627+00:00"
+}
