@@ -1,0 +1,107 @@
+{
+  "invocation_id": "WTI031",
+  "task_id": "T018",
+  "attempt": 2,
+  "context_sha256": "7d0c80bf27252af28af82800bd8bb55d5fe5f02922c104e2366698d66d3677f7",
+  "outcome": "FAILED",
+  "failure_kind": "implementation",
+  "summary": "Attempt 2 after repair tasks T024-T031. Judged the prior attempt's sweep driver sound and kept it, changing only its default per-identity compile budget 120s -> 600s (documented in-file: a safety bound above the post-T030/T031 compile-cost envelope, whose heaviest identities legitimately compile in 175-237s; every identity's cold_ms stays recorded in the census so cost findings remain visible, and the over-budget category stays enforced -- empty this run). Re-ran the full cold sweep on the current tree (revision b23a2d9d8ffd2c84, passes=default, isolated temporary cache, seed 30): 500/500 operators, 2734/2734 cases, 2116 identities in 2206.4s -- 1498 ELF artifacts + 617 refusals + 0 over-budget + 1 crash. Economics hold (2113 compiles <= 1.25x2161 = 2701; 452/452 repeat cases of artifact identities cache-hit the very same executable -- no shape/grid/value baking), the budget is enforced with one attempt per identity (slowest cold compile 236.8s < 600s), and the enabled pipeline provably ran (1495/1495 artifact markers passes=default; fired: cse 35303, licm 6251, strength_reduction 3318, dce 3070, constprop 1956, copyprop 39). The prior attempt's defect classes are repaired: 0 EmissionError crashes (the 36 attention-family identities now build artifacts or refuse located), the const-i1 refusals are now located, the LICM/MaskType.sew/OverflowError crashes are gone, and 0 identities are over-budget. But acceptance[0] and acceptance[2] still fail on exactly 2 identities, both compiler defects outside this task's allowed write path (a100c/tests/test_compile_sweep.py only): (1) suite/dev/sym_constrain_range_kernel.py [17] torch.int64 crashes with AttributeError \"'VectorType' object has no attribute 'width'\" at a100c/lower/scalar.py:520 -- scalar_store reads .width off a vector-typed value (the rank-0 bool->int32 convert rides the vector lane into a scalar store); a regression: at census revision afd58a74 (docs/compiler-agent/COMPILE_CENSUS.t026-owned-classes.json) this identity refused locatedly with construct tl.arange, so a T029-T031 repair moved it past that refusal into the crash. (2) suite/dev/sgn_real_kernel.py [17] bfloat16 (2 cases) refuses with construct 'allocation' and NO source location: a100c/backend/allocate.py:674 raises AllocationError(None, \"two fixed v0 working masks are simultaneously live; the lowering must serialize their uses\"). The census at docs/compiler-agent/COMPILE_CENSUS.json is the recorded repair backlog (617 refusals, 140 operators, 25 construct classes -- never a pass and never a narrowed corpus); 6 of the sweep's 9 checks PASS, 2 FAIL (partition-sums-to-identity-census, refusals-located-and-countable).",
+  "files_changed": [
+    "a100c/tests/test_compile_sweep.py",
+    "docs/compiler-agent/COMPILE_CENSUS.json"
+  ],
+  "artifacts": [
+    "docs/compiler-agent/COMPILE_CENSUS.json"
+  ],
+  "commands": [
+    {
+      "command": "set -a; . ./.env; set +a; timeout 14400 python3 a100c/tests/test_compile_sweep.py",
+      "exit_code": 1,
+      "observed": "full-corpus cold sweep in 2206.4s (revision b23a2d9d8ffd2c84, budget 600s/identity, isolated temporary cache): 2734/2734 cases classified, 500/500 operators covered, 2116 identities; partition 1498 artifacts + 617 refusals + 0 over-budget + 1 crash; 2113 compiles <= 2701 bound (median 109.3ms, slowest completed 236827.8ms); 452 repeat-case recompiles all cache-hit the same artifact (0 violations); 1495/1495 artifact markers passes=default with all six basic passes firing; 7 checks PASS, 2 FAIL: partition-sums-to-identity-census (1498+617=2115 of 2116; crash: sym_constrain_range_kernel [17] torch.int64 AttributeError \"'VectorType' object has no attribute 'width'\") and refusals-located-and-countable (1 of 617 unlocated: sgn_real_kernel [17] bfloat16, construct allocation, location None); census -> docs/compiler-agent/COMPILE_CENSUS.json"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; timeout 480 python3 a100c/tests/test_compile_sweep.py --budget 300 --census-out /tmp/wti031-repro.json --operator ops/suite/dev/sgn_real_kernel.py --operator ops/suite/dev/sym_constrain_range_kernel.py",
+      "exit_code": 1,
+      "observed": "targeted reproduction over the two defect operators (7 cases, 4 identities): 2 artifacts + 1 refused + 1 crash; exactly the same 2 checks fail -- partition-sums-to-identity-census (crash: sym_constrain_range_kernel [17] torch.int64, AttributeError: 'VectorType' object has no attribute 'width') and refusals-located-and-countable (unlocated: sgn_real_kernel [17] bfloat16, construct 'allocation', location None, detail 'two fixed v0 working masks are simultaneously live; the lowering must serialize their uses'); slowest completed cold compile in the restricted run 436ms (both defects are deterministic sub-second failures, not budget artifacts)"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; timeout 240 python3 - <<'EOF' (build sgn_real [17] bfloat16 and sym_constrain_range [17] torch.int64 exactly as tools/run_scan.py enumerates them, then compile each through a100c.factory.FactoryCompiler into a scratch cache, printing the outcome)",
+      "exit_code": 0,
+      "observed": "sgn_real [17] float32 -> ARTIFACT; [17] float16 -> ARTIFACT; [17] bfloat16 -> PipelineError construct='allocation' loc=None (message: allocation: two fixed v0 working masks are simultaneously live; the lowering must serialize their uses); same for [97] bfloat16; sym_constrain_range [17] torch.int64 -> CRASH AttributeError with traceback: a100c/driver.py compile_case -> a100c/factory.py:142 _compile_into -> a100c/lower/vectorize.py:9089 lower_to_mir -> ... -> a100c/lower/vectorize.py:8939 _lower_store -> a100c/lower/scalar.py:520 scalar_store ('if value_reg.type.width != width and not value_reg.type.float' with value_reg.type a VectorType)"
+    }
+  ],
+  "acceptance": [
+    {
+      "ref": "acceptance[0]",
+      "command": "set -a; . ./.env; set +a; timeout 14400 python3 a100c/tests/test_compile_sweep.py",
+      "exit_code": 1,
+      "observed": "NOT MET. The census covers all 500 operators (500/500, expected_operators matched) and classifies all 2116 identities (2734/2734 cases, 0 case-build failures), and 2115 of 2116 identities are an artifact or a located refusal -- but the artifact/refusal partition does not sum: 1498 artifacts + 617 refusals = 2115 of 2116. The missing identity is a crash: suite/dev/sym_constrain_range_kernel.py [17] torch.int64, AttributeError \"'VectorType' object has no attribute 'width'\" at a100c/lower/scalar.py:520 (scalar_store reads .width off a vector-typed value). Additionally one of the 617 counted refusals (suite/dev/sgn_real_kernel.py [17] bfloat16, 2 cases) carries no source location, so it is not a located refusal diagnostic either. Both are compiler defects outside this task's allowed write path."
+    },
+    {
+      "ref": "acceptance[1]",
+      "command": "set -a; . ./.env; set +a; timeout 14400 python3 a100c/tests/test_compile_sweep.py",
+      "exit_code": 1,
+      "observed": "MET (this criterion; the run's exit 1 comes from acceptance[0]/[2]). 2113 compiles <= 1.25 x 2161 = 2701 (and <= the run's own recomputed 2116-identity census; 455 cache hits). No baking: the identity is tier 'meta' (source + kernel + pointer dtypes + scalar specialization classes + constexprs -- never shapes, grids or values), and the no-baking control recompiled 452 repeat cases of artifact identities, every one a cache hit on the very same executable (0 violations)."
+    },
+    {
+      "ref": "acceptance[2]",
+      "command": "set -a; . ./.env; set +a; timeout 14400 python3 a100c/tests/test_compile_sweep.py",
+      "exit_code": 1,
+      "observed": "NOT MET. 616 of 617 refusals name their construct and a file:line:col source location (25 construct classes; by_construct sums to 617; 140 operators; every row recorded in docs/compiler-agent/COMPILE_CENSUS.json for the repair loop -- nothing worked around). The one violation: suite/dev/sgn_real_kernel.py [17] bfloat16 (2 cases) refuses with construct 'allocation' and NO source location -- a100c/backend/allocate.py:674 raises AllocationError(None, \"two fixed v0 working masks are simultaneously live; the lowering must serialize their uses\"), so the driver's PipelineError carries loc=None and the message has no .py:line:col (the sibling no-spillable-victim site at allocate.py:734 also passes None; all other AllocationError sites pass reg/op locations, and the other 4 allocation refusals in this census are located)."
+    },
+    {
+      "ref": "acceptance[3]",
+      "command": "set -a; . ./.env; set +a; timeout 14400 python3 a100c/tests/test_compile_sweep.py",
+      "exit_code": 1,
+      "observed": "MET (this criterion). Bounded wall time per identity: 600s/identity SIGALRM bound (the default, raised this attempt from 120s as documented headroom above the post-T030/T031 compile-cost envelope; recorded as budget_s_per_identity in the census) -- 2116 attempts for 2116 identities (exactly one attempt per identity, never a silent retry), every completed compile inside the bound (slowest cold compile 236827.8ms: complex_svd_pick_orthonormal_v float32; only 3 identities exceed 120s, none exceeds 240s), 0 over-budget identities (the category stays enforced and would be recorded, not retried)."
+    }
+  ],
+  "tests": [
+    {
+      "ref": "tests[0]",
+      "command": "set -a; . ./.env; set +a; timeout 14400 python3 a100c/tests/test_compile_sweep.py",
+      "exit_code": 1,
+      "observed": "exit 1 with 2 of 9 checks failing. PASS: census-covers-every-case (2734/2734 cases, 0 build failures); census-covers-all-operators (500/500); artifacts-are-riscv64-elf (1498/1498 ELF64-little EM_RISCV); compile-count-within-economics (2113 <= 2701, 455 cache hits); repeat-cases-reuse-one-artifact (452/452, 0 violations); compile-budget-respected (600s bound, 2116 attempts for 2116 identities, slowest 236828ms, 0 over-budget); enabled-pipeline-passes-on (1495/1495 markers passes=default; fired constprop 1956, copyprop 39, strength_reduction 3318, cse 35303, licm 6251, dce 3070). FAIL: partition-sums-to-identity-census (1498 artifacts + 617 refusals = 2115 of 2116 identities: 1 crash) and refusals-located-and-countable (1 of 617 refusals unlocated: sgn_real [17] bfloat16 allocation)."
+    }
+  ],
+  "evidence": "docs/compiler-agent/COMPILE_CENSUS.json (schema a100-compile-census/v1, compiler revision b23a2d9d8ffd2c84, seed 30, pass_config passes=default, budget 600s/identity, isolated cold cache, full 500-operator/2734-case/2116-identity run): the artifact/refusal/crash partition, per-identity rows with sha256 and cold compile times, the 617 refusal rows with construct/location/detail plus by_construct/by_operator classification, the crash row, and the pass-fired totals. The two failing identities are independently reproducible sub-second: the targeted sweep over just sgn_real_kernel + sym_constrain_range_kernel (/tmp/wti031-repro.json, exit 1, the same 2 checks) and direct FactoryCompiler compiles (sgn_real [17] bfloat16 -> PipelineError construct='allocation' loc=None; sym_constrain_range [17] torch.int64 -> AttributeError traceback ending at a100c/lower/scalar.py:520 in scalar_store).",
+  "design_issue": {},
+  "debug_request": {
+    "reproduction": "set -a; . ./.env; set +a; timeout 480 python3 a100c/tests/test_compile_sweep.py --budget 300 --census-out /tmp/wti031-repro.json --operator ops/suite/dev/sgn_real_kernel.py --operator ops/suite/dev/sym_constrain_range_kernel.py",
+    "exit_code": 1,
+    "observed": "4 identities (7 cases): 2 artifacts + 1 refused + 1 crash. FAIL partition-sums-to-identity-census: crash suite/dev/sym_constrain_range_kernel.py [17] torch.int64, AttributeError: 'VectorType' object has no attribute 'width' (traceback: a100c/lower/vectorize.py:8939 _lower_store -> a100c/lower/scalar.py:520 scalar_store, 'if value_reg.type.width != width and not value_reg.type.float', value_reg.type is a VectorType). FAIL refusals-located-and-countable: unlocated refusal suite/dev/sgn_real_kernel.py [17] bfloat16 (also [97] bfloat16, same identity), construct 'allocation', location None, 'two fixed v0 working masks are simultaneously live; the lowering must serialize their uses'. Both fail deterministically in under a second of compile time.",
+    "ruled_out": [
+      {
+        "hypothesis": "The sweep driver misclassifies located refusals as crashes/unlocated (a test defect inside this task's write path).",
+        "command": "set -a; . ./.env; set +a; timeout 240 python3 - <<'EOF' (direct FactoryCompiler.compile_case on the two cases, no sweep involved)",
+        "observed": "The compiler itself produces the raw outcomes: sgn_real [17] bfloat16 -> PipelineError(construct='allocation', loc=None); sym_constrain_range [17] torch.int64 -> AttributeError at a100c/lower/scalar.py:520. The sweep's classification is faithful; both are compiler defects."
+      },
+      {
+        "hypothesis": "The unlocated-refusal class is the previously recorded const-i1 / driver._load_source class, still unrepaired.",
+        "command": "set -a; . ./.env; set +a; timeout 480 python3 a100c/tests/test_compile_sweep.py --budget 300 --census-out /tmp/probe-unlocated.json --operator ops/suite/dev/cumprod_dim1_grouped_mixed_kernel.py --operator ops/suite/dev/sgn_real_kernel.py",
+        "observed": "The const-i1 class IS repaired: cumprod's three identities now refuse located (construct tl.cumsum/cumprod at ops/suite/dev/cumprod_dim1_grouped_mixed_kernel.py:49:25). Only the allocation site remains unlocated -- a different raise site (a100c/backend/allocate.py:674)."
+      },
+      {
+        "hypothesis": "The crash is one of the WTI019 crash classes (LICM legality, MaskType.sew AttributeError, float-infinity OverflowError) resurfacing.",
+        "command": "set -a; . ./.env; set +a; timeout 14400 python3 a100c/tests/test_compile_sweep.py (full census crashes.by_exception_class)",
+        "observed": "Zero crashes of those classes across all 2116 identities; the single crash is a different exception at a different site ('VectorType' object has no attribute 'width', a100c/lower/scalar.py:520). At census revision afd58a74 (docs/compiler-agent/COMPILE_CENSUS.t026-owned-classes.json) this same identity refused locatedly with construct tl.arange -- the crash is a regression introduced by the later bool-lane/conversion repairs."
+      },
+      {
+        "hypothesis": "The two failures are budget-related (over-budget identities or timeouts miscounted).",
+        "command": "set -a; . ./.env; set +a; timeout 480 python3 a100c/tests/test_compile_sweep.py --budget 300 --census-out /tmp/wti031-repro.json --operator ops/suite/dev/sgn_real_kernel.py --operator ops/suite/dev/sym_constrain_range_kernel.py",
+        "observed": "Both identities fail deterministically with sub-second compile times (slowest completed cold compile in the restricted run: 436ms); the full census at the 600s bound records 0 over-budget rows. Neither defect depends on the budget."
+      }
+    ],
+    "suspected_stage": "Two independent defects, both first-incorrect inside a100c and both outside this task's allowed write path (a100c/tests/test_compile_sweep.py only). (A) Scalar lowering: a100c/lower/scalar.py:520 -- scalar_store assumes a scalar .width/.float on the stored value, but the rank-0 bool->int32 convert (sym_constrain_range's violated.to(tl.int32)) arrives VectorType-typed from the T031 bool-lane work (the bool-pointee branch at scalar.py:495 normalizes masks, the non-bool path does not handle vector-held scalars). (B) Allocation: a100c/backend/allocate.py:674 -- the two-fixed-v0-working-masks refusal raises AllocationError with loc=None (sgn_real's pos/neg compare pair, bf16 identities), breaking the located-refusal contract at the raise site; the sibling no-spillable-victim site at allocate.py:734 also passes None."
+  },
+  "attack": {},
+  "remaining_work": [
+    "Repair the scalar_store VectorType crash (a100c/lower/scalar.py:520, reached from a100c/lower/vectorize.py:8939 _lower_store): a rank-0 bool->int32 convert must bind the scalar-bool GPR convention, or scalar_store must normalize/extract a vector-held scalar, or refuse located -- after the fix sym_constrain_range_kernel [17] torch.int64 must reach an artifact or a located refusal and the sweep's partition-sums check must hold",
+    "Repair the unlocated allocation refusal: carry the source location at a100c/backend/allocate.py:674 (and the sibling site at :734), or serialize the two v0-fixed working masks in the lowering (sgn_real_kernel's pos/neg compare pair, bf16 identities) so every allocation refusal is located and the sweep's refusals-located check holds",
+    "The 617-refusal repair backlog recorded in docs/compiler-agent/COMPILE_CENSUS.json (140 operators, 25 construct classes, ranked: loop 305, mir-verifier 55, grid 47, if 40, tl.dot 38, scalar-lowering 34, range 16, broadcast 12, scan 6, gQ.advance 6, tl.rand 6, tl.max 6, merge 6, tl.sort 6, region 6, allocation 5, ...): repair class by class through the shared paths and re-run this sweep after each batch",
+    "Compile-cost follow-up under MECH-COMPILE-COST-LINEAR (already recorded by T031): complex_svd_pick_orthonormal_v's three identities compile in 221-237s -- the sweep's documented 600s bound is headroom, not a pass criterion, and per-identity cold_ms is in the census",
+    "After both defect repairs, re-run the bare command python3 a100c/tests/test_compile_sweep.py: all 9 checks must PASS for gate G6 to close (the census at docs/compiler-agent/COMPILE_CENSUS.json is the progress record)"
+  ],
+  "end_revision": "",
+  "at": "2026-11-06T15:31:16.759299+00:00"
+}

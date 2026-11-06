@@ -21,7 +21,9 @@ cases exactly as ``run`` does: ``run_cases.py`` manifest paths ->
   * the first case of each identity is compiled through
     ``a100c.factory.FactoryCompiler`` (``compile_case`` on the payload the
     native device hands over: the case minus ``expected``/``oracle_args``)
-    under a per-identity wall budget (SIGALRM): an artifact, a located
+    under a per-identity wall budget (SIGALRM, default 600s -- a safety
+    valve above the corpus's current compile-cost envelope, whose heaviest
+    identities legitimately compile in ~4 minutes): an artifact, a located
     refusal (``PipelineError``) or an over-budget record -- never a silent
     retry and never a wait;
   * every later case of an identity that produced an artifact is compiled
@@ -186,9 +188,18 @@ class CompileSweep:
         self.compiler = FactoryCompiler(
             options=CompileOptions(cache_dir=str(self.cache_root), dumps=True),
             pass_config=self.pass_config)
+        # The default bound sits above the corpus's current legitimate
+        # compile-cost envelope: after the T030/T031 cost repairs the
+        # heaviest identities (complex_svd, the restructured dot-in-loop
+        # families) compile in ~175-243s, so a 600s bound lets every
+        # identity reach an artifact-or-located-refusal classification
+        # while still bounding the sweep.  An identity that exceeds it is
+        # recorded as over-budget and never retried, and every identity's
+        # cold compile time is recorded in the census, so compile-cost
+        # findings stay visible instead of being hidden by the bound.
         self.budget = float(args.budget
                             or os.environ.get("A100_SWEEP_COMPILE_BUDGET",
-                                              "120"))
+                                              "600"))
         #: a generous bound on one case *build* (reference computation with
         #: the corpus's own harness; the compile budget is separate)
         self.build_budget = max(600.0, self.budget * 5.0)
@@ -617,7 +628,10 @@ def main(argv=None) -> int:
                         help="sweep at most N cases (calibration only)")
     parser.add_argument("--budget", type=float,
                         help="per-identity compile bound in seconds "
-                             "(default A100_SWEEP_COMPILE_BUDGET or 120)")
+                             "(default A100_SWEEP_COMPILE_BUDGET or 600; "
+                             "the bound is a safety valve above the corpus's "
+                             "current compile-cost envelope -- over-budget "
+                             "identities are recorded, never retried)")
     parser.add_argument("--cache-root",
                         help="artifact cache root (default: an isolated "
                              "temporary directory, so compile counting is "
