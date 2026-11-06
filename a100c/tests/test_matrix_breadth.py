@@ -12,14 +12,13 @@ Coverage of the task's acceptance:
     chaining form, the out_dtype=float16 narrowing form, the masked
     2D-load form (the matmul epilogue's mask structure), and 1/2/4/8
     worker threads on ONE artifact per compile identity.  The k-loop
-    forms (dots inside runtime loops) refuse located on this build: the
-    restructured loop's staged regions lose chunks beyond the first 256
-    bytes -- a reproduced wrong-answer defect (the oneloop/kloop
-    reproduction below, guarded by LowerOptions.matrix_loop_dots) -- and
-    the fp16/int8 k-loop additionally exhausts the allocator's spill
-    machinery.  Both are located refusals in the census, never silent
-    wrong answers; the corpus families' k-loop operators are recorded
-    for the repair loop.
+    forms (dots inside runtime loops) lower and execute too (T030's
+    repair: the staged carries' back-edge copy indexes by the element
+    counter, and the matrix region's body resolves the induction to the
+    head parameter -- the two defects behind T014's located refusal);
+    the k-loop reproduction below is the repair's executed regression,
+    multi-iteration k-loops included, with positive smt.vmadot /
+    smt.vfwmadot counts bound to the k-loop artifacts.
   * acceptance[1]: fp32 dots compare PASS bit-exactly against numpy's
     fp32 matmul (the IEEE path: vfmacc, no tf32 anywhere -- the subset
     strips input_precision/allow_tf32, F052); bf16 dots pass through the
@@ -845,9 +844,9 @@ def check_thread_matrix(compiler):
 CENSUS_REPS = [
     # (file, family, note)
     ("matmul_kernel.py", "matmul",
-     "the static_range k-loop form (dots inside a runtime loop)"),
+     "the static_range k-loop form (dots inside a runtime loop, T030)"),
     ("matmul_kernel_2d_8e70c631.py", "matmul",
-     "the while k-loop form (dots inside a runtime loop)"),
+     "the while k-loop form (dots inside a runtime loop, T030)"),
     ("gemm_smallk_kernel_5ee47e3f.py", "matmul",
      "the loop-free dot form (the T010-bound slice shape)"),
     ("matmul_abt_kernel.py", "matmul",
@@ -861,7 +860,7 @@ CENSUS_REPS = [
     ("grouped_gemm_kernel.py", "matmul",
      "grouped GEMM with pointer tables (dot.acc)"),
     ("matmul_k32_splitn4_paired_kernel_6f1c91c8.py", "matmul",
-     "the split-N multi-tile form (dots inside a range loop)"),
+     "the split-N multi-tile form (dots inside a range loop, T030)"),
 ]
 
 
@@ -944,8 +943,8 @@ def check_corpus_census(compiler):
                                          "RUN-ERROR", "MISSING"))
              for r in rows)
     check("family-census-no-silent-wrong-answers", ok,
-          f"{passed} PASS, {refused} located refusals (the dots-inside-"
-          "loops boundary: the reproduced staging defect), "
+          f"{passed} PASS, {refused} located refusals (a boundary of "
+          "another construct, never a silent wrong answer), "
           f"{other} case/environment rows")
 
 
@@ -955,84 +954,230 @@ def check_corpus_census(compiler):
 
 
 def check_kloop_reproduction():
-    """The recorded wrong-answer defect: with the defective path
-    deliberately enabled (CompileOptions.matrix_loop_dots -- a
-    reproduction-only switch recorded in the artifact identity), a
-    ONE-ITERATION matrix loop's staged regions lose chunks beyond the
-    first 256 bytes and the executed compare FAILS.  With the default
-    options the same kernel refuses located.  This is the evidence the
-    repair task inherits (MECH-WITNESS-TEST: the guard is load-bearing).
+    """The T030 repair regression: dots inside runtime-bound loops lower
+    and execute correctly (T014's located refusal is removed).
+
+    The recorded defects behind the old guard, both reproduced before the
+    repair and executed-compared after it:
+
+      * the staged carries' back-edge copy indexed its lanes by
+        ``vid + i/vl`` instead of ``vid + i`` (i counts elements) -- the
+        second chunk copied elements 1..vl instead of vl..2*vl-1, so a
+        carried 64-element accumulator lost every element beyond lane 0
+        of chunk two (the 'chunks beyond the first 256 bytes' record);
+      * the matrix region's body resolved uses of the induction to the
+        PRE-LOOP init constant instead of the head parameter (the
+        ordinary loop/while paths' override) -- the hoisted induction
+        increment re-computed init+step every iteration, the loop never
+        exited, and the pointer recurrences walked the loads out of the
+        buffers (the multi-iteration k-loop segfault).
     """
-    path = WORK / "oneloop.py"
-    path.write_text(ONELOOP)
-    spec = importlib.util.spec_from_file_location("oneloop", str(path))
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    case = module.make_case()
-    rng = np.random.default_rng(9)
-    M, N, K = 8, 8, 16
-    a = (np.arange(M * K).reshape(M, K) % 97).astype(np.float32)
-    b = np.zeros((K, N), np.float32)
-    for k in range(min(N, K)):
-        b[k, k] = 1.0
-    arrays = {"A_ptr": a.reshape(-1), "B_ptr": b.reshape(-1),
-              "C_ptr": np.zeros(M * N, np.float32),
-              "M": np.int32(M), "N": np.int32(N), "K": np.int32(K),
-              "sam": np.int32(K), "sak": np.int32(1),
-              "sbk": np.int32(N), "sbn": np.int32(1),
-              "scm": np.int32(N), "scn": np.int32(1)}
-    exp = a @ b
-    # (1) the default refuses located (a RUNTIME loop bound: a
-    # constexpr-bounded range unrolls at the frontend, so no matrix
-    # region exists there to guard -- the guard is for the runtime
-    # k-loop form)
-    kspec = importlib.util.spec_from_file_location(
-        "kloop", str(WORK / "kloop.py"))
-    if not (WORK / "kloop.py").is_file():
-        (WORK / "kloop.py").write_text(KLOOP)
-        kspec = importlib.util.spec_from_file_location(
-            "kloop", str(WORK / "kloop.py"))
+    # (1) the kloop probe (a RUNTIME loop bound) compiles by default --
+    # no refusal: the guard is gone
+    kpath = WORK / "kloop.py"
+    if not kpath.is_file():
+        kpath.write_text(KLOOP)
+    kspec = importlib.util.spec_from_file_location("kloop", str(kpath))
     km = importlib.util.module_from_spec(kspec)
     kspec.loader.exec_module(km)
     kcase = km.make_case()
     kcase["meta"]["FORM"] = 0
+    rng = np.random.default_rng(31)
+    M, N, K = 8, 8, 16
+    a = (rng.standard_normal((M, K)) * 0.5).astype(np.float32)
+    b = (rng.standard_normal((K, N)) * 0.5).astype(np.float32)
+    arrays = {"A_ptr": a.reshape(-1), "B_ptr": b.reshape(-1),
+              "C_ptr": np.zeros(M * N, np.float32),
+              "M": np.int32(M), "N": np.int32(N), "K": np.int32(K)}
+    aw, bw = a, b
     kcase["args"] = arrays
     try:
         comp = Compiler(options=CompileOptions(
-            cache_dir=str(CACHE / "kloop-guard"), dumps=False))
+            cache_dir=str(CACHE / "kloop-default"), dumps=False))
         comp.compile_case(kcase)
-        refused = False
-        why = "no refusal raised"
+        check("kloop-dot-compiles-by-default", True,
+              "the runtime-bound k-loop lowers (the T014 refusal is "
+              "removed; the dot rides the staged tile pipeline)")
     except PipelineError as exc:
-        refused = "located refusal" in str(exc) or "not enabled" in str(exc)
-        why = str(exc)[:110]
-    check("kloop-dot-refuses-located-by-default", refused, why)
-    # (2) the defective path, deliberately enabled, FAILS the compare
-    # (the reproduction: rows beyond element 64 come back zero)
+        check("kloop-dot-compiles-by-default", False, str(exc)[:110])
+        return
+    # (2) it executes and compares PASS (single iteration: the carried
+    # 64-element accumulator is TWO chunks -- the back-edge copy's
+    # second chunk is exactly what the old defect lost)
+    expected = {"C_ptr": (aw @ bw).astype(np.float32).reshape(-1)}
+    kcase["expected"] = expected
+    kcase["comparison"] = {"C_ptr": {"comparator": "allclose",
+                                     "exact": False, "rtol": 1e-4,
+                                     "atol": 1e-4}}
     try:
-        comp = Compiler(options=CompileOptions(
-            cache_dir=str(CACHE / "kloop-repro"),
-            dumps=False, matrix_loop_dots=True))
-        art = comp.compile_case({**case, "args": arrays})
         device = nd.NativeExecutableDevice(comp, 1)
-        staged = device.stage_case({**case, "args": arrays})
+        staged = device.stage_case(kcase)
+        staged.launch()
+        outs = staged.outputs()
+        good, why = compare(kcase, outs)
+        check("kloop-dot-executes-and-compares", good, why)
+        EVIDENCE["cases"].append(
+            {"form": "kloop-runtime-bound-1iter",
+             "artifact_sha256": staged.artifact_sha256,
+             "compare": "PASS" if good else "FAIL"})
+    except Exception as exc:  # noqa: BLE001
+        check("kloop-dot-executes-and-compares", False,
+              f"{type(exc).__name__}: {str(exc)[:90]}")
+    # (3) the oneloop reproduction (the exact T014 record) now passes
+    opath = WORK / "oneloop.py"
+    opath.write_text(ONELOOP)
+    ospec = importlib.util.spec_from_file_location("oneloop", str(opath))
+    om = importlib.util.module_from_spec(ospec)
+    ospec.loader.exec_module(om)
+    ocase = om.make_case()
+    rng2 = np.random.default_rng(9)
+    a = (np.arange(M * K).reshape(M, K) % 97).astype(np.float32)
+    b = np.zeros((K, N), np.float32)
+    for k in range(min(N, K)):
+        b[k, k] = 1.0
+    oarrays = {"A_ptr": a.reshape(-1), "B_ptr": b.reshape(-1),
+               "C_ptr": np.zeros(M * N, np.float32),
+               "M": np.int32(M), "N": np.int32(N), "K": np.int32(K),
+               "sam": np.int32(K), "sak": np.int32(1),
+               "sbk": np.int32(N), "sbn": np.int32(1),
+               "scm": np.int32(N), "scn": np.int32(1)}
+    try:
+        ocomp = Compiler(options=CompileOptions(
+            cache_dir=str(CACHE / "kloop-oneloop"), dumps=False))
+        device = nd.NativeExecutableDevice(ocomp, 1)
+        staged = device.stage_case({**ocase, "args": oarrays})
         staged.launch()
         got = np.asarray(staged.outputs()["C_ptr"]).reshape(M, N)
-        fails = not np.allclose(got, exp, rtol=1e-4, atol=1e-4)
-        bad = np.argwhere(np.abs(got - exp) > 1e-3)
-        check("kloop-defective-path-reproduction-fails", fails,
-              f"with the reproduction switch on, {len(bad)} of {M*N} "
-              "elements are wrong (the staged regions lose chunks "
-              "beyond the first 256 bytes) -- the guard is load-bearing")
+        exp = a @ b
+        ok = np.allclose(got, exp, rtol=1e-4, atol=1e-4)
+        bad = int(np.sum(np.abs(got - exp) > 1e-3))
+        check("kloop-oneloop-reproduction-passes", ok,
+              f"the T014 reproduction executes and compares "
+              f"{'PASS' if ok else 'FAIL'} ({bad}/{M*N} bad; before the "
+              "repair 30/64 were wrong -- the staged regions lost the "
+              "second chunk of the carried accumulator)")
         EVIDENCE["kloop_reproduction"] = {
-            "shape": [M, N, K], "bad_elements": int(len(bad)),
-            "first_bad": bad[:3].tolist() if len(bad) else None}
+            "shape": [M, N, K], "bad_elements": bad,
+            "note": "the T030 repair regression (was 30/64 wrong at "
+                    "this exact probe before the back-edge copy fix)"}
     except Exception as exc:  # noqa: BLE001
-        # the defective path may also hit the allocator's bounded
-        # refusal for some dtypes -- either way it never passes silently
-        check("kloop-defective-path-reproduction-fails", True,
-              f"the enabled path raises {type(exc).__name__} (never a "
-              "silent pass)")
+        check("kloop-oneloop-reproduction-passes", False,
+              f"{type(exc).__name__}: {str(exc)[:90]}")
+    # (4) multi-iteration k-loops: the loop must terminate (the
+    # induction override) and the carry must accumulate across
+    # iterations; 1/2/4 worker threads on one artifact per identity
+    mpath = WORK / "kloopm.py"
+    mpath.write_text(KLOOPM)
+    mspec = importlib.util.spec_from_file_location("kloopm", str(mpath))
+    mm = importlib.util.module_from_spec(mspec)
+    mspec.loader.exec_module(mm)
+    for label, Mx, Nx, Kx, BKx, threads in (
+            ("2iters", 8, 8, 32, 16, 1),
+            ("3iters", 8, 8, 48, 16, 1),
+            ("ragged", 16, 8, 56, 16, 1),
+            ("8iters", 8, 16, 64, 8, 4)):
+        rng3 = np.random.default_rng(41)
+        a3 = (rng3.standard_normal((Mx, Kx)) * 0.5).astype(np.float32)
+        b3 = (rng3.standard_normal((Kx, Nx)) * 0.5).astype(np.float32)
+        arrays3 = {"A_ptr": a3.reshape(-1), "B_ptr": b3.reshape(-1),
+                   "C_ptr": np.zeros(Mx * Nx, np.float32),
+                   "M": np.int32(Mx), "N": np.int32(Nx),
+                   "K": np.int32(Kx)}
+        aw3, bw3 = a3, b3
+        mcase = mm.make_case()
+        mcase["meta"]["FORM"] = 0
+        mcase["args"] = dict(arrays3)
+        mcase["meta"].update({"BM": Mx, "BN": Nx, "BK": BKx})
+        mcase["expected"] = {"C_ptr": (aw3 @ bw3).astype(
+            np.float32).reshape(-1)}
+        mcase["comparison"] = {"C_ptr": {"comparator": "allclose",
+                                         "exact": False, "rtol": 1e-4,
+                                         "atol": 1e-4}}
+        try:
+            mcomp = Compiler(options=CompileOptions(
+                cache_dir=str(CACHE / "kloop-multi"), dumps=False))
+            device = nd.NativeExecutableDevice(mcomp, threads)
+            staged = device.stage_case(mcase)
+            staged.launch()
+            good, why = compare(mcase, staged.outputs())
+            iters = (Kx + BKx - 1) // BKx
+            check(f"kloop-multi-iter-{label}-threads{threads}", good,
+                  f"{iters} k-iterations, threads {threads}: {why}")
+            EVIDENCE["cases"].append(
+                {"form": f"kloop-multi-{Mx}x{Nx}x{Kx}-bk{BKx}",
+                 "artifact_sha256": staged.artifact_sha256,
+                 "threads": threads,
+                 "compare": "PASS" if good else "FAIL"})
+        except Exception as exc:  # noqa: BLE001
+            check(f"kloop-multi-iter-{label}-threads{threads}", False,
+                  f"{type(exc).__name__}: {str(exc)[:90]}")
+    # (5) the IME k-loop forms: positive smt.vmadot / smt.vfwmadot
+    # counts bound to the same artifact (acceptance[1]'s dot-in-loop
+    # witness)
+    for label, adtype, odtype, mnemonic, exact in (
+            ("int8", "int8", "int32", "smt.vmadot", True),
+            ("fp16", "float16", "float32", "smt.vfwmadot", False)):
+        rng4 = np.random.default_rng(47)
+        Mx = Nx = 8
+        Kx = 32
+        if exact:
+            a4 = rng4.integers(-100, 100, (Mx, Kx)).astype(np.int8)
+            b4 = rng4.integers(-100, 100, (Kx, Nx)).astype(np.int8)
+            aw4 = a4.astype(np.int64)
+            bw4 = b4.astype(np.int64)
+        else:
+            a4 = (rng4.standard_normal((Mx, Kx)) * 0.5).astype(np.float16)
+            b4 = (rng4.standard_normal((Kx, Nx)) * 0.5).astype(np.float16)
+            aw4 = a4.astype(np.float32)
+            bw4 = b4.astype(np.float32)
+        arrays4 = {"A_ptr": a4.reshape(-1), "B_ptr": b4.reshape(-1),
+                   "C_ptr": np.zeros(Mx * Nx, np.int32 if exact
+                                     else np.float32),
+                   "M": np.int32(Mx), "N": np.int32(Nx),
+                   "K": np.int32(Kx)}
+        icase = mm.make_case()
+        icase["meta"]["FORM"] = 0
+        icase["args"] = dict(arrays4)
+        icase["meta"].update({"BM": Mx, "BN": Nx, "BK": 16})
+        icase["expected"] = {"C_ptr": (aw4 @ bw4).astype(
+            np.int32 if exact else np.float32).reshape(-1)}
+        icase["comparison"] = {"C_ptr": {
+            "comparator": "array_equal" if exact else "allclose",
+            "exact": exact, "rtol": 1e-3, "atol": 1e-2}}
+        try:
+            icomp = Compiler(options=CompileOptions(
+                cache_dir=str(CACHE / f"kloop-ime-{label}"), dumps=False))
+            device = nd.NativeExecutableDevice(icomp, 1)
+            staged = device.stage_case(icase)
+            staged.launch()
+            good, why = compare(icase, staged.outputs())
+            counts_file = CACHE / f"kloop-ime-{label}-counts.json"
+            res = run_with_plugin(staged.artifact.executable, icase,
+                                  counts_file, threads=1)
+            if res is None:
+                check(f"kloop-{label}-ime-counts-{mnemonic}", False,
+                      "the plugin endpoint is unavailable")
+                continue
+            rc, counts = res
+            rows = [r for r in counts["instructions"]
+                    if r["mnemonic"] == mnemonic]
+            total = sum(r["executions"] for r in rows)
+            # the tile model: 1 output tile x K/BK k-steps
+            model = Kx // 16
+            check(f"kloop-{label}-kloop-compares", good, why)
+            check(f"kloop-{label}-ime-counts-{mnemonic}",
+                  rc == 0 and good and total >= 1 and total == model,
+                  f"counted {total} (model {model}: 1 tile x {Kx}//16 "
+                  f"k-steps), artifact {staged.artifact_sha256[:12]}, "
+                  f"compare {'PASS' if good else 'FAIL'}")
+            EVIDENCE["cases"].append(
+                {"form": f"kloop-ime-{label}-{Mx}x{Nx}x{Kx}",
+                 "artifact_sha256": staged.artifact_sha256,
+                 "mnemonic": mnemonic, "executed": total, "model": model,
+                 "compare": "PASS" if good else "FAIL"})
+        except Exception as exc:  # noqa: BLE001
+            check(f"kloop-{label}-ime-counts-{mnemonic}", False,
+                  f"{type(exc).__name__}: {str(exc)[:90]}")
 
 
 ONELOOP = '''"""probe"""
@@ -1134,6 +1279,60 @@ def _make_case(shape=(8,), dtype="float32", seed=0):
             "M": np.int32(M), "N": np.int32(N), "K": np.int32(K)}
     return {"args": args, "meta": {"BM": 8, "BN": 8, "BK": 16},
             "grid": (1,), "kernel": kloop_kernel, "outputs": ("C_ptr",),
+            "expected": {"C_ptr": (a @ b).reshape(-1)},
+            "comparison": {"C_ptr": {"comparator": "allclose",
+                                      "exact": False,
+                                      "rtol": 1e-4, "atol": 1e-4}}}
+
+def make_case(shape=None, dtype=None, seed=None):
+    return _make_case()
+'''
+
+
+KLOOPM = '''"""probe"""
+OPERATOR = {"name": "probe/kloopm", "group": "probe", "channel": "local",
+            "execution": "triton_kernel", "verification": "correctness",
+            "tags": []}
+SHAPES = ((8,))
+import numpy as np
+import triton
+import triton.language as tl
+
+@triton.jit
+def kloopm_kernel(A_ptr, B_ptr, C_ptr, M, N, K,
+                  BM: tl.constexpr, BN: tl.constexpr, BK: tl.constexpr):
+    offs_m = tl.arange(0, BM)
+    offs_n = tl.arange(0, BN)
+    offs_k = tl.arange(0, BK)
+    a_ptrs = A_ptr + (offs_m[:, None] * K + offs_k[None, :])
+    b_ptrs = B_ptr + (offs_k[:, None] * N + offs_n[None, :])
+    acc = tl.zeros((BM, BN), dtype=tl.float32)
+    for k0 in range(0, K, BK):
+        krem = K - k0
+        a = tl.load(a_ptrs, mask=(offs_m[:, None] < M)
+                    & (offs_k[None, :] < krem), other=0.0)
+        b = tl.load(b_ptrs, mask=(offs_k[:, None] < krem)
+                    & (offs_n[None, :] < N), other=0.0)
+        acc += tl.dot(a, b)
+        a_ptrs += BK
+        b_ptrs += BK * N
+    c_ptrs = C_ptr + (offs_m[:, None] * N + offs_n[None, :])
+    tl.store(c_ptrs, acc.to(C_ptr.dtype.element_ty),
+             mask=(offs_m[:, None] < M) & (offs_n[None, :] < N))
+
+def ref(args, meta):
+    return {"C_ptr": args["C_ptr"]}
+
+def _make_case(shape=(8,), dtype="float32", seed=0):
+    M, N, K = 8, 8, 32
+    rng = np.random.default_rng(3)
+    a = (rng.standard_normal((M, K)) * 0.5).astype(np.float32)
+    b = (rng.standard_normal((K, N)) * 0.5).astype(np.float32)
+    args = {"A_ptr": a.reshape(-1), "B_ptr": b.reshape(-1),
+            "C_ptr": np.zeros(M*N, np.float32),
+            "M": np.int32(M), "N": np.int32(N), "K": np.int32(K)}
+    return {"args": args, "meta": {"BM": 8, "BN": 8, "BK": 16},
+            "grid": (1,), "kernel": kloopm_kernel, "outputs": ("C_ptr",),
             "expected": {"C_ptr": (a @ b).reshape(-1)},
             "comparison": {"C_ptr": {"comparator": "allclose",
                                       "exact": False,

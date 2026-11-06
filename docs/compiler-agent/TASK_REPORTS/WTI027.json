@@ -1,0 +1,23 @@
+{
+  "invocation_id": "WTI027",
+  "task_id": "T030",
+  "attempt": 1,
+  "context_sha256": "e74dee4435f3acad8ed814d71add18e16a933f17ca1b1d867ae56e7c340c0551",
+  "outcome": "FAILED",
+  "failure_kind": "implementation",
+  "summary": "Manager-filed report for a dead child: the dispatched worker session for T030 (dot inside a runtime loop) was terminated by the harness after 600000ms of inactivity and never filed its own TaskReport. No commands, acceptance coverage or evidence from the worker reached the engine; nothing it may have changed was verified. The task remains unfinished work and needs a fresh worker attempt.",
+  "files_changed": [],
+  "artifacts": [],
+  "commands": [],
+  "acceptance": [],
+  "tests": [],
+  "evidence": "The Agent-tool call returned only 'Subagent was inactive for 600000ms' with no report line; workflow_task_stats shows WTI027 (T030 attempt 1) unfinished with no recorded outcome.",
+  "design_issue": {},
+  "debug_request": {},
+  "attack": {},
+  "remaining_work": [
+    "Re-dispatch T030 to a fresh worker: repair the tl.dot-in-runtime-loop census class through the shared dot/staging path per docs/compiler-agent/TASK_INPUTS/WTI027.prompt.md. Note for the retry: bound every compile/sweep command with timeout (a silent long-running compile looks like the inactivity that killed this attempt), and T028 recorded reproduced staging-path hangs in the mixed-extent region machinery, which this task's staging work is adjacent to."
+  ],
+  "end_revision": "",
+  "at": "2026-11-06T05:34:56.875969+00:00"
+}
