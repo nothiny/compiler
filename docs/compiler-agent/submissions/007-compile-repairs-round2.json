@@ -1,0 +1,121 @@
+{
+  "submission_id": "007-compile-sweep-repairs-round2",
+  "tasks": [
+    {
+      "task_id": "T032",
+      "goal": "Round-2 repair of the dominant remaining census family: mixed-extent / mixed-SEW runtime regions (374 'a runtime region mixes block extents X and Y (the layout lane lowers extent-homogeneous regions)' rows across loop/if/broadcast constructs, plus the mir-verifier consequences the same staging reproduces: 'vsetvli-region-inconsistency v16m1 vs e32m1' (17), 'smove preserves width (32->64...)' (9), \"block name 'scanp.head' defined twice\" (9), \"use-before-definition 'wspr3'\" (7), 'the scan operand is not a block value at the data SEW' (6), and the remaining mir-verifier/region rows that reproduce from heterogeneous staging). The T028 attempt deliberately disabled the mixed-extent restructure after reproduced staging-path hangs — this task implements it properly: heterogeneous regions must lower by splitting into extent-homogeneous sub-regions with correct value flow (or per-extent chunking), with every staging allocation bounded and no unbounded retry loop (the prior hang mode); a compile that cannot lower heterogeneously produces a located refusal, never a hang. Bound every command (a silent >10-minute compile killed two earlier workers). No per-operator branches; the fix is in the shared region/staging model in a100c/lower/vectorize.py and the staging machinery.",
+      "capability": "coding",
+      "purpose": "input",
+      "gate": "G6",
+      "parent_task": "T018",
+      "tags": ["compile-sweep-repair"],
+      "inputs": [
+        "docs/compiler-agent/COMPILE_CENSUS.json",
+        "a100c/lower/vectorize.py",
+        "a100c/ir/mir.py",
+        "a100c/backend/allocate.py"
+      ],
+      "outputs": [
+        "Heterogeneous-region lowering with regression tests"
+      ],
+      "acceptance": [
+        "The filtered compile sweep over the census operators carrying 'mixes block extents', the reproducing mir-verifier rows (vsetvli-region-inconsistency, smove width, duplicate block name, use-before-definition), the scan data-SEW rows and multi-lane broadcast rows shows those classes at zero: each owned identity produces an artifact or a located refusal of a different construct.",
+        "Owned heterogeneous-region operators execute and compare PASS on their cases (spot-execute representative mixed-extent operators at 1 and 4 workers under the declared policies).",
+        "No compile path can hang: every staging/allocation loop is bounded (a test or witness demonstrates a bounded refusal or completion on the case that previously hung; the T028 reproduction no longer hangs).",
+        "The MIR verifier still rejects hand-built inconsistent regions (control) and accepts the heterogeneous lowering; all pre-existing test files still pass."
+      ],
+      "tests": [
+        "set -a; . ./.env; set +a; timeout 7000 python3 a100c/tests/test_compile_sweep.py (mixed-extent family at zero or located-progressed)",
+        "python3 a100c/tests/test_lower_vector.py, test_mir_verifier.py and the full a100c test suite"
+      ],
+      "conflicts": ["a100c-lowering-backend"]
+    },
+    {
+      "task_id": "T033",
+      "goal": "Round-2 repair of the remaining frontend-form census classes: 47 'grid' residuals ($shape_extent ties the grid model still cannot prove, symbolic-constant-dependent grid axes, the genuinely untraceable set that must keep located refusals); 16 'range: step -1 is not positive; a descending range is not in the control-flow core' — descending ranges (negative step) must lower with equivalent semantics; 6 'if: a block-tensor condition cannot branch (Triton branches on scalars; use tl.where for per-element...)' — the frontend must reject or reduce per the pinned semantics with a located diagnostic (or lower the scalar-reducible form); 6 'gQ.advance: call target is not in the elementwise core' — block-pointer advance with runtime offsets; plus the small cmp.eq/bit.or/arith.add/layout/add residuals (~13). Through the shared frontend/grid/control-flow paths.",
+      "capability": "coding",
+      "purpose": "input",
+      "gate": "G6",
+      "parent_task": "T018",
+      "tags": ["compile-sweep-repair"],
+      "dependencies": ["T032"],
+      "inputs": [
+        "docs/compiler-agent/COMPILE_CENSUS.json",
+        "a100c/frontend/gridmodel.py",
+        "a100c/frontend/lower_tir.py",
+        "a100c/lower/scalar.py"
+      ],
+      "outputs": [
+        "Extended frontend forms with regression tests"
+      ],
+      "acceptance": [
+        "The filtered compile sweep over the census operators carrying the grid residuals, descending-range, block-tensor-condition, blockptr-advance and small-arithmetic rows shows those classes at zero or, for genuinely untraceable grids, a strictly smaller counted set of located refusals naming the untraceable input.",
+        "Descending ranges compute identical indices to the ascending equivalent on a control test; the grid provenance self-check still proves modeled == declared for every newly extracting case (no baking).",
+        "All pre-existing test files still pass."
+      ],
+      "tests": [
+        "set -a; . ./.env; set +a; python3 a100c/tests/test_compile_sweep.py --operator <owned operators> (classes at zero / counted residuals)",
+        "python3 a100c/tests/test_grid_model.py, test_control_flow.py and the full a100c test suite"
+      ],
+      "conflicts": ["a100c-ir-frontend"]
+    },
+    {
+      "task_id": "T034",
+      "goal": "Round-2 repair of the remaining backend/scalar census classes: 38 'tl.dot operand must be rank-2 (got rank 1); the batched rank-3 form is not in this lane' — batched (rank-3) tl.dot must lower (per-batch loop or reshaped rank-2 form with equivalent results under the declared tolerance/exactness); 14 'tl.atomic: atomic pointee width 16 is not in the slice' — fp16 atomics (atomic_add/max/min on 16-bit pointees) must lower with the declared RVWMO ordering; 15 scalar-width rows ('scalar widening 8 -> 16 is not in the scalar core', 'scalar operand types differ: i32 vs i16') plus 5 misc scalar-lowering rows — sub-32-bit integer scalar arithmetic and mixed-width scalar operands in the scalar core; and the two defects the T018 rerun named outside its write path: the sym_constrain_range int64 crash (AttributeError at a100c/lower/scalar.py:520) and the sgn_real bf16 allocation refusal (unlocated — make it a located refusal or fix the allocation).",
+      "capability": "coding",
+      "purpose": "input",
+      "gate": "G6",
+      "parent_task": "T018",
+      "tags": ["compile-sweep-repair"],
+      "dependencies": ["T032"],
+      "inputs": [
+        "docs/compiler-agent/COMPILE_CENSUS.json",
+        "a100c/lower/matrix.py",
+        "a100c/lower/scalar.py",
+        "a100c/backend/allocate.py"
+      ],
+      "outputs": [
+        "Extended backend/scalar forms with regression tests"
+      ],
+      "acceptance": [
+        "The filtered compile sweep over the census operators carrying rank-3 dot, fp16-atomic, scalar-width and the two named defects shows those classes at zero: each owned identity produces an artifact or a located refusal of a different construct.",
+        "Batched rank-3 dot operators execute and compare PASS on their cases (spot-execute at 1 and 4 workers); fp16 atomics execute with the declared ordering (multi-worker accumulation spot check).",
+        "The sym_constrain_range int64 path no longer crashes (regression test) and the sgn_real bf16 case produces an artifact or a located refusal naming the pressure source.",
+        "All pre-existing test files still pass."
+      ],
+      "tests": [
+        "set -a; . ./.env; set +a; python3 a100c/tests/test_compile_sweep.py --operator <owned operators> (classes at zero)",
+        "python3 a100c/tests/test_lower_matrix.py, test_atomics.py, test_lower_scalar.py and the full a100c test suite"
+      ],
+      "conflicts": ["a100c-lowering-backend"]
+    },
+    {
+      "task_id": "T035",
+      "goal": "Round-2 repair of the remaining long-tail census classes (each through its construct's shared path, resolving or classifying as declared-unsupported with located diagnostics): 6 tl.rand, 6 tl.max, 6 merge, 6 tl.sort, 6 region, 5 allocation, 3 tl.cumsum/cumprod, 3 arith.add, 3 tir-verifier, 2 tl.histogram, 2 convert, and any residual unclassifiable rows in the current census. Inspect each row's detail, fix the shared cause (or record the construct as outside the declared surface with the FRONTEND_COVERAGE row updated), and re-run the filtered sweep over the owned operators.",
+      "capability": "coding",
+      "purpose": "input",
+      "gate": "G6",
+      "parent_task": "T018",
+      "tags": ["compile-sweep-repair"],
+      "dependencies": ["T033", "T034"],
+      "inputs": [
+        "docs/compiler-agent/COMPILE_CENSUS.json",
+        "a100c/frontend/",
+        "a100c/lower/"
+      ],
+      "outputs": [
+        "Resolved long-tail classes with regression tests"
+      ],
+      "acceptance": [
+        "The filtered compile sweep over the census operators carrying the long-tail classes shows each class at zero: every owned identity produces an artifact or a located refusal naming a construct outside the declared surface (counted).",
+        "Owned long-tail operators that compile execute and compare PASS on their cases (spot-execute representative ones at 1 and 4 workers).",
+        "All pre-existing test files still pass."
+      ],
+      "tests": [
+        "set -a; . ./.env; set +a; python3 a100c/tests/test_compile_sweep.py --operator <owned operators> (classes at zero)",
+        "the full a100c test suite"
+      ],
+      "conflicts": ["a100c-ir-frontend", "a100c-lowering-backend"]
+    }
+  ]
+}
