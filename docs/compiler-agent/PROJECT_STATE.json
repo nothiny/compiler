@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-06T21:02:04.098973+00:00",
+  "updated_at": "2026-11-06T21:02:42.917755+00:00",
   "facts": [
     {
       "id": "F001",
@@ -3120,13 +3120,13 @@
       "tags": [
         "compile-sweep-repair"
       ],
-      "status": "READY",
-      "assignee": "",
-      "attempts": 0,
+      "status": "RUNNING",
+      "assignee": "coder",
+      "attempts": 1,
       "evidence": "",
       "last_error": "",
       "failure_kind": "",
-      "start_revision": "",
+      "start_revision": "7057f5ba8e0d1170c4e8078c1be0db4e467ee40d",
       "end_revision": "",
       "completed_seq": 0,
       "debug_required": false,
@@ -3136,7 +3136,7 @@
       "debug_pending_failures": 0,
       "worker_debug_request": {},
       "coding_failures": 0,
-      "started_at": "",
+      "started_at": "2026-11-06T21:02:42.914101+00:00",
       "deferrals": 0,
       "debug_verified_patterns": [],
       "replan_baseline": {},
@@ -8602,6 +8602,12 @@
       "phase": "IMPLEMENTATION",
       "event": "complete-task",
       "detail": "T032 worker report WTI032: Round-2 repair of the mixed-extent / mixed-SEW runtime-region family. Re-enabled T028's disabled segment-level restructure (a100c/lower/vectorize.py _is_mixed_extent_region) and completed its design: every block carry of a restructured loop stages through the workspace (the staging analysis stages init and end value; the back-edge copy is the loop-carried memory phi), a restructured if's block joins write a join-owned region at BOTH arm closes (one-armed forms fall back to the pre-if value), regions hosting a reduce whose partial a later statement of the same body consumes also restructure (the consumer reads the merged value, not the per-chunk vred state -- argmax_kernel_inner's recorded wrong-index defect), and the rank-0 reduce taint in the stage plan covers in-region reduces. Repaired the mir-verifier consequence classes the same staging reproduced: scalar srem (the preduce kept/reduced decomposition now uses the division's complement AND the axis's own stride -- the [i+1] indexing collapsed multi-kept-axis forms onto the major axis), the e1-vector bool block (tl.zeros(int1) is the mask form), the smove(i8->i64) bool scalar load (the zext byte load binds the i64 class), the mixed-width indexed store (the store runs in the VALUE's region), the reshape/realize passthrough in the pointer whole-tree walk, the leading-axis rank padding in the staged lane map, the same-SEW lane-group normalization (vmovv) in the offset sum, the scalar-convert re-materialization, the layout/preduce result name binding, the unique scan loop tag (duplicate 'scanp.head' block names), the path-scoped workspace bases, and the argument-load rematerialization class in the allocator. The full compile sweep: 2116 identities, 1788 artifacts (+290 vs the 1498 recorded census), 328 refusals (-289 vs 617), 0 crashes (was 1). The owned family is at ZERO rows: 'a runtime region mixes block extents' 374->0, 'smove preserves width' 9->0, \"block name 'scanp.head' defined twice\" 9->"
+    },
+    {
+      "at": "2026-11-06T21:02:42.917745+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "start-task",
+      "detail": "T033 agent=coder"
     }
   ]
 }
