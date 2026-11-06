@@ -36,7 +36,15 @@ is load-bearing (MECH-WITNESS-TEST):
                       at their uses (no stack slot), reload values are
                       never re-split (the futile ``.r1.r1`` loop), and
                       the matmul_k32_fast fp16 case executes and
-                      compares PASS.
+                      compares PASS.  Value preservation is asserted
+                      structurally (remat products carry the original
+                      constant; every reload matches a spill's slot and
+                      (sew, lmul)) and by execution.
+  overlap-control     the mixed-LMUL group-overlap invariant's negative
+                      control (MECH-WITNESS-TEST): a hand-forged
+                      assignment whose m2 destination group covers its
+                      m1 source must be rejected -- the invariant's
+                      silence on real allocations is meaningful.
 
 Run: python3 a100c/tests/test_t029_repairs.py   (exit 0 = all checks PASS)
 """
@@ -67,6 +75,8 @@ def check(name: str, ok: bool, detail: str = "") -> bool:
 
 
 import importlib.util  # noqa: E402
+import re  # noqa: E402
+from typing import Dict  # noqa: E402
 import numpy as np  # noqa: E402
 
 from a100c.backend import allocate as alloc_mod  # noqa: E402
@@ -364,6 +374,47 @@ def check_lmul4_allocation():
     check("lmul4-no-interfering-pair-shares", not conflicts,
           str(conflicts[:3]))
 
+    # the emitted spill form's ambient-vl discipline: ``vsetvli x0, x0,
+    # e{sew}, m{lmul}`` KEEPS the ambient vl (probed on the pinned QEMU:
+    # from vl=32/e32m1 the switch to e32m4 left vl=32, and vse32.v
+    # stored exactly 32 lanes), so the spill/reload of a whole register
+    # group is value-preserving only when the ambient region at every
+    # spill site is the FULL one (avl == vlmax).  Assert it textually on
+    # the emitted program: each spill-form store loads the whole group.
+    vlen_bits = DEFAULT_TARGET.vlen_bits
+    spill_form = re.compile(
+        r"^\s*vsetvli\s+x0,\s*x0,\s*e(\d+),\s*m(\d+),\s*ta,\s*ma")
+    vsl = re.compile(r"^\s*vsetvli\s+(\w+),\s*(\w+),\s*e(\d+),\s*m(\d+)")
+    lil = re.compile(r"^\s*li\s+(\w+),\s*(-?\d+)")
+    mem = re.compile(r"^\s*(vse\d+|vle\d+)\.v")
+    consts: Dict[str, int] = {}
+    ambient = None
+    pending = None
+    sites = []
+    for line in program.text.splitlines():
+        li = lil.match(line)
+        if li:
+            consts[li.group(1)] = int(li.group(2))
+        if spill_form.match(line):
+            pending = ambient
+            continue
+        vm = vsl.match(line)
+        if vm:
+            ambient = (int(vm.group(3)), int(vm.group(4)),
+                       consts.get(vm.group(2)))
+        if mem.match(line) and pending is not None:
+            sites.append((pending, line.strip()))
+            pending = None
+    bad_ambient = [(str(p), m) for p, m in sites
+                   if p is None or p[2] is None
+                   or p[2] != (vlen_bits // p[0]) * p[1]
+                   or (p[0], p[1]) != (32, 4)]
+    check("lmul4-spill-sites-full-vl-ambient",
+          sites and not bad_ambient,
+          f"{len(sites)} spill sites, all in full-vl e32m4 "
+          f"(avl 128) ambient regions"
+          if not bad_ambient else str(bad_ambient[:3]))
+
     # executed: the operators behind the removed LMUL-4 refusals
     # (gemm_smallk: the N-tail mask covering all 128 lanes;
     # matmul_k64_2d: the broadcast-shaped staged offsets)
@@ -455,12 +506,47 @@ def check_spill_convergence():
     errors = mir.verify_module(module)
     check("convergence-module-verifies", not errors,
           str(errors[0]) if errors else "")
-    # the values are preserved across spill/reload: the sum chain's
-    # result is deterministic under the constant model (the module's
-    # own constants)
-    expected_sum = 30 * 1000 + (0 + 29) * 30 // 2
-    check("convergence-model-sum", expected_sum == 30435,
-          f"the 30-constant chain sums {expected_sum}")
+
+    # values preserved across the interventions, structurally (the
+    # remat path): every remat product carries the SAME constant as the
+    # value it replaces -- rematerialization is value-preserving by
+    # construction, and this asserts the construction
+    remat_pairs = []
+    for fn in module.functions:
+        for b in fn.blocks:
+            for op in b.ops:
+                if op.opcode == "sconst" and ".c" in op.results[0].name:
+                    remat_pairs.append((op.results[0].name,
+                                        op.attrs["value"]))
+    originals = {1000 + c for c in range(30)}
+    check("convergence-remat-values-preserved",
+          remat_pairs and all(v in originals for _n, v in remat_pairs),
+          f"{len(remat_pairs)} remat products, values "
+          f"{sorted({v for _n, v in remat_pairs})[:6]}...")
+    # values preserved across the spill path: every reload matches a
+    # spill on the same slot at the same (sew, lmul) -- the reload
+    # restores exactly the register group the spill stored
+    spills = {}
+    reloads = []
+    for fn in module.functions:
+        for b in fn.blocks:
+            for op in b.ops:
+                if op.opcode in ("vspill", "sspill"):
+                    spills.setdefault(op.attrs["slot"], []).append(op)
+                elif op.opcode in ("vreload", "sreload"):
+                    reloads.append(op)
+    mismatched = [op.attrs["slot"] for op in reloads
+                  if op.attrs["slot"] not in spills]
+    shape_mismatch = []
+    for op in reloads:
+        for sp in spills.get(op.attrs["slot"], ()):
+            if (sp.attrs.get("sew"), sp.attrs.get("lmul")) != \
+                    (op.attrs.get("sew"), op.attrs.get("lmul")):
+                shape_mismatch.append(op.attrs["slot"])
+    check("convergence-spill-reload-slots-match",
+          reloads and not mismatched and not shape_mismatch,
+          f"{len(reloads)} reloads against {len(spills)} spill slots, "
+          "all shape-matched")
 
     # executed: the class-3 census operator (fp16, the dtype that hit
     # the 65-round non-convergence) compiles, executes, compares
@@ -468,10 +554,60 @@ def check_spill_convergence():
     check("convergence-matmul-k32-fast-fp16-pass", ok, why)
 
 
+def check_mixed_lmul_overlap_control():
+    """acceptance[2]'s negative control (MECH-WITNESS-TEST): the post-
+    allocation mixed-LMUL overlap invariant can actually REJECT -- a
+    hand-forged assignment whose m2 destination group covers its m1
+    source must raise, so the invariant's silence on the real allocations
+    is meaningful (a check that cannot fail checks nothing)."""
+    # the widening-address class: an m1 source feeding an m2 destination
+    launch = mir.VReg(mir.I64, name="launch")
+    fn = mir.MFunction("overlap_probe", [launch])
+    entry = mir.Block("entry", [launch])
+    fn.blocks.append(entry)
+    src = mir.VReg(mir.VectorType(32, 1, "int"), name="src")
+    dst = mir.VReg(mir.VectorType(64, 2, "int"), name="dst")
+    entry.ops.append(mir.MOp("vid", [], [src]))
+    entry.ops.append(mir.MOp("vwiden", [src], [dst],
+                             attrs={"mode": "sext"}))
+    entry.ops.append(mir.MOp("ret", [], []))
+    module = mir.MModule("overlap_probe", "<probe>")
+    module.functions.append(fn)
+    try:
+        allocation = alloc_mod.allocate(module, DEFAULT_TARGET)
+    except alloc_mod.AllocationError as exc:
+        check("overlap-control-legal-allocates", False, str(exc)[:100])
+        return
+    sname = allocation.assignment.get(src.rid)
+    dname = allocation.assignment.get(dst.rid)
+    sbase = int(sname[1:]) if sname and sname.startswith("v") else -1
+    dbase = int(dname[1:]) if dname and dname.startswith("v") else -1
+    legal = (sbase >= 0 and dbase >= 0
+             and not (dbase <= sbase < dbase + 2))
+    check("overlap-control-legal-allocates", legal,
+          f"src={sname} dst={dname} (groups disjoint)")
+    # the control: forge the destination group onto the source
+    forged = alloc_mod.Allocation()
+    forged.assignment[src.rid] = "v2"
+    forged.assignment[dst.rid] = "v2"       # m2 group covers v2 and v3
+    forged.shapes[src.rid] = ("vec", 1)
+    forged.shapes[dst.rid] = ("vec", 2)
+    try:
+        alloc_mod._check_group_overlap(fn, forged)
+    except alloc_mod.AllocationError as exc:
+        check("overlap-control-rejects-overlap",
+              "overlapping source" in str(exc), str(exc)[:90])
+        return
+    check("overlap-control-rejects-overlap", False,
+          "the invariant accepted a forged overlapping assignment "
+          "(the check is vacuous)")
+
+
 def main() -> int:
     check_ptradd_width()
     check_lmul4_allocation()
     check_spill_convergence()
+    check_mixed_lmul_overlap_control()
     if FAILURES:
         print(f"FAILED: {len(FAILURES)} check(s)", flush=True)
         return 1

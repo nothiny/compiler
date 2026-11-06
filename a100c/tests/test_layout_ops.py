@@ -174,6 +174,11 @@ def check_corpus(workdir, compiler):
          [{"shape": (17,), "dtype": "float32"}]),
         ("suite/dev/fht_kernel_256_4row_native.py",
          [{"shape": (17,), "dtype": "float32"}]),
+        # avg_pool1d_kernel_optimized left the refusal census (T029's
+        # tree: the grid model now tracks its launch geometry's
+        # provenance); it stays executed like the other family members
+        ("suite/dev/avg_pool1d_kernel_optimized.py",
+         [{"shape": (2, 32, 4096), "dtype": "float32"}]),
     ]
     for rel, kwargs_list in executors:
         p = ROOT / "ops" / rel
@@ -197,6 +202,10 @@ def check_corpus(workdir, compiler):
     # cross-product reductions; every dtype executes PASS at 1/4 workers
     # in T028's execution probe) -- the fp64 boundary keeps a census
     # member below.
+    # avg_pool1d_kernel_optimized.py left the census on T029's tree (the
+    # grid model tracks its launch geometry's provenance now): verified
+    # executed + compared PASS at 1/2/4 workers (shape (2, 32, 4096)
+    # float32), and moved into the executor list above.
     census = [
         ("fht_kernel_1d_native.py", {"shape": (17,), "dtype": "float32"},
          ("fp64", "float64")),
@@ -205,9 +214,6 @@ def check_corpus(workdir, compiler):
         # region discipline -- it left the refusal census and is now a
         # compiled family member (the census below keeps only the files
         # that still refuse)
-        ("avg_pool1d_kernel_optimized.py",
-         {"shape": (2, 32, 4096), "dtype": "float32"},
-         ("grid", "provenance")),
         ("transpose_2d_kernel_opt.py",
          {"shape": (512, 128), "dtype": "float32"},
          ("",)),  # still executing-defective: the report's remaining work
