@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-06T21:02:43.450051+00:00",
+  "updated_at": "2026-11-06T22:08:54.513985+00:00",
   "facts": [
     {
       "id": "F001",
@@ -3120,14 +3120,14 @@
       "tags": [
         "compile-sweep-repair"
       ],
-      "status": "RUNNING",
+      "status": "DONE",
       "assignee": "coder",
       "attempts": 1,
-      "evidence": "",
+      "evidence": "worker report WTI033: Round-2 frontend-form repair, all through shared paths. (1) Descending ranges: tir.Loop carries a descending flag pinned by the TIR verifier to the compile-time step sign; the counted head test continues while i stays ABOVE upper (scalar.py begin_counted_loop slt with swapped operands) and the break/return while-form conversion compares gt; 4 operators (reversed_cumsum, nonzero_kernel, cholesky_solve, fused_lu_solve) now build artifacts. (2) ==1 specialization: an int argument equal to 1 is a constexpr 1 exactly like pinned native_specialize_impl (specialize.env + _bind_params), so deconv3d's 'if groups == 1' folds and the dead else arm's block-tensor 'if lane_mask:' never lowers; a non-==1 identity keeps the located pinned refusal. (3) Block-pointer method advance: '.advance' maps to tl.advance (the pinned @_tensor_member_fn), list-literal and runtime-offset sequences accepted. (4) Boolean block logic: i1 add/sub is mod-2 = mask xor and i1 mul = mask and; cmp.eq/ne over masks is xnor/xor -- new vmxor.mm repertoire row (assembler-probed) in a100c/backend/repertoire.py. (5) Grid: a symbolic conditional stays an identity-preserving hole (fillable by view/scalar/meta ties), np.asarray/elementwise-np/reshape(-1) keep structurally tracked extents, and a quotient solve reads an untied leaf/hole/subtree exactly once in a view-extent product as view_extent // readable-cofactors; 38 of 47 grid rows now extract (self-checked, no baking), gn_finalize/chunk_abc keep located refusals. (6) Layout: the staged-block axis map tries positional alignment then the UNIQUE equal-extent matching (tiled_argmin fixed). (7) scalarize runs vextract inside its value's own region (cholesky_solve bf16 class); the staging analysis includes scalar segments (softsign (1,) bf16); rank-0 bool if-joins normalize to the i64 GPR convention; the {0,1}-class reduction widens to the declared width when no merge frame owns it (cholesky_upper fp16/bf16). Filtered sweep over all 24 class",
       "last_error": "",
       "failure_kind": "",
       "start_revision": "7057f5ba8e0d1170c4e8078c1be0db4e467ee40d",
-      "end_revision": "",
+      "end_revision": "22a488eb4e8089ef26c370ef64996cb611f914d2",
       "completed_seq": 0,
       "debug_required": false,
       "debug_request_id": "",
@@ -8614,6 +8614,24 @@
       "phase": "IMPLEMENTATION",
       "event": "task-delegate",
       "detail": "WTI033 task=T033 attempt=1 profile=general-purpose"
+    },
+    {
+      "at": "2026-11-06T22:08:54.477713+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "task-report-out-of-contract",
+      "detail": "T033: a100c/cache/f68c5d4ddeec102828e781c2cd71af75b017f9e0fd88abc687e4b4ff53e43425/operator_exec, t032_report.json, a100c/backend/repertoire.py, a100c/lower/scalar.py, a100c/tests/test_grid_model.py"
+    },
+    {
+      "at": "2026-11-06T22:08:54.485082+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "task-report",
+      "detail": "WTI033 COMPLETED attempt=1 [changes outside the declared paths: a100c/cache/f68c5d4ddeec102828e781c2cd71af75b017f9e0fd88abc687e4b4ff53e43425/operator_exec, t032_report.json, a100c/backend/repertoire.py, a100c/lower/scalar.py, a100c/tests/test_grid_model.py]"
+    },
+    {
+      "at": "2026-11-06T22:08:54.513971+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "complete-task",
+      "detail": "T033 worker report WTI033: Round-2 frontend-form repair, all through shared paths. (1) Descending ranges: tir.Loop carries a descending flag pinned by the TIR verifier to the compile-time step sign; the counted head test continues while i stays ABOVE upper (scalar.py begin_counted_loop slt with swapped operands) and the break/return while-form conversion compares gt; 4 operators (reversed_cumsum, nonzero_kernel, cholesky_solve, fused_lu_solve) now build artifacts. (2) ==1 specialization: an int argument equal to 1 is a constexpr 1 exactly like pinned native_specialize_impl (specialize.env + _bind_params), so deconv3d's 'if groups == 1' folds and the dead else arm's block-tensor 'if lane_mask:' never lowers; a non-==1 identity keeps the located pinned refusal. (3) Block-pointer method advance: '.advance' maps to tl.advance (the pinned @_tensor_member_fn), list-literal and runtime-offset sequences accepted. (4) Boolean block logic: i1 add/sub is mod-2 = mask xor and i1 mul = mask and; cmp.eq/ne over masks is xnor/xor -- new vmxor.mm repertoire row (assembler-probed) in a100c/backend/repertoire.py. (5) Grid: a symbolic conditional stays an identity-preserving hole (fillable by view/scalar/meta ties), np.asarray/elementwise-np/reshape(-1) keep structurally tracked extents, and a quotient solve reads an untied leaf/hole/subtree exactly once in a view-extent product as view_extent // readable-cofactors; 38 of 47 grid rows now extract (self-checked, no baking), gn_finalize/chunk_abc keep located refusals. (6) Layout: the staged-block axis map tries positional alignment then the UNIQUE equal-extent matching (tiled_argmin fixed). (7) scalarize runs vextract inside its value's own region (cholesky_solve bf16 class); the staging analysis includes scalar segments (softsign (1,) bf16); rank-0 bool if-joins normalize to the i64 GPR convention; the {0,1}-class reduction widens to the declared width when no merge frame owns it (cholesky_upper fp16/bf16). Filtered sweep over all 24 class"
     }
   ]
 }

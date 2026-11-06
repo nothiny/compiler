@@ -606,14 +606,17 @@ class LoopFrame:
 
 def begin_counted_loop(ctx, lower: mir.VReg, upper: mir.VReg,
                        carried_inits: Sequence[mir.VReg], loc,
-                       tag: str) -> LoopFrame:
+                       tag: str, descending: bool = False) -> LoopFrame:
     """The counted range form:
 
-    ``head(i, carried...) { c = i <u upper; brc c -> body, exit }``
+    ``head(i, carried...) { c = i < upper; brc c -> body, exit }``
 
     The induction value ``i`` is ``params[0]``; the body is entered with
     the current carried values and closed by the caller with the back-edge
-    branch to the head.
+    branch to the head.  A DESCENDING range (compile-time negative step,
+    T033) continues while ``i`` stays ABOVE ``upper`` -- ``slt`` with the
+    operands swapped is exactly ``upper < i``, the pinned Triton descent
+    ``range(a, b, -s)``; the back edge still adds the (negative) step.
     """
     width = lower.type.width
     upper_n = convert_width(ctx, upper, width, loc)
@@ -631,10 +634,14 @@ def begin_counted_loop(ctx, lower: mir.VReg, upper: mir.VReg,
                              "args": [lower] + list(carried_inits)}, loc=loc))
     ctx.switch(head)
     # non-negative induction over a non-negative bound: slt == sltu here,
-    # and slt keeps the signed forms of pathological bounds safe
-    cont = ctx.emit(mir.MOp("slt", [head_params[0], upper_n],
-                            [ctx.vreg(mir.I64, hint="go", loc=loc)],
-                            loc=loc))
+    # and slt keeps the signed forms of pathological bounds safe (a
+    # descending range's upper bound is typically negative -- signed
+    # compare is the only safe form)
+    cont = ctx.emit(mir.MOp(
+        "slt", [upper_n, head_params[0]] if descending
+        else [head_params[0], upper_n],
+        [ctx.vreg(mir.I64, hint="go", loc=loc)],
+        loc=loc))
     ctx.emit0(mir.MOp("brc", [cont], [],
                       attrs={"true_target": body.name,
                              "true_args": list(head_params),

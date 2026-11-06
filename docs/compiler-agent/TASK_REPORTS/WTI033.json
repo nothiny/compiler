@@ -1,0 +1,92 @@
+{
+  "invocation_id": "WTI033",
+  "task_id": "T033",
+  "attempt": 1,
+  "context_sha256": "60b038de6fecca59b364d4f280a1895ef33afe44d3428c77946f062cb8547cfe",
+  "outcome": "COMPLETED",
+  "failure_kind": "implementation",
+  "summary": "Round-2 frontend-form repair, all through shared paths. (1) Descending ranges: tir.Loop carries a descending flag pinned by the TIR verifier to the compile-time step sign; the counted head test continues while i stays ABOVE upper (scalar.py begin_counted_loop slt with swapped operands) and the break/return while-form conversion compares gt; 4 operators (reversed_cumsum, nonzero_kernel, cholesky_solve, fused_lu_solve) now build artifacts. (2) ==1 specialization: an int argument equal to 1 is a constexpr 1 exactly like pinned native_specialize_impl (specialize.env + _bind_params), so deconv3d's 'if groups == 1' folds and the dead else arm's block-tensor 'if lane_mask:' never lowers; a non-==1 identity keeps the located pinned refusal. (3) Block-pointer method advance: '.advance' maps to tl.advance (the pinned @_tensor_member_fn), list-literal and runtime-offset sequences accepted. (4) Boolean block logic: i1 add/sub is mod-2 = mask xor and i1 mul = mask and; cmp.eq/ne over masks is xnor/xor -- new vmxor.mm repertoire row (assembler-probed) in a100c/backend/repertoire.py. (5) Grid: a symbolic conditional stays an identity-preserving hole (fillable by view/scalar/meta ties), np.asarray/elementwise-np/reshape(-1) keep structurally tracked extents, and a quotient solve reads an untied leaf/hole/subtree exactly once in a view-extent product as view_extent // readable-cofactors; 38 of 47 grid rows now extract (self-checked, no baking), gn_finalize/chunk_abc keep located refusals. (6) Layout: the staged-block axis map tries positional alignment then the UNIQUE equal-extent matching (tiled_argmin fixed). (7) scalarize runs vextract inside its value's own region (cholesky_solve bf16 class); the staging analysis includes scalar segments (softsign (1,) bf16); rank-0 bool if-joins normalize to the i64 GPR convention; the {0,1}-class reduction widens to the declared width when no merge frame owns it (cholesky_upper fp16/bf16). Filtered sweep over all 24 class-carrying operators: 101 identities -> 61 artifacts + 40 located refusals, classes range/if/gQ.advance/arith.add/cmp.eq/add at ZERO, grid 15<47 (all naming the untraceable input), layout 1<4; 19 repeat cases reused one artifact (no baking). Full a100c test suite (37 files) PASS; new a100c/tests/test_t033_repairs.py executes every repaired class on the pinned QEMU endpoint at 1 and 4 workers against independent numpy references.",
+  "files_changed": [
+    "a100c/ir/tir.py",
+    "a100c/ir/mir.py",
+    "a100c/frontend/lower_tir.py",
+    "a100c/frontend/specialize.py",
+    "a100c/frontend/gridmodel.py",
+    "a100c/lower/scalar.py",
+    "a100c/lower/vectorize.py",
+    "a100c/backend/repertoire.py",
+    "a100c/tests/test_grid_model.py",
+    "a100c/tests/test_reductions.py",
+    "a100c/tests/test_t033_repairs.py",
+    "a100c/cache/grid-census.json"
+  ],
+  "artifacts": [
+    "a100c/tests/test_t033_repairs.py",
+    "a100c/cache/grid-census.json"
+  ],
+  "commands": [
+    {
+      "command": "set -a; . ./.env; set +a; timeout 3000 python3 a100c/tests/test_compile_sweep.py --operator suite/dev/reversed_cumsum.py --operator suite/dev/nonzero_kernel.py --operator suite/perf/cholesky_solve.py --operator suite/perf/fused_lu_solve.py --operator suite/dev/deconv3d_fwd_kernel.py --operator suite/dev/flash_varlen_fwd_kernel.py --operator suite/perf/gelu_std.py --operator suite/perf/std.py --operator suite/dev/fused_pool_reduce_kernel.py --operator suite/dev/cholesky_upper_kernel.py --operator suite/dev/chunk_abc_fwd_kernel_intra_K.py --operator suite/dev/chunk_generalized_iplr_delta_rule_fwd_kernel_o.py --operator suite/dev/csr_value_index_kernel.py --operator suite/dev/cumprod_dim1_kernel_log2exp2_early.py --operator suite/dev/fht_kernel_1d_native.py --operator suite/dev/fused_bn_relu_kernel.py --operator suite/dev/fused_grouped_gate_kernel.py --operator suite/dev/gn_finalize_kernel.py --operator suite/dev/gram_jacobi_sym_kernel.py --operator suite/dev/masked_cumsum_vec_kernel.py --operator suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py --operator suite/dev/tiled_argmin.py --operator suite/dev/chunk_transform_qk_fwd_kernel.py --operator suite/dev/softsign_kernel.py --census-out /tmp/t033-final-census.json",
+      "exit_code": 0,
+      "observed": "all compile-sweep checks PASS; 101 identities = 61 artifacts + 40 located refusals; classes range/if/gQ.advance/arith.add/cmp.eq/add at 0; grid 15 rows (chunk_abc 6, gn_finalize 3, deconv3d 6 -- all 'grid input $shape_extent(0,) ... cannot be proven equal ... refusing to bake a launch geometry', strictly smaller than 47); layout 1 (chunk_transform_qk matrix-native staged-operand site); 19 repeat-case checks all reused one artifact; 0 over-budget, 0 crashes"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; timeout 1800 python3 a100c/tests/test_t033_repairs.py",
+      "exit_code": 0,
+      "observed": "PASS descending-range-executes-identical-to-ascending; PASS descending-range-with-break-executes; PASS boolean-block-add-and-eq-execute; PASS eq1-specialization-folds-dead-arm-executes; PASS eq1-other-class-block-if-still-refuses; PASS blockptr-method-advance-executes; PASS repaired-corpus-classes-execute-1-4-workers; PASS grid-quotient-tie-no-baking-two-shapes; PASS genuinely-untraceable-grids-still-refuse-located; PASS tir-verifier-rejects-flag-step-disagreement"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; timeout 900 python3 a100c/tests/test_grid_model.py",
+      "exit_code": 0,
+      "observed": "all checks PASS; corpus census 2701 extracted / 33 refused of 2734 cases (495 of 500 operators fully extracted), every extraction self-checked modeled == declared"
+    }
+  ],
+  "acceptance": [
+    {
+      "ref": "acceptance[0]",
+      "command": "set -a; . ./.env; set +a; timeout 3000 python3 a100c/tests/test_compile_sweep.py --operator <the 24 census operators carrying the grid/range/if/gQ.advance/cmp.eq/arith.add/layout/add rows> --census-out /tmp/t033-final-census.json",
+      "exit_code": 0,
+      "observed": "the filtered sweep over every class-carrying operator shows range/if/gQ.advance/arith.add/cmp.eq/add at ZERO and layout at 1 of 4 (tiled_argmin's staged-axis-map rows fixed; chunk_transform_qk's remaining row is the different matrix-native staged-operand site); grid is a strictly smaller counted set of 15 located refusals (was 47), each naming the untraceable input ($shape_extent(0,)): chunk_abc (opaque _aligned views), gn_finalize (product-only shape factors), deconv3d (N is an args-based constexpr the corpus identity does not sign)"
+    },
+    {
+      "ref": "acceptance[1]",
+      "command": "set -a; . ./.env; set +a; timeout 1800 python3 a100c/tests/test_t033_repairs.py",
+      "exit_code": 0,
+      "observed": "the descending-range probe and its ASCENDING-equivalent control kernel execute to identical outputs at 1 and 4 workers (plus a break-in-descending-loop form); the grid quotient probe serves two shapes of one identity with one artifact and both execute correct; test_grid_model's corpus census re-proves modeled == declared for every newly extracting case (2701/2734) with the no-baking leaf checks"
+    },
+    {
+      "ref": "acceptance[2]",
+      "command": "set -a; . ./.env; set +a; for t in a100c/tests/test_*.py (excluding test_compile_sweep, the full-corpus driver)",
+      "exit_code": 0,
+      "observed": "all 37 pre-existing and new test files PASS, including test_grid_model (fht pin moved to the stronger extraction form), test_control_flow, test_reductions (masked_cumsum boundary moved from grid to the scan construct), test_lower_scalar (the {0,1}-class widening guarded to frame-free reductions), test_t031/t032 repairs"
+    }
+  ],
+  "tests": [
+    {
+      "ref": "tests[0]",
+      "command": "set -a; . ./.env; set +a; timeout 3000 python3 a100c/tests/test_compile_sweep.py --operator <owned operators: the 24 class-carrying census operators> --census-out /tmp/t033-final-census.json",
+      "exit_code": 0,
+      "observed": "all compile-sweep checks PASS (census-covers-every-case, partition-sums-to-identity-census, artifacts-are-riscv64-elf, compile-count-within-economics, repeat-cases-reuse-one-artifact, refusals-located-and-countable, compile-budget-respected, enabled-pipeline-passes-on); classes at zero / counted residuals as in acceptance[0]"
+    },
+    {
+      "ref": "tests[1]",
+      "command": "set -a; . ./.env; set +a; python3 a100c/tests/test_grid_model.py && python3 a100c/tests/test_control_flow.py && <the full a100c test suite>",
+      "exit_code": 0,
+      "observed": "test_grid_model: all checks PASS; test_control_flow: all checks PASS; the full suite (37 files) PASS"
+    }
+  ],
+  "evidence": "Executed-and-compared witnesses on the pinned QEMU endpoint at 1 and 4 workers, all through the factory compiler: the descending-range probe vs its ascending-equivalent control (identical outputs, plus the break form); the boolean-block add/eq probe (exact int compares); the ==1 fold probe (dead block-tensor arm) with its groups=3 located-refusal control; the blockptr method-advance probe; the grid-quotient no-baking probe (two shapes, one artifact, both correct); and the repaired corpus operators themselves (reversed_cumsum, cholesky_solve, gelu_std, std, fused_pool_reduce, tiled_argmin, softsign (1,) bf16) against their own case-layer numpy references. The filtered compile sweep's by-construct counts (range/if/gQ.advance/arith.add/cmp.eq/add at zero, grid 15<47 located, layout 1<4) and the 19 repeat-case one-artifact controls are the class-level evidence; test_grid_model's 2701/2734 self-checked extractions prove no baking.",
+  "design_issue": {},
+  "debug_request": {},
+  "attack": {},
+  "remaining_work": [
+    "cumprod_dim1 float32: after the if-join bool normalization, a scan-merge use-before-definition ('branch argument cscanp4x1 to chunk1_head') -- the tl.cumsum-inside-if-inside-loop shape; the pre-existing scan family owns it",
+    "fht + masked_cumsum_kernel_db: vstoreix with a vi64m2 value under an e32m1 region (the pre-existing 24-row mixed-SEW store class; masked_cumsum_vec's rows grid tie now extracts, its refusal moved to the scan's non-last-axis boundary)",
+    "csr_value_index: compiles but the native process exits -4 at execution (newly reachable; needs its own debugging cycle); gram_jacobi_sym compiles but writes zero EVALS (triple-nested while region, newly reachable)",
+    "flash_varlen: advance fixed; next blocker tl.trans on a 1-dimensional tensor (located); chunk_generalized: tl.dot fp64 outside the corpus surface (located, pinned) + allocation convergence on other identities; chunk_transform_qk: allocation (2) + the matrix-native staged-operand layout site (1)",
+    "deconv3d: if/tl.full classes fixed; its grid axis n has no sound tie (N is an args-based constexpr the corpus identity does not sign) -- keeps the located grid refusal unless the identity tier is extended (a design decision, not a local fix)",
+    "the full-corpus compile sweep should be re-run by the engine to refresh docs/compiler-agent/COMPILE_CENSUS.json at this revision (this task's sweep was filtered to the class-carrying operators)"
+  ],
+  "end_revision": "",
+  "at": "2026-11-06T22:08:54.433717+00:00"
+}

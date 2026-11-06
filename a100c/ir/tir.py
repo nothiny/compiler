@@ -1005,9 +1005,10 @@ class Loop:
 
     * counted range form: ``lower``/``upper``/``step`` all present, the body
       executes while the induction value (``carried[0]``'s name) is below
-      ``upper``; the frontend appends the induction increment inside the
-      body so the carried-join invariant covers it like any other carried
-      name;
+      ``upper`` -- or, when ``descending`` is set (a compile-time negative
+      ``step``), while it is above ``upper``; the frontend appends the
+      induction increment inside the body so the carried-join invariant
+      covers it like any other carried name;
     * while form: ``cond`` present and the three bounds ``None``; ``cond``
       names the *initial* condition value, and the body must redefine the
       cond's name (it is carried) by re-evaluating the condition over the
@@ -1016,11 +1017,16 @@ class Loop:
 
     def __init__(self, lower: Optional[Value], upper: Optional[Value],
                  step: Optional[Value], loc: Optional[SrcLoc] = None,
-                 cond: Optional[Value] = None):
+                 cond: Optional[Value] = None, descending: bool = False):
         self.lower = lower
         self.upper = upper
         self.step = step
         self.cond = cond
+        #: a descending counted range (compile-time negative step): the
+        #: body runs while the induction stays ABOVE ``upper`` (T033; the
+        #: pinned Triton lowering of ``range(a, b, -s)``).  The verifier
+        #: pins the flag to the step's compile-time sign.
+        self.descending = bool(descending)
         self.loc = loc
         self.body = Block()
         self.carried: Tuple[Tuple[str, Value], ...] = ()
@@ -2078,7 +2084,34 @@ def _verify_block(block: Block, scope: _Scope, errors: list,
                         errors.append(TirError(
                             Invariant.TYPE_CONTRADICTION, stmt.loc,
                             f"{what} must be scalar (rank 0); loop bounds "
-                            "are per-program scalars"))
+                            "are per-program scalars")
+                        )
+                # the descending flag is pinned to the step's compile-time
+                # sign (T033): a negative constant step must be declared
+                # descending, and a declared descent must carry one
+                step_prod = stmt.step.producer if stmt.step is not None \
+                    else None
+                step_const = step_prod.attrs.get("value") \
+                    if step_prod is not None and step_prod.op == "const" \
+                    else None
+                if isinstance(step_const, int) and not isinstance(
+                        step_const, bool):
+                    if step_const == 0:
+                        errors.append(TirError(
+                            Invariant.MALFORMED, stmt.loc,
+                            "'loop' step is zero"))
+                    elif (step_const < 0) != stmt.descending:
+                        errors.append(TirError(
+                            Invariant.MALFORMED, stmt.loc,
+                            f"'loop' step {step_const} disagrees with the "
+                            f"descending flag ({stmt.descending}); a "
+                            "negative constant step must be declared "
+                            "descending"))
+                elif stmt.descending:
+                    errors.append(TirError(
+                        Invariant.MALFORMED, stmt.loc,
+                        "a descending 'loop' requires a compile-time "
+                        "negative step"))
             body_scope = scope.copy()
             for name, init in stmt.carried:
                 _check_use(init, f"'loop' carried initial value '{name}'",

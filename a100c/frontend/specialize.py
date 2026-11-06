@@ -692,6 +692,17 @@ class Specialization:
                 env.values[p.name] = RuntimeValue(
                     p.name, tir.Type.pointer(pointee))
             elif p.name in self.scalar_types:
+                if self.scalar_classes.get(p.name) == ("int", "one"):
+                    # the pinned ==1 specialization (T033): an integer
+                    # argument equal to 1 is a constexpr 1 in the JIT's
+                    # own domain (native_specialize_impl ->
+                    # ("constexpr", 1)), so constexpr-context uses
+                    # (``if groups == 1:``, ``tl.full(..., n, ...)``) fold
+                    # exactly like the pinned frontend's.  A VALUE CLASS
+                    # only -- the identity signs it, and
+                    # do_not_specialize names never carry the class.
+                    env.values[p.name] = 1
+                    continue
                 env.values[p.name] = RuntimeValue(p.name,
                                                   self.scalar_types[p.name])
         return env
