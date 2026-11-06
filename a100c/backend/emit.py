@@ -89,11 +89,21 @@ class _Emitter:
 
     # -- frame ------------------------------------------------------------
     def _layout(self) -> Tuple[Dict[int, int], Optional[int]]:
-        offset = 0
-        offsets: Dict[int, int] = {}
-        for slot, size in enumerate(self.alloc.slots):
-            offsets[slot] = offset
-            offset += size
+        """The frame layout (offsets from the adjusted sp).
+
+        T029: the small, always-accessed items (saved registers, the
+        move scratch, the 8-byte scalar slots, the spill/reload address
+        scratch, the libm slots) sit at LOW offsets; only the vector
+        spill slots -- up to 1024 B per m8 group -- may push past the
+        12-bit immediate boundary of the sp-relative forms, and every
+        access that can reach them goes through the offset-safe
+        address materialization (:meth:`_sp_addr`), so a frame of any
+        size the allocator builds still assembles.
+        """
+        # [ra + saved registers] at the bottom
+        self._saved_base = 0
+        offset = 8 * (1 + len(self._saved()))
+        # [the parallel-move GPR scratch slot]
         scratch = None
         if self._needs_scratch():
             scratch = offset
@@ -118,7 +128,30 @@ class _Emitter:
             offset += 8
             self._math_slots["cnt"] = offset
             offset += 8
+        # [the 8-byte scalar spill slots]
+        offsets: Dict[int, int] = {}
+        for slot, size in enumerate(self.alloc.slots):
+            if size == 8:
+                offsets[slot] = offset
+                offset += 8
+        # [the vector spill slots] -- 128..1024 B each, may cross the
+        # 12-bit immediate boundary
+        for slot, size in enumerate(self.alloc.slots):
+            if size != 8:
+                offsets[slot] = offset
+                offset += size
+        self._frame_end = offset
         return offsets, scratch
+
+    def _sp_addr(self, off: int, scratch: str, op: mir.MOp) -> None:
+        """Materialize ``sp + off`` in ``scratch``, 12-bit safe: the plain
+        addi while the offset fits its immediate, else li + add (T029:
+        vector spill slots of m4/m8 groups push frames past 2047)."""
+        if -2048 <= off <= 2047:
+            self.emit(f"addi {scratch}, sp, {off}", op)
+        else:
+            self.emit(f"li {scratch}, {off}", op)
+            self.emit(f"add {scratch}, {scratch}, sp", op)
 
     def _math_buffer_bytes(self) -> int:
         """The widest vmath operand in bytes (vl * esz), 16-byte aligned."""
@@ -145,12 +178,7 @@ class _Emitter:
                       key=GPR_NAMES.index)
 
     def frame_bytes(self) -> int:
-        body = max(sum(self.alloc.slots), 0) \
-            + (8 if self.scratch_offset is not None else 0) \
-            + (self._math_buffer_bytes() + 16 if self._math_buffer_bytes()
-               else 0) \
-            + 8                     # the spill/reload address scratch slot
-        return (body + 8 * len(self.saved_regs) + 8 + 15) & ~15
+        return (self._frame_end + 15) & ~15
 
     # -- phys helpers -------------------------------------------------------
     def phys(self, reg: mir.VReg) -> str:
@@ -270,9 +298,11 @@ class _Emitter:
             self.emit(f"vmv1r.v {dst}, {src}", op)
         elif dstv.type.lmul == 1:
             self.emit(f"vmv.v.v {dst}, {src}", op)
-        elif dstv.type.lmul == 2:
-            self.emit(f"vmv2r.v {dst}, {src}", op)
-        else:  # pragma: no cover - allocator refuses m>2
+        elif dstv.type.lmul in (2, 4, 8):
+            # whole-register-group moves (T029: the allocator's m4/m8
+            # groups -- the fp32 dot's 128-lane chunk class)
+            self.emit(f"vmv{dstv.type.lmul}r.v {dst}, {src}", op)
+        else:  # pragma: no cover - the verifier restricts LMUL to 1..8
             raise EmissionError(op.loc, "branch",
                                 f"vector move at LMUL {dstv.type.lmul} "
                                 "not emitted")
@@ -438,10 +468,17 @@ class _Emitter:
             x = self.phys(op.operands[0])
             y = self.phys(op.operands[1])
             if vd != z:
-                if op.results[0].type.lmul == 2:
-                    self.emit(f"vmv2r.v {vd}, {z}", op)
-                else:
+                lmul = op.results[0].type.lmul
+                if lmul == 1:
                     self.emit(f"vmv.v.v {vd}, {z}", op)
+                elif lmul in (2, 4, 8):
+                    # whole-register-group copies (T029: the m4/m8 chunk
+                    # classes copy as groups)
+                    self.emit(f"vmv{lmul}r.v {vd}, {z}", op)
+                else:  # pragma: no cover - verifier restricts LMUL
+                    raise EmissionError(op.loc, "vfmacc",
+                                        f"vfmacc pre-copy at LMUL {lmul} "
+                                        "not emitted")
             self.emit(f"vfmacc.vv {vd}, {x}, {y}", op)
             return
         if code == "br":
@@ -472,16 +509,49 @@ class _Emitter:
             return
         if code == "sspill":
             # allocator-inserted (never selected: selection runs before
-            # allocation); the form is the allocator's own, matching the
-            # repertoire row
-            values = {"rs2": self.phys(op.operands[0]),
-                      "slot": str(self.slot_offsets[op.attrs["slot"]])}
-            self.emit(_fmt("sd {rs2}, {slot}(sp)", values), op)
+            # allocation); the form is the allocator's own, matching
+            # the repertoire row.  T029: a slot past the 12-bit
+            # immediate addresses through the spill-address scratch
+            off = self.slot_offsets[op.attrs["slot"]]
+            if off <= 2047:
+                values = {"rs2": self.phys(op.operands[0]),
+                          "slot": str(off)}
+                self.emit(_fmt("sd {rs2}, {slot}(sp)", values), op)
+            else:
+                scratch, epilogue = self._spill_addr_gpr(op)
+                if epilogue:
+                    self.emit(f"sd {scratch}, "
+                              f"{self._spill_addr_slot}(sp)", op)
+                self._sp_addr(off, scratch, op)
+                self.emit(f"sd {self.phys(op.operands[0])}, "
+                          f"0({scratch})", op)
+                for line in epilogue:
+                    self.emit(line, op)
             return
         if code == "sreload":
+            off = self.slot_offsets[op.attrs["slot"]]
+            if off <= 2047:
+                values = {"rd": self.phys(op.results[0]),
+                          "slot": str(off)}
+                self.emit(_fmt("ld {rd}, {slot}(sp)", values), op)
+            else:
+                scratch, epilogue = self._spill_addr_gpr(op)
+                if epilogue:
+                    self.emit(f"sd {scratch}, "
+                              f"{self._spill_addr_slot}(sp)", op)
+                self._sp_addr(off, scratch, op)
+                self.emit(f"ld {self.phys(op.results[0])}, "
+                          f"0({scratch})", op)
+                for line in epilogue:
+                    self.emit(line, op)
+            return
+        if code == "sconst" and op.index not in self.selection:
+            # allocator-inserted rematerialization (T029: never selected
+            # -- selection runs before allocation); the repertoire's own
+            # li form
             values = {"rd": self.phys(op.results[0]),
-                      "slot": str(self.slot_offsets[op.attrs["slot"]])}
-            self.emit(_fmt("ld {rd}, {slot}(sp)", values), op)
+                      "imm": str(op.attrs["value"])}
+            self.emit(_fmt("li {rd}, {imm}", values), op)
             return
         if code == "vspill":
             sew, lmul = op.attrs["sew"], op.attrs["lmul"]
@@ -492,11 +562,12 @@ class _Emitter:
             # immediate offset form exists): materialize sp+off in a
             # scratch GPR (a free one, or any caller-saved one saved to
             # the dedicated slot first -- T014: a fully-allocated GPR
-            # file must still spill)
+            # file must still spill; T029: the offset-safe form -- the
+            # m4/m8 group slots push frames past the 12-bit immediate)
             scratch, epilogue = self._spill_addr_gpr(op)
             if epilogue:
                 self.emit(f"sd {scratch}, {self._spill_addr_slot}(sp)", op)
-            self.emit(f"addi {scratch}, sp, {off}", op)
+            self._sp_addr(off, scratch, op)
             self.emit(f"vse{sew}.v {self.phys(op.operands[0])}, "
                       f"({scratch})", op)
             for line in epilogue:
@@ -511,7 +582,7 @@ class _Emitter:
             scratch, epilogue = self._spill_addr_gpr(op)
             if epilogue:
                 self.emit(f"sd {scratch}, {self._spill_addr_slot}(sp)", op)
-            self.emit(f"addi {scratch}, sp, {off}", op)
+            self._sp_addr(off, scratch, op)
             self.emit(f"vle{sew}.v {self.phys(op.results[0])}, "
                       f"({scratch})", op)
             for line in epilogue:
@@ -638,12 +709,19 @@ class _Emitter:
     def emit_function(self, fn: mir.MFunction) -> None:
         frame = self.frame_bytes()
         self.emit(f"operator_entry:", note=f"fn {fn.name}")
-        self.emit(f"addi sp, sp, -{frame}")
-        self.emit(f"sd ra, {frame - 8}(sp)")
-        offset = frame - 16
+        if frame <= 2047:
+            self.emit(f"addi sp, sp, -{frame}")
+        else:
+            # T029: a frame past the 12-bit immediate adjusts through a
+            # caller-saved scratch (t0 is dead at entry: the launch
+            # pointer arrives in a0 and moves to its own register after)
+            self.emit(f"li t0, {frame}")
+            self.emit("sub sp, sp, t0")
+        self.emit(f"sd ra, {self._saved_base}(sp)")
+        offset = self._saved_base + 8
         for name in self.saved_regs:
             self.emit(f"sd {name}, {offset}(sp)")
-            offset -= 8
+            offset += 8
         launch_phys = self.phys(fn.params[0])
         if launch_phys != "a0":
             self.emit(f"mv {launch_phys}, a0")
@@ -654,12 +732,17 @@ class _Emitter:
 
     def emit_epilogue(self, op: mir.MOp) -> None:
         frame = self.frame_bytes()
-        self.emit(f"ld ra, {frame - 8}(sp)", op)
-        offset = frame - 16
+        self.emit(f"ld ra, {self._saved_base}(sp)", op)
+        offset = self._saved_base + 8
         for name in self.saved_regs:
             self.emit(f"ld {name}, {offset}(sp)", op)
-            offset -= 8
-        self.emit(f"addi sp, sp, {frame}", op)
+            offset += 8
+        if frame <= 2047:
+            self.emit(f"addi sp, sp, {frame}", op)
+        else:
+            # t0 is caller-saved and nothing is live at the return
+            self.emit(f"li t0, {frame}", op)
+            self.emit("add sp, sp, t0", op)
         self.emit("ret", op)
 
     # -- whole program ----------------------------------------------------------

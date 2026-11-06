@@ -1646,6 +1646,7 @@ class _Composed:
                                            fam.acc_kind)
         self.M, self.N, self.K = spec.block_m, spec.block_n, spec.block_k
         self.vt32m1 = mir.VectorType(32, 1, "int")
+        self._vlen_bits = iface.sl.target.vlen_bits
         #: per-block constant cache (T014: the GPR live-set stays flat)
         self._kcache: dict = {}
 
@@ -1739,18 +1740,40 @@ class _Composed:
                                             loc=self.spec.loc)],
             loc=self.spec.loc))
 
+    def _lane_type(self, vl: int) -> mir.VectorType:
+        """The e32 lane-id class covering ``vl`` lanes: the LMUL that
+        holds the WHOLE chunk (T029: at m1 a vsetvli caps vl at
+        vlmax(e32,m1)=32, so a 128-lane chunk's lane ids and N-tail mask
+        would silently cover only the first 32 lanes -- the masked B-row
+        load zero-filled and the masked result store skipped lanes 32+,
+        the wrong-answer defect behind the removed LMUL-4 refusal)."""
+        lmul = max(1, vl * 32 // self._vlen_bits)
+        if lmul not in (1, 2, 4, 8):
+            raise MatrixLoweringError(
+                None, "dot",
+                f"the {vl}-lane chunk needs an e32 lane class at LMUL "
+                f"{lmul} (outside 1..8)")
+        return mir.VectorType(32, lmul, "int")
+
     def _vid(self, vl, hint):
-        self.if_.region(32, 1, vl, self.spec.loc)
+        vtype = self._lane_type(vl)
+        self.if_.region(32, vtype.lmul, vl, self.spec.loc)
         return self.if_.emit(mir.MOp(
-            "vid", [], [self.if_.vreg(self.vt32m1, hint=hint,
+            "vid", [], [self.if_.vreg(vtype, hint=hint,
                                       loc=self.spec.loc)],
             loc=self.spec.loc))
 
     def _mask_lt(self, vid, bound32, hint, vl):
-        """lane < bound as a mask value, at the (32, 1, vl) region the
-        lane ids and the bound splat share."""
-        self.if_.region(32, 1, vl, self.spec.loc)
-        splat = self._splat(bound32, self.vt32m1, hint + "s")
+        """lane < bound as a mask value, at the lane class that covers
+        all ``vl`` lanes (the lane ids and the bound splat share it)."""
+        vtype = self._lane_type(vl)
+        if vid.type != vtype:
+            raise MatrixLoweringError(
+                None, "dot",
+                f"the lane ids ({vid.type!r}) do not match the "
+                f"{vl}-lane mask class ({vtype!r})")
+        self.if_.region(32, vtype.lmul, vl, self.spec.loc)
+        splat = self._splat(bound32, vtype, hint + "s")
         return self.if_.emit(mir.MOp(
             "vcmp", [vid, splat],
             [self.if_.vreg(mir.MaskType(), hint=hint,
