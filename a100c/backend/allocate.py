@@ -363,8 +363,21 @@ def _try_color(fn: mir.MFunction, target: TargetModel,
                 use_counts[a.rid] = use_counts.get(a.rid, 0) + 1
     depth = _loop_depths(fn)
     values = _all_values(fn)
+    # MECH-COMPILE-COST-LINEAR: every value's defining block as one
+    # indexed map (a full _def_block scan per value made the weight
+    # build quadratic; the big unrolled bodies -- complex_svd's
+    # static_range nest -- spent the whole compile budget inside it,
+    # and _try_color re-runs it per spill round)
+    def_block: Dict[int, str] = {}
+    for b in fn.blocks:
+        for p in b.params:
+            def_block.setdefault(p.rid, b.name)
+        for op in b.ops:
+            for r in op.results:
+                def_block.setdefault(r.rid, b.name)
     weights = {v.rid: (use_counts.get(v.rid, 0) + 1)
-               * (10.0 ** depth.get(_def_block(fn, v), 0)) for v in values}
+               * (10.0 ** depth.get(def_block.get(v.rid, ""), 0))
+               for v in values}
 
     assignment: Dict[int, str] = {}
     for v in values:
