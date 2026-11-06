@@ -439,7 +439,9 @@ def convert_width(ctx, reg: mir.VReg, width: int, loc) -> mir.VReg:
 def _scalar_address(ctx, base_reg: mir.VReg, offset_reg: mir.VReg,
                     pointee: tir.Type, loc) -> mir.VReg:
     """base + offset*elemsize, one whole-tree expression in i64."""
-    elemsize = pointee.bitwidth() // 8
+    # a bool pointee is backed one byte per element (the dtype-surface
+    # bool lane; bitwidth()//8 would scale by zero)
+    elemsize = 1 if pointee.is_bool() else pointee.bitwidth() // 8
     off64 = convert_width(ctx, offset_reg, 64, loc) \
         if offset_reg.type.width != 64 else offset_reg
     if elemsize != 1:
@@ -458,9 +460,22 @@ def scalar_load(ctx, base_reg: mir.VReg, offset_reg: mir.VReg,
     """One rank-0 load: address = base + offset*elemsize (i64), then a
     width-exact scalar load at displacement 0."""
     if pointee.is_bool():
-        refuse(loc, "tl.load",
-               "scalar bool loads are not in the scalar core (no i1 "
-               "storage form)")
+        # the bool backing store: one byte, the scalar-bool i64 0/1 form
+        # (the same convention the comparisons produce).  The zext byte
+        # load's GPR already holds the zero-extended value: the smove
+        # view realizes the i64 class (widen_to's 32->64-only rule does
+        # not cover the byte class)
+        addr = _scalar_address(ctx, base_reg, offset_reg, pointee, loc)
+        byte = ctx.emit(mir.MOp(
+            "sload", [addr], [ctx.vreg(mir.ScalarType(8, signed=True),
+                                       hint="sbl", loc=loc)],
+            attrs={"width": 8, "offset": 0, "ext": "zext"}, loc=loc))
+        wide = ctx.emit(mir.MOp(
+            "smove", [byte],
+            [ctx.vreg(mir.I64, hint="sbw", loc=loc)], loc=loc))
+        return ctx.emit(mir.MOp(
+            "sltu", [ctx.const(0, mir.I64, loc), wide],
+            [ctx.vreg(mir.I64, hint="sbm", loc=loc)], loc=loc))
     width = pointee.bitwidth()
     if width not in (8, 16, 32, 64):
         refuse(loc, "tl.load",
@@ -478,8 +493,13 @@ def scalar_load(ctx, base_reg: mir.VReg, offset_reg: mir.VReg,
 def scalar_store(ctx, base_reg: mir.VReg, offset_reg: mir.VReg,
                  value_reg: mir.VReg, pointee: tir.Type, loc) -> None:
     if pointee.is_bool():
-        refuse(loc, "tl.store",
-               "scalar bool stores are not in the scalar core")
+        # the bool backing store: the scalar-bool 0/1 (i64 or i1-held)
+        # narrows to one 0/1 byte
+        addr = _scalar_address(ctx, base_reg, offset_reg, pointee, loc)
+        byte = convert_width(ctx, value_reg, 8, loc)
+        ctx.emit0(mir.MOp("sstore", [addr, byte], [],
+                          attrs={"width": 8, "offset": 0}, loc=loc))
+        return
     width = pointee.bitwidth()
     if width not in (8, 16, 32, 64):
         refuse(loc, "tl.store",

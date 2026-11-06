@@ -73,7 +73,9 @@ def materialize_address(ctx, base_reg: mir.VReg, offset_reg: mir.VReg,
         raise AddressError(
             loc, f"base '{base_reg.name}' must be an i64 view data pointer, "
                  f"got {base_reg.type!r}")
-    esz = pointee.bitwidth() // 8
+    # a bool pointee is backed one byte per element (the dtype-surface
+    # bool lane; bitwidth()//8 would scale by zero)
+    esz = 1 if pointee.is_bool() else pointee.bitwidth() // 8
     # the index class at EEW=64: the widening form follows the
     # double-LMUL convention (the SEW=32 passes' e64m2 form) and runs in
     # the SOURCE's own region (the ambient region may be the data region
