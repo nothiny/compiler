@@ -338,6 +338,15 @@ def _vector_rows() -> List[InstructionEntry]:
                    notes="mask AND (the arg-merge tie condition); the .mm "
                          "form is the mask-mask assembly suffix of RVV 1.0",
                    evidence="RVV 1.0 (F006)"))
+    rows.append(_E("vmxor.mm", "vmxor", (),
+                   "vmxor.mm {vd}, {vs2}, {vs1}",
+                   notes="mask XOR (the boolean block's i1 arithmetic, "
+                         "T033: arith.add on two int1 block tensors is "
+                         "addition mod 2 -- exactly lane xor -- the "
+                         "fused_pool_reduce broadcast idiom; cmp.ne over "
+                         "masks is the same form)",
+                   evidence="RVV 1.0 (F006); as -march=rv64gcv probe: "
+                            "vmxor.mm accepted"))
     rows.append(_E("vmnand.mm", "vmnot", (),
                    "vmnand.mm {vd}, {vs2}, {vs2}",
                    notes="mask complement (the boolean block's ~m: "

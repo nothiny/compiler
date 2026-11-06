@@ -40,6 +40,33 @@ unroll, and loops with symbolic bounds conservatively opaque-ify the
 names they rebind (an unfillable hole, never a guess); branch merges keep
 the provenance both arms agree on.
 
+T033 extends the tie surface (each mechanism is structural -- the
+interpreter's own provenance, never a value guess; the compile-time
+self-check validates every model against the case's declared grid):
+
+  * a symbolic conditional (``int(shape[0]) if len(shape) > 1 else 3``
+    -- the mixed-arity SHAPES form) stays IDENTITY-PRESERVING as a hole
+    owned by its own value, fillable by anything the interpreter proved
+    equal (cholesky's B flows into STATUS's extent through
+    ``np.asarray``); the ``1 if a % k else 0`` indicator combines with
+    ``a // k`` into the exact cdiv form (the np.ceil identity);
+  * elementwise array arithmetic (``x * 32``, ``np.rint``, ``np.clip``
+    over one tracked array with provably-scalar others) preserves the
+    per-axis extents, and ``x.reshape(-1)`` flattens to the extent
+    product -- the value-massaging chains no longer hide the view
+    extents;
+  * the QUOTIENT solve: an axis factor the tie tables cannot read
+    directly -- an untied shape leaf (rows: only rows*n is visible, n
+    rides a scalar), a holed conditional (fht's R: only R*D is visible,
+    D is a meta constant) or a product subtree (csr's B*M: only B*M*C
+    is visible, M and C are scalars) -- reads as
+    ``view_extent // cofactor`` when it appears exactly once as a factor
+    of a structurally tracked view-extent product with every other
+    factor runtime-readable.  The division is exact (the interpreter
+    itself formed the product), the runtime reads the actual extent and
+    cofactors, and gn_finalize's product-only shape factors (neither n
+    nor g separable) still refuse, located.
+
 A grid input that cannot be tied to a bundle-visible quantity is refused
 with a located diagnostic (MECH-DIAGNOSTIC-REFUSAL), never baked; the
 extraction/refusal census (:func:`census`) makes both sides countable.
@@ -118,6 +145,22 @@ class MinMax:
         return f"{self.op}({self.left!r}, {self.right!r})"
 
 
+@dataclass(frozen=True)
+class ModNonzero:
+    """``1 if a % k else 0`` -- the nonzero indicator of a mod-k remainder
+    over the grid's non-negative domain (T033).  Alone it is not a runtime
+    grid op; it combines with ``a // k`` (an add whose floordiv side carries
+    the same operands) into the exact cdiv form ``(a + k - 1) // k`` -- the
+    same positive-domain identity the ``np.ceil(a / b)`` handler uses.  A
+    surviving indicator refuses, located, at the tie stage."""
+
+    left: object
+    right: object
+
+    def __repr__(self):
+        return f"mod_nonzero({self.left!r}, {self.right!r})"
+
+
 class Hole:
     """An untracked subexpression, kept by the *identity* of the interpreted
     value that produced it (T027).
@@ -179,6 +222,8 @@ def evaluate_expr(expr, values: Dict):
         return max(lhs, rhs) if expr.op == "max" else min(lhs, rhs)
     if isinstance(expr, Hole):
         raise ValueError(f"unfilled grid hole: {expr!r}")
+    if isinstance(expr, ModNonzero):
+        raise ValueError(f"an uncombined mod-nonzero indicator: {expr!r}")
     raise ValueError(f"not a grid expression: {expr!r}")
 
 
@@ -299,6 +344,35 @@ def _opaque(desc: str) -> SymVal:
 
 def _is_array_like(value: SymVal) -> bool:
     return isinstance(value, SymArray) or value.opaque is not None
+
+
+def _scalar_shaped(value: SymVal) -> bool:
+    """A value that participates in arithmetic as a PROVABLE scalar: a
+    concrete number, a tracked scalar (gexpr set -- leaves and holes) or
+    a plain untracked scalar.  A pure OPAQUE value is not provably
+    scalar -- it may be an array of unknown shape (``q +
+    np.transpose(q)``: the transposed side is opaque), so an
+    extent-preserving rule must not fire on it."""
+    if isinstance(value, (SymArray, SymTuple, SymDict, SymIter, SymFunc,
+                          SymLambda)):
+        return False
+    return value.opaque is None or value.concrete is not None \
+        or value.gexpr is not None
+
+
+#: numpy elementwise functions whose call preserves the first array
+#: argument's per-axis extents when every other argument is scalar-shaped
+#: (the case layer's value-massaging chains: np.rint / np.clip / ... --
+#: structural shape facts, case-independent, so a tie built on them is
+#: invariant across an identity's cases).  np.ceil has its own cdiv
+#: handler below and is deliberately absent (so does every other
+#: scalar-only massager the grid expression itself consumes).
+_NP_ELEMENTWISE = {"abs", "fabs", "rint", "sqrt", "cbrt", "exp", "expm1",
+                   "log", "log1p", "log2", "log10", "sin", "cos", "tan",
+                   "asin", "acos", "atan", "sinh", "cosh", "tanh",
+                   "arctanh", "clip", "maximum", "minimum", "nan_to_num",
+                   "copy", "ascontiguousarray", "signbit", "sign", "conj",
+                   "real", "imag", "isfinite", "isinf", "isnan"}
 
 
 _TRACE_BUILTINS = {"int", "tuple", "len", "min", "max", "abs", "dict",
@@ -903,7 +977,46 @@ class _Interpreter:
         if isinstance(node, ast.IfExp):
             cond = self._eval(node.test)
             if cond.concrete is None:
-                return _opaque("symbolic conditional expression")
+                # a condition the model cannot see (the mixed-arity
+                # ``int(shape[0]) if len(shape) > 1 else 3`` form -- the
+                # arity is per-case, never guessable).  T033: the value
+                # stays IDENTITY-PRESERVING instead of opaque -- a hole
+                # owned by this very value, so a scalar argument, a view
+                # extent or a meta constant the interpreter proves EQUAL
+                # to it fills it at run time (cholesky's B flows into
+                # STATUS's extent; fht's R fills from X_ptr // DIM).  The
+                # branch-equal arms pass through; the ``1 if a % k else
+                # 0`` indicator carries its operands for the cdiv
+                # identity.  An unfilled hole still refuses, located.
+                def _arm(n):
+                    try:
+                        return self._eval(n)
+                    except GridError:
+                        return None            # an arm that cannot even
+                                               # evaluate (shape[1] of a
+                                               # 1-axis shape): no
+                                               # passthrough, no marker
+
+                body = _arm(node.body)
+                orelse = _arm(node.orelse)
+                if body is not None and orelse is not None:
+                    merged = self._merge_branch_values(body, orelse)
+                    if merged is not None:
+                        return merged
+                    if isinstance(node.test, ast.BinOp) \
+                            and isinstance(node.test.op, ast.Mod) \
+                            and isinstance(body, SymVal) \
+                            and isinstance(orelse, SymVal) \
+                            and body.concrete == 1 and orelse.concrete == 0:
+                        a = self._eval(node.test.left)
+                        k = self._eval(node.test.right)
+                        atree = self._scalar_gexpr_of(a)
+                        ktree = self._scalar_gexpr_of(k)
+                        if atree is not None and ktree is not None:
+                            return SymVal(gexpr=ModNonzero(atree, ktree))
+                out = SymVal(opaque="symbolic conditional expression")
+                out.gexpr = Hole(out, "symbolic conditional expression")
+                return out
             return self._eval(node.body if cond.concrete else node.orelse)
         if isinstance(node, ast.BoolOp):
             # and/or over case values with Python's short-circuit: a
@@ -1054,6 +1167,26 @@ class _Interpreter:
                   "bitand": _op.and_, "bitxor": _op.xor,
                   "lshift": _op.lshift, "rshift": _op.rshift}[opname]
             return _lit(fn(lhs.concrete, rhs.concrete))
+        # T033: elementwise array arithmetic is extent-preserving -- an
+        # array combined with a scalar-shaped value (``rng.integers(...) /
+        # 16``, ``x * 32``) keeps its per-axis extents (the VALUE is
+        # untracked; only the shape survives, which is all the view ties
+        # consume).  Two arrays with equal provenance per axis keep them
+        # too (``q + np.transpose(q)`` is opaque-side; the equal-extent
+        # form is the dtype-normalization idiom).
+        if isinstance(lhs, SymArray) or isinstance(rhs, SymArray):
+            if isinstance(lhs, SymArray) and not isinstance(rhs, SymArray) \
+                    and _scalar_shaped(rhs):
+                return SymArray(list(lhs.extents))
+            if isinstance(rhs, SymArray) and not isinstance(lhs, SymArray) \
+                    and _scalar_shaped(lhs):
+                return SymArray(list(rhs.extents))
+            if isinstance(lhs, SymArray) and isinstance(rhs, SymArray) \
+                    and len(lhs.extents) == len(rhs.extents) \
+                    and all(self._same_provenance(a, b)
+                            for a, b in zip(lhs.extents, rhs.extents)):
+                return SymArray(list(lhs.extents))
+            return _opaque(f"{opname}({self._why(lhs)}, {self._why(rhs)})")
         # symbolic arithmetic over scalars: the tree keeps its shape, with
         # Holes at the operands the model cannot see (integer literals
         # already carry Lit leaves from _lit).  A holed subtree fills from
@@ -1071,6 +1204,20 @@ class _Interpreter:
             # arithmetic -- the result is an untracked scalar (a hole at
             # its consumers, fillable by an identity/structural tie)
             return _opaque(f"operator {opname}")
+        if opname == "add":
+            # T033: ``a // k + (1 if a % k else 0)`` is exactly
+            # ``(a + k - 1) // k`` over the grid's non-negative domain
+            # (element counts and block sizes -- the same identity the
+            # np.ceil handler pins); the fused_bn_relu grid form
+            for quot, ind in ((ltree, rtree), (rtree, ltree)):
+                if isinstance(quot, Bin) and quot.op == "floordiv" \
+                        and isinstance(ind, ModNonzero) \
+                        and quot.left == ind.left and quot.right == ind.right:
+                    return SymVal(gexpr=Bin(
+                        "floordiv",
+                        Bin("add", quot.left,
+                            Bin("sub", quot.right, Lit(1))),
+                        quot.right))
         return SymVal(gexpr=Bin(opname, ltree, rtree))
 
     # -- calls ----------------------------------------------------------------
@@ -1170,6 +1317,17 @@ class _Interpreter:
             if method == "reshape":
                 if args and isinstance(args[0], SymTuple):
                     return SymArray(list(args[0].items))
+                if args and len(args) == 1 \
+                        and isinstance(args[0], SymVal) \
+                        and args[0].concrete == -1:
+                    # T033: ``x.reshape(-1)`` flattens in row-major order:
+                    # the extent is the PRODUCT of the base's per-axis
+                    # extents (the tracked tree numpy itself computes).
+                    # The old form treated the literal -1 as a tracked
+                    # extent -- a wrong model only the self-check ever
+                    # caught.
+                    return SymArray([self._product(list(base.extents),
+                                                   node)])
                 if args and args[0].tracked:
                     return SymArray([args[0]])
                 return _opaque("reshape")
@@ -1309,6 +1467,34 @@ class _Interpreter:
             if tail in _NP_CTORS:
                 return self._np_ctor(node, tail,
                                      [self._eval(a) for a in node.args])
+            if tail in ("asarray", "array") and node.args:
+                # T033: np.asarray / np.array over a tracked array or a
+                # scalar-shaped value preserves the extents/provenance (a
+                # copy never reshapes; the dtype argument never changes an
+                # extent) -- cholesky's STATUS passes through it into the
+                # args literal.  Anything else stays opaque.
+                arg = self._eval(node.args[0])
+                if isinstance(arg, SymArray):
+                    return arg
+                if not isinstance(arg, (SymTuple, SymDict, SymIter,
+                                        SymFunc, SymLambda)) \
+                        and not isinstance(arg, SymArray):
+                    return arg        # a scalar-shaped value passes
+                return _opaque(f"np.{tail}")
+            if tail in _NP_ELEMENTWISE and node.args:
+                # T033: an elementwise np function over one tracked array
+                # with scalar-shaped remaining arguments keeps the array's
+                # extents (the VALUE is untracked; the shape is structural
+                # and case-independent, so a tie built on it is invariant
+                # across an identity's cases)
+                first = self._eval(node.args[0])
+                rest = [self._eval(a) for a in node.args[1:]]
+                for k in node.keywords:
+                    self._eval(k.value)
+                if isinstance(first, SymArray) \
+                        and all(_scalar_shaped(r) for r in rest):
+                    return SymArray(list(first.extents))
+                return _opaque(f"np.{tail}")
             if tail in _NP_SCALAR_CASTS and len(node.args) == 1:
                 # a scalar dtype cast preserves the value and its
                 # provenance (the cast never changes what the argument
@@ -1669,6 +1855,20 @@ def _iter_holes(expr) -> Iterable["Hole"]:
     elif isinstance(expr, MinMax):
         yield from _iter_holes(expr.left)
         yield from _iter_holes(expr.right)
+
+
+def _iter_modnonzero(expr) -> Iterable["ModNonzero"]:
+    """Every surviving mod-nonzero indicator in a grid expression tree
+    (T033): one that never combined with its ``a // k`` into the cdiv form
+    is not a runtime grid op and refuses, located."""
+    if isinstance(expr, ModNonzero):
+        yield expr
+    elif isinstance(expr, Bin):
+        yield from _iter_modnonzero(expr.left)
+        yield from _iter_modnonzero(expr.right)
+    elif isinstance(expr, MinMax):
+        yield from _iter_modnonzero(expr.left)
+        yield from _iter_modnonzero(expr.right)
 
 
 def _shape_arity(source: OperatorSource, case: dict) -> Tuple[Tuple, Tuple]:
@@ -2036,6 +2236,110 @@ def extract_grid(source: OperatorSource, case: dict) -> GridModel:
                         f"the grid has {len(axis_exprs)} axes; Triton grids "
                         "are at most 3-D")
 
+    # -- T033: quotient solves -------------------------------------------------
+    # An axis factor the tie tables cannot read directly -- an untied
+    # shape leaf (masked_cumsum's rows: only rows*n is visible, n rides
+    # the n_cols scalar), a holed conditional value (fht's R: only R*D is
+    # visible, D is the DIM meta constant) or a product subtree (csr's
+    # B*M: only B*M*C is visible, M and C are bundle scalars) -- reads as
+    # ``view_extent // cofactor`` when it appears exactly ONCE as a factor
+    # of a view extent's structurally tracked product and every other
+    # factor is runtime-readable.  The division is exact (the interpreter
+    # itself formed the product from the factors), the runtime reads the
+    # actual view extent and the actual cofactors (never a baked shape),
+    # and the compile-time self-check validates the whole model against
+    # the case's declared grid.
+
+    def _factors(e) -> List[object]:
+        if isinstance(e, Bin) and e.op == "mul":
+            return _factors(e.left) + _factors(e.right)
+        return [e]
+
+    def _readable(e) -> bool:
+        if isinstance(e, Lit):
+            return True
+        if isinstance(e, Ref):
+            return e.kind in ("bundle_view", "bundle_scalar") or \
+                (e.kind == "shape_extent" and _leaf_tied(e))
+        if isinstance(e, (Bin, MinMax)):
+            return _readable(e.left) and _readable(e.right)
+        return False
+
+    view_extent_trees: List[Tuple[str, int, object]] = []
+    if isinstance(args_sym, SymDict):
+        for argname in sorted(args_sym.mapping):
+            value = args_sym.mapping.get(argname)
+            if argname not in pointer_params or not isinstance(value,
+                                                                SymArray):
+                continue
+            shape = arrays.get(argname) or ()
+            for axis, extent in enumerate(value.extents):
+                if axis >= len(shape):
+                    break
+                if extent.gexpr is not None:
+                    view_extent_trees.append((argname, axis, extent.gexpr))
+
+    def _try_solve(target):
+        for view, vaxis, tree in view_extent_trees:
+            factors = _factors(tree)
+            hits = [i for i, f in enumerate(factors) if f == target]
+            if len(hits) != 1:
+                continue
+            cofactors = [_rewrite(f) for i, f in enumerate(factors)
+                         if i != hits[0]]
+            if not cofactors:
+                continue        # the direct tie; view_by_gexpr owns it
+            if not all(_readable(c) for c in cofactors):
+                continue
+            prod = cofactors[0]
+            for c in cofactors[1:]:
+                prod = Bin("mul", prod, c)
+            return Bin("floordiv", Ref("bundle_view", (view, vaxis)), prod)
+        return None
+
+    def _subtrees(e) -> List[object]:
+        out: List[object] = []
+
+        def walk(x):
+            out.append(x)
+            if isinstance(x, (Bin, MinMax)):
+                walk(x.left)
+                walk(x.right)
+
+        walk(e)
+        return out
+
+    def _replace(expr, target, repl):
+        if expr == target and not isinstance(expr, Lit):
+            return repl
+        if isinstance(expr, (Bin, MinMax)):
+            left = _replace(expr.left, target, repl)
+            right = _replace(expr.right, target, repl)
+            if isinstance(expr, Bin):
+                return Bin(expr.op, left, right)
+            return MinMax(expr.op, left, right)
+        return expr
+
+    for i in range(len(axis_exprs)):
+        expr = axis_exprs[i]
+        for _round in range(4):        # at most a few solves per axis
+            if all(_readable(s) for s in _subtrees(expr)):
+                break
+            solved_one = False
+            for target in [s for s in _subtrees(expr) if not _readable(s)]:
+                # pre-order: a product subtree (csr's B*M) is tried before
+                # its factors; the whole axis before its subtrees
+                if isinstance(target, (Lit, ModNonzero)):
+                    continue
+                solved = _try_solve(target)
+                if solved is not None:
+                    expr = _replace(expr, target, solved)
+                    solved_one = True
+                    break
+            if not solved_one:
+                break
+        axis_exprs[i] = expr
+
     # -- ties: every leaf must be a literal or a bundle-visible quantity -------
 
     def tie_leaf(ref: Ref):
@@ -2075,12 +2379,14 @@ def extract_grid(source: OperatorSource, case: dict) -> GridModel:
         for ref in _grid_leafs(axis_expr):
             tie_leaf(ref)
 
-    # an unfilled hole names the genuinely untraceable input (MECH-
-    # DIAGNOSTIC-REFUSAL): counted, never silently baked
+    # an unfilled hole (or a mod-nonzero indicator that never combined
+    # into its cdiv form) names the genuinely untraceable input
+    # (MECH-DIAGNOSTIC-REFUSAL): counted, never silently baked
     for axis_expr in axis_exprs:
         holes = list(_grid_holes(axis_expr))
-        if holes:
-            why = ", ".join(repr(h) for h in holes[:4])
+        mods = [m for m in _iter_modnonzero(axis_expr)]
+        if holes or mods:
+            why = ", ".join(repr(h) for h in (holes + mods)[:4])
             raise GridError(source.path, make_case.lineno,
                             make_case.col_offset + 1, "grid",
                             "a grid axis is not provenance-tracked (it "

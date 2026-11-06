@@ -722,10 +722,13 @@ def check_remaining_boundaries_refuse_located(compiler):
         # boundary; T028's partial-axis staging lane then lowered the
         # multi-block reduction itself, so the refusal moved to the grid
         # model (a shape extent the bundle cannot see -- the grid lane's
-        # own located refusal, a different construct)
+        # own located refusal, a different construct).  T033 then closed
+        # the grid boundary itself (the rows quotient tie: rows reads
+        # o_ptr_extent // n_cols at run time), so the refusal moved past
+        # the grid to the scan's own non-last-axis boundary.
         ("ops/suite/dev/masked_cumsum_vec_kernel.py",
          {"shape": (17, 257), "dtype": "float32"},
-         ("grid", "bundle-visible")),
+         ("cumsum", "non-last axis", "grid")),
         # sort family: T012 implements flip, so the file's refusal boundary
         # moved past it -- it now refuses on tl.softmax's exp (the
         # math-ops lane owns that construct)

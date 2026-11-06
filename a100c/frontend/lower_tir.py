@@ -230,6 +230,11 @@ _METHOD_CONSTRUCTS = {
     ".squeeze": "tl.squeeze", ".broadcast_to": "tl.broadcast_to",
     ".ravel": "tl.ravel", ".view": "tl.view", ".flip": "tl.flip",
     ".to_tensor": "tl.to_tensor",
+    # the pinned block-pointer member (``gQ.advance([...])`` is
+    # tl.advance(gQ, [...]) -- core.py's @_tensor_member_fn; flash_varlen's
+    # runtime-offset advance form, T033).  A receiver that is not a block
+    # pointer refuses inside tl.advance with a located diagnostic.
+    ".advance": "tl.advance",
 }
 
 #: parameters each implemented construct requires
@@ -395,6 +400,18 @@ class Lowering:
                 self.symbols[p.name] = v
                 self.fn.params += (v,)
             elif p.name in self.spec.scalar_types:
+                if self.spec.scalar_classes.get(p.name) == ("int", "one"):
+                    # the pinned ==1 specialization (T033): official
+                    # Triton's JIT makes an integer argument equal to 1 a
+                    # constexpr 1 (native_specialize_impl: ("constexpr",
+                    # 1)), so ``if groups == 1:`` folds and the untaken
+                    # arm never lowers (the deconv3d block-tensor
+                    # ``if lane_mask:`` sits in the groups!=1 arm).  A
+                    # VALUE CLASS only: the identity signs the class, and
+                    # do_not_specialize names never reach here -- the
+                    # argument stays a runtime read for them.
+                    self.symbols[p.name] = ConstVal(1)
+                    continue
                 v = tir.Value(self.spec.scalar_types[p.name], (),
                               tir.SrcLoc(self.source.path,
                                          self._param_line(p.name), 1),
@@ -1212,17 +1229,23 @@ class Lowering:
         step_v = bound_value(step_expr, "step")
         step_const = step_v.value if isinstance(step_v, ConstVal) else 1
         if step_v is not None and isinstance(step_v, ConstVal) \
-                and step_v.value <= 0:
-            raise self._err(
-                st, kind,
-                f"step {step_v.value} is not positive; a descending range "
-                "is not in the control-flow core")
-        if isinstance(upper_v, ConstVal) and isinstance(lower_v, ConstVal) \
-                and step_const > 0 and upper_v.value <= lower_v.value:
-            # zero-trip loop: carried names keep their values; the body
-            # never runs (straight-line skip, recorded in the fold)
-            self.fold.record_branch(st, False, "orelse")
-            return
+                and step_v.value == 0:
+            raise self._err(st, kind, "step cannot be zero")
+        # a compile-time negative step lowers as the descending counted
+        # form (T033): the body runs while the induction stays ABOVE the
+        # upper bound, exactly the pinned Triton semantics of
+        # ``range(a, b, -s)``.  A RUNTIME step keeps the ascending head
+        # test (the pinned frontend has no runtime-step descent either).
+        descending = isinstance(step_v, ConstVal) and step_v.value < 0
+        if isinstance(upper_v, ConstVal) and isinstance(lower_v, ConstVal):
+            if not descending and upper_v.value <= lower_v.value:
+                # zero-trip loop: carried names keep their values; the body
+                # never runs (straight-line skip, recorded in the fold)
+                self.fold.record_branch(st, False, "orelse")
+                return
+            if descending and upper_v.value >= lower_v.value:
+                self.fold.record_branch(st, False, "orelse")
+                return
 
         # the index type: i64 if any runtime bound is i64, else i32
         idx_ty = tir.INT32
@@ -1255,7 +1278,7 @@ class Lowering:
             # `i < upper` ANDs the stop channel, so the loop exits at the
             # next head test after a break/return)
             self._lower_counted_as_while(st, loc, name, lower_i, upper_i,
-                                         step_i, jumps)
+                                         step_i, jumps, descending)
             return
         snap = self._region_snapshot()
         # carried candidates: names the body assigns that are visible
@@ -1281,7 +1304,8 @@ class Lowering:
             else:
                 v = self._fresh_channel_init(v, cname)
             preheader_inits[cname] = v
-        node = tir.Loop(lower_i, upper_i, step_i, loc)
+        node = tir.Loop(lower_i, upper_i, step_i, loc,
+                        descending=descending)
         self._push_block(node.body)
         self.symbols = dict(self.symbols)
         self.env.values = dict(self.env.values)
@@ -1371,19 +1395,22 @@ class Lowering:
 
     # -- the shared while-form builder ---------------------------------------
     def _lower_counted_as_while(self, st, loc, name, lower_i, upper_i,
-                                step_i, jumps) -> None:
+                                step_i, jumps, descending=False) -> None:
         """A counted range whose body contains a break/return, lowered as
-        the while form: the head test ``i < upper`` ANDs the stop channel
-        (the induction becomes an ordinary carried channel with the
-        increment appended at the body end, exactly like the counted
-        form's)."""
-        cond0 = self._emit(tir.Op.cmp("cmp.lt", lower_i, upper_i, loc), "lpc")
+        the while form: the head test ``i < upper`` (``i > upper`` for a
+        descending range) ANDs the stop channel (the induction becomes an
+        ordinary carried channel with the increment appended at the body
+        end, exactly like the counted form's)."""
+        cond0 = self._emit(
+            tir.Op.cmp("cmp.gt" if descending else "cmp.lt",
+                       lower_i, upper_i, loc), "lpc")
         stop0 = self._emit(tir.Op.const(True, tir.INT1, loc), "go")
         self._lower_while_form(st, loc, cond0, jumps, stop0,
-                               induction=(name, lower_i, upper_i, step_i))
+                               induction=(name, lower_i, upper_i, step_i),
+                               descending=descending)
 
     def _lower_while_form(self, st, loc, cond_v, jumps, stop0,
-                          induction) -> None:
+                          induction, descending=False) -> None:
         """Build the while-form ``tir.Loop`` with carried values.
 
         ``induction`` is ``(name, lower, upper, step)`` for a converted
@@ -1459,8 +1486,9 @@ class Lowering:
         if induction is not None:
             name, lower_i, upper_i, step_i = induction
             ind_next = self.symbols.get(name)
-            c = self._emit(tir.Op.cmp("cmp.lt", ind_next, upper_i, loc),
-                           "lpc")
+            c = self._emit(
+                tir.Op.cmp("cmp.gt" if descending else "cmp.lt",
+                           ind_next, upper_i, loc), "lpc")
             if needs_stop and isinstance(stop_v, tir.Value):
                 c = self._emit(tir.Op.binop("bit.and", c, stop_v, loc), "go")
             self._bind(cond_name, c)
@@ -2864,9 +2892,11 @@ class Lowering:
                     return [ConstVal(int(v)) for v in vals]
                 # a tuple holding runtime symbols falls through to the
                 # per-element AST path below
-            if isinstance(expr, ast.Tuple):
-                # a runtime tuple expression: each element lowers on its
-                # own (the whole tuple never becomes one TIR value)
+            if isinstance(expr, (ast.Tuple, ast.List)):
+                # a runtime tuple/list expression: each element lowers on
+                # its own (the whole sequence never becomes one TIR value;
+                # the pinned block-pointer forms accept both -- flash
+                # varlen advances with a list literal)
                 return [self._lower_expr(e) for e in expr.elts]
             lowered = self._lower_expr(expr)
             if isinstance(lowered, TupleVal):
@@ -2920,14 +2950,17 @@ class Lowering:
                             "advance applies to a block pointer "
                             "(tl.make_block_ptr's result)")
         offs = self.env.evaluate(args["offsets"], self.source.path)
-        if offs is not NOT_CONSTEXPR:
-            if not isinstance(offs, (tuple, list)):
-                raise self._err(node, "tl.advance",
-                                "offsets must be a tuple")
+        if offs is not NOT_CONSTEXPR and isinstance(offs, (tuple, list)) \
+                and offs and all(isinstance(v, int) and not isinstance(v, bool)
+                                 for v in offs):
+            # a fully compile-time offset sequence (the constexpr domain
+            # returns a sequence holding RuntimeValue markers when an
+            # element is runtime -- flash varlen's [m_block * BLOCK_M, 0]
+            # takes the per-element path below)
             deltas = [ConstVal(int(v)) for v in offs]
         else:
             expr = args["offsets"]
-            if isinstance(expr, ast.Tuple):
+            if isinstance(expr, (ast.Tuple, ast.List)):
                 deltas = [self._lower_expr(e) for e in expr.elts]
             else:
                 lowered = self._lower_expr(expr)

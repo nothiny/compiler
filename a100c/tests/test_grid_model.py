@@ -607,8 +607,13 @@ def check_t027_repaired_classes():
           + "; ".join(bad[:3]))
 
     # the genuinely untraceable keep their located refusals, naming the
-    # input: gn_finalize's shape factors (only their product is visible)
-    # and fht's mixed-arity SHAPES (the arity is never guessed)
+    # input: gn_finalize's shape factors (only their product is visible --
+    # neither n nor g is separable).  fht's mixed-arity SHAPES became
+    # EXTRACTABLE in T033 (the holed conditional fills from the view
+    # extent quotient R = X_ptr_extent // DIM): the pin moves to the
+    # stronger form -- the axis must be a runtime read over bundle
+    # quantities with the self-check binding modeled == declared (never
+    # a baked arity).
     module_gn = load_module("suite/dev/gn_finalize_kernel.py")
     try:
         extract_grid(load_source("suite/dev/gn_finalize_kernel.py"),
@@ -618,13 +623,21 @@ def check_t027_repaired_classes():
         if "cannot be proven equal" not in str(exc):
             bad.append(f"gn_finalize: {str(exc)[:90]}")
     module_fht = load_module("suite/dev/fht_kernel_1d_native.py")
-    try:
-        extract_grid(load_source("suite/dev/fht_kernel_1d_native.py"),
-                     module_fht.make_case(shape=(51, 16)))
-        bad.append("fht mixed-arity accepted")
-    except GridError as exc:
-        if "not provenance-tracked" not in str(exc):
-            bad.append(f"fht: {str(exc)[:90]}")
+    for shape in ((51, 16), (3,)):
+        try:
+            fht_model = extract_grid(
+                load_source("suite/dev/fht_kernel_1d_native.py"),
+                module_fht.make_case(shape=shape))
+        except GridError as exc:
+            bad.append(f"fht {shape}: {str(exc)[:90]}")
+            continue
+        sc = fht_model.self_check
+        if sc.get("modeled") != sc.get("declared"):
+            bad.append(f"fht {shape}: self-check {sc}")
+        axis = repr(fht_model.axes[0])
+        if "bundle_view" not in axis or "floordiv" not in axis:
+            bad.append(f"fht {shape}: axis {axis[:80]} is not a view "
+                       "quotient read")
     check("t027-genuinely-untraceable-refuse-located", not bad,
           "; ".join(bad[:3]))
 

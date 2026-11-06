@@ -555,15 +555,51 @@ class SliceLowering:
                     f"consumed at rank {len(cext)} with a different flat "
                     f"extent ({cflat} vs {bflat}); no axis map is derivable "
                     "(a located refusal, never a wrong region read)")
-        for ax, (b, c) in enumerate(zip(bext, cext)):
-            if b > 1 and b != c:
-                raise self._err(
-                    loc, "layout",
-                    f"the staged block '{t.name}' (axes {bext}) does not "
-                    f"align with its consumer's axes {cext} at axis {ax} "
-                    "(a broadcast axis map is not derivable; a located "
-                    "refusal)")
         n = len(cext)
+        # the block-axis -> consumer-axis assignment.  Positional first
+        # (the broadcast semantics the value's own TIR ops declared);
+        # T033 adds the unique-matching fallback for the reshape-padded
+        # forms -- a rank-1 (8,) offset the case layer reshaped to (8,1)
+        # inside an (8,32) addressing space pads to (1,8), whose 8-aligns
+        # with the consumer's AXIS 0, not axis 1 (tiled_argmin's staged
+        # r_offs).  A non-1 block axis pairs with a distinct equal-extent
+        # consumer axis; exactly one such pairing is determined (never a
+        # guess), none or several refuses located.
+        assign: Optional[Dict[int, int]] = {}
+        for b_ax in range(n):
+            if int(bext[b_ax]) <= 1:
+                continue
+            if int(bext[b_ax]) != int(cext[b_ax]):
+                assign = None
+                break
+            assign[b_ax] = b_ax
+        if assign is None:
+            solutions: List[Dict[int, int]] = []
+
+            def _match(b_ax: int, used, cur):
+                if b_ax == n:
+                    solutions.append(dict(cur))
+                    return
+                if int(bext[b_ax]) <= 1:
+                    _match(b_ax + 1, used, cur)
+                    return
+                for c_ax in range(n):
+                    if c_ax in used \
+                            or int(cext[c_ax]) != int(bext[b_ax]):
+                        continue
+                    cur[b_ax] = c_ax
+                    _match(b_ax + 1, used | {c_ax}, cur)
+                    del cur[b_ax]
+
+            _match(0, frozenset(), {})
+            if len(solutions) == 1:
+                assign = solutions[0]
+        if assign is None:
+            raise self._err(
+                loc, "layout",
+                f"the staged block '{t.name}' (axes {bext}) does not "
+                f"align with its consumer's axes {cext} (no unique "
+                "broadcast axis map is derivable; a located refusal)")
         cstrides = [1] * n
         for ax in range(n - 2, -1, -1):
             cstrides[ax] = cstrides[ax + 1] * int(cext[ax + 1])
@@ -577,23 +613,24 @@ class SliceLowering:
                 "s2v", [c], [ctx.vreg(ity, hint=hint, loc=loc)], loc=loc))
 
         acc: Optional[mir.VReg] = None
-        for ax in range(n):
-            if int(bext[ax]) <= 1:
+        for b_ax in range(n):
+            if int(bext[b_ax]) <= 1:
                 continue           # a broadcast axis contributes nothing
+            c_ax = assign[b_ax]
             comp = idx
-            if cstrides[ax] > 1:
+            if cstrides[c_ax] > 1:
                 comp = ctx.emit(mir.MOp(
-                    "vbin", [comp, _splat(cstrides[ax], "sms")],
+                    "vbin", [comp, _splat(cstrides[c_ax], "sms")],
                     [ctx.vreg(ity, hint="smd", loc=loc)],
                     attrs={"op": "sdiv"}, loc=loc))
-            if ax > 0:
+            if c_ax > 0:
                 comp = ctx.emit(mir.MOp(
-                    "vbin", [comp, _splat(cext[ax], "smr")],
+                    "vbin", [comp, _splat(cext[c_ax], "smr")],
                     [ctx.vreg(ity, hint="smm", loc=loc)],
                     attrs={"op": "srem"}, loc=loc))
-            if bstrides[ax] > 1:
+            if bstrides[b_ax] > 1:
                 comp = ctx.emit(mir.MOp(
-                    "vbin", [comp, _splat(bstrides[ax], "smb")],
+                    "vbin", [comp, _splat(bstrides[b_ax], "smb")],
                     [ctx.vreg(ity, hint="smu", loc=loc)],
                     attrs={"op": "mul"}, loc=loc))
             if acc is None:
@@ -1936,11 +1973,23 @@ class SliceLowering:
                     self._staged[r.vid] = {"pending": True}
                     if native_ime and r.type.bitwidth() < 32:
                         self._staged[r.vid]["native"] = True
-        # (b) cross-pass block values: definition segment index vs use
+        # (b) cross-pass block values: definition segment index vs use.
+        # T033: the SCALAR segments participate too -- their block-shaped
+        # statements (the splat-agnostic extent-1 forms: the leading
+        # address chains of a bf16-load/fp32-store kernel) open the
+        # default chunk at their lowering and bind INSIDE it, so a later
+        # pass's address walk needs them staged exactly like a pass-body
+        # value (skipping the scalar segments left softsign's (1,) bf16
+        # offsets un-staged: use-before-definition at the store's pass).
         defined_in: Dict[int, int] = {}
         seg_index = 0
         for seg in flat:
             if seg[0] == "scalar":
+                for st in seg[1]:
+                    for r in getattr(st, "results", ()):
+                        defined_in[r.vid] = seg_index
+                    self._region_defs(st, defined_in, seg_index)
+                seg_index += 1
                 continue
             if seg[0] == "layout":
                 op = seg[1]
@@ -1982,10 +2031,11 @@ class SliceLowering:
         # the uses: walk every statement's operands per segment
         seg_index = 0
         for seg in flat:
-            if seg[0] == "scalar":
-                continue
             uses: List[tir.Value] = []
-            if seg[0] == "layout":
+            if seg[0] == "scalar":
+                for st in seg[1]:
+                    uses.extend(self._region_uses(st))
+            elif seg[0] == "layout":
                 uses.extend(seg[1].operands)
             elif seg[0] == "preduce":
                 uses.extend(seg[1].operands)
@@ -3356,13 +3406,37 @@ class SliceLowering:
 
     def _scalarize(self, ctx: _Ctx, reg: mir.VReg, loc) -> mir.VReg:
         """The scalar form of a value: lane-0 vectors extract to a GPR
-        (raw bits for floats); scalars pass through."""
+        (raw bits for floats); scalars pass through.
+
+        T033: ``vextract`` (vmv.x.s) reads element 0 at the ACTIVE SEW,
+        so the extract runs inside the value's own region -- a convert
+        chain's tail (the bf16 emulation restores the pass's e32 region
+        before the caller extracts its 16-bit result) leaves the ambient
+        region wider than the value, and the extract would read the wrong
+        element width.  The ambient region is restored exactly afterwards
+        (its avl included, when tracked)."""
         if reg.is_vector():
             sty = mir.ScalarType(reg.type.sew, signed=reg.type.kind != "uint",
                                  float=reg.type.kind == "float")
-            return ctx.emit(mir.MOp(
+            want = (reg.type.sew, reg.type.lmul, self._vl)
+            prev = ctx.active_region
+            mismatched = prev != want
+            if mismatched:
+                self._vregion(ctx, reg.type, loc)
+            out = ctx.emit(mir.MOp(
                 "vextract", [reg],
                 [ctx.vreg(sty, hint="x0", loc=loc)], loc=loc))
+            if mismatched:
+                # restore the ambient region exactly (avl included when
+                # tracked; an untracked avl restores the pass region --
+                # the next region-managing op re-establishes its own)
+                if prev is not None and prev[2] is not None:
+                    self._vregion(
+                        ctx, mir.VectorType(prev[0], prev[1], "int"), loc,
+                        vl=prev[2])
+                else:
+                    self._restore_region(ctx, loc)
+            return out
         return reg
 
     def _merge_op_kind(self, merge: str) -> str:
@@ -5312,7 +5386,16 @@ class SliceLowering:
                         loc, "if",
                         f"join '{name}' has no value at the end of an arm "
                         "(the frontend and the verifier disagree)")
-                values.append(self._need(v, loc))
+                reg = self._need(v, loc)
+                if v.type.is_bool() and v.rank == 0:
+                    # T033: a rank-0 bool join value normalizes to the
+                    # scalar-bool convention (the i64 0/1 GPR) -- one arm
+                    # may hold it as a floating compare's MASK (cumprod's
+                    # ``finished | (last_val == 0.0)``) while the other
+                    # keeps the outer GPR form; the arms must meet at one
+                    # type (the T026 class at the join)
+                    reg = self._scalar_bool_gpr(ctx, reg, loc)
+                values.append(reg)
             scalar_mod.close_arm(ctx, frame, join_name, values)
             arm_values.append(values)
             names.pop()
@@ -5381,7 +5464,8 @@ class SliceLowering:
         # see _lower_if for the arm form)
         saved_values = dict(self.values)
         frame = scalar_mod.begin_counted_loop(
-            ctx, lower, upper, carried_inits, loc, tag)
+            ctx, lower, upper, carried_inits, loc, tag,
+            descending=getattr(stmt, "descending", False))
 
         # inside the body, uses of a carried entry denote the current
         # iteration's value (the head parameter) -- the induction
@@ -5843,7 +5927,8 @@ class SliceLowering:
             step = self._need(stmt.step, loc)
             saved_values = dict(self.values)
             frame = scalar_mod.begin_counted_loop(
-                ctx, lower, upper, carried_inits, loc, self._tag("mloop"))
+                ctx, lower, upper, carried_inits, loc, self._tag("mloop"),
+                descending=getattr(stmt, "descending", False))
 
         # inside the body, uses of a carried entry denote the current
         # iteration's value (the head parameter) -- the induction /
@@ -6440,16 +6525,41 @@ class SliceLowering:
                         loc=loc))
                     self._restore_region(ctx, loc)
                 else:
+                    if lreg.is_mask() and rreg.is_mask() \
+                            and code in ("cmp.eq", "cmp.ne"):
+                        # T033: i1 == i1 / i1 != i1 over boolean blocks
+                        # is exact in the mask domain (the pinned
+                        # create_icmpEQ/NE on i1): lane equality is XNOR
+                        # -- the xor of the masks, complemented -- and
+                        # inequality is the xor itself (the 0/1 mask
+                        # lanes carry the same bits the icmp would read).
+                        # No element width is touched (never a .sew read
+                        # off a MaskType).
+                        x = ctx.emit(mir.MOp(
+                            "vmxor", [lreg, rreg],
+                            [ctx.vreg(mir.MaskType(), hint="mxor", loc=loc)],
+                            loc=loc))
+                        if code == "cmp.eq":
+                            reg = ctx.emit(mir.MOp(
+                                "vmnot", [x],
+                                [ctx.vreg(mir.MaskType(), hint="mnot",
+                                          loc=loc)],
+                                loc=loc))
+                        else:
+                            reg = x
+                        self._bind_result(op, reg)
+                        return
                     if lreg.is_mask() or rreg.is_mask():
                         # a boolean-block comparison (i1 vs i1): the mask
-                        # register forms are and/or/complement only -- an
-                        # eq/ne over masks is not in the slice (a located
-                        # refusal, never a .sew read off a MaskType)
+                        # register forms are and/or/complement/xor only --
+                        # any other predicate over masks is not in the
+                        # slice (a located refusal, never a .sew read off
+                        # a MaskType)
                         raise self._err(
                             loc, code,
                             "a boolean block comparison is not in the slice "
                             "(mask values have no element width; only "
-                            "and/or/complement combine them)")
+                            "and/or/complement/xor combine them)")
                     if lreg.is_vector() and rreg.is_vector() \
                             and lreg.type != rreg.type \
                             and lreg.type.kind != "float" \
@@ -7037,6 +7147,26 @@ class SliceLowering:
             self._vregion(ctx, typed_vec.type, loc)
             typed = self._scalarize(ctx, typed_vec, loc)
         else:
+            # T033: the T009 {0,1} class (bool -> an int wider than the
+            # pass SEW) can leave the vred's partial at a lane below the
+            # declared result (cholesky's fp16 pass sums its i32 status
+            # counts at the e16 class) when NO merge frame owns the
+            # accumulator: widen the vector class exactly -- {0,1} is
+            # extension-invariant -- so the extracted scalar meets the
+            # declared type the frontend unified the consumers at.  A
+            # plan frame keeps its own design (the T031 i64-promoted 0/1
+            # sum rides the accumulator's pass lane and the EXIT widens;
+            # count_nonzero's e32 accumulator with the i64 result).
+            has_frame = any(
+                f.get("vid") == op.results[0].vid and f.get("source") == "plan"
+                and not f.get("index") for f in self._chunk_merges)
+            if not part.type.kind == "float" and value.type.is_int() \
+                    and part.type.sew < value.type.bitwidth() \
+                    and not index_form and not ret_idx and not has_frame:
+                part = self._int_widen(
+                    ctx, part, part.type.sew, value.type.bitwidth(), False,
+                    loc, dst_kind="uint" if value.type.is_int_unsigned()
+                    else "int")
             self._vregion(ctx, part.type, loc)
             typed = self._scalarize(ctx, part, loc)
         # the fp32 partial for a 16-bit float sum rides the accumulator's
@@ -8260,9 +8390,29 @@ class SliceLowering:
                     loc=loc))
                 self._bind_result(op, reg)
                 return reg
+            if code in ("arith.add", "arith.sub", "arith.mul"):
+                # T033: int1 block arithmetic is exact in the mask domain
+                # -- the pinned semantic's create_add/sub/mul on i1 is
+                # addition/subtraction/multiplication mod 2, and mod 2
+                # a+b == a-b == a^b while a*b == a&b (the 0/1 mask lanes
+                # ARE the mod-2 residues).  The corpus form is the
+                # broadcast idiom ``mask[:, None] + tl.zeros((1, 2),
+                # tl.int1)`` (fused_pool_reduce); the result type is i1.
+                if code == "arith.mul":
+                    reg = ctx.emit(mir.MOp(
+                        "vmand", [lreg, rreg],
+                        [ctx.vreg(mir.MaskType(), hint="mand", loc=loc)],
+                        loc=loc))
+                else:
+                    reg = ctx.emit(mir.MOp(
+                        "vmxor", [lreg, rreg],
+                        [ctx.vreg(mir.MaskType(), hint="mxor", loc=loc)],
+                        loc=loc))
+                self._bind_result(op, reg)
+                return reg
             raise self._err(loc, code,
-                            "boolean block logic beyond and/or is not in "
-                            "the slice (the boundary conditions combine "
+                            "boolean block logic beyond and/or/xor is not "
+                            "in the slice (the boundary conditions combine "
                             "with & and |)")
         if (lreg.is_mask() or rreg.is_mask()) and op.results \
                 and op.results[0].type.is_bool() and op.results[0].rank == 0:

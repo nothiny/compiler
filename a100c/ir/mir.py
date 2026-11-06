@@ -189,6 +189,9 @@ VEC_OPS = {
     # T024: the boolean block complement (``~mask`` -- logical.not /
     # bit.invert on an i1 block): one mask in, one mask out
     "vmnot",
+    # T033: the boolean block XOR (i1 arith.add is addition mod 2; the
+    # mask-register form of cmp.ne over boolean blocks)
+    "vmxor",
 }
 
 #: atomic op codes (T011, lower/scalar.py): the RVWMO-ordered forms.
@@ -675,6 +678,13 @@ def _type_check(op: MOp, errors: List[MirError]) -> None:
         if not ops[0].is_mask() or not ops[1].is_mask() \
                 or not res[0].is_mask():
             return err("'vmor' operates on mask values")
+    elif code == "vmxor":
+        # T033: the boolean block's i1 arithmetic (addition mod 2)
+        if len(ops) != 2 or len(res) != 1:
+            return err("'vmxor' takes two masks and produces one mask")
+        if not ops[0].is_mask() or not ops[1].is_mask() \
+                or not res[0].is_mask():
+            return err("'vmxor' operates on mask values")
     elif code == "vmnot":
         if len(ops) != 1 or len(res) != 1:
             return err("'vmnot' takes one mask and produces one mask")
