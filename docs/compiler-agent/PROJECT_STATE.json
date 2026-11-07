@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-07T05:46:02.096433+00:00",
+  "updated_at": "2026-11-07T05:46:24.530103+00:00",
   "facts": [
     {
       "id": "F001",
@@ -2026,13 +2026,13 @@
         "basic-passes-v1"
       ],
       "tags": [],
-      "status": "READY",
-      "assignee": "",
-      "attempts": 2,
+      "status": "RUNNING",
+      "assignee": "coder",
+      "attempts": 3,
       "evidence": "",
       "last_error": "Attempt 2 after repair tasks T024-T031. Judged the prior attempt's sweep driver sound and kept it, changing only its default per-identity compile budget 120s -> 600s (documented in-file: a safety bound above the post-T030/T031 compile-cost envelope, whose heaviest identities legitimately compile in\u2026",
-      "failure_kind": "implementation",
-      "start_revision": "4a7e7388fbd0c7c85ea9aaf45758f13644209492",
+      "failure_kind": "",
+      "start_revision": "e12fbc2504a998485f554aa3d476afef08473264",
       "end_revision": "",
       "completed_seq": 0,
       "debug_required": false,
@@ -2069,7 +2069,7 @@
         "suspected_stage": "Two independent defects, both first-incorrect inside a100c and both outside this task's allowed write path (a100c/tests/test_compile_sweep.py only). (A) Scalar lowering: a100c/lower/scalar.py:520 -- scalar_store assumes a scalar .width/.float on the stored value, but the rank-0 bool->int32 convert (sym_constrain_range's violated.to(tl.int32)) arrives VectorType-typed from the T031 bool-lane work (the bool-pointee branch at scalar.py:495 normalizes masks, the non-bool path does not handle vector-held scalars). (B) Allocation: a100c/backend/allocate.py:674 -- the two-fixed-v0-working-masks refusal raises AllocationError with loc=None (sgn_real's pos/neg compare pair, bf16 identities), breaking the located-refusal contract at the raise site; the sibling no-spillable-victim site at allocate.py:734 also passes None."
       },
       "coding_failures": 2,
-      "started_at": "2026-11-06T14:32:45.564434+00:00",
+      "started_at": "2026-11-07T05:46:24.527019+00:00",
       "deferrals": 0,
       "debug_verified_patterns": [],
       "replan_baseline": {},
@@ -8745,6 +8745,12 @@
       "phase": "IMPLEMENTATION",
       "event": "fail-task",
       "detail": "T035 [implementation] Round-3 long-tail repair: 69 of the 86 refusing identities repaired through shared paths, each executed-and-compared at 1 and 4 workers; 7 classes (17 identities) remain located refusals inside the declared surface. (1) allocation 66->0 (21 operators): the allocator's victim selection now targets t\u2026"
+    },
+    {
+      "at": "2026-11-07T05:46:24.530093+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "start-task",
+      "detail": "T018 agent=coder"
     }
   ]
 }
