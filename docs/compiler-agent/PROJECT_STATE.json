@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-07T11:57:19.390773+00:00",
+  "updated_at": "2026-11-07T12:53:38.443207+00:00",
   "facts": [
     {
       "id": "F001",
@@ -3387,14 +3387,14 @@
       "tags": [
         "compile-sweep-repair"
       ],
-      "status": "RUNNING",
+      "status": "DONE",
       "assignee": "coder",
       "attempts": 2,
-      "evidence": "",
+      "evidence": "worker report WTI040: Attempt 2 judged the dead attempt-1 worker's committed grid repair (7 paths, never verified by the engine) against the task contract, found it sound and complete, and verified it end to end; no further code changes were needed. The 22 residual grid-census rows resolve as follows. FIXED (18 identities): chunk_abc (6 identities, the 'cannot be proven equal' class) and deconv3d (6) now extract through three new structural tie mechanisms in a100c/frontend/gridmodel.py -- the aligned-copy '.reshape(<tracked shape tuple>)' extent rule over any base, callable module-level lambda values with opaque config-dict reads memoized per (base, key) so they fill from identity-signed meta, and the quotient view-extent solve; grouped_mm (6, the 'loop-dependent value (total_tiles)' class) extracts through the identity-signed trip-count unroll (a meta/launch_meta constexpr the interpreter proves equal to the bare shape axis; an unsigned axis never unrolls -- the control refuses, named). REMAINING (4 identities, counted, genuinely untraceable, each refusal located and naming the untraceable input): gn_finalize (3 identities, 9 cases) -- its (n, g) grid axes appear only as the view-extent product n*g (verified: all four views are (n*g,), the only scalars are the shape-independent floats count/eps, and the payload carries no shape echo), so no bundle-visible quantity can serve either axis; grouped_gemm (1 identity, 6 cases) -- its tile-count sum iterates an unsigned case-shape axis whose single identity spans groups=3 and groups=4 cases, so unrolling either count would bake the other case's loop shape (the no-baking gate). Filtered compile sweep over the census operators carrying the residual rows: 18 artifacts + 4 located grid refusals = 22 identities, all sweep checks PASS (the 5-operator run exits 1 only on the vacuous repeat-cases-reuse control -- its only multi-case identities are the refused ones; the reported run adds add_base_max, the acceptance[1] no-baking s",
       "last_error": "Manager-filed report for a dead child: the dispatched worker session for T037 (final grid census residuals) was terminated by the harness after 600000ms of inactivity and never filed its own TaskReport. No commands, acceptance coverage or evidence from the worker reached the engine; nothing it may\u2026",
       "failure_kind": "",
       "start_revision": "3b0da351bb138e7b45f3dc634bb0dc7b41803fc6",
-      "end_revision": "",
+      "end_revision": "018794a11e41b3abd5a5a59f1d533dff96b564bc",
       "completed_seq": 0,
       "debug_required": false,
       "debug_request_id": "",
@@ -3402,7 +3402,7 @@
       "debug_pending_attempts": -1,
       "debug_pending_failures": 0,
       "worker_debug_request": {},
-      "coding_failures": 1,
+      "coding_failures": 0,
       "started_at": "2026-11-07T11:57:18.818200+00:00",
       "deferrals": 0,
       "debug_verified_patterns": [],
@@ -9069,6 +9069,24 @@
       "phase": "IMPLEMENTATION",
       "event": "task-delegate",
       "detail": "WTI040 task=T037 attempt=2 profile=general-purpose"
+    },
+    {
+      "at": "2026-11-07T12:53:38.401508+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "task-report-out-of-contract",
+      "detail": "T037: a100c/cache/t037-filtered-census.json"
+    },
+    {
+      "at": "2026-11-07T12:53:38.412138+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "task-report",
+      "detail": "WTI040 COMPLETED attempt=2 [nonzero command reported; verify input results before optimization, without treating record checks as coding failures; changes outside the declared paths: a100c/cache/t037-filtered-census.json]"
+    },
+    {
+      "at": "2026-11-07T12:53:38.443185+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "complete-task",
+      "detail": "T037 worker report WTI040: Attempt 2 judged the dead attempt-1 worker's committed grid repair (7 paths, never verified by the engine) against the task contract, found it sound and complete, and verified it end to end; no further code changes were needed. The 22 residual grid-census rows resolve as follows. FIXED (18 identities): chunk_abc (6 identities, the 'cannot be proven equal' class) and deconv3d (6) now extract through three new structural tie mechanisms in a100c/frontend/gridmodel.py -- the aligned-copy '.reshape(<tracked shape tuple>)' extent rule over any base, callable module-level lambda values with opaque config-dict reads memoized per (base, key) so they fill from identity-signed meta, and the quotient view-extent solve; grouped_mm (6, the 'loop-dependent value (total_tiles)' class) extracts through the identity-signed trip-count unroll (a meta/launch_meta constexpr the interpreter proves equal to the bare shape axis; an unsigned axis never unrolls -- the control refuses, named). REMAINING (4 identities, counted, genuinely untraceable, each refusal located and naming the untraceable input): gn_finalize (3 identities, 9 cases) -- its (n, g) grid axes appear only as the view-extent product n*g (verified: all four views are (n*g,), the only scalars are the shape-independent floats count/eps, and the payload carries no shape echo), so no bundle-visible quantity can serve either axis; grouped_gemm (1 identity, 6 cases) -- its tile-count sum iterates an unsigned case-shape axis whose single identity spans groups=3 and groups=4 cases, so unrolling either count would bake the other case's loop shape (the no-baking gate). Filtered compile sweep over the census operators carrying the residual rows: 18 artifacts + 4 located grid refusals = 22 identities, all sweep checks PASS (the 5-operator run exits 1 only on the vacuous repeat-cases-reuse control -- its only multi-case identities are the refused ones; the reported run adds add_base_max, the acceptance[1] no-baking s"
     }
   ]
 }
