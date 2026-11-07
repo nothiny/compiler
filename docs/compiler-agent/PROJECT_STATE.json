@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-07T22:51:59.836866+00:00",
+  "updated_at": "2026-11-07T23:55:31.190051+00:00",
   "facts": [
     {
       "id": "F001",
@@ -3673,14 +3673,14 @@
       "tags": [
         "compile-sweep-repair"
       ],
-      "status": "RUNNING",
+      "status": "DONE",
       "assignee": "coder",
       "attempts": 2,
-      "evidence": "",
+      "evidence": "worker report WTI045: Both T040-recorded defects are fixed, verified end-to-end by this attempt, and the fresh full compile census is recorded: 2116/2116 identities ELF artifacts, 0 refusals, 0 crashes. Provenance: the primary implementation arrived on the tree from the terminated WTI044 child (engine-committed as 49c1837: a100c/frontend/gridmodel.py identity-stable grid folding, tools/run_scan.py comma-safe evidence paths, a100c/tests/test_t041_repairs.py regression, test_compile_sweep.py --merge chunked-census machinery); nothing from that dead child had been verified, so this attempt re-verified everything through its own executions and completed the missing census. (1) GRID BAKING: verified fixed -- both gdn2 shapes ([17] and [3,17,2,7] float32, one identity) now extract the IDENTICAL grid model (axis0 cdiv(bundle_scalar T,16), axis1 bundle_view(Akkd,0)*bundle_view(Akkd,2) -- all runtime reads, no literal axis); compiled in separate fresh processes both shapes share cache key 25378fd62178 with BYTE-IDENTICAL executables (pre-fix: same key 020c5b09, different executables 44bfa945/48929706); [3,17,2,7] compares PASS under both compile orders (max_err 3.2e-8) and [17] passes on the cold-order cache; the bake-probe control refuses located for both shapes and the stability-rule-disabled control reproduces the pre-fix fold to 2 (load-bearing). The 24 mixed-arity-SHAPES corpus operators were probed: all 135 cases extract a model, 0 refusals. (2) COMMA PATH: verified fixed -- evidence dir names are comma-free and injective, the QEMU -plugin arg carries no comma, a real QEMU roundtrip writes counts.json at the sanitized path while the unsanitized comma path is NOT created (negative control), and the chunk_abc [2,2,17,9,8,4]#float16 resource-flagged case through tools/run_scan.py itself: no LAUNCH_FAIL, executed, compared PASS, evidence (instruction counts, 4 active workers on 4 distinct units, binding, listing) recorded at the comma-free path; its final row status is EVI",
       "last_error": "Manager-filed report for a dead child: the dispatched worker session for T041 (grid-model baking defect + resource-evidence path fix + fresh full census) was terminated by the harness after 600000ms of inactivity and never filed its own TaskReport. No commands, acceptance coverage or evidence from\u2026",
       "failure_kind": "",
       "start_revision": "49c18372af6c87989d519d53e74717b7e8ac6fc0",
-      "end_revision": "",
+      "end_revision": "2c101b2dac1c84bf417e3b02cbffba73a129df4f",
       "completed_seq": 0,
       "debug_required": false,
       "debug_request_id": "",
@@ -3688,7 +3688,7 @@
       "debug_pending_attempts": -1,
       "debug_pending_failures": 0,
       "worker_debug_request": {},
-      "coding_failures": 1,
+      "coding_failures": 0,
       "started_at": "2026-11-07T22:51:59.039757+00:00",
       "deferrals": 0,
       "debug_verified_patterns": [],
@@ -9503,6 +9503,24 @@
       "phase": "IMPLEMENTATION",
       "event": "task-delegate",
       "detail": "WTI045 task=T041 attempt=2 profile=general-purpose"
+    },
+    {
+      "at": "2026-11-07T23:55:31.150140+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "task-report-out-of-contract",
+      "detail": "T041: a100c/cache/8f98a91ebd96582d0575aeee5e8e7b193fbb67ab8f9fcaa3f2ca2807a75e7123/stage.mir.allocated.txt, a100c/cache/8f98a91ebd96582d0575aeee5e8e7b193fbb67ab8f9fcaa3f2ca2807a75e7123/stage.mir.lowered.txt, a100c/cache/8f98a91ebd96582d0575aeee5e8e7b193fbb67ab8f9fcaa3f2ca2807a75e7123/stage.tir.txt, a100c/cache/8f98a91ebd96582d0575aeee5e8e7b193fbb67ab8f9fcaa3f2ca2807a75e7123/stage.mir.legalized.txt, a100c/cache/build/program-f6e2793f1242ae36.o"
+    },
+    {
+      "at": "2026-11-07T23:55:31.158092+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "task-report",
+      "detail": "WTI045 COMPLETED attempt=2 [nonzero command reported; verify input results before optimization, without treating record checks as coding failures; changes outside the declared paths: a100c/cache/8f98a91ebd96582d0575aeee5e8e7b193fbb67ab8f9fcaa3f2ca2807a75e7123/stage.mir.allocated.txt, a100c/cache/8f98a91ebd96582d0575aeee5e8e7b193fbb67ab8f9fcaa3f2ca2807a75e7123/stage.mir.lowered.txt, a100c/cache/8f98a91ebd96582d0575aeee5e8e7b193fbb67ab8f9fcaa3f2ca2807a75e7123/stage.tir.txt, a100c/cache/8f98a91ebd96582d0575aeee5e8e7b193fbb67ab8f9fcaa3f2ca2807a75e7123/stage.mir.legalized.txt, a100c/cache/build/program-f6e2793f1242ae36.o]"
+    },
+    {
+      "at": "2026-11-07T23:55:31.190038+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "complete-task",
+      "detail": "T041 worker report WTI045: Both T040-recorded defects are fixed, verified end-to-end by this attempt, and the fresh full compile census is recorded: 2116/2116 identities ELF artifacts, 0 refusals, 0 crashes. Provenance: the primary implementation arrived on the tree from the terminated WTI044 child (engine-committed as 49c1837: a100c/frontend/gridmodel.py identity-stable grid folding, tools/run_scan.py comma-safe evidence paths, a100c/tests/test_t041_repairs.py regression, test_compile_sweep.py --merge chunked-census machinery); nothing from that dead child had been verified, so this attempt re-verified everything through its own executions and completed the missing census. (1) GRID BAKING: verified fixed -- both gdn2 shapes ([17] and [3,17,2,7] float32, one identity) now extract the IDENTICAL grid model (axis0 cdiv(bundle_scalar T,16), axis1 bundle_view(Akkd,0)*bundle_view(Akkd,2) -- all runtime reads, no literal axis); compiled in separate fresh processes both shapes share cache key 25378fd62178 with BYTE-IDENTICAL executables (pre-fix: same key 020c5b09, different executables 44bfa945/48929706); [3,17,2,7] compares PASS under both compile orders (max_err 3.2e-8) and [17] passes on the cold-order cache; the bake-probe control refuses located for both shapes and the stability-rule-disabled control reproduces the pre-fix fold to 2 (load-bearing). The 24 mixed-arity-SHAPES corpus operators were probed: all 135 cases extract a model, 0 refusals. (2) COMMA PATH: verified fixed -- evidence dir names are comma-free and injective, the QEMU -plugin arg carries no comma, a real QEMU roundtrip writes counts.json at the sanitized path while the unsanitized comma path is NOT created (negative control), and the chunk_abc [2,2,17,9,8,4]#float16 resource-flagged case through tools/run_scan.py itself: no LAUNCH_FAIL, executed, compared PASS, evidence (instruction counts, 4 active workers on 4 distinct units, binding, listing) recorded at the comma-free path; its final row status is EVI"
     }
   ]
 }

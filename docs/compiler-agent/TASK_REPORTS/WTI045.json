@@ -1,0 +1,110 @@
+{
+  "invocation_id": "WTI045",
+  "task_id": "T041",
+  "attempt": 2,
+  "context_sha256": "5c4bc5b6995f0d15ad069ef667557c78f2b72ec4475893df7f80cc640a311252",
+  "outcome": "COMPLETED",
+  "failure_kind": "implementation",
+  "summary": "Both T040-recorded defects are fixed, verified end-to-end by this attempt, and the fresh full compile census is recorded: 2116/2116 identities ELF artifacts, 0 refusals, 0 crashes. Provenance: the primary implementation arrived on the tree from the terminated WTI044 child (engine-committed as 49c1837: a100c/frontend/gridmodel.py identity-stable grid folding, tools/run_scan.py comma-safe evidence paths, a100c/tests/test_t041_repairs.py regression, test_compile_sweep.py --merge chunked-census machinery); nothing from that dead child had been verified, so this attempt re-verified everything through its own executions and completed the missing census. (1) GRID BAKING: verified fixed -- both gdn2 shapes ([17] and [3,17,2,7] float32, one identity) now extract the IDENTICAL grid model (axis0 cdiv(bundle_scalar T,16), axis1 bundle_view(Akkd,0)*bundle_view(Akkd,2) -- all runtime reads, no literal axis); compiled in separate fresh processes both shapes share cache key 25378fd62178 with BYTE-IDENTICAL executables (pre-fix: same key 020c5b09, different executables 44bfa945/48929706); [3,17,2,7] compares PASS under both compile orders (max_err 3.2e-8) and [17] passes on the cold-order cache; the bake-probe control refuses located for both shapes and the stability-rule-disabled control reproduces the pre-fix fold to 2 (load-bearing). The 24 mixed-arity-SHAPES corpus operators were probed: all 135 cases extract a model, 0 refusals. (2) COMMA PATH: verified fixed -- evidence dir names are comma-free and injective, the QEMU -plugin arg carries no comma, a real QEMU roundtrip writes counts.json at the sanitized path while the unsanitized comma path is NOT created (negative control), and the chunk_abc [2,2,17,9,8,4]#float16 resource-flagged case through tools/run_scan.py itself: no LAUNCH_FAIL, executed, compared PASS, evidence (instruction counts, 4 active workers on 4 distinct units, binding, listing) recorded at the comma-free path; its final row status is EVIDENCE_FAIL only on the pre-existing IME witness condition (this case's dot is the fp32 reshape form, no IME family applies; even the perf representative carries only smt.vfwmadot), asserted recorded honestly, never fabricated. (3) CENSUS: taken cold and chunked (19 operator-disjoint restricted sweeps over isolated cache roots + --merge, all checks PASS): 500 operators, 2734 cases, 2116 identities -> 2116 riscv64-ELF artifacts, 0 refusals, 0 over-budget, 0 crashes, 618 repeat-case reuse checks 0 violations, 2114 compiles = 2113 distinct artifact keys + 1 layout split (within the 1.25x2161 economics), all six basic passes enabled with rewrites fired (cse 76888, licm 17602, constprop 7444, strength_reduction 6776, dce 7327, copyprop 261). Census repairs this attempt made to complete it honestly: (a) test_compile_sweep.py compile-economics now counts compilation units as DISTINCT ARTIFACT KEYS (+ layout splits) instead of corpus identities -- several corpus identities legitimately share one artifact key when the specialization is coarser than the corpus meta tier (var_mean_welford [17]/[97]: N is a runtime scalar, the shared artifact reads it from the bundle -- no baking; the T029 census already recorded this pairing; the phenomenon is now recorded in the census as artifact_key_sharing: 3 identities sharing a key); (b) the parallel-chunk first wave hit a real concurrency defect in MY chunk design, not the compiler: two chunks sharing one cache root race on a100c/runtime/build.py's non-atomic object-cache writes (one amp_update_scale link crash, RuntimeError gcc exit 1; the same case compiles cleanly in isolation, sha e5727b84f4d6) -- the affected chunks were re-run on isolated roots, all green. Full a100c test suite: 46 pass, 0 fail (every test file except the full-corpus sweep, including the new test_t041_repairs.py).",
+  "files_changed": [
+    "a100c/tests/test_compile_sweep.py",
+    "docs/compiler-agent/COMPILE_CENSUS.json",
+    "docs/compiler-agent/COMPILE_CENSUS.t041-evidence.json"
+  ],
+  "artifacts": [
+    "docs/compiler-agent/COMPILE_CENSUS.json",
+    "docs/compiler-agent/COMPILE_CENSUS.t041-evidence.json",
+    "a100c/tests/test_t041_repairs.py",
+    "a100c/frontend/gridmodel.py",
+    "tools/run_scan.py"
+  ],
+  "commands": [
+    {
+      "command": "set -a; . ./.env; set +a; timeout 3300 python3 -u a100c/tests/test_t041_repairs.py",
+      "exit_code": 0,
+      "observed": "all 7 checks PASS: gdn2-model-identity-stable (identical axes/ties for both shapes, all bundle reads); gdn2-separate-processes (shared key 25378fd62178, byte-identical sha 677b12c39d5e, pre-fix was same key with different executables); gdn2-both-compile-orders ([3,17,2,7] PASS cache_hit=True max_err 3.2e-8 order A and cold order B; [17] PASS cache_hit=True); control-refusal (both shapes refuse located; stability-disabled control folds axis to literal 2); comma-unit (comma-free injective dirs, plugin arg without comma); comma-qemu-roundtrip (counts.json written at sanitized path, unsanitized path NOT created); chunk-abc-resource-evidence (no LAUNCH_FAIL, executed, compared PASS, evidence files + 4 workers on 4 units, EVIDENCE_FAIL only on the honestly-recorded pre-existing IME witness condition)"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; bash /tmp/t041-scripts/run_suite.sh (every a100c/tests/test_*.py except test_compile_sweep.py, 8-way parallel, per-file timeout 2400)",
+      "exit_code": 0,
+      "observed": "SUITE: 46 pass, 0 fail -- includes test_t041_repairs.py (389s), test_t039_repairs.py (1361s), test_grid_model, test_specialize, test_frontend_types and all prior repair tests"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; timeout 580 python3 -c \"<grid-model probe over the 24 mixed-arity SHAPES operators>\"",
+      "exit_code": 0,
+      "observed": "24 mixed-arity operators (the class the T041 fold-boundary change affects), all 135 cases: extract_grid OK for every case, 0 refusals, 0 crashes"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; timeout 3900 python3 -u /tmp/t041-scripts/run_census.py (16 operator-disjoint restricted sweeps, shared fresh cache root, per-chunk timeout 3300)",
+      "exit_code": 1,
+      "observed": "13 chunks all checks PASS; chunk_00 killed and re-split by me (deconv3d_fwd, refused in every prior census, compiles at ~500s/identity with no cost history -- 28 operators still pending at 25min); chunk_01 recorded 1 crash (amp_update_scale [1]#float32 RuntimeError: gcc link exit 1 -- the shared-build-dir object-cache race, see the isolated probe below); chunk_05 failed compile-count-within-economics (120 compiles vs 123 corpus-identity units: var_mean_welford's [17]/[97] corpus identities share one artifact key -- pre-existing, already visible in COMPILE_CENSUS_T029.json)"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; timeout 400 python3 -c \"<isolated cold compile of amp_update_scale [1]#float32, fresh cache root>\"",
+      "exit_code": 0,
+      "observed": "compiled OK, sha e5727b84f4d6, cache_hit False -- the chunk_01 crash is the parallel-build race in my shared-root chunk design, not a compiler defect; single-process sweeps (the declared sweep form) never race"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; timeout 3900 python3 -u /tmp/t041-scripts/run_census_rerun.py (chunk_00 re-split into 4 sub-chunks incl. deconv3d alone, chunk_01 and chunk_05 re-run; each on its OWN isolated cache root, per-chunk timeout 3300)",
+      "exit_code": 0,
+      "observed": "all 6 re-run chunks: all compile-sweep checks PASS (chunk_01 now 139/139 artifacts 0 crashes; chunk_05 counts consistent under the corrected unit accounting; deconv3d chunk completed, slowest identity 506s < 600s budget)"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; timeout 570 python3 /tmp/t041-scripts/finalize_census.py (hard-link isolated roots into the merge root, replacing one partial crashed-run dir; then: python3 -u a100c/tests/test_compile_sweep.py --merge <19 chunk docs> --cache-root /tmp/t041-census/cache --census-out FULL_CENSUS.json)",
+      "exit_code": 0,
+      "observed": "all compile-sweep checks PASS (merged census): 500 operators, 2734 cases classified, 2116 identities -> 2116 artifacts + 0 refusals, 0 over-budget, 0 crashes, 618 repeat checks 0 violations, budget respected (2116 attempts, slowest 506455ms), passes=default on 2113/2113 markers with all six basic passes firing; census installed to docs/compiler-agent/COMPILE_CENSUS.json"
+    }
+  ],
+  "acceptance": [
+    {
+      "ref": "acceptance[0]",
+      "command": "set -a; . ./.env; set +a; timeout 3300 python3 -u a100c/tests/test_t041_repairs.py",
+      "exit_code": 0,
+      "observed": "the gdn2 baking defect is fixed generically (gridmodel.py folds a grid axis to a constant only from identity-stable values; len(shape) stays symbolic under mixed-arity SHAPES tables, the seed never carries a concrete value): both shapes of the identity extract one identical all-runtime-read model, compile in separate fresh processes to ONE shared key with ONE byte-identical artifact, the [3,17,2,7] execution compares PASS under both compile orders and [17] passes on the shared artifact, and the untied-literal control refuses located for both shapes while the stability-rule-disabled control reproduces the pre-fix fold (the refusal is load-bearing)"
+    },
+    {
+      "ref": "acceptance[1]",
+      "command": "set -a; . ./.env; set +a; timeout 3300 python3 -u a100c/tests/test_t041_repairs.py (checks 5-7: comma-unit, comma-qemu-roundtrip, chunk-abc-resource-evidence through tools/run_scan.py run --flag-resource)",
+      "exit_code": 0,
+      "observed": "the resource-evidence capture path is comma-safe: injective comma-free dir names, comma-free QEMU plugin argument, a real QEMU roundtrip writes counts.json at the sanitized path (the unsanitized comma path is NOT created), and the chunk_abc [2,2,17,9,8,4]#float16 resource-flagged case records its evidence and executes/compares PASS with no LAUNCH_FAIL (evidence: instruction counts, 4 active workers on 4 distinct units, binding, listing at the comma-free path); the row's EVIDENCE_FAIL is only the pre-existing IME-witness condition (no IME family applies to this case's fp32 reshape-form dot), recorded honestly"
+    },
+    {
+      "ref": "acceptance[2]",
+      "command": "set -a; . ./.env; set +a; timeout 570 python3 /tmp/t041-scripts/finalize_census.py (19 operator-disjoint cold chunk sweeps + --merge, per-chunk timeout 3300, isolated roots; installed to docs/compiler-agent/COMPILE_CENSUS.json)",
+      "exit_code": 0,
+      "observed": "fresh full cold compile census at revision bb81f4c49150cef9 recorded to docs/compiler-agent/COMPILE_CENSUS.json: 2116 identities = 2116 riscv64-ELF artifacts + 0 refusals (so zero unjustified refusals), 0 over-budget, 0 crashes, 2734/2734 cases classified over 500/500 operators, 2114 compiles = 2113 distinct artifact keys + 1 layout split <= 1.25x2161, 618 repeat-case reuse checks with 0 violations, passes=default with all six basic passes firing"
+    },
+    {
+      "ref": "acceptance[3]",
+      "command": "set -a; . ./.env; set +a; bash /tmp/t041-scripts/run_suite.sh (full a100c test suite, 46 files, 8-way parallel)",
+      "exit_code": 0,
+      "observed": "SUITE: 46 pass, 0 fail -- every pre-existing test file passes at the new revision, plus the new test_t041_repairs.py; test_compile_sweep.py itself is covered by the chunked full census (its declared chunked equivalent), all checks PASS"
+    }
+  ],
+  "tests": [
+    {
+      "ref": "tests[0]",
+      "command": "set -a; . ./.env; set +a; python3 a100c/tests/test_compile_sweep.py (chunked equivalent: 19 operator-disjoint restricted cold sweeps over isolated cache roots + --merge at the new revision)",
+      "exit_code": 0,
+      "observed": "full census clean: every one of the 2116 identities an ELF artifact, 0 refusals, 0 crashes, 0 over-budget; all compile-sweep checks PASS on every chunk and on the merged census; recorded to docs/compiler-agent/COMPILE_CENSUS.json (chunked: true, 19 chunks, revision bb81f4c49150cef9)"
+    },
+    {
+      "ref": "tests[1]",
+      "command": "set -a; . ./.env; set +a; bash /tmp/t041-scripts/run_suite.sh (the full a100c test suite including the new baking and comma-path regression tests)",
+      "exit_code": 0,
+      "observed": "SUITE: 46 pass, 0 fail, including test_t041_repairs.py (all 7 checks: baking regression with separate-process and both-compile-order execution comparisons, control refusal, comma unit + real QEMU roundtrip, chunk_abc resource evidence through the scan driver)"
+    }
+  ],
+  "evidence": "docs/compiler-agent/COMPILE_CENSUS.json (the fresh full cold census: 2116 identities / 2116 ELF artifacts / 0 refusals / 0 crashes, chunked:true with all 19 chunk commands and summaries) plus docs/compiler-agent/COMPILE_CENSUS.t041-evidence.json (the raw execution logs of every verification command). The load-bearing controls: (1) the pre-fix reproduction recorded by T040 (same cache key 020c5b09 for both gdn2 shapes but different executables) is replaced by one shared key 25378fd62178 with byte-identical executables, and the [3,17,2,7] case that previously mismatched (Akk 0.0 vs 1.0) now compares PASS under both compile orders; (2) the bake-probe control test refuses located while disabling the stability rule reproduces the silent fold -- the refusal is not vacuous; (3) the QEMU comma roundtrip's negative control (the unsanitized path is NOT created) proves the pre-fix split; (4) the chunk_abc resource case that previously recorded LAUNCH_FAIL now executes, compares PASS and records its evidence; (5) the census's 618 repeat-case cache-hit checks and the 3 shared-key identities (var_mean_welford) are exactly the no-baking contract: the shared artifact reads the differing runtime values from the bundle.",
+  "design_issue": {},
+  "debug_request": {},
+  "attack": {},
+  "remaining_work": [
+    "a100c/runtime/build.py writes its content-addressed object cache non-atomically (if not obj.is_file(): gcc -o obj): two compile processes sharing one cache root race on the same .o and one link can fail (observed once as the amp_update_scale chunk crash; the case compiles cleanly in isolation). Single-process sweeps -- the declared sweep form -- are unaffected. A follow-up should write to a temp path and os.replace, making the object cache concurrent-safe.",
+    "deconv3d_fwd_kernel produced its first-ever artifacts this census (refused in every prior census) at ~500s per identity -- now the corpus's heaviest compile. A correctness-neutral compile-cost finding for any future performance round; the per-identity budget (600s) currently covers it with little margin.",
+    "The dev-lane resource-evidence representative (chunk_abc fp16) cannot satisfy its declared IME instruction witnesses: the case's source-level dot is the fp32 reshape form (K < 16, no IME family applies) and even the perf representative carries only smt.vfwmadot, so the row honestly records EVIDENCE_FAIL. The representative-selection rule or the per-case witness set needs a manager decision so an IME-applicable case carries the IME evidence contract.",
+    "The full executed-and-compared regression over the corpus at this revision (execution and comparison of every case, multi-worker and resource evidence) is the next phase's scan work; this task's census establishes that every identity compiles to an ELF artifact with zero refusals."
+  ],
+  "end_revision": "",
+  "at": "2026-11-07T23:55:31.114354+00:00"
+}
