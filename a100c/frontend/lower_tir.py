@@ -2878,6 +2878,19 @@ class Lowering:
         """Wrap a value with a recorded promise (the hint op is an
         identity: it preserves type and shape and never converts)."""
         if not isinstance(inp, tir.Value):
+            if isinstance(inp, ConstVal) \
+                    and isinstance(_py_scalar(inp.value),
+                                   (bool, int, float)) \
+                    and not isinstance(inp.value, (DTypeValue, TypeObject)):
+                # T038: a hint on a COMPILE-TIME value (the ==1
+                # specialization folds the runtime scalar the source
+                # promised -- masked_cumsum_vec's stride hints at shape
+                # (1, 1)) is vacuous: the value is known, so the promise
+                # has nothing to inform (the wide-access proof reads
+                # hints off runtime values only; ignoring a hint is
+                # always safe).  The hint evaluates to its input, exactly
+                # like the runtime form's identity op.
+                return inp
             raise self._err(
                 node, "tl.multiple_of/tl.max_contiguous",
                 "a hint attaches to a runtime value (a compile-time value "
@@ -4446,10 +4459,24 @@ class Lowering:
         diagnostic at the lowering, never a silent reinterpretation)."""
         value = self._lower_expr(args["input"])
         if isinstance(value, ConstVal):
-            raise self._err(
-                node, construct,
-                "a compile-time value converts at specialization (no "
-                "runtime convert is produced)")
+            # T038: a COMPILE-TIME input (the ==1 specialization folds the
+            # runtime scalar -- final_mean's ``tl.cast(n_elements, f32)``
+            # at shape (1,)) materializes as a TIR constant of its own
+            # literal type and takes the ORDINARY convert op: the numeric
+            # policy stays in one place (constprop's _fold_convert folds
+            # it under the declared semantics, never a Python re-typing).
+            py = _py_scalar(value.value)
+            if not isinstance(py, (bool, int, float)) \
+                    or isinstance(value.value, (DTypeValue, TypeObject)):
+                raise self._err(
+                    node, construct,
+                    "a compile-time non-scalar value converts at "
+                    "specialization (no runtime convert is produced)")
+            try:
+                src_ty = ftypes.literal_type(py)
+            except ftypes.TypeRuleError as exc:
+                raise self._err(node, construct, exc.message)
+            value = self._emit(tir.Op.const(py, src_ty, loc), "cst")
         rounding = None
         if "fp_downcast_rounding" in args:
             r = self.env.evaluate(args["fp_downcast_rounding"],

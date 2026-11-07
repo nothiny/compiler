@@ -1,1143 +1,1143 @@
 {
-  "schema_version": 1,
-  "rows": [
-    {
-      "item": "triton.jit",
-      "status": "implemented",
-      "parameters_covered": [
-        "fn",
-        "version",
-        "repr",
-        "launch_metadata",
-        "do_not_specialize",
-        "do_not_specialize_on_alignment",
-        "debug",
-        "noinline"
-      ],
-      "evidence": "python3 a100c/tests/test_frontend_surface.py (exit 0) (decorator-constructs-triton.jit-autotune: do_not_specialize/_on_alignment honored) and python3 a100c/tests/test_specialize.py (exit 0) (the specialization identity over the jit parameters)",
-      "ir_construct": "the compile unit (a100c/frontend/source.py OperatorSource: the single-@triton.jit AST contract; no IR construct)",
-      "note": "version/repr/launch_metadata/debug/noinline are decorator metadata, ignorable with recorded reasons; fn is the unit; do_not_specialize and do_not_specialize_on_alignment shape the identity"
-    },
-    {
-      "item": "tl.store",
-      "status": "implemented",
-      "parameters_covered": [
-        "pointer",
-        "value",
-        "mask",
-        "boundary_check",
-        "cache_modifier",
-        "eviction_policy"
-      ],
-      "evidence": "python3 a100c/tests/test_memory_forms.py (exit 0): memory forms (block pointers, boundary_check, padding_option, gather, interleave, pointer tables) executed and compared; python3 a100c/tests/test_e2e_slice.py (exit 0): end-to-end compile/build/execute/compare at 1/2/4/8 threads; python3 a100c/tests/test_frontend_surface.py (exit 0) (control-store-mask-ignorable-fails-correctness)",
-      "ir_construct": "tir store op (mask operand; masked_default=no-access at disabled positions)",
-      "note": "cache_modifier/eviction_policy ignorable with recorded reasons (performance-only, verified semantics-neutral); boundary_check implemented (memory-forms lane)"
-    },
-    {
-      "item": "tl.load",
-      "status": "implemented",
-      "parameters_covered": [
-        "pointer",
-        "mask",
-        "other",
-        "boundary_check",
-        "padding_option",
-        "cache_modifier",
-        "eviction_policy",
-        "volatile"
-      ],
-      "evidence": "python3 a100c/tests/test_memory_forms.py (exit 0): memory forms (block pointers, boundary_check, padding_option, gather, interleave, pointer tables) executed and compared; python3 a100c/tests/test_e2e_slice.py (exit 0): end-to-end compile/build/execute/compare at 1/2/4/8 threads; python3 a100c/tests/test_frontend_surface.py (exit 0) (control-load-other-ignorable-fails-correctness)",
-      "ir_construct": "tir load op (mask operand + declared masked_default; whole-tree ptradd address)",
-      "note": "cache_modifier/eviction_policy ignorable with recorded reasons; boundary_check/padding_option/volatile/other implemented (memory-forms lane)"
-    },
-    {
-      "item": "tl.arange",
-      "status": "implemented",
-      "parameters_covered": [
-        "start",
-        "end"
-      ],
-      "evidence": "python3 a100c/tests/test_lower_vector.py (exit 0): RVV masked tails executed and compared; python3 a100c/tests/test_frontend_surface.py (exit 0)",
-      "ir_construct": "tir iota op"
-    },
-    {
-      "item": "tl.program_id",
-      "status": "implemented",
-      "parameters_covered": [
-        "axis"
-      ],
-      "evidence": "python3 a100c/tests/test_grid_model.py (exit 0): runtime grid evaluation and cdiv grid forms; python3 a100c/tests/test_partition.py (exit 0): 1/2/4/8 worker distribution; python3 a100c/tests/test_e2e_slice.py (exit 0): end-to-end compile/build/execute/compare at 1/2/4/8 threads",
-      "ir_construct": "tir program_id op (the linear worker-range decomposition per grid axis)"
-    },
-    {
-      "item": "tl.constexpr",
-      "status": "implemented",
-      "parameters_covered": [
-        "value"
-      ],
-      "evidence": "python3 a100c/tests/test_specialize.py (exit 0) (constexpr conditions, dtype predicates, dead dispatch branches folded and recorded); python3 a100c/tests/test_frontend_surface.py (exit 0) (constexpr-call and module-constexpr-global-call-form)",
-      "ir_construct": "the constexpr folding domain (a100c/frontend/specialize.py ConstexprEnv; no runtime op)",
-      "note": "annotation, call form and module-level X = tl.constexpr(v) globals all fold"
-    },
-    {
-      "item": "tl.float32",
-      "status": "implemented",
-      "parameters_covered": [],
-      "evidence": "python3 a100c/tests/test_frontend_surface.py (exit 0)",
-      "ir_construct": "tir.Type dtype constants (a100c/frontend/types.py DTYPE_BY_NAME; parse/compare/create, no runtime op)"
-    },
-    {
-      "item": "tl.sum",
-      "status": "implemented",
-      "parameters_covered": [
-        "input",
-        "axis",
-        "keep_dims",
-        "dtype"
-      ],
-      "evidence": "python3 a100c/tests/test_reductions.py (exit 0): reduction and scan forms executed and compared; corpus reduction operators at 1/2/4/8 threads on one artifact",
-      "ir_construct": "tir reduce op (kind, per-op-and-dtype identity, axes, keep_dims, declared tie-break)",
-      "note": "dtype= promotes integer widths < 32"
-    },
-    {
-      "item": "tl.where",
-      "status": "implemented",
-      "parameters_covered": [
-        "condition",
-        "x",
-        "y"
-      ],
-      "evidence": "python3 a100c/tests/test_math_ops.py (exit 0): 24/24 declared forms executed on QEMU and compared against numpy oracles; python3 a100c/tests/test_lower_vector.py (exit 0): RVV masked tails executed and compared",
-      "ir_construct": "tir where op (select)"
-    },
-    {
-      "item": "tl.zeros",
-      "status": "implemented",
-      "parameters_covered": [
-        "shape",
-        "dtype"
-      ],
-      "evidence": "python3 a100c/tests/test_frontend_surface.py (exit 0); python3 a100c/tests/test_layout_ops.py (exit 0): layout and shape forms executed and compared (meta-dtype-object-folds: tl.zeros((), dtype=<live tl constant from meta>) lowers)",
-      "ir_construct": "tir zeros op"
-    },
-    {
-      "item": "tl.int64",
-      "status": "implemented",
-      "parameters_covered": [],
-      "evidence": "python3 a100c/tests/test_frontend_surface.py (exit 0)",
-      "ir_construct": "tir.Type dtype constants (a100c/frontend/types.py DTYPE_BY_NAME; parse/compare/create, no runtime op)"
-    },
-    {
-      "item": "tl.maximum",
-      "status": "implemented",
-      "parameters_covered": [
-        "x",
-        "y",
-        "propagate_nan"
-      ],
-      "evidence": "python3 a100c/tests/test_math_ops.py (exit 0): 24/24 declared forms executed on QEMU and compared against numpy oracles (NaN policies executed with NaN inputs)",
-      "ir_construct": "tir arith.maxnumf/maximumf and minnumf/minimumf (the propagate_nan policy carried by the op code)"
-    },
-    {
-      "item": "tl.dot",
-      "status": "implemented",
-      "parameters_covered": [
-        "input",
-        "other",
-        "acc",
-        "out_dtype"
-      ],
-      "evidence": "python3 a100c/tests/test_matrix_breadth.py (exit 0): dot families executed and compared (int8/fp32/bf16, acc, masked); python3 a100c/tests/test_ime_evidence.py (exit 0): IME instruction counts bound to the executed artifact; python3 a100c/tests/test_lower_matrix.py (exit 0): IME operand constraints verified",
-      "ir_construct": "tir linalg.dot op (IME tile selection int8/uint8/fp16 + the budget-bounded vector FP32 FMA path; acc/out_dtype carried)",
-      "note": "declared subset restriction: input_precision= and allow_tf32= are stripped from every kept operator by SUBSET.md principle 2 (fp32 tl.dot is exact IEEE; the harness pins TRITON_F32_DEFAULT=ieee); max_num_imprecise_acc applies to fp8 which the subset excludes entirely. Declared subset parameters: input, other, acc, out_dtype (bf16/fp16 operands with fp32 accumulation; fp32 operands IEEE)."
-    },
-    {
-      "item": "tl.exp",
-      "status": "implemented",
-      "parameters_covered": [
-        "x"
-      ],
-      "evidence": "python3 a100c/tests/test_math_ops.py (exit 0): 24/24 declared forms executed on QEMU and compared against numpy oracles",
-      "ir_construct": "tir math.* unary op family (the libm-backed vmath MIR op; fp32/fp64 operands per the pinned _check_dtype)"
-    },
-    {
-      "item": "tl.max",
-      "status": "implemented",
-      "parameters_covered": [
-        "input",
-        "axis",
-        "return_indices",
-        "return_indices_tie_break_left",
-        "keep_dims"
-      ],
-      "evidence": "python3 a100c/tests/test_reductions.py (exit 0): reduction and scan forms executed and compared; corpus reduction operators at 1/2/4/8 threads on one artifact (return_indices two-result form; corpus max/min operators at 1/2/4/8)",
-      "ir_construct": "tir reduce op (kind, per-op-and-dtype identity, axes, keep_dims, declared tie-break)",
-      "note": "return_indices/return_indices_tie_break_left implemented"
-    },
-    {
-      "item": "tl.abs",
-      "status": "implemented",
-      "parameters_covered": [
-        "x"
-      ],
-      "evidence": "python3 a100c/tests/test_math_ops.py (exit 0): 24/24 declared forms executed on QEMU and compared against numpy oracles (int abs executed)",
-      "ir_construct": "tir math.fabs / math.iabs (unsigned identity)"
-    },
-    {
-      "item": "tl.cdiv",
-      "status": "implemented",
-      "parameters_covered": [
-        "x",
-        "div"
-      ],
-      "evidence": "python3 a100c/tests/test_math_ops.py (exit 0): 24/24 declared forms executed on QEMU and compared against numpy oracles (cdiv_desugar form executed and compared); python3 a100c/tests/test_grid_model.py (exit 0): runtime grid evaluation and cdiv grid forms (cdiv grid forms)",
-      "ir_construct": "the (a+b-1)//b desugar (tir arith)"
-    },
-    {
-      "item": "tl.full",
-      "status": "implemented",
-      "parameters_covered": [
-        "shape",
-        "value",
-        "dtype"
-      ],
-      "evidence": "python3 a100c/tests/test_frontend_surface.py (exit 0) (shape-attr-folds-into-constexpr-uses); python3 a100c/tests/test_layout_ops.py (exit 0): layout and shape forms executed and compared",
-      "ir_construct": "tir full op (constexpr shape incl. x.shape folding)"
-    },
-    {
-      "item": "tl.int32",
-      "status": "implemented",
-      "parameters_covered": [],
-      "evidence": "python3 a100c/tests/test_frontend_surface.py (exit 0)",
-      "ir_construct": "tir.Type dtype constants (a100c/frontend/types.py DTYPE_BY_NAME; parse/compare/create, no runtime op)"
-    },
-    {
-      "item": "tl.sqrt",
-      "status": "implemented",
-      "parameters_covered": [
-        "x"
-      ],
-      "evidence": "python3 a100c/tests/test_math_ops.py (exit 0): 24/24 declared forms executed on QEMU and compared against numpy oracles",
-      "ir_construct": "tir math.* unary op family (the libm-backed vmath MIR op; fp32/fp64 operands per the pinned _check_dtype)"
-    },
-    {
-      "item": "tl.log",
-      "status": "implemented",
-      "parameters_covered": [
-        "x"
-      ],
-      "evidence": "python3 a100c/tests/test_math_ops.py (exit 0): 24/24 declared forms executed on QEMU and compared against numpy oracles",
-      "ir_construct": "tir math.* unary op family (the libm-backed vmath MIR op; fp32/fp64 operands per the pinned _check_dtype)"
-    },
-    {
-      "item": "tl.minimum",
-      "status": "implemented",
-      "parameters_covered": [
-        "x",
-        "y",
-        "propagate_nan"
-      ],
-      "evidence": "python3 a100c/tests/test_math_ops.py (exit 0): 24/24 declared forms executed on QEMU and compared against numpy oracles (NaN policies executed with NaN inputs)",
-      "ir_construct": "tir arith.maxnumf/maximumf and minnumf/minimumf (the propagate_nan policy carried by the op code)"
-    },
-    {
-      "item": "tl.min",
-      "status": "implemented",
-      "parameters_covered": [
-        "input",
-        "axis",
-        "return_indices",
-        "return_indices_tie_break_left",
-        "keep_dims"
-      ],
-      "evidence": "python3 a100c/tests/test_reductions.py (exit 0): reduction and scan forms executed and compared; corpus reduction operators at 1/2/4/8 threads on one artifact (index forms; the scalar fp32 atomic_min equivalent executed)",
-      "ir_construct": "tir reduce op (kind, per-op-and-dtype identity, axes, keep_dims, declared tie-break)",
-      "note": "return_indices/return_indices_tie_break_left implemented"
-    },
-    {
-      "item": "tl.bfloat16",
-      "status": "implemented",
-      "parameters_covered": [],
-      "evidence": "python3 a100c/tests/test_frontend_surface.py (exit 0) (all thirteen dtype constants lower via tl.zeros([2], dt)); python3 a100c/tests/test_specialize.py (exit 0) (bf16 pointer duality pitfall covered)",
-      "ir_construct": "tir.Type dtype constants (a100c/frontend/types.py DTYPE_BY_NAME; parse/compare/create, no runtime op)"
-    },
-    {
-      "item": "tl.range",
-      "status": "implemented",
-      "parameters_covered": [
-        "arg1",
-        "arg2",
-        "step",
-        "num_stages",
-        "loop_unroll_factor",
-        "disallow_acc_multi_buffer",
-        "flatten",
-        "warp_specialize",
-        "disable_licm"
-      ],
-      "evidence": "python3 a100c/tests/test_control_flow.py (exit 0): loop and branch forms with join semantics executed and compared; python3 a100c/tests/test_reductions.py (exit 0): reduction and scan forms executed and compared; corpus reduction operators at 1/2/4/8 threads on one artifact (persistent two-phase)",
-      "ir_construct": "tir structured loop region with explicit join parameters (num_stages/... loop pragmas ignorable with recorded reasons)",
-      "note": "num_stages/loop_unroll_factor/disallow_acc_multi_buffer/flatten/warp_specialize/disable_licm ignorable with recorded reasons (performance hints, not loop semantics)"
-    },
-    {
-      "item": "tl.float16",
-      "status": "implemented",
-      "parameters_covered": [],
-      "evidence": "python3 a100c/tests/test_frontend_surface.py (exit 0); python3 a100c/tests/test_math_ops.py (exit 0): 24/24 declared forms executed on QEMU and compared against numpy oracles (fp16 rides the FP32 lanes under the declared single-rounding policy)",
-      "ir_construct": "tir.Type dtype constants (a100c/frontend/types.py DTYPE_BY_NAME; parse/compare/create, no runtime op)"
-    },
-    {
-      "item": "tl.num_programs",
-      "status": "implemented",
-      "parameters_covered": [
-        "axis"
-      ],
-      "evidence": "python3 a100c/tests/test_grid_model.py (exit 0): runtime grid evaluation and cdiv grid forms; python3 a100c/tests/test_control_flow.py (exit 0): loop and branch forms with join semantics executed and compared",
-      "ir_construct": "tir num_programs op (runtime grid extents)"
-    },
-    {
-      "item": "tl.reshape",
-      "status": "implemented",
-      "parameters_covered": [
-        "input",
-        "*shape",
-        "can_reorder"
-      ],
-      "evidence": "python3 a100c/tests/test_layout_ops.py (exit 0): layout and shape forms executed and compared (can_reorder accepted: the identity is the realized choice)",
-      "ir_construct": "tir reshape op (constexpr shape; broadcast extents realized)"
-    },
-    {
-      "item": "tl.static_range",
-      "status": "implemented",
-      "parameters_covered": [
-        "arg1",
-        "arg2",
-        "step"
-      ],
-      "evidence": "python3 a100c/tests/test_control_flow.py (exit 0): loop and branch forms with join semantics executed and compared",
-      "ir_construct": "tir structured loop region with explicit join parameters (num_stages/... loop pragmas ignorable with recorded reasons)"
-    },
-    {
-      "item": "tl.multiple_of",
-      "status": "implemented",
-      "parameters_covered": [
-        "input",
-        "values"
-      ],
-      "evidence": "python3 a100c/tests/test_frontend_surface.py (exit 0); python3 a100c/tests/test_memory_forms.py (exit 0): memory forms (block pointers, boundary_check, padding_option, gather, interleave, pointer tables) executed and compared",
-      "ir_construct": "tir hint op (the divisibility/contiguity promise; the wide-access proof consumes it)"
-    },
-    {
-      "item": "tl.sigmoid",
-      "status": "implemented",
-      "parameters_covered": [
-        "x"
-      ],
-      "evidence": "python3 a100c/tests/test_math_ops.py (exit 0): 24/24 declared forms executed on QEMU and compared against numpy oracles (sigmoid form; corpus fused_activation)",
-      "ir_construct": "the pinned 1/(1+exp(-x)) composition (tir arith.fdiv + math.exp)"
-    },
-    {
-      "item": "tl.float64",
-      "status": "implemented",
-      "parameters_covered": [],
-      "evidence": "python3 a100c/tests/test_specialize.py (exit 0) (nansum_kernel_2's dead fp64 dispatch branch folded and recorded); python3 a100c/tests/test_math_ops.py (exit 0): 24/24 declared forms executed on QEMU and compared against numpy oracles (the two declared fp64 internal-compute routes)",
-      "ir_construct": "tir.Type dtype constants (a100c/frontend/types.py DTYPE_BY_NAME; parse/compare/create, no runtime op)",
-      "note": "declared subset restriction: no float64 tensor case exists: SUBSET.md principle 2 removes fp64 cases; the 16 suite occurrences are constexpr dtype-dispatch comparisons/branches that are dead for the declared case dtypes (verified: no operator declares a float64 case in suite/manifest.json) - the constant must parse and compare during specialization, but no fp64 tensor compute path is exercised by any case"
-    },
-    {
-      "item": "tl.rsqrt",
-      "status": "implemented",
-      "parameters_covered": [
-        "x"
-      ],
-      "evidence": "python3 a100c/tests/test_math_ops.py (exit 0): 24/24 declared forms executed on QEMU and compared against numpy oracles",
-      "ir_construct": "tir math.* unary op family (the libm-backed vmath MIR op; fp32/fp64 operands per the pinned _check_dtype)"
-    },
-    {
-      "item": "tl.trans",
-      "status": "implemented",
-      "parameters_covered": [
-        "input",
-        "*dims"
-      ],
-      "evidence": "python3 a100c/tests/test_layout_ops.py (exit 0): layout and shape forms executed and compared (the .T attribute form too)",
-      "ir_construct": "tir permute op"
-    },
-    {
-      "item": "tl.exp2",
-      "status": "implemented",
-      "parameters_covered": [
-        "x"
-      ],
-      "evidence": "python3 a100c/tests/test_math_ops.py (exit 0): 24/24 declared forms executed on QEMU and compared against numpy oracles (pow's exp2*log2 composition rides the same form)",
-      "ir_construct": "tir math.* unary op family (the libm-backed vmath MIR op; fp32/fp64 operands per the pinned _check_dtype)"
-    },
-    {
-      "item": "tl.uint32",
-      "status": "implemented",
-      "parameters_covered": [],
-      "evidence": "python3 a100c/tests/test_frontend_surface.py (exit 0)",
-      "ir_construct": "tir.Type dtype constants (a100c/frontend/types.py DTYPE_BY_NAME; parse/compare/create, no runtime op)"
-    },
-    {
-      "item": "tl.atomic_add",
-      "status": "implemented",
-      "parameters_covered": [
-        "pointer",
-        "val",
-        "mask",
-        "sem",
-        "scope"
-      ],
-      "evidence": "python3 a100c/tests/test_atomics.py (exit 0): all eight atomic operators plus debug_barrier executed and compared at 1/2/4/8 threads; sem/scope asserted on the assembly (count_nonzero/bincount multi-worker accumulation at 1/2/4/8)",
-      "ir_construct": "tir atomic_rmw / atomic_cas ops (sem and scope carried; masked no-access at disabled lanes)"
-    },
-    {
-      "item": "triton.autotune",
-      "status": "implemented",
-      "parameters_covered": [
-        "configs",
-        "key",
-        "prune_configs_by",
-        "reset_to_zero",
-        "restore_value",
-        "pre_hook",
-        "post_hook",
-        "warmup",
-        "rep",
-        "use_cuda_graph",
-        "do_bench",
-        "cache_results"
-      ],
-      "evidence": "python3 a100c/tests/test_frontend_surface.py (exit 0) (decorator-constructs-triton.jit-autotune: the config space consumed, first config chosen) and python3 a100c/tests/test_specialize.py (exit 0)",
-      "ir_construct": "the specialization identity (specialize.py: the deterministic first-config constexprs; no IR construct)",
-      "note": "key/prune_configs_by/reset_to_zero/restore_value/pre_hook/post_hook/warmup/rep/use_cuda_graph/do_bench/cache_results ignorable with recorded reasons (tuning machinery; the deterministic first-config choice never tunes)"
-    },
-    {
-      "item": "tl.erf",
-      "status": "implemented",
-      "parameters_covered": [
-        "x"
-      ],
-      "evidence": "python3 a100c/tests/test_math_ops.py (exit 0): 24/24 declared forms executed on QEMU and compared against numpy oracles (corpus gelu_min)",
-      "ir_construct": "tir math.* unary op family (the libm-backed vmath MIR op; fp32/fp64 operands per the pinned _check_dtype)"
-    },
-    {
-      "item": "tl.int1",
-      "status": "implemented",
-      "parameters_covered": [],
-      "evidence": "python3 a100c/tests/test_frontend_surface.py (exit 0); python3 a100c/tests/test_frontend_types.py (exit 0)",
-      "ir_construct": "tir.Type dtype constants (a100c/frontend/types.py DTYPE_BY_NAME; parse/compare/create, no runtime op)"
-    },
-    {
-      "item": "tl.make_block_ptr",
-      "status": "implemented",
-      "parameters_covered": [
-        "base",
-        "shape",
-        "strides",
-        "offsets",
-        "block_shape",
-        "order"
-      ],
-      "evidence": "python3 a100c/tests/test_memory_forms.py (exit 0): memory forms (block pointers, boundary_check, padding_option, gather, interleave, pointer tables) executed and compared (block-pointer load/store forms executed and compared)",
-      "ir_construct": "BlockPtrVal desugar: the whole-tree ptradd address + mask operand + padding other (no block-pointer TIR op)"
-    },
-    {
-      "item": "tl.cast",
-      "status": "implemented",
-      "parameters_covered": [
-        "input",
-        "dtype",
-        "fp_downcast_rounding",
-        "bitcast"
-      ],
-      "evidence": "python3 a100c/tests/test_conversions.py (exit 0): the conversion matrix executed and compared; python3 a100c/tests/test_frontend_surface.py (exit 0) (cast-method-equals-to: the .cast method form produces the identical conversion)",
-      "ir_construct": "tir convert op (distinct from the bitcast op; fp_downcast_rounding rtne/rtz)",
-      "note": "the .to and .cast method forms and the call form share one carrier"
-    },
-    {
-      "item": "tl.tensor",
-      "status": "implemented",
-      "parameters_covered": [],
-      "evidence": "python3 a100c/tests/test_frontend_surface.py (exit 0); python3 a100c/tests/test_frontend_types.py (exit 0)",
-      "ir_construct": "tir.Type dtype constants (a100c/frontend/types.py DTYPE_BY_NAME; parse/compare/create, no runtime op)"
-    },
-    {
-      "item": "tl.argmax",
-      "status": "implemented",
-      "parameters_covered": [
-        "input",
-        "axis",
-        "tie_break_left",
-        "keep_dims"
-      ],
-      "evidence": "python3 a100c/tests/test_reductions.py (exit 0): reduction and scan forms executed and compared; corpus reduction operators at 1/2/4/8 threads on one artifact (corpus argmax_kernel_inner)",
-      "ir_construct": "tir reduce op (kind, per-op-and-dtype identity, axes, keep_dims, declared tie-break)"
-    },
-    {
-      "item": "tl.debug_barrier",
-      "status": "implemented",
-      "parameters_covered": [],
-      "evidence": "python3 a100c/tests/test_atomics.py (exit 0): all eight atomic operators plus debug_barrier executed and compared at 1/2/4/8 threads; sem/scope asserted on the assembly (atomic_bitmap's barrier executed)",
-      "ir_construct": "tir barrier op (intra-program ordering)"
-    },
-    {
-      "item": "tl.floor",
-      "status": "implemented",
-      "parameters_covered": [
-        "x"
-      ],
-      "evidence": "python3 a100c/tests/test_math_ops.py (exit 0): 24/24 declared forms executed on QEMU and compared against numpy oracles",
-      "ir_construct": "tir math.* unary op family (the libm-backed vmath MIR op; fp32/fp64 operands per the pinned _check_dtype)"
-    },
-    {
-      "item": "tl.philox",
-      "status": "implemented",
-      "parameters_covered": [
-        "seed",
-        "c0",
-        "c1",
-        "c2",
-        "c3",
-        "n_rounds"
-      ],
-      "evidence": "python3 a100c/tests/test_rng.py (exit 0): RNG bit-exact against vectors generated from the pinned Triton 3.8",
-      "ir_construct": "tir rng.philox op (the 4-result counter-based primitive the corpus kernels inline around)"
-    },
-    {
-      "item": "tl.advance",
-      "status": "implemented",
-      "parameters_covered": [
-        "base",
-        "offsets"
-      ],
-      "evidence": "python3 a100c/tests/test_memory_forms.py (exit 0): memory forms (block pointers, boundary_check, padding_option, gather, interleave, pointer tables) executed and compared",
-      "ir_construct": "BlockPtrVal desugar: the whole-tree ptradd address + mask operand + padding other (no block-pointer TIR op)"
-    },
-    {
-      "item": "tl.cos",
-      "status": "implemented",
-      "parameters_covered": [
-        "x"
-      ],
-      "evidence": "python3 a100c/tests/test_math_ops.py (exit 0): 24/24 declared forms executed on QEMU and compared against numpy oracles",
-      "ir_construct": "tir math.* unary op family (the libm-backed vmath MIR op; fp32/fp64 operands per the pinned _check_dtype)"
-    },
-    {
-      "item": "tl.join",
-      "status": "implemented",
-      "parameters_covered": [
-        "a",
-        "b"
-      ],
-      "evidence": "python3 a100c/tests/test_layout_ops.py (exit 0): layout and shape forms executed and compared",
-      "ir_construct": "tir join op"
-    },
-    {
-      "item": "tl.log2",
-      "status": "implemented",
-      "parameters_covered": [
-        "x"
-      ],
-      "evidence": "python3 a100c/tests/test_math_ops.py (exit 0): 24/24 declared forms executed on QEMU and compared against numpy oracles",
-      "ir_construct": "tir math.* unary op family (the libm-backed vmath MIR op; fp32/fp64 operands per the pinned _check_dtype)"
-    },
-    {
-      "item": "tl.sin",
-      "status": "implemented",
-      "parameters_covered": [
-        "x"
-      ],
-      "evidence": "python3 a100c/tests/test_math_ops.py (exit 0): 24/24 declared forms executed on QEMU and compared against numpy oracles",
-      "ir_construct": "tir math.* unary op family (the libm-backed vmath MIR op; fp32/fp64 operands per the pinned _check_dtype)"
-    },
-    {
-      "item": "tl.split",
-      "status": "implemented",
-      "parameters_covered": [
-        "a"
-      ],
-      "evidence": "python3 a100c/tests/test_layout_ops.py (exit 0): layout and shape forms executed and compared",
-      "ir_construct": "tir split (the multi-result join inverse; the tuple-unpack form is the legal use)"
-    },
-    {
-      "item": "tl.uint64",
-      "status": "implemented",
-      "parameters_covered": [],
-      "evidence": "python3 a100c/tests/test_frontend_surface.py (exit 0)",
-      "ir_construct": "tir.Type dtype constants (a100c/frontend/types.py DTYPE_BY_NAME; parse/compare/create, no runtime op)"
-    },
-    {
-      "item": "tl.argmin",
-      "status": "implemented",
-      "parameters_covered": [
-        "input",
-        "axis",
-        "tie_break_left",
-        "keep_dims"
-      ],
-      "evidence": "python3 a100c/tests/test_reductions.py (exit 0): reduction and scan forms executed and compared; corpus reduction operators at 1/2/4/8 threads on one artifact (corpus argmin operators)",
-      "ir_construct": "tir reduce op (kind, per-op-and-dtype identity, axes, keep_dims, declared tie-break)"
-    },
-    {
-      "item": "tl.cumsum",
-      "status": "implemented",
-      "parameters_covered": [
-        "input",
-        "axis",
-        "reverse",
-        "dtype"
-      ],
-      "evidence": "python3 a100c/tests/test_reductions.py (exit 0): reduction and scan forms executed and compared; corpus reduction operators at 1/2/4/8 threads on one artifact",
-      "ir_construct": "tir scan op (kind, axis, reverse, carry identity)",
-      "note": "dtype= promotes integer widths < 32"
-    },
-    {
-      "item": "tl.div_rn",
-      "status": "implemented",
-      "parameters_covered": [
-        "x",
-        "y"
-      ],
-      "evidence": "python3 a100c/tests/test_math_ops.py (exit 0): 24/24 declared forms executed on QEMU and compared against numpy oracles (bit-exact vs the oracle)",
-      "ir_construct": "tir arith.fdiv (the IEEE round-to-nearest division)"
-    },
-    {
-      "item": "tl.int16",
-      "status": "implemented",
-      "parameters_covered": [],
-      "evidence": "python3 a100c/tests/test_frontend_surface.py (exit 0)",
-      "ir_construct": "tir.Type dtype constants (a100c/frontend/types.py DTYPE_BY_NAME; parse/compare/create, no runtime op)"
-    },
-    {
-      "item": "tl.int8",
-      "status": "implemented",
-      "parameters_covered": [],
-      "evidence": "python3 a100c/tests/test_frontend_surface.py (exit 0); python3 a100c/tests/test_matrix_breadth.py (exit 0): dot families executed and compared (int8/fp32/bf16, acc, masked) (int8 dot through the IME tile path)",
-      "ir_construct": "tir.Type dtype constants (a100c/frontend/types.py DTYPE_BY_NAME; parse/compare/create, no runtime op)"
-    },
-    {
-      "item": "tl.permute",
-      "status": "implemented",
-      "parameters_covered": [
-        "input",
-        "*dims"
-      ],
-      "evidence": "python3 a100c/tests/test_layout_ops.py (exit 0): layout and shape forms executed and compared",
-      "ir_construct": "tir permute op"
-    },
-    {
-      "item": "tl.rand",
-      "status": "implemented",
-      "parameters_covered": [
-        "seed",
-        "offset",
-        "n_rounds"
-      ],
-      "evidence": "python3 a100c/tests/test_rng.py (exit 0): RNG bit-exact against vectors generated from the pinned Triton 3.8",
-      "ir_construct": "tir rng.philox op plus the pinned random.py desugars (uint_to_uniform_float, Box-Muller)"
-    },
-    {
-      "item": "tl.atomic_max",
-      "status": "implemented",
-      "parameters_covered": [
-        "pointer",
-        "val",
-        "mask",
-        "sem",
-        "scope"
-      ],
-      "evidence": "python3 a100c/tests/test_atomics.py (exit 0): all eight atomic operators plus debug_barrier executed and compared at 1/2/4/8 threads; sem/scope asserted on the assembly (atomic_bitmap; u-row selection asserted on the assembly)",
-      "ir_construct": "tir atomic_rmw / atomic_cas ops (sem and scope carried; masked no-access at disabled lanes) (signed/unsigned row selection from the pointee's own dtype)"
-    },
-    {
-      "item": "tl.atomic_min",
-      "status": "implemented",
-      "parameters_covered": [
-        "pointer",
-        "val",
-        "mask",
-        "sem",
-        "scope"
-      ],
-      "evidence": "python3 a100c/tests/test_atomics.py (exit 0): all eight atomic operators plus debug_barrier executed and compared at 1/2/4/8 threads; sem/scope asserted on the assembly (scatter_atomic's lr/sc pair on the raw bits; the scalar fp32 atomic_min equivalent)",
-      "ir_construct": "tir atomic_rmw / atomic_cas ops (sem and scope carried; masked no-access at disabled lanes)"
-    },
-    {
-      "item": "tl.broadcast_to",
-      "status": "implemented",
-      "parameters_covered": [
-        "input",
-        "*shape"
-      ],
-      "evidence": "python3 a100c/tests/test_layout_ops.py (exit 0): layout and shape forms executed and compared; python3 a100c/tests/test_frontend_shapes.py (exit 0)",
-      "ir_construct": "tir broadcast op"
-    },
-    {
-      "item": "tl.static_assert",
-      "status": "implemented",
-      "parameters_covered": [
-        "cond",
-        "msg"
-      ],
-      "evidence": "python3 a100c/tests/test_frontend_surface.py (exit 0) (static_assert-true-emits-nothing, static_assert-false-refuses-with-message, static_assert-runtime-cond-refuses, static_assert-dead-branch-not-evaluated)",
-      "ir_construct": "the constexpr folding domain (a100c/frontend/specialize.py ConstexprEnv; no runtime op) -- the compile-time assertion: constexpr-true emits nothing, constexpr-false and runtime conditions are located refusals",
-      "note": "T016; the three corpus callers (matmul_k64_2d_unmasked, selu_kernel_supreme, fused_gemm_gn_min) now lower past the assertion"
-    },
-    {
-      "item": "tl.zeros_like",
-      "status": "implemented",
-      "parameters_covered": [
-        "input"
-      ],
-      "evidence": "python3 a100c/tests/test_frontend_surface.py (exit 0)",
-      "ir_construct": "tir zeros op"
-    },
-    {
-      "item": "tl.atomic_xchg",
-      "status": "implemented",
-      "parameters_covered": [
-        "pointer",
-        "val",
-        "mask",
-        "sem",
-        "scope"
-      ],
-      "evidence": "python3 a100c/tests/test_atomics.py (exit 0): all eight atomic operators plus debug_barrier executed and compared at 1/2/4/8 threads; sem/scope asserted on the assembly (atomic_bitmap)",
-      "ir_construct": "tir atomic_rmw / atomic_cas ops (sem and scope carried; masked no-access at disabled lanes)"
-    },
-    {
-      "item": "tl.cat",
-      "status": "implemented",
-      "parameters_covered": [
-        "input",
-        "other",
-        "can_reorder",
-        "dim"
-      ],
-      "evidence": "python3 a100c/tests/test_layout_ops.py (exit 0): layout and shape forms executed and compared",
-      "ir_construct": "the pinned join+permute+reshape desugar (can_reorder accepts the identity order)"
-    },
-    {
-      "item": "tl.clamp",
-      "status": "implemented",
-      "parameters_covered": [
-        "x",
-        "min",
-        "max",
-        "propagate_nan"
-      ],
-      "evidence": "python3 a100c/tests/test_math_ops.py (exit 0): 24/24 declared forms executed on QEMU and compared against numpy oracles (clamp form executed)",
-      "ir_construct": "the arith.maxnumf/maximumf and minnumf/minimumf composition"
-    },
-    {
-      "item": "tl.cumprod",
-      "status": "implemented",
-      "parameters_covered": [
-        "input",
-        "axis",
-        "reverse"
-      ],
-      "evidence": "python3 a100c/tests/test_reductions.py (exit 0): reduction and scan forms executed and compared; corpus reduction operators at 1/2/4/8 threads on one artifact",
-      "ir_construct": "tir scan op (kind, axis, reverse, carry identity)"
-    },
-    {
-      "item": "tl.dtype",
-      "status": "implemented",
-      "parameters_covered": [
-        "name"
-      ],
-      "evidence": "python3 a100c/tests/test_frontend_surface.py (exit 0) (tl.dtype-primitive-bitwidth-cast-method, tl.dtype-unknown-name-refuses, tl.dtype-runtime-name-refuses, meta-dtype-object-folds)",
-      "ir_construct": "the constexpr dtype domain (DTypeValue built from the pinned name registry; the f'uint{nbits}' JoinedStr form folds; no runtime op)",
-      "note": "T016; feeds .to/.cast/tl.full dtype operands; .primitive_bitwidth folds on x.dtype and ptr.type.element_ty"
-    },
-    {
-      "item": "tl.fma",
-      "status": "implemented",
-      "parameters_covered": [
-        "x",
-        "y",
-        "z"
-      ],
-      "evidence": "python3 a100c/tests/test_math_ops.py (exit 0): 24/24 declared forms executed on QEMU and compared against numpy oracles (fma bit-exact vs the single-rounding oracle); python3 a100c/tests/test_frontend_surface.py (exit 0) (fma-scalar-participates-as-fp32)",
-      "ir_construct": "tir math.fma op (single rounding; the pinned to_tensor-then-legalize scalar order: python-float scalars participate as fp32)"
-    },
-    {
-      "item": "tl.randn",
-      "status": "implemented",
-      "parameters_covered": [
-        "seed",
-        "offset",
-        "n_rounds"
-      ],
-      "evidence": "python3 a100c/tests/test_rng.py (exit 0): RNG bit-exact against vectors generated from the pinned Triton 3.8",
-      "ir_construct": "tir rng.philox op plus the pinned random.py desugars (uint_to_uniform_float, Box-Muller)"
-    },
-    {
-      "item": "tl.ravel",
-      "status": "implemented",
-      "parameters_covered": [
-        "x",
-        "can_reorder"
-      ],
-      "evidence": "python3 a100c/tests/test_layout_ops.py (exit 0): layout and shape forms executed and compared",
-      "ir_construct": "tir reshape op (constexpr shape; broadcast extents realized)"
-    },
-    {
-      "item": "tl.squeeze",
-      "status": "implemented",
-      "parameters_covered": [
-        "x",
-        "dim"
-      ],
-      "evidence": "python3 a100c/tests/test_layout_ops.py (exit 0): layout and shape forms executed and compared",
-      "ir_construct": "tir reshape op (constexpr shape; broadcast extents realized)"
-    },
-    {
-      "item": "tl.add",
-      "status": "implemented",
-      "parameters_covered": [
-        "x",
-        "y",
-        "sanitize_overflow"
-      ],
-      "evidence": "python3 a100c/tests/test_math_ops.py (exit 0): 24/24 declared forms executed on QEMU and compared against numpy oracles (arith_add form executed and compared)",
-      "ir_construct": "tir arith.* binop (the explicit function form of the AST operator)"
-    },
-    {
-      "item": "tl.atomic_and",
-      "status": "implemented",
-      "parameters_covered": [
-        "pointer",
-        "val",
-        "mask",
-        "sem",
-        "scope"
-      ],
-      "evidence": "python3 a100c/tests/test_atomics.py (exit 0): all eight atomic operators plus debug_barrier executed and compared at 1/2/4/8 threads; sem/scope asserted on the assembly (atomic_bitmap)",
-      "ir_construct": "tir atomic_rmw / atomic_cas ops (sem and scope carried; masked no-access at disabled lanes)"
-    },
-    {
-      "item": "tl.atomic_cas",
-      "status": "implemented",
-      "parameters_covered": [
-        "pointer",
-        "cmp",
-        "val",
-        "sem",
-        "scope"
-      ],
-      "evidence": "python3 a100c/tests/test_atomics.py (exit 0): all eight atomic operators plus debug_barrier executed and compared at 1/2/4/8 threads; sem/scope asserted on the assembly (atomic_bitmap)",
-      "ir_construct": "tir atomic_rmw / atomic_cas ops (sem and scope carried; masked no-access at disabled lanes)"
-    },
-    {
-      "item": "tl.atomic_or",
-      "status": "implemented",
-      "parameters_covered": [
-        "pointer",
-        "val",
-        "mask",
-        "sem",
-        "scope"
-      ],
-      "evidence": "python3 a100c/tests/test_atomics.py (exit 0): all eight atomic operators plus debug_barrier executed and compared at 1/2/4/8 threads; sem/scope asserted on the assembly (atomic_bitmap)",
-      "ir_construct": "tir atomic_rmw / atomic_cas ops (sem and scope carried; masked no-access at disabled lanes)"
-    },
-    {
-      "item": "tl.atomic_xor",
-      "status": "implemented",
-      "parameters_covered": [
-        "pointer",
-        "val",
-        "mask",
-        "sem",
-        "scope"
-      ],
-      "evidence": "python3 a100c/tests/test_atomics.py (exit 0): all eight atomic operators plus debug_barrier executed and compared at 1/2/4/8 threads; sem/scope asserted on the assembly (atomic_bitmap)",
-      "ir_construct": "tir atomic_rmw / atomic_cas ops (sem and scope carried; masked no-access at disabled lanes)"
-    },
-    {
-      "item": "tl.broadcast",
-      "status": "implemented",
-      "parameters_covered": [
-        "input",
-        "other"
-      ],
-      "evidence": "python3 a100c/tests/test_layout_ops.py (exit 0): layout and shape forms executed and compared",
-      "ir_construct": "tir broadcast op"
-    },
-    {
-      "item": "tl.ceil",
-      "status": "implemented",
-      "parameters_covered": [
-        "x"
-      ],
-      "evidence": "python3 a100c/tests/test_math_ops.py (exit 0): 24/24 declared forms executed on QEMU and compared against numpy oracles",
-      "ir_construct": "tir math.* unary op family (the libm-backed vmath MIR op; fp32/fp64 operands per the pinned _check_dtype)"
-    },
-    {
-      "item": "tl.expand_dims",
-      "status": "implemented",
-      "parameters_covered": [
-        "input",
-        "axis"
-      ],
-      "evidence": "python3 a100c/tests/test_layout_ops.py (exit 0): layout and shape forms executed and compared",
-      "ir_construct": "tir reshape op (constexpr shape; broadcast extents realized)"
-    },
-    {
-      "item": "tl.flip",
-      "status": "implemented",
-      "parameters_covered": [
-        "x",
-        "dim"
-      ],
-      "evidence": "python3 a100c/tests/test_layout_ops.py (exit 0): layout and shape forms executed and compared",
-      "ir_construct": "tir flip op"
-    },
-    {
-      "item": "tl.gather",
-      "status": "implemented",
-      "parameters_covered": [
-        "src",
-        "index",
-        "axis"
-      ],
-      "evidence": "python3 a100c/tests/test_memory_forms.py (exit 0): memory forms (block pointers, boundary_check, padding_option, gather, interleave, pointer tables) executed and compared",
-      "ir_construct": "tir gather op (the register permute)"
-    },
-    {
-      "item": "tl.histogram",
-      "status": "implemented",
-      "parameters_covered": [
-        "input",
-        "num_bins",
-        "mask"
-      ],
-      "evidence": "python3 a100c/tests/test_reductions.py (exit 0): reduction and scan forms executed and compared; corpus reduction operators at 1/2/4/8 threads on one artifact (histogram-emits-tir-op)",
-      "ir_construct": "tir histogram op (int32 bins)"
-    },
-    {
-      "item": "tl.interleave",
-      "status": "implemented",
-      "parameters_covered": [
-        "a",
-        "b"
-      ],
-      "evidence": "python3 a100c/tests/test_memory_forms.py (exit 0): memory forms (block pointers, boundary_check, padding_option, gather, interleave, pointer tables) executed and compared",
-      "ir_construct": "the composed program-level interleave lowering"
-    },
-    {
-      "item": "tl.max_contiguous",
-      "status": "implemented",
-      "parameters_covered": [
-        "input",
-        "values"
-      ],
-      "evidence": "python3 a100c/tests/test_frontend_surface.py (exit 0); python3 a100c/tests/test_memory_forms.py (exit 0): memory forms (block pointers, boundary_check, padding_option, gather, interleave, pointer tables) executed and compared",
-      "ir_construct": "tir hint op (the divisibility/contiguity promise; the wide-access proof consumes it)"
-    },
-    {
-      "item": "tl.mul",
-      "status": "implemented",
-      "parameters_covered": [
-        "x",
-        "y",
-        "sanitize_overflow"
-      ],
-      "evidence": "python3 a100c/tests/test_math_ops.py (exit 0): 24/24 declared forms executed on QEMU and compared against numpy oracles (arith_mul form executed and compared)",
-      "ir_construct": "tir arith.* binop (the explicit function form of the AST operator)"
-    },
-    {
-      "item": "tl.pointer_type",
-      "status": "implemented",
-      "parameters_covered": [
-        "element_ty",
-        "address_space",
-        "const"
-      ],
-      "evidence": "python3 a100c/tests/test_memory_forms.py (exit 0): memory forms (block pointers, boundary_check, padding_option, gather, interleave, pointer tables) executed and compared (grouped_gemm pointer table with the relocation applied-and-restored witness)",
-      "ir_construct": "PointerTypeVal (the pointer-table pattern's int64-to-pointer bitcast target)"
-    },
-    {
-      "item": "tl.rand4x",
-      "status": "implemented",
-      "parameters_covered": [
-        "seed",
-        "offsets",
-        "n_rounds"
-      ],
-      "evidence": "python3 a100c/tests/test_rng.py (exit 0): RNG bit-exact against vectors generated from the pinned Triton 3.8",
-      "ir_construct": "tir rng.philox op plus the pinned random.py desugars (uint_to_uniform_float, Box-Muller)"
-    },
-    {
-      "item": "tl.randint",
-      "status": "implemented",
-      "parameters_covered": [
-        "seed",
-        "offset",
-        "n_rounds"
-      ],
-      "evidence": "python3 a100c/tests/test_rng.py (exit 0): RNG bit-exact against vectors generated from the pinned Triton 3.8",
-      "ir_construct": "tir rng.philox op plus the pinned random.py desugars (uint_to_uniform_float, Box-Muller)"
-    },
-    {
-      "item": "tl.randint4x",
-      "status": "implemented",
-      "parameters_covered": [
-        "seed",
-        "offset",
-        "n_rounds"
-      ],
-      "evidence": "python3 a100c/tests/test_rng.py (exit 0): RNG bit-exact against vectors generated from the pinned Triton 3.8",
-      "ir_construct": "tir rng.philox op plus the pinned random.py desugars (uint_to_uniform_float, Box-Muller)"
-    },
-    {
-      "item": "tl.randn4x",
-      "status": "implemented",
-      "parameters_covered": [
-        "seed",
-        "offset",
-        "n_rounds"
-      ],
-      "evidence": "python3 a100c/tests/test_rng.py (exit 0): RNG bit-exact against vectors generated from the pinned Triton 3.8",
-      "ir_construct": "tir rng.philox op plus the pinned random.py desugars (uint_to_uniform_float, Box-Muller)"
-    },
-    {
-      "item": "tl.reduce_or",
-      "status": "implemented",
-      "parameters_covered": [
-        "input",
-        "axis",
-        "keep_dims"
-      ],
-      "evidence": "python3 a100c/tests/test_reductions.py (exit 0): reduction and scan forms executed and compared; corpus reduction operators at 1/2/4/8 threads on one artifact",
-      "ir_construct": "tir reduce op (kind, per-op-and-dtype identity, axes, keep_dims, declared tie-break)"
-    },
-    {
-      "item": "tl.softmax",
-      "status": "implemented",
-      "parameters_covered": [
-        "x",
-        "dim",
-        "keep_dims",
-        "ieee_rounding"
-      ],
-      "evidence": "python3 a100c/tests/test_reductions.py (exit 0): reduction and scan forms executed and compared; corpus reduction operators at 1/2/4/8 threads on one artifact (softmax-composes-exp); python3 a100c/tests/test_math_ops.py (exit 0): 24/24 declared forms executed on QEMU and compared against numpy oracles",
-      "ir_construct": "the SOFTMAX_COMPOSITE declared in a100c/plan/stages.py (max-subtract, math.exp, reduce sum, arith.fdiv)"
-    },
-    {
-      "item": "tl.sort",
-      "status": "implemented",
-      "parameters_covered": [
-        "x",
-        "dim",
-        "descending"
-      ],
-      "evidence": "python3 a100c/tests/test_reductions.py (exit 0): reduction and scan forms executed and compared; corpus reduction operators at 1/2/4/8 threads on one artifact (sort-emits-tir-op)",
-      "ir_construct": "tir sort op"
-    },
-    {
-      "item": "tl.sqrt_rn",
-      "status": "implemented",
-      "parameters_covered": [
-        "x"
-      ],
-      "evidence": "python3 a100c/tests/test_math_ops.py (exit 0): 24/24 declared forms executed on QEMU and compared against numpy oracles",
-      "ir_construct": "tir math.* unary op family (the libm-backed vmath MIR op; fp32/fp64 operands per the pinned _check_dtype)"
-    },
-    {
-      "item": "tl.sub",
-      "status": "implemented",
-      "parameters_covered": [
-        "x",
-        "y",
-        "sanitize_overflow"
-      ],
-      "evidence": "python3 a100c/tests/test_math_ops.py (exit 0): 24/24 declared forms executed on QEMU and compared against numpy oracles (arith_sub form executed and compared)",
-      "ir_construct": "tir arith.* binop (the explicit function form of the AST operator)"
-    },
-    {
-      "item": "tl.to_tensor",
-      "status": "implemented",
-      "parameters_covered": [
-        "x"
-      ],
-      "evidence": "python3 a100c/tests/test_layout_ops.py (exit 0): layout and shape forms executed and compared",
-      "ir_construct": "the constexpr-to-runtime realization (tir const + broadcast)"
-    },
-    {
-      "item": "tl.topk",
-      "status": "implemented",
-      "parameters_covered": [
-        "x",
-        "k",
-        "dim",
-        "descending"
-      ],
-      "evidence": "python3 a100c/tests/test_reductions.py (exit 0): reduction and scan forms executed and compared; corpus reduction operators at 1/2/4/8 threads on one artifact (topk-emits-tir-op)",
-      "ir_construct": "tir topk op"
-    },
-    {
-      "item": "tl.uint16",
-      "status": "implemented",
-      "parameters_covered": [],
-      "evidence": "python3 a100c/tests/test_frontend_surface.py (exit 0)",
-      "ir_construct": "tir.Type dtype constants (a100c/frontend/types.py DTYPE_BY_NAME; parse/compare/create, no runtime op)"
-    },
-    {
-      "item": "tl.uint8",
-      "status": "implemented",
-      "parameters_covered": [],
-      "evidence": "python3 a100c/tests/test_frontend_surface.py (exit 0)",
-      "ir_construct": "tir.Type dtype constants (a100c/frontend/types.py DTYPE_BY_NAME; parse/compare/create, no runtime op)"
-    },
-    {
-      "item": "tl.unsqueeze",
-      "status": "implemented",
-      "parameters_covered": [
-        "x",
-        "dim"
-      ],
-      "evidence": "python3 a100c/tests/test_layout_ops.py (exit 0): layout and shape forms executed and compared",
-      "ir_construct": "tir reshape op (constexpr shape; broadcast extents realized)"
-    },
-    {
-      "item": "tl.view",
-      "status": "implemented",
-      "parameters_covered": [
-        "input",
-        "*shape"
-      ],
-      "evidence": "python3 a100c/tests/test_layout_ops.py (exit 0): layout and shape forms executed and compared",
-      "ir_construct": "tir reshape op (constexpr shape; broadcast extents realized)"
-    },
-    {
-      "item": "tl.xor_sum",
-      "status": "implemented",
-      "parameters_covered": [
-        "input",
-        "axis",
-        "keep_dims"
-      ],
-      "evidence": "python3 a100c/tests/test_reductions.py (exit 0): reduction and scan forms executed and compared; corpus reduction operators at 1/2/4/8 threads on one artifact",
-      "ir_construct": "tir reduce op (kind, per-op-and-dtype identity, axes, keep_dims, declared tie-break)"
-    },
-    {
-      "item": "tl.swizzle2d",
-      "status": "implemented",
-      "parameters_covered": [
-        "i",
-        "j",
-        "size_i",
-        "size_j",
-        "size_g"
-      ],
-      "evidence": "python3 a100c/tests/test_layout_ops.py (exit 0): layout and shape forms executed and compared (swizzle2d checks; 0 corpus calls -- implemented rather than declared-unsupported)",
-      "ir_construct": "the pinned arithmetic index transform (tir arith on iota; the two-result unpack form)"
-    }
-  ],
-  "source": "ops/docs/SUBSET.md (declared LLM-inference subset, suite-v3) with ops/docs/API_INVENTORY.md (the shipped 500-operator suite own AST inventory); parameter surfaces read from the pinned Triton 3.8.0 signatures; evidence: the a100c lane tests executed 2026-11-05 (T016)",
-  "version": "Triton 3.8.0 / ops suite-v3 declared subset"
+ "schema_version": 1,
+ "rows": [
+  {
+   "item": "triton.jit",
+   "status": "implemented",
+   "parameters_covered": [
+    "fn",
+    "version",
+    "repr",
+    "launch_metadata",
+    "do_not_specialize",
+    "do_not_specialize_on_alignment",
+    "debug",
+    "noinline"
+   ],
+   "evidence": "python3 a100c/tests/test_frontend_surface.py (exit 0) (decorator-constructs-triton.jit-autotune: do_not_specialize/_on_alignment honored) and python3 a100c/tests/test_specialize.py (exit 0) (the specialization identity over the jit parameters)",
+   "ir_construct": "the compile unit (a100c/frontend/source.py OperatorSource: the single-@triton.jit AST contract; no IR construct)",
+   "note": "version/repr/launch_metadata/debug/noinline are decorator metadata, ignorable with recorded reasons; fn is the unit; do_not_specialize and do_not_specialize_on_alignment shape the identity"
+  },
+  {
+   "item": "tl.store",
+   "status": "implemented",
+   "parameters_covered": [
+    "pointer",
+    "value",
+    "mask",
+    "boundary_check",
+    "cache_modifier",
+    "eviction_policy"
+   ],
+   "evidence": "python3 a100c/tests/test_memory_forms.py (exit 0): memory forms (block pointers, boundary_check, padding_option, gather, interleave, pointer tables) executed and compared; python3 a100c/tests/test_e2e_slice.py (exit 0): end-to-end compile/build/execute/compare at 1/2/4/8 threads; python3 a100c/tests/test_frontend_surface.py (exit 0) (control-store-mask-ignorable-fails-correctness)",
+   "ir_construct": "tir store op (mask operand; masked_default=no-access at disabled positions)",
+   "note": "cache_modifier/eviction_policy ignorable with recorded reasons (performance-only, verified semantics-neutral); boundary_check implemented (memory-forms lane)"
+  },
+  {
+   "item": "tl.load",
+   "status": "implemented",
+   "parameters_covered": [
+    "pointer",
+    "mask",
+    "other",
+    "boundary_check",
+    "padding_option",
+    "cache_modifier",
+    "eviction_policy",
+    "volatile"
+   ],
+   "evidence": "python3 a100c/tests/test_memory_forms.py (exit 0): memory forms (block pointers, boundary_check, padding_option, gather, interleave, pointer tables) executed and compared; python3 a100c/tests/test_e2e_slice.py (exit 0): end-to-end compile/build/execute/compare at 1/2/4/8 threads; python3 a100c/tests/test_frontend_surface.py (exit 0) (control-load-other-ignorable-fails-correctness)",
+   "ir_construct": "tir load op (mask operand + declared masked_default; whole-tree ptradd address)",
+   "note": "cache_modifier/eviction_policy ignorable with recorded reasons; boundary_check/padding_option/volatile/other implemented (memory-forms lane)"
+  },
+  {
+   "item": "tl.arange",
+   "status": "implemented",
+   "parameters_covered": [
+    "start",
+    "end"
+   ],
+   "evidence": "python3 a100c/tests/test_lower_vector.py (exit 0): RVV masked tails executed and compared; python3 a100c/tests/test_frontend_surface.py (exit 0)",
+   "ir_construct": "tir iota op"
+  },
+  {
+   "item": "tl.program_id",
+   "status": "implemented",
+   "parameters_covered": [
+    "axis"
+   ],
+   "evidence": "python3 a100c/tests/test_grid_model.py (exit 0): runtime grid evaluation and cdiv grid forms; python3 a100c/tests/test_partition.py (exit 0): 1/2/4/8 worker distribution; python3 a100c/tests/test_e2e_slice.py (exit 0): end-to-end compile/build/execute/compare at 1/2/4/8 threads",
+   "ir_construct": "tir program_id op (the linear worker-range decomposition per grid axis)"
+  },
+  {
+   "item": "tl.constexpr",
+   "status": "implemented",
+   "parameters_covered": [
+    "value"
+   ],
+   "evidence": "python3 a100c/tests/test_specialize.py (exit 0) (constexpr conditions, dtype predicates, dead dispatch branches folded and recorded); python3 a100c/tests/test_frontend_surface.py (exit 0) (constexpr-call and module-constexpr-global-call-form)",
+   "ir_construct": "the constexpr folding domain (a100c/frontend/specialize.py ConstexprEnv; no runtime op)",
+   "note": "annotation, call form and module-level X = tl.constexpr(v) globals all fold"
+  },
+  {
+   "item": "tl.float32",
+   "status": "implemented",
+   "parameters_covered": [],
+   "evidence": "python3 a100c/tests/test_frontend_surface.py (exit 0)",
+   "ir_construct": "tir.Type dtype constants (a100c/frontend/types.py DTYPE_BY_NAME; parse/compare/create, no runtime op)"
+  },
+  {
+   "item": "tl.sum",
+   "status": "implemented",
+   "parameters_covered": [
+    "input",
+    "axis",
+    "keep_dims",
+    "dtype"
+   ],
+   "evidence": "python3 a100c/tests/test_reductions.py (exit 0): reduction and scan forms executed and compared; corpus reduction operators at 1/2/4/8 threads on one artifact",
+   "ir_construct": "tir reduce op (kind, per-op-and-dtype identity, axes, keep_dims, declared tie-break)",
+   "note": "dtype= promotes integer widths < 32"
+  },
+  {
+   "item": "tl.where",
+   "status": "implemented",
+   "parameters_covered": [
+    "condition",
+    "x",
+    "y"
+   ],
+   "evidence": "python3 a100c/tests/test_math_ops.py (exit 0): 24/24 declared forms executed on QEMU and compared against numpy oracles; python3 a100c/tests/test_lower_vector.py (exit 0): RVV masked tails executed and compared",
+   "ir_construct": "tir where op (select)"
+  },
+  {
+   "item": "tl.zeros",
+   "status": "implemented",
+   "parameters_covered": [
+    "shape",
+    "dtype"
+   ],
+   "evidence": "python3 a100c/tests/test_frontend_surface.py (exit 0); python3 a100c/tests/test_layout_ops.py (exit 0): layout and shape forms executed and compared (meta-dtype-object-folds: tl.zeros((), dtype=<live tl constant from meta>) lowers)",
+   "ir_construct": "tir zeros op"
+  },
+  {
+   "item": "tl.int64",
+   "status": "implemented",
+   "parameters_covered": [],
+   "evidence": "python3 a100c/tests/test_frontend_surface.py (exit 0)",
+   "ir_construct": "tir.Type dtype constants (a100c/frontend/types.py DTYPE_BY_NAME; parse/compare/create, no runtime op)"
+  },
+  {
+   "item": "tl.maximum",
+   "status": "implemented",
+   "parameters_covered": [
+    "x",
+    "y",
+    "propagate_nan"
+   ],
+   "evidence": "python3 a100c/tests/test_math_ops.py (exit 0): 24/24 declared forms executed on QEMU and compared against numpy oracles (NaN policies executed with NaN inputs)",
+   "ir_construct": "tir arith.maxnumf/maximumf and minnumf/minimumf (the propagate_nan policy carried by the op code)"
+  },
+  {
+   "item": "tl.dot",
+   "status": "implemented",
+   "parameters_covered": [
+    "input",
+    "other",
+    "acc",
+    "out_dtype"
+   ],
+   "evidence": "python3 a100c/tests/test_matrix_breadth.py (exit 0): dot families executed and compared (int8/fp32/bf16, acc, masked); python3 a100c/tests/test_ime_evidence.py (exit 0): IME instruction counts bound to the executed artifact; python3 a100c/tests/test_lower_matrix.py (exit 0): IME operand constraints verified",
+   "ir_construct": "tir linalg.dot op (IME tile selection int8/uint8/fp16 + the budget-bounded vector FP32 FMA path; acc/out_dtype carried)",
+   "note": "declared subset restriction: input_precision= and allow_tf32= are stripped from every kept operator by SUBSET.md principle 2 (fp32 tl.dot is exact IEEE; the harness pins TRITON_F32_DEFAULT=ieee); max_num_imprecise_acc applies to fp8 which the subset excludes entirely. Declared subset parameters: input, other, acc, out_dtype (bf16/fp16 operands with fp32 accumulation; fp32 operands IEEE). T038 dtype-surface boundary (the round-3 fp64 dot census row): the corpus's own dtype declaration excludes fp64 -- CORPUS_LOCK.json lists chunk_generalized_iplr_delta_rule_fwd_kernel_o.py's dtypes as float32/float16/bfloat16 and the global declared set is bfloat16/bool/float16/float32/int16/int32/int64/int8 (F037) -- so the located refusal 'fp64 tl.dot is outside the corpus dtype surface' stands for that operator's float32-labeled cases (the fp64 pointers arise from the case layer's numpy-default float64 buffers, not from a declared fp64 dtype: the fp16/bf16-labeled cases of the same operator re-express the buffers and compile, execute and compare PASS)."
+  },
+  {
+   "item": "tl.exp",
+   "status": "implemented",
+   "parameters_covered": [
+    "x"
+   ],
+   "evidence": "python3 a100c/tests/test_math_ops.py (exit 0): 24/24 declared forms executed on QEMU and compared against numpy oracles",
+   "ir_construct": "tir math.* unary op family (the libm-backed vmath MIR op; fp32/fp64 operands per the pinned _check_dtype)"
+  },
+  {
+   "item": "tl.max",
+   "status": "implemented",
+   "parameters_covered": [
+    "input",
+    "axis",
+    "return_indices",
+    "return_indices_tie_break_left",
+    "keep_dims"
+   ],
+   "evidence": "python3 a100c/tests/test_reductions.py (exit 0): reduction and scan forms executed and compared; corpus reduction operators at 1/2/4/8 threads on one artifact (return_indices two-result form; corpus max/min operators at 1/2/4/8)",
+   "ir_construct": "tir reduce op (kind, per-op-and-dtype identity, axes, keep_dims, declared tie-break)",
+   "note": "return_indices/return_indices_tie_break_left implemented"
+  },
+  {
+   "item": "tl.abs",
+   "status": "implemented",
+   "parameters_covered": [
+    "x"
+   ],
+   "evidence": "python3 a100c/tests/test_math_ops.py (exit 0): 24/24 declared forms executed on QEMU and compared against numpy oracles (int abs executed)",
+   "ir_construct": "tir math.fabs / math.iabs (unsigned identity)"
+  },
+  {
+   "item": "tl.cdiv",
+   "status": "implemented",
+   "parameters_covered": [
+    "x",
+    "div"
+   ],
+   "evidence": "python3 a100c/tests/test_math_ops.py (exit 0): 24/24 declared forms executed on QEMU and compared against numpy oracles (cdiv_desugar form executed and compared); python3 a100c/tests/test_grid_model.py (exit 0): runtime grid evaluation and cdiv grid forms (cdiv grid forms)",
+   "ir_construct": "the (a+b-1)//b desugar (tir arith)"
+  },
+  {
+   "item": "tl.full",
+   "status": "implemented",
+   "parameters_covered": [
+    "shape",
+    "value",
+    "dtype"
+   ],
+   "evidence": "python3 a100c/tests/test_frontend_surface.py (exit 0) (shape-attr-folds-into-constexpr-uses); python3 a100c/tests/test_layout_ops.py (exit 0): layout and shape forms executed and compared",
+   "ir_construct": "tir full op (constexpr shape incl. x.shape folding)"
+  },
+  {
+   "item": "tl.int32",
+   "status": "implemented",
+   "parameters_covered": [],
+   "evidence": "python3 a100c/tests/test_frontend_surface.py (exit 0)",
+   "ir_construct": "tir.Type dtype constants (a100c/frontend/types.py DTYPE_BY_NAME; parse/compare/create, no runtime op)"
+  },
+  {
+   "item": "tl.sqrt",
+   "status": "implemented",
+   "parameters_covered": [
+    "x"
+   ],
+   "evidence": "python3 a100c/tests/test_math_ops.py (exit 0): 24/24 declared forms executed on QEMU and compared against numpy oracles",
+   "ir_construct": "tir math.* unary op family (the libm-backed vmath MIR op; fp32/fp64 operands per the pinned _check_dtype)"
+  },
+  {
+   "item": "tl.log",
+   "status": "implemented",
+   "parameters_covered": [
+    "x"
+   ],
+   "evidence": "python3 a100c/tests/test_math_ops.py (exit 0): 24/24 declared forms executed on QEMU and compared against numpy oracles",
+   "ir_construct": "tir math.* unary op family (the libm-backed vmath MIR op; fp32/fp64 operands per the pinned _check_dtype)"
+  },
+  {
+   "item": "tl.minimum",
+   "status": "implemented",
+   "parameters_covered": [
+    "x",
+    "y",
+    "propagate_nan"
+   ],
+   "evidence": "python3 a100c/tests/test_math_ops.py (exit 0): 24/24 declared forms executed on QEMU and compared against numpy oracles (NaN policies executed with NaN inputs)",
+   "ir_construct": "tir arith.maxnumf/maximumf and minnumf/minimumf (the propagate_nan policy carried by the op code)"
+  },
+  {
+   "item": "tl.min",
+   "status": "implemented",
+   "parameters_covered": [
+    "input",
+    "axis",
+    "return_indices",
+    "return_indices_tie_break_left",
+    "keep_dims"
+   ],
+   "evidence": "python3 a100c/tests/test_reductions.py (exit 0): reduction and scan forms executed and compared; corpus reduction operators at 1/2/4/8 threads on one artifact (index forms; the scalar fp32 atomic_min equivalent executed)",
+   "ir_construct": "tir reduce op (kind, per-op-and-dtype identity, axes, keep_dims, declared tie-break)",
+   "note": "return_indices/return_indices_tie_break_left implemented"
+  },
+  {
+   "item": "tl.bfloat16",
+   "status": "implemented",
+   "parameters_covered": [],
+   "evidence": "python3 a100c/tests/test_frontend_surface.py (exit 0) (all thirteen dtype constants lower via tl.zeros([2], dt)); python3 a100c/tests/test_specialize.py (exit 0) (bf16 pointer duality pitfall covered)",
+   "ir_construct": "tir.Type dtype constants (a100c/frontend/types.py DTYPE_BY_NAME; parse/compare/create, no runtime op)"
+  },
+  {
+   "item": "tl.range",
+   "status": "implemented",
+   "parameters_covered": [
+    "arg1",
+    "arg2",
+    "step",
+    "num_stages",
+    "loop_unroll_factor",
+    "disallow_acc_multi_buffer",
+    "flatten",
+    "warp_specialize",
+    "disable_licm"
+   ],
+   "evidence": "python3 a100c/tests/test_control_flow.py (exit 0): loop and branch forms with join semantics executed and compared; python3 a100c/tests/test_reductions.py (exit 0): reduction and scan forms executed and compared; corpus reduction operators at 1/2/4/8 threads on one artifact (persistent two-phase)",
+   "ir_construct": "tir structured loop region with explicit join parameters (num_stages/... loop pragmas ignorable with recorded reasons)",
+   "note": "num_stages/loop_unroll_factor/disallow_acc_multi_buffer/flatten/warp_specialize/disable_licm ignorable with recorded reasons (performance hints, not loop semantics)"
+  },
+  {
+   "item": "tl.float16",
+   "status": "implemented",
+   "parameters_covered": [],
+   "evidence": "python3 a100c/tests/test_frontend_surface.py (exit 0); python3 a100c/tests/test_math_ops.py (exit 0): 24/24 declared forms executed on QEMU and compared against numpy oracles (fp16 rides the FP32 lanes under the declared single-rounding policy)",
+   "ir_construct": "tir.Type dtype constants (a100c/frontend/types.py DTYPE_BY_NAME; parse/compare/create, no runtime op)"
+  },
+  {
+   "item": "tl.num_programs",
+   "status": "implemented",
+   "parameters_covered": [
+    "axis"
+   ],
+   "evidence": "python3 a100c/tests/test_grid_model.py (exit 0): runtime grid evaluation and cdiv grid forms; python3 a100c/tests/test_control_flow.py (exit 0): loop and branch forms with join semantics executed and compared",
+   "ir_construct": "tir num_programs op (runtime grid extents)"
+  },
+  {
+   "item": "tl.reshape",
+   "status": "implemented",
+   "parameters_covered": [
+    "input",
+    "*shape",
+    "can_reorder"
+   ],
+   "evidence": "python3 a100c/tests/test_layout_ops.py (exit 0): layout and shape forms executed and compared (can_reorder accepted: the identity is the realized choice)",
+   "ir_construct": "tir reshape op (constexpr shape; broadcast extents realized)"
+  },
+  {
+   "item": "tl.static_range",
+   "status": "implemented",
+   "parameters_covered": [
+    "arg1",
+    "arg2",
+    "step"
+   ],
+   "evidence": "python3 a100c/tests/test_control_flow.py (exit 0): loop and branch forms with join semantics executed and compared",
+   "ir_construct": "tir structured loop region with explicit join parameters (num_stages/... loop pragmas ignorable with recorded reasons)"
+  },
+  {
+   "item": "tl.multiple_of",
+   "status": "implemented",
+   "parameters_covered": [
+    "input",
+    "values"
+   ],
+   "evidence": "python3 a100c/tests/test_frontend_surface.py (exit 0); python3 a100c/tests/test_memory_forms.py (exit 0): memory forms (block pointers, boundary_check, padding_option, gather, interleave, pointer tables) executed and compared",
+   "ir_construct": "tir hint op (the divisibility/contiguity promise; the wide-access proof consumes it)"
+  },
+  {
+   "item": "tl.sigmoid",
+   "status": "implemented",
+   "parameters_covered": [
+    "x"
+   ],
+   "evidence": "python3 a100c/tests/test_math_ops.py (exit 0): 24/24 declared forms executed on QEMU and compared against numpy oracles (sigmoid form; corpus fused_activation)",
+   "ir_construct": "the pinned 1/(1+exp(-x)) composition (tir arith.fdiv + math.exp)"
+  },
+  {
+   "item": "tl.float64",
+   "status": "implemented",
+   "parameters_covered": [],
+   "evidence": "python3 a100c/tests/test_specialize.py (exit 0) (nansum_kernel_2's dead fp64 dispatch branch folded and recorded); python3 a100c/tests/test_math_ops.py (exit 0): 24/24 declared forms executed on QEMU and compared against numpy oracles (the two declared fp64 internal-compute routes)",
+   "ir_construct": "tir.Type dtype constants (a100c/frontend/types.py DTYPE_BY_NAME; parse/compare/create, no runtime op)",
+   "note": "declared subset restriction: no float64 tensor case exists: SUBSET.md principle 2 removes fp64 cases; the 16 suite occurrences are constexpr dtype-dispatch comparisons/branches that are dead for the declared case dtypes (verified: no operator declares a float64 case in suite/manifest.json) - the constant must parse and compare during specialization, but no fp64 tensor compute path is exercised by any case"
+  },
+  {
+   "item": "tl.rsqrt",
+   "status": "implemented",
+   "parameters_covered": [
+    "x"
+   ],
+   "evidence": "python3 a100c/tests/test_math_ops.py (exit 0): 24/24 declared forms executed on QEMU and compared against numpy oracles",
+   "ir_construct": "tir math.* unary op family (the libm-backed vmath MIR op; fp32/fp64 operands per the pinned _check_dtype)"
+  },
+  {
+   "item": "tl.trans",
+   "status": "implemented",
+   "parameters_covered": [
+    "input",
+    "*dims"
+   ],
+   "evidence": "python3 a100c/tests/test_layout_ops.py (exit 0): layout and shape forms executed and compared (the .T attribute form too)",
+   "ir_construct": "tir permute op"
+  },
+  {
+   "item": "tl.exp2",
+   "status": "implemented",
+   "parameters_covered": [
+    "x"
+   ],
+   "evidence": "python3 a100c/tests/test_math_ops.py (exit 0): 24/24 declared forms executed on QEMU and compared against numpy oracles (pow's exp2*log2 composition rides the same form)",
+   "ir_construct": "tir math.* unary op family (the libm-backed vmath MIR op; fp32/fp64 operands per the pinned _check_dtype)"
+  },
+  {
+   "item": "tl.uint32",
+   "status": "implemented",
+   "parameters_covered": [],
+   "evidence": "python3 a100c/tests/test_frontend_surface.py (exit 0)",
+   "ir_construct": "tir.Type dtype constants (a100c/frontend/types.py DTYPE_BY_NAME; parse/compare/create, no runtime op)"
+  },
+  {
+   "item": "tl.atomic_add",
+   "status": "implemented",
+   "parameters_covered": [
+    "pointer",
+    "val",
+    "mask",
+    "sem",
+    "scope"
+   ],
+   "evidence": "python3 a100c/tests/test_atomics.py (exit 0): all eight atomic operators plus debug_barrier executed and compared at 1/2/4/8 threads; sem/scope asserted on the assembly (count_nonzero/bincount multi-worker accumulation at 1/2/4/8)",
+   "ir_construct": "tir atomic_rmw / atomic_cas ops (sem and scope carried; masked no-access at disabled lanes)"
+  },
+  {
+   "item": "triton.autotune",
+   "status": "implemented",
+   "parameters_covered": [
+    "configs",
+    "key",
+    "prune_configs_by",
+    "reset_to_zero",
+    "restore_value",
+    "pre_hook",
+    "post_hook",
+    "warmup",
+    "rep",
+    "use_cuda_graph",
+    "do_bench",
+    "cache_results"
+   ],
+   "evidence": "python3 a100c/tests/test_frontend_surface.py (exit 0) (decorator-constructs-triton.jit-autotune: the config space consumed, first config chosen) and python3 a100c/tests/test_specialize.py (exit 0)",
+   "ir_construct": "the specialization identity (specialize.py: the deterministic first-config constexprs; no IR construct)",
+   "note": "key/prune_configs_by/reset_to_zero/restore_value/pre_hook/post_hook/warmup/rep/use_cuda_graph/do_bench/cache_results ignorable with recorded reasons (tuning machinery; the deterministic first-config choice never tunes)"
+  },
+  {
+   "item": "tl.erf",
+   "status": "implemented",
+   "parameters_covered": [
+    "x"
+   ],
+   "evidence": "python3 a100c/tests/test_math_ops.py (exit 0): 24/24 declared forms executed on QEMU and compared against numpy oracles (corpus gelu_min)",
+   "ir_construct": "tir math.* unary op family (the libm-backed vmath MIR op; fp32/fp64 operands per the pinned _check_dtype)"
+  },
+  {
+   "item": "tl.int1",
+   "status": "implemented",
+   "parameters_covered": [],
+   "evidence": "python3 a100c/tests/test_frontend_surface.py (exit 0); python3 a100c/tests/test_frontend_types.py (exit 0)",
+   "ir_construct": "tir.Type dtype constants (a100c/frontend/types.py DTYPE_BY_NAME; parse/compare/create, no runtime op)"
+  },
+  {
+   "item": "tl.make_block_ptr",
+   "status": "implemented",
+   "parameters_covered": [
+    "base",
+    "shape",
+    "strides",
+    "offsets",
+    "block_shape",
+    "order"
+   ],
+   "evidence": "python3 a100c/tests/test_memory_forms.py (exit 0): memory forms (block pointers, boundary_check, padding_option, gather, interleave, pointer tables) executed and compared (block-pointer load/store forms executed and compared)",
+   "ir_construct": "BlockPtrVal desugar: the whole-tree ptradd address + mask operand + padding other (no block-pointer TIR op)"
+  },
+  {
+   "item": "tl.cast",
+   "status": "implemented",
+   "parameters_covered": [
+    "input",
+    "dtype",
+    "fp_downcast_rounding",
+    "bitcast"
+   ],
+   "evidence": "python3 a100c/tests/test_conversions.py (exit 0): the conversion matrix executed and compared; python3 a100c/tests/test_frontend_surface.py (exit 0) (cast-method-equals-to: the .cast method form produces the identical conversion)",
+   "ir_construct": "tir convert op (distinct from the bitcast op; fp_downcast_rounding rtne/rtz)",
+   "note": "the .to and .cast method forms and the call form share one carrier"
+  },
+  {
+   "item": "tl.tensor",
+   "status": "implemented",
+   "parameters_covered": [],
+   "evidence": "python3 a100c/tests/test_frontend_surface.py (exit 0); python3 a100c/tests/test_frontend_types.py (exit 0)",
+   "ir_construct": "tir.Type dtype constants (a100c/frontend/types.py DTYPE_BY_NAME; parse/compare/create, no runtime op)"
+  },
+  {
+   "item": "tl.argmax",
+   "status": "implemented",
+   "parameters_covered": [
+    "input",
+    "axis",
+    "tie_break_left",
+    "keep_dims"
+   ],
+   "evidence": "python3 a100c/tests/test_reductions.py (exit 0): reduction and scan forms executed and compared; corpus reduction operators at 1/2/4/8 threads on one artifact (corpus argmax_kernel_inner)",
+   "ir_construct": "tir reduce op (kind, per-op-and-dtype identity, axes, keep_dims, declared tie-break)"
+  },
+  {
+   "item": "tl.debug_barrier",
+   "status": "implemented",
+   "parameters_covered": [],
+   "evidence": "python3 a100c/tests/test_atomics.py (exit 0): all eight atomic operators plus debug_barrier executed and compared at 1/2/4/8 threads; sem/scope asserted on the assembly (atomic_bitmap's barrier executed)",
+   "ir_construct": "tir barrier op (intra-program ordering)"
+  },
+  {
+   "item": "tl.floor",
+   "status": "implemented",
+   "parameters_covered": [
+    "x"
+   ],
+   "evidence": "python3 a100c/tests/test_math_ops.py (exit 0): 24/24 declared forms executed on QEMU and compared against numpy oracles",
+   "ir_construct": "tir math.* unary op family (the libm-backed vmath MIR op; fp32/fp64 operands per the pinned _check_dtype)"
+  },
+  {
+   "item": "tl.philox",
+   "status": "implemented",
+   "parameters_covered": [
+    "seed",
+    "c0",
+    "c1",
+    "c2",
+    "c3",
+    "n_rounds"
+   ],
+   "evidence": "python3 a100c/tests/test_rng.py (exit 0): RNG bit-exact against vectors generated from the pinned Triton 3.8",
+   "ir_construct": "tir rng.philox op (the 4-result counter-based primitive the corpus kernels inline around)"
+  },
+  {
+   "item": "tl.advance",
+   "status": "implemented",
+   "parameters_covered": [
+    "base",
+    "offsets"
+   ],
+   "evidence": "python3 a100c/tests/test_memory_forms.py (exit 0): memory forms (block pointers, boundary_check, padding_option, gather, interleave, pointer tables) executed and compared",
+   "ir_construct": "BlockPtrVal desugar: the whole-tree ptradd address + mask operand + padding other (no block-pointer TIR op)"
+  },
+  {
+   "item": "tl.cos",
+   "status": "implemented",
+   "parameters_covered": [
+    "x"
+   ],
+   "evidence": "python3 a100c/tests/test_math_ops.py (exit 0): 24/24 declared forms executed on QEMU and compared against numpy oracles",
+   "ir_construct": "tir math.* unary op family (the libm-backed vmath MIR op; fp32/fp64 operands per the pinned _check_dtype)"
+  },
+  {
+   "item": "tl.join",
+   "status": "implemented",
+   "parameters_covered": [
+    "a",
+    "b"
+   ],
+   "evidence": "python3 a100c/tests/test_layout_ops.py (exit 0): layout and shape forms executed and compared",
+   "ir_construct": "tir join op"
+  },
+  {
+   "item": "tl.log2",
+   "status": "implemented",
+   "parameters_covered": [
+    "x"
+   ],
+   "evidence": "python3 a100c/tests/test_math_ops.py (exit 0): 24/24 declared forms executed on QEMU and compared against numpy oracles",
+   "ir_construct": "tir math.* unary op family (the libm-backed vmath MIR op; fp32/fp64 operands per the pinned _check_dtype)"
+  },
+  {
+   "item": "tl.sin",
+   "status": "implemented",
+   "parameters_covered": [
+    "x"
+   ],
+   "evidence": "python3 a100c/tests/test_math_ops.py (exit 0): 24/24 declared forms executed on QEMU and compared against numpy oracles",
+   "ir_construct": "tir math.* unary op family (the libm-backed vmath MIR op; fp32/fp64 operands per the pinned _check_dtype)"
+  },
+  {
+   "item": "tl.split",
+   "status": "implemented",
+   "parameters_covered": [
+    "a"
+   ],
+   "evidence": "python3 a100c/tests/test_layout_ops.py (exit 0): layout and shape forms executed and compared",
+   "ir_construct": "tir split (the multi-result join inverse; the tuple-unpack form is the legal use)"
+  },
+  {
+   "item": "tl.uint64",
+   "status": "implemented",
+   "parameters_covered": [],
+   "evidence": "python3 a100c/tests/test_frontend_surface.py (exit 0)",
+   "ir_construct": "tir.Type dtype constants (a100c/frontend/types.py DTYPE_BY_NAME; parse/compare/create, no runtime op)"
+  },
+  {
+   "item": "tl.argmin",
+   "status": "implemented",
+   "parameters_covered": [
+    "input",
+    "axis",
+    "tie_break_left",
+    "keep_dims"
+   ],
+   "evidence": "python3 a100c/tests/test_reductions.py (exit 0): reduction and scan forms executed and compared; corpus reduction operators at 1/2/4/8 threads on one artifact (corpus argmin operators)",
+   "ir_construct": "tir reduce op (kind, per-op-and-dtype identity, axes, keep_dims, declared tie-break)"
+  },
+  {
+   "item": "tl.cumsum",
+   "status": "implemented",
+   "parameters_covered": [
+    "input",
+    "axis",
+    "reverse",
+    "dtype"
+   ],
+   "evidence": "python3 a100c/tests/test_reductions.py (exit 0): reduction and scan forms executed and compared; corpus reduction operators at 1/2/4/8 threads on one artifact",
+   "ir_construct": "tir scan op (kind, axis, reverse, carry identity)",
+   "note": "dtype= promotes integer widths < 32"
+  },
+  {
+   "item": "tl.div_rn",
+   "status": "implemented",
+   "parameters_covered": [
+    "x",
+    "y"
+   ],
+   "evidence": "python3 a100c/tests/test_math_ops.py (exit 0): 24/24 declared forms executed on QEMU and compared against numpy oracles (bit-exact vs the oracle)",
+   "ir_construct": "tir arith.fdiv (the IEEE round-to-nearest division)"
+  },
+  {
+   "item": "tl.int16",
+   "status": "implemented",
+   "parameters_covered": [],
+   "evidence": "python3 a100c/tests/test_frontend_surface.py (exit 0)",
+   "ir_construct": "tir.Type dtype constants (a100c/frontend/types.py DTYPE_BY_NAME; parse/compare/create, no runtime op)"
+  },
+  {
+   "item": "tl.int8",
+   "status": "implemented",
+   "parameters_covered": [],
+   "evidence": "python3 a100c/tests/test_frontend_surface.py (exit 0); python3 a100c/tests/test_matrix_breadth.py (exit 0): dot families executed and compared (int8/fp32/bf16, acc, masked) (int8 dot through the IME tile path)",
+   "ir_construct": "tir.Type dtype constants (a100c/frontend/types.py DTYPE_BY_NAME; parse/compare/create, no runtime op)"
+  },
+  {
+   "item": "tl.permute",
+   "status": "implemented",
+   "parameters_covered": [
+    "input",
+    "*dims"
+   ],
+   "evidence": "python3 a100c/tests/test_layout_ops.py (exit 0): layout and shape forms executed and compared",
+   "ir_construct": "tir permute op"
+  },
+  {
+   "item": "tl.rand",
+   "status": "implemented",
+   "parameters_covered": [
+    "seed",
+    "offset",
+    "n_rounds"
+   ],
+   "evidence": "python3 a100c/tests/test_rng.py (exit 0): RNG bit-exact against vectors generated from the pinned Triton 3.8",
+   "ir_construct": "tir rng.philox op plus the pinned random.py desugars (uint_to_uniform_float, Box-Muller)"
+  },
+  {
+   "item": "tl.atomic_max",
+   "status": "implemented",
+   "parameters_covered": [
+    "pointer",
+    "val",
+    "mask",
+    "sem",
+    "scope"
+   ],
+   "evidence": "python3 a100c/tests/test_atomics.py (exit 0): all eight atomic operators plus debug_barrier executed and compared at 1/2/4/8 threads; sem/scope asserted on the assembly (atomic_bitmap; u-row selection asserted on the assembly)",
+   "ir_construct": "tir atomic_rmw / atomic_cas ops (sem and scope carried; masked no-access at disabled lanes) (signed/unsigned row selection from the pointee's own dtype)"
+  },
+  {
+   "item": "tl.atomic_min",
+   "status": "implemented",
+   "parameters_covered": [
+    "pointer",
+    "val",
+    "mask",
+    "sem",
+    "scope"
+   ],
+   "evidence": "python3 a100c/tests/test_atomics.py (exit 0): all eight atomic operators plus debug_barrier executed and compared at 1/2/4/8 threads; sem/scope asserted on the assembly (scatter_atomic's lr/sc pair on the raw bits; the scalar fp32 atomic_min equivalent)",
+   "ir_construct": "tir atomic_rmw / atomic_cas ops (sem and scope carried; masked no-access at disabled lanes)"
+  },
+  {
+   "item": "tl.broadcast_to",
+   "status": "implemented",
+   "parameters_covered": [
+    "input",
+    "*shape"
+   ],
+   "evidence": "python3 a100c/tests/test_layout_ops.py (exit 0): layout and shape forms executed and compared; python3 a100c/tests/test_frontend_shapes.py (exit 0)",
+   "ir_construct": "tir broadcast op"
+  },
+  {
+   "item": "tl.static_assert",
+   "status": "implemented",
+   "parameters_covered": [
+    "cond",
+    "msg"
+   ],
+   "evidence": "python3 a100c/tests/test_frontend_surface.py (exit 0) (static_assert-true-emits-nothing, static_assert-false-refuses-with-message, static_assert-runtime-cond-refuses, static_assert-dead-branch-not-evaluated)",
+   "ir_construct": "the constexpr folding domain (a100c/frontend/specialize.py ConstexprEnv; no runtime op) -- the compile-time assertion: constexpr-true emits nothing, constexpr-false and runtime conditions are located refusals",
+   "note": "T016; the three corpus callers (matmul_k64_2d_unmasked, selu_kernel_supreme, fused_gemm_gn_min) now lower past the assertion"
+  },
+  {
+   "item": "tl.zeros_like",
+   "status": "implemented",
+   "parameters_covered": [
+    "input"
+   ],
+   "evidence": "python3 a100c/tests/test_frontend_surface.py (exit 0)",
+   "ir_construct": "tir zeros op"
+  },
+  {
+   "item": "tl.atomic_xchg",
+   "status": "implemented",
+   "parameters_covered": [
+    "pointer",
+    "val",
+    "mask",
+    "sem",
+    "scope"
+   ],
+   "evidence": "python3 a100c/tests/test_atomics.py (exit 0): all eight atomic operators plus debug_barrier executed and compared at 1/2/4/8 threads; sem/scope asserted on the assembly (atomic_bitmap)",
+   "ir_construct": "tir atomic_rmw / atomic_cas ops (sem and scope carried; masked no-access at disabled lanes)"
+  },
+  {
+   "item": "tl.cat",
+   "status": "implemented",
+   "parameters_covered": [
+    "input",
+    "other",
+    "can_reorder",
+    "dim"
+   ],
+   "evidence": "python3 a100c/tests/test_layout_ops.py (exit 0): layout and shape forms executed and compared",
+   "ir_construct": "the pinned join+permute+reshape desugar (can_reorder accepts the identity order)"
+  },
+  {
+   "item": "tl.clamp",
+   "status": "implemented",
+   "parameters_covered": [
+    "x",
+    "min",
+    "max",
+    "propagate_nan"
+   ],
+   "evidence": "python3 a100c/tests/test_math_ops.py (exit 0): 24/24 declared forms executed on QEMU and compared against numpy oracles (clamp form executed)",
+   "ir_construct": "the arith.maxnumf/maximumf and minnumf/minimumf composition"
+  },
+  {
+   "item": "tl.cumprod",
+   "status": "implemented",
+   "parameters_covered": [
+    "input",
+    "axis",
+    "reverse"
+   ],
+   "evidence": "python3 a100c/tests/test_reductions.py (exit 0): reduction and scan forms executed and compared; corpus reduction operators at 1/2/4/8 threads on one artifact",
+   "ir_construct": "tir scan op (kind, axis, reverse, carry identity)"
+  },
+  {
+   "item": "tl.dtype",
+   "status": "implemented",
+   "parameters_covered": [
+    "name"
+   ],
+   "evidence": "python3 a100c/tests/test_frontend_surface.py (exit 0) (tl.dtype-primitive-bitwidth-cast-method, tl.dtype-unknown-name-refuses, tl.dtype-runtime-name-refuses, meta-dtype-object-folds)",
+   "ir_construct": "the constexpr dtype domain (DTypeValue built from the pinned name registry; the f'uint{nbits}' JoinedStr form folds; no runtime op)",
+   "note": "T016; feeds .to/.cast/tl.full dtype operands; .primitive_bitwidth folds on x.dtype and ptr.type.element_ty"
+  },
+  {
+   "item": "tl.fma",
+   "status": "implemented",
+   "parameters_covered": [
+    "x",
+    "y",
+    "z"
+   ],
+   "evidence": "python3 a100c/tests/test_math_ops.py (exit 0): 24/24 declared forms executed on QEMU and compared against numpy oracles (fma bit-exact vs the single-rounding oracle); python3 a100c/tests/test_frontend_surface.py (exit 0) (fma-scalar-participates-as-fp32)",
+   "ir_construct": "tir math.fma op (single rounding; the pinned to_tensor-then-legalize scalar order: python-float scalars participate as fp32)"
+  },
+  {
+   "item": "tl.randn",
+   "status": "implemented",
+   "parameters_covered": [
+    "seed",
+    "offset",
+    "n_rounds"
+   ],
+   "evidence": "python3 a100c/tests/test_rng.py (exit 0): RNG bit-exact against vectors generated from the pinned Triton 3.8",
+   "ir_construct": "tir rng.philox op plus the pinned random.py desugars (uint_to_uniform_float, Box-Muller)"
+  },
+  {
+   "item": "tl.ravel",
+   "status": "implemented",
+   "parameters_covered": [
+    "x",
+    "can_reorder"
+   ],
+   "evidence": "python3 a100c/tests/test_layout_ops.py (exit 0): layout and shape forms executed and compared",
+   "ir_construct": "tir reshape op (constexpr shape; broadcast extents realized)"
+  },
+  {
+   "item": "tl.squeeze",
+   "status": "implemented",
+   "parameters_covered": [
+    "x",
+    "dim"
+   ],
+   "evidence": "python3 a100c/tests/test_layout_ops.py (exit 0): layout and shape forms executed and compared",
+   "ir_construct": "tir reshape op (constexpr shape; broadcast extents realized)"
+  },
+  {
+   "item": "tl.add",
+   "status": "implemented",
+   "parameters_covered": [
+    "x",
+    "y",
+    "sanitize_overflow"
+   ],
+   "evidence": "python3 a100c/tests/test_math_ops.py (exit 0): 24/24 declared forms executed on QEMU and compared against numpy oracles (arith_add form executed and compared)",
+   "ir_construct": "tir arith.* binop (the explicit function form of the AST operator)"
+  },
+  {
+   "item": "tl.atomic_and",
+   "status": "implemented",
+   "parameters_covered": [
+    "pointer",
+    "val",
+    "mask",
+    "sem",
+    "scope"
+   ],
+   "evidence": "python3 a100c/tests/test_atomics.py (exit 0): all eight atomic operators plus debug_barrier executed and compared at 1/2/4/8 threads; sem/scope asserted on the assembly (atomic_bitmap)",
+   "ir_construct": "tir atomic_rmw / atomic_cas ops (sem and scope carried; masked no-access at disabled lanes)"
+  },
+  {
+   "item": "tl.atomic_cas",
+   "status": "implemented",
+   "parameters_covered": [
+    "pointer",
+    "cmp",
+    "val",
+    "sem",
+    "scope"
+   ],
+   "evidence": "python3 a100c/tests/test_atomics.py (exit 0): all eight atomic operators plus debug_barrier executed and compared at 1/2/4/8 threads; sem/scope asserted on the assembly (atomic_bitmap)",
+   "ir_construct": "tir atomic_rmw / atomic_cas ops (sem and scope carried; masked no-access at disabled lanes)"
+  },
+  {
+   "item": "tl.atomic_or",
+   "status": "implemented",
+   "parameters_covered": [
+    "pointer",
+    "val",
+    "mask",
+    "sem",
+    "scope"
+   ],
+   "evidence": "python3 a100c/tests/test_atomics.py (exit 0): all eight atomic operators plus debug_barrier executed and compared at 1/2/4/8 threads; sem/scope asserted on the assembly (atomic_bitmap)",
+   "ir_construct": "tir atomic_rmw / atomic_cas ops (sem and scope carried; masked no-access at disabled lanes)"
+  },
+  {
+   "item": "tl.atomic_xor",
+   "status": "implemented",
+   "parameters_covered": [
+    "pointer",
+    "val",
+    "mask",
+    "sem",
+    "scope"
+   ],
+   "evidence": "python3 a100c/tests/test_atomics.py (exit 0): all eight atomic operators plus debug_barrier executed and compared at 1/2/4/8 threads; sem/scope asserted on the assembly (atomic_bitmap)",
+   "ir_construct": "tir atomic_rmw / atomic_cas ops (sem and scope carried; masked no-access at disabled lanes)"
+  },
+  {
+   "item": "tl.broadcast",
+   "status": "implemented",
+   "parameters_covered": [
+    "input",
+    "other"
+   ],
+   "evidence": "python3 a100c/tests/test_layout_ops.py (exit 0): layout and shape forms executed and compared",
+   "ir_construct": "tir broadcast op"
+  },
+  {
+   "item": "tl.ceil",
+   "status": "implemented",
+   "parameters_covered": [
+    "x"
+   ],
+   "evidence": "python3 a100c/tests/test_math_ops.py (exit 0): 24/24 declared forms executed on QEMU and compared against numpy oracles",
+   "ir_construct": "tir math.* unary op family (the libm-backed vmath MIR op; fp32/fp64 operands per the pinned _check_dtype)"
+  },
+  {
+   "item": "tl.expand_dims",
+   "status": "implemented",
+   "parameters_covered": [
+    "input",
+    "axis"
+   ],
+   "evidence": "python3 a100c/tests/test_layout_ops.py (exit 0): layout and shape forms executed and compared",
+   "ir_construct": "tir reshape op (constexpr shape; broadcast extents realized)"
+  },
+  {
+   "item": "tl.flip",
+   "status": "implemented",
+   "parameters_covered": [
+    "x",
+    "dim"
+   ],
+   "evidence": "python3 a100c/tests/test_layout_ops.py (exit 0): layout and shape forms executed and compared",
+   "ir_construct": "tir flip op"
+  },
+  {
+   "item": "tl.gather",
+   "status": "implemented",
+   "parameters_covered": [
+    "src",
+    "index",
+    "axis"
+   ],
+   "evidence": "python3 a100c/tests/test_memory_forms.py (exit 0): memory forms (block pointers, boundary_check, padding_option, gather, interleave, pointer tables) executed and compared",
+   "ir_construct": "tir gather op (the register permute)"
+  },
+  {
+   "item": "tl.histogram",
+   "status": "implemented",
+   "parameters_covered": [
+    "input",
+    "num_bins",
+    "mask"
+   ],
+   "evidence": "python3 a100c/tests/test_reductions.py (exit 0): reduction and scan forms executed and compared; corpus reduction operators at 1/2/4/8 threads on one artifact (histogram-emits-tir-op)",
+   "ir_construct": "tir histogram op (int32 bins)"
+  },
+  {
+   "item": "tl.interleave",
+   "status": "implemented",
+   "parameters_covered": [
+    "a",
+    "b"
+   ],
+   "evidence": "python3 a100c/tests/test_memory_forms.py (exit 0): memory forms (block pointers, boundary_check, padding_option, gather, interleave, pointer tables) executed and compared",
+   "ir_construct": "the composed program-level interleave lowering"
+  },
+  {
+   "item": "tl.max_contiguous",
+   "status": "implemented",
+   "parameters_covered": [
+    "input",
+    "values"
+   ],
+   "evidence": "python3 a100c/tests/test_frontend_surface.py (exit 0); python3 a100c/tests/test_memory_forms.py (exit 0): memory forms (block pointers, boundary_check, padding_option, gather, interleave, pointer tables) executed and compared",
+   "ir_construct": "tir hint op (the divisibility/contiguity promise; the wide-access proof consumes it)"
+  },
+  {
+   "item": "tl.mul",
+   "status": "implemented",
+   "parameters_covered": [
+    "x",
+    "y",
+    "sanitize_overflow"
+   ],
+   "evidence": "python3 a100c/tests/test_math_ops.py (exit 0): 24/24 declared forms executed on QEMU and compared against numpy oracles (arith_mul form executed and compared)",
+   "ir_construct": "tir arith.* binop (the explicit function form of the AST operator)"
+  },
+  {
+   "item": "tl.pointer_type",
+   "status": "implemented",
+   "parameters_covered": [
+    "element_ty",
+    "address_space",
+    "const"
+   ],
+   "evidence": "python3 a100c/tests/test_memory_forms.py (exit 0): memory forms (block pointers, boundary_check, padding_option, gather, interleave, pointer tables) executed and compared (grouped_gemm pointer table with the relocation applied-and-restored witness)",
+   "ir_construct": "PointerTypeVal (the pointer-table pattern's int64-to-pointer bitcast target)"
+  },
+  {
+   "item": "tl.rand4x",
+   "status": "implemented",
+   "parameters_covered": [
+    "seed",
+    "offsets",
+    "n_rounds"
+   ],
+   "evidence": "python3 a100c/tests/test_rng.py (exit 0): RNG bit-exact against vectors generated from the pinned Triton 3.8",
+   "ir_construct": "tir rng.philox op plus the pinned random.py desugars (uint_to_uniform_float, Box-Muller)"
+  },
+  {
+   "item": "tl.randint",
+   "status": "implemented",
+   "parameters_covered": [
+    "seed",
+    "offset",
+    "n_rounds"
+   ],
+   "evidence": "python3 a100c/tests/test_rng.py (exit 0): RNG bit-exact against vectors generated from the pinned Triton 3.8",
+   "ir_construct": "tir rng.philox op plus the pinned random.py desugars (uint_to_uniform_float, Box-Muller)"
+  },
+  {
+   "item": "tl.randint4x",
+   "status": "implemented",
+   "parameters_covered": [
+    "seed",
+    "offset",
+    "n_rounds"
+   ],
+   "evidence": "python3 a100c/tests/test_rng.py (exit 0): RNG bit-exact against vectors generated from the pinned Triton 3.8",
+   "ir_construct": "tir rng.philox op plus the pinned random.py desugars (uint_to_uniform_float, Box-Muller)"
+  },
+  {
+   "item": "tl.randn4x",
+   "status": "implemented",
+   "parameters_covered": [
+    "seed",
+    "offset",
+    "n_rounds"
+   ],
+   "evidence": "python3 a100c/tests/test_rng.py (exit 0): RNG bit-exact against vectors generated from the pinned Triton 3.8",
+   "ir_construct": "tir rng.philox op plus the pinned random.py desugars (uint_to_uniform_float, Box-Muller)"
+  },
+  {
+   "item": "tl.reduce_or",
+   "status": "implemented",
+   "parameters_covered": [
+    "input",
+    "axis",
+    "keep_dims"
+   ],
+   "evidence": "python3 a100c/tests/test_reductions.py (exit 0): reduction and scan forms executed and compared; corpus reduction operators at 1/2/4/8 threads on one artifact",
+   "ir_construct": "tir reduce op (kind, per-op-and-dtype identity, axes, keep_dims, declared tie-break)"
+  },
+  {
+   "item": "tl.softmax",
+   "status": "implemented",
+   "parameters_covered": [
+    "x",
+    "dim",
+    "keep_dims",
+    "ieee_rounding"
+   ],
+   "evidence": "python3 a100c/tests/test_reductions.py (exit 0): reduction and scan forms executed and compared; corpus reduction operators at 1/2/4/8 threads on one artifact (softmax-composes-exp); python3 a100c/tests/test_math_ops.py (exit 0): 24/24 declared forms executed on QEMU and compared against numpy oracles",
+   "ir_construct": "the SOFTMAX_COMPOSITE declared in a100c/plan/stages.py (max-subtract, math.exp, reduce sum, arith.fdiv)"
+  },
+  {
+   "item": "tl.sort",
+   "status": "implemented",
+   "parameters_covered": [
+    "x",
+    "dim",
+    "descending"
+   ],
+   "evidence": "python3 a100c/tests/test_reductions.py (exit 0): reduction and scan forms executed and compared; corpus reduction operators at 1/2/4/8 threads on one artifact (sort-emits-tir-op)",
+   "ir_construct": "tir sort op"
+  },
+  {
+   "item": "tl.sqrt_rn",
+   "status": "implemented",
+   "parameters_covered": [
+    "x"
+   ],
+   "evidence": "python3 a100c/tests/test_math_ops.py (exit 0): 24/24 declared forms executed on QEMU and compared against numpy oracles",
+   "ir_construct": "tir math.* unary op family (the libm-backed vmath MIR op; fp32/fp64 operands per the pinned _check_dtype)"
+  },
+  {
+   "item": "tl.sub",
+   "status": "implemented",
+   "parameters_covered": [
+    "x",
+    "y",
+    "sanitize_overflow"
+   ],
+   "evidence": "python3 a100c/tests/test_math_ops.py (exit 0): 24/24 declared forms executed on QEMU and compared against numpy oracles (arith_sub form executed and compared)",
+   "ir_construct": "tir arith.* binop (the explicit function form of the AST operator)"
+  },
+  {
+   "item": "tl.to_tensor",
+   "status": "implemented",
+   "parameters_covered": [
+    "x"
+   ],
+   "evidence": "python3 a100c/tests/test_layout_ops.py (exit 0): layout and shape forms executed and compared",
+   "ir_construct": "the constexpr-to-runtime realization (tir const + broadcast)"
+  },
+  {
+   "item": "tl.topk",
+   "status": "implemented",
+   "parameters_covered": [
+    "x",
+    "k",
+    "dim",
+    "descending"
+   ],
+   "evidence": "python3 a100c/tests/test_reductions.py (exit 0): reduction and scan forms executed and compared; corpus reduction operators at 1/2/4/8 threads on one artifact (topk-emits-tir-op)",
+   "ir_construct": "tir topk op"
+  },
+  {
+   "item": "tl.uint16",
+   "status": "implemented",
+   "parameters_covered": [],
+   "evidence": "python3 a100c/tests/test_frontend_surface.py (exit 0)",
+   "ir_construct": "tir.Type dtype constants (a100c/frontend/types.py DTYPE_BY_NAME; parse/compare/create, no runtime op)"
+  },
+  {
+   "item": "tl.uint8",
+   "status": "implemented",
+   "parameters_covered": [],
+   "evidence": "python3 a100c/tests/test_frontend_surface.py (exit 0)",
+   "ir_construct": "tir.Type dtype constants (a100c/frontend/types.py DTYPE_BY_NAME; parse/compare/create, no runtime op)"
+  },
+  {
+   "item": "tl.unsqueeze",
+   "status": "implemented",
+   "parameters_covered": [
+    "x",
+    "dim"
+   ],
+   "evidence": "python3 a100c/tests/test_layout_ops.py (exit 0): layout and shape forms executed and compared",
+   "ir_construct": "tir reshape op (constexpr shape; broadcast extents realized)"
+  },
+  {
+   "item": "tl.view",
+   "status": "implemented",
+   "parameters_covered": [
+    "input",
+    "*shape"
+   ],
+   "evidence": "python3 a100c/tests/test_layout_ops.py (exit 0): layout and shape forms executed and compared",
+   "ir_construct": "tir reshape op (constexpr shape; broadcast extents realized)"
+  },
+  {
+   "item": "tl.xor_sum",
+   "status": "implemented",
+   "parameters_covered": [
+    "input",
+    "axis",
+    "keep_dims"
+   ],
+   "evidence": "python3 a100c/tests/test_reductions.py (exit 0): reduction and scan forms executed and compared; corpus reduction operators at 1/2/4/8 threads on one artifact",
+   "ir_construct": "tir reduce op (kind, per-op-and-dtype identity, axes, keep_dims, declared tie-break)"
+  },
+  {
+   "item": "tl.swizzle2d",
+   "status": "implemented",
+   "parameters_covered": [
+    "i",
+    "j",
+    "size_i",
+    "size_j",
+    "size_g"
+   ],
+   "evidence": "python3 a100c/tests/test_layout_ops.py (exit 0): layout and shape forms executed and compared (swizzle2d checks; 0 corpus calls -- implemented rather than declared-unsupported)",
+   "ir_construct": "the pinned arithmetic index transform (tir arith on iota; the two-result unpack form)"
+  }
+ ],
+ "source": "ops/docs/SUBSET.md (declared LLM-inference subset, suite-v3) with ops/docs/API_INVENTORY.md (the shipped 500-operator suite own AST inventory); parameter surfaces read from the pinned Triton 3.8.0 signatures; evidence: the a100c lane tests executed 2026-11-05 (T016)",
+ "version": "Triton 3.8.0 / ops suite-v3 declared subset"
 }

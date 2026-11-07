@@ -207,8 +207,11 @@ def check_corpus(workdir, compiler):
     # executed + compared PASS at 1/2/4 workers (shape (2, 32, 4096)
     # float32), and moved into the executor list above.
     census = [
-        ("fht_kernel_1d_native.py", {"shape": (17,), "dtype": "float32"},
-         ("fp64", "float64")),
+        # fht_kernel_1d_native.py left the census in T038 (the staging-
+        # loop merge select opens its region at the VALUES' type after
+        # the selector's index-class compare): every declared case --
+        # [17] and [51, 16] at float32/float16/bfloat16 -- executes and
+        # compares PASS at 1 and 4 workers (the T038 execution probe)
         # mode_kernel.py compiled once T013 fixed the scalar-widen
         # signedness, the dtype == dispatch fold and the zeros/select
         # region discipline -- it left the refusal census and is now a

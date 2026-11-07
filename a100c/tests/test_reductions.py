@@ -725,16 +725,25 @@ def check_remaining_boundaries_refuse_located(compiler):
         # own located refusal, a different construct).  T033 then closed
         # the grid boundary itself (the rows quotient tie: rows reads
         # o_ptr_extent // n_cols at run time), so the refusal moved past
-        # the grid to the scan's own non-last-axis boundary.
-        ("ops/suite/dev/masked_cumsum_vec_kernel.py",
-         {"shape": (17, 257), "dtype": "float32"},
-         ("cumsum", "non-last axis", "grid")),
-        # sort family: T012 implements flip, so the file's refusal boundary
-        # moved past it -- it now refuses on tl.softmax's exp (the
-        # math-ops lane owns that construct)
-        ("ops/suite/dev/ranked_distribution_semantic.py",
-         {"shape": (16,), "dtype": "float32"},
-         ("softmax", "exp", "math-ops", "flip", "gather", "cast")),
+        # the grid to the scan's own non-last-axis boundary.  T038 then
+        # closed the LAST-axis multi-axis scan boundary (the chunk carry
+        # restarts at every row boundary of the row-major flat lane
+        # order; the workspace slice is sized by the operand's own flat
+        # extent) and the ==1-specialization hint: masked_cumsum_vec
+        # left the boundary list -- every declared (shape, dtype)
+        # executes and compares PASS at 1 and 4 workers (the T038
+        # execution probe); a NON-last-axis scan keeps its located
+        # refusal (test_t038_repairs' probe control)
+        # ("ops/suite/dev/masked_cumsum_vec_kernel.py" removed)
+        # sort family: T012 implements flip; T038 implements the
+        # whole-block reorder protocol (sort by the stable rank form,
+        # topk as the rank restricted to k, the chunk/width-bound gather
+        # through the staged source region, and the full-axis keep_dims
+        # reduce's [1] scalar binding softmax needs) --
+        # ranked_distribution left the boundary list: every declared
+        # (shape, dtype) executes and compares PASS at 1 and 4 workers
+        # (the T038 execution probe)
+        # ("ops/suite/dev/ranked_distribution_semantic.py" removed)
     ]
     for rel, kwargs, needles in cases:
         module = _load(ROOT / rel)

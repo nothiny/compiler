@@ -341,18 +341,20 @@ def check_naive_attn_single_worker():
 # it past the scalar-tree materialization and the next boundary is the
 # v0-mask class (T038's family).  Both stay located refusals or better.
 REMAINING_BOUNDARIES = [
-    ("suite/dev/ranked_distribution_semantic.py", (16,), "float32",
-     "tl.sort"),
-    ("suite/dev/cumprod_dim1_grouped_mixed_kernel.py", (1, 1), "float32",
-     "tl.cumsum/cumprod"),
-    ("suite/dev/nanmedian_ascend_histogram_count_kernel.py", (17,), "int8",
-     "tl.histogram"),
+    # T038 (the construct long-tail round) repaired five entries of this
+    # list: ranked_distribution (the whole-block sort/topk/gather/softmax
+    # protocol), cumprod_dim1_grouped_mixed (the last-axis multi-axis
+    # scan), nanmedian_ascend_histogram_count (tl.histogram), l1_norm
+    # (the vsel v0-mask re-materialization) and chunk_transform_qk (the
+    # native-source layout mirror) -- all five now compile and their
+    # declared cases execute and compare PASS at 1 and 4 workers (the
+    # T038 execution probe, test_t038_repairs.py).  The fp64 tl.dot
+    # refusal STAYS (the corpus's declared dtype surface excludes fp64:
+    # the case layer hands numpy-default float64 buffers under a
+    # float32 label -- FRONTEND_COVERAGE.json's tl.dot row records the
+    # justification).
     ("suite/dev/chunk_generalized_iplr_delta_rule_fwd_kernel_o.py", (17,),
      "float32", "tl.dot"),
-    ("suite/dev/chunk_transform_qk_fwd_kernel.py", (6, 33, 11, 13, 16),
-     "float16", "layout"),
-    ("suite/dev/l1_norm_fused_kernel_2cb0f555.py", (128,), "float32",
-     "mir-verifier"),
 ]
 
 
