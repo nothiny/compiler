@@ -67,6 +67,40 @@ self-check validates every model against the case's declared grid):
     cofactors, and gn_finalize's product-only shape factors (neither n
     nor g separable) still refuse, located.
 
+T037 extends the tie surface again (same discipline: every mechanism is
+structural -- the interpreter's own provenance, never a value guess -- and
+the compile-time self-check validates every model against the case's
+declared grid):
+
+  * the aligned-copy idiom keeps its extents: ``.reshape(<tracked shape
+    tuple>)`` over any base yields the argument's per-axis extents
+    (``_aligned``'s ``return result.reshape(values.shape)``), so the views
+    the case builds from the shape carry their provenance even though the
+    aligned copy itself is opaque (chunk_abc's B*H ties to the view axis
+    that equals it);
+  * module-level ``lambda`` values are callable in the domain (the
+    ``q = lambda *s, r=2: ...`` value-massaging idiom), so arrays built
+    through them keep their extents (deconv3d's x carries
+    n*cin*dz*dy*dx, and the quotient solve reads its axis-0 factor n as
+    the view extent over the Cin/Dz/Dy/Dx bundle-scalar cofactors);
+  * a subscript read on one opaque base with the same concrete key is ONE
+    value (memoized per base identity, exactly like
+    ``triton.next_power_of_2``): the ``cfg[...]`` config reads the case
+    layer repeats tie to the meta constexpr or scalar argument carrying
+    the same occurrence (deconv3d's BLOCK_OW hole fills from
+    ``meta["BLOCK_OW"]``);
+  * a case-layer loop (or comprehension feeding one) whose ``range()``
+    bound is a bare shape axis with an *identity-signed* count -- a
+    meta/launch_meta constexpr the interpreter proves equal to the leaf
+    (grouped_mm's ``num_groups``) -- unrolls with that count: structure
+    only, the accumulated expression stays symbolic over runtime reads.
+    An axis no constexpr signs stays unenumerable (never the raw payload
+    echo: grouped_gemm's single identity spans groups=3 and groups=4
+    cases, so unrolling either count would bake the other's grid); its
+    ``sum(...)`` keeps a located refusal naming the axis, and
+    gn_finalize's (n, g) axes (only the product n*g is view-visible)
+    refuse, located, as before.
+
 A grid input that cannot be tied to a bundle-visible quantity is refused
 with a located diagnostic (MECH-DIAGNOSTIC-REFUSAL), never baked; the
 extraction/refusal census (:func:`census`) makes both sides countable.
@@ -74,6 +108,7 @@ extraction/refusal census (:func:`census`) makes both sides countable.
 from __future__ import annotations
 
 import ast
+import numbers
 from dataclasses import dataclass, field
 from typing import Dict, Iterable, List, Optional, Tuple
 
@@ -473,7 +508,8 @@ class _Interpreter:
 
     def __init__(self, source: OperatorSource,
                  module_constants: Dict[str, object],
-                 module_functions: Optional[Dict[str, ast.FunctionDef]] = None):
+                 module_functions: Optional[Dict[str, ast.FunctionDef]] = None,
+                 shape_counts: Optional[Dict[int, int]] = None):
         self.source = source
         self.constants = module_constants
         self.env: Dict[str, SymVal] = {}
@@ -487,10 +523,46 @@ class _Interpreter:
         self.returned: Optional[SymDict] = None
         #: the raw return value of the interpreted function
         self.retval: Optional[SymVal] = None
+        #: T037: identity-signed concrete trip counts per case-shape axis
+        #: (a meta/launch_meta constexpr the interpreter proved equal to
+        #: the bare leaf) -- loop structure only, never folded values
+        self.shape_counts: Dict[int, int] = shape_counts or {}
         #: interpretation bookkeeping (budgets, depth, pure-call memo)
         self._steps = 0
         self._depth = 0
         self._pure_memo: Dict[tuple, SymVal] = {}
+        #: T037: opaque-base subscript reads memoized per (base, key); the
+        #: memo keeps the base alive so its id is never reused
+        self._sub_memo: Dict[int, Tuple[SymVal, Dict[object, SymVal]]] = {}
+
+    def _signed_shape_count(self, v: SymVal) -> Optional[int]:
+        """The identity-signed concrete count of one ``range()`` bound: a
+        bare case-shape axis whose value a meta/launch_meta constexpr
+        carries (the interpreter proved the leaf EQUAL to that constexpr,
+        and the specialization identity signs the constexpr's value, so
+        every case sharing the artifact agrees on the count -- grouped_mm
+        binds ``num_groups`` this way).  None when the bound is not a
+        signed shape axis: the raw payload shape is deliberately NOT
+        consulted, because an unsigned axis may differ across one
+        identity's cases (grouped_gemm's ``groups`` -- one identity spans
+        groups=3 and groups=4), and unrolling either count would bake the
+        other's loop shape into the grid routine."""
+        if isinstance(getattr(v, "gexpr", None), Ref) \
+                and v.gexpr.kind == "shape_extent" \
+                and v.gexpr.key and isinstance(v.gexpr.key[0], int):
+            return self.shape_counts.get(v.gexpr.key[0])
+        return None
+
+    def _range_why(self, v) -> str:
+        """The refusal-naming description of one ``range()`` bound (T037):
+        the value's own provenance, plus the reason an unsigned case-shape
+        axis never unrolls."""
+        why = self._why(v)
+        if isinstance(getattr(v, "gexpr", None), Ref) \
+                and v.gexpr.kind == "shape_extent" \
+                and self._signed_shape_count(v) is None:
+            why += " (a case-shape axis with no identity-signed count)"
+        return why
 
     # -- helpers --------------------------------------------------------------
     def _err(self, node, construct: str, message: str) -> GridError:
@@ -662,10 +734,14 @@ class _Interpreter:
             vals = []
             for a in iter_node.args:
                 v = self._eval(a)
-                if v.concrete is None or not isinstance(v.concrete, int) \
-                        or isinstance(v.concrete, bool):
+                count = v.concrete \
+                    if (v.concrete is not None
+                        and isinstance(v.concrete, int)
+                        and not isinstance(v.concrete, bool)) \
+                    else self._signed_shape_count(v)
+                if count is None:
                     return None
-                vals.append(v.concrete)
+                vals.append(count)
             start = vals[0] if len(vals) > 1 else 0
             stop = vals[1] if len(vals) > 1 else vals[0]
             step = vals[2] if len(vals) > 2 else 1
@@ -701,13 +777,19 @@ class _Interpreter:
                 and rng.func.id == "range":
             vals = []
             symbolic = False
+            stuck = None
             for a in rng.args:
                 v = self._eval(a)
-                if v.concrete is None or not isinstance(v.concrete, int) \
-                        or isinstance(v.concrete, bool):
+                count = v.concrete \
+                    if (v.concrete is not None
+                        and isinstance(v.concrete, int)
+                        and not isinstance(v.concrete, bool)) \
+                    else self._signed_shape_count(v)
+                if count is None:
                     symbolic = True
+                    stuck = v
                     break
-                vals.append(v.concrete)
+                vals.append(count)
             if not symbolic:
                 start = vals[0] if len(vals) > 1 else 0
                 stop = vals[1] if len(vals) > 1 else vals[0]
@@ -720,7 +802,10 @@ class _Interpreter:
                     return
                 self._unroll(stmt, lambda k: _lit(k), start, stop, step)
                 return
-            self._opaque_loop_effects(stmt)
+            # name the unresolvable bound, so the located refusal names
+            # the untraceable input (an unsigned case-shape axis)
+            self._opaque_loop_effects(stmt,
+                                      why=f"range({self._range_why(stuck)})")
             return
         # -- enumerable values (tracked tuples, dict views, concrete lists) ----
         iterated = self._eval(rng)
@@ -750,7 +835,9 @@ class _Interpreter:
             # guess) while a loop the grid does not consume no longer
             # blocks extraction (grouped_mm/grouped_gemm's allocations
             # loop -- the grid reads total_tiles, computed before it).
-            self._opaque_loop_effects(stmt)
+            # T037: the opaque value names the iterable, so the refusal
+            # names the untraceable input.
+            self._opaque_loop_effects(stmt, why=self._why(iterated))
             return
         if len(items) > _LOOP_ITERATION_CAP:
             self._opaque_loop_effects(stmt)
@@ -811,13 +898,18 @@ class _Interpreter:
             for t in target.elts:
                 self._restore_loop_target(t)
 
-    def _opaque_loop_effects(self, stmt: ast.For) -> None:
+    def _opaque_loop_effects(self, stmt: ast.For,
+                             why: Optional[str] = None) -> None:
         """Conservatively apply a loop whose iteration count the model
         cannot see: every rebound name, and every dict element-stored into,
-        becomes opaque (an unfillable hole if the grid consumes it)."""
+        becomes opaque (an unfillable hole if the grid consumes it).
+        ``why`` names the iterable the model cannot enumerate, so the
+        located refusal names the untraceable input (T037)."""
         rebound, stored = _loop_effect_names(stmt)
+        suffix = f"; the loop iterates {why}" if why else ""
         for name in rebound:
-            self.env[name] = _opaque(f"loop-dependent value ({name})")
+            self.env[name] = _opaque(
+                f"loop-dependent value ({name}{suffix})")
         for name in stored:
             base = self.env.get(name)
             if base is None or isinstance(base, SymArray):
@@ -1085,6 +1177,7 @@ class _Interpreter:
         if isinstance(node, (ast.ListComp, ast.SetComp, ast.GeneratorExp)):
             # (int(v) for v in shape) / [int(v) for v in shape]: the
             # per-item passthrough of a tracked tuple
+            iterated = None
             if len(node.generators) == 1 and not node.generators[0].ifs \
                     and not node.generators[0].is_async:
                 target = node.generators[0].target
@@ -1123,6 +1216,12 @@ class _Interpreter:
                             finally:
                                 self._restore_loop_target(target)
                         return SymTuple(out)
+            # T037: name the iterable the model cannot enumerate, so the
+            # located refusal names the untraceable input (grouped_gemm's
+            # ``sum(... for ... in dimensions)`` over ``range(groups)``)
+            if iterated is not None:
+                return _opaque(
+                    f"comprehension over {self._why(iterated)}")
             return _opaque("comprehension")
         if isinstance(node, (ast.SetComp, ast.DictComp, ast.Starred,
                              ast.NamedExpr, ast.Slice)):
@@ -1399,6 +1498,15 @@ class _Interpreter:
             return _opaque(f".{method}")
         if base.opaque is not None and method in _RNG_SIZE_METHODS:
             return self._rng_method(node, method, args)
+        if base.opaque is not None and method == "reshape" and args \
+                and isinstance(args[0], SymTuple):
+            # T037: ``result.reshape(values.shape)`` -- the result's
+            # per-axis extents ARE the argument's extents, whatever the
+            # base is (the _aligned idiom: an opaque aligned copy reshaped
+            # back to the input's shape).  The VALUES stay untracked; the
+            # extents carry the provenance the view ties read, so the
+            # views the case builds from the shape become tieable.
+            return SymArray(list(args[0].items))
         return _opaque(f".{method}")
 
     def _minmax(self, name: str, args: List[SymVal]) -> SymVal:
@@ -1497,6 +1605,89 @@ class _Interpreter:
         assert result is not None
         return result
 
+    def _call_lambda(self, node: ast.Call, lam: SymLambda) -> SymVal:
+        """Interpret one call to a case-layer ``lambda`` value (T037) in
+        the provenance domain, under the helper bounds: positional
+        arguments bind the plain parameters, the extras collect into the
+        ``*vararg`` tuple, keywords bind by name and the defaults evaluate
+        in the lambda's closure (the def site).  The arrays built through
+        the body keep their tracked extents -- deconv3d's
+        ``q = lambda *s, r=2: (np.rint(rng.uniform(-r, r, s)) * 8)...
+        `` carries (n, cin, dz, dy, dx) into x.  Any failure degrades to
+        an opaque value, exactly like a helper function."""
+        if self._depth >= _HELPER_DEPTH:
+            return _opaque("lambda (depth)")
+        for a in node.args:
+            if isinstance(a, ast.Starred):
+                self._eval(a.value)
+                return _opaque("lambda (star-args)")
+        for k in node.keywords:
+            if k.arg is None:
+                self._eval(k.value)
+                return _opaque("lambda (**kwargs)")
+        pos_args = [self._eval(a) for a in node.args]
+        kw_args = {k.arg: self._eval(k.value) for k in node.keywords}
+        fn = lam.node
+        params = [a.arg for a in fn.args.args]
+        vararg = fn.args.vararg.arg if fn.args.vararg is not None else None
+        kwonly = [a.arg for a in fn.args.kwonlyargs]
+        if fn.args.kwarg is not None:
+            return _opaque("lambda (**kwargs param)")
+        bound: Dict[str, SymVal] = {}
+        extra: List[SymVal] = []
+        for i, v in enumerate(pos_args):
+            if i < len(params):
+                bound[params[i]] = v
+            else:
+                extra.append(v)
+        if vararg is None and extra:
+            return _opaque("lambda (arity)")
+        if vararg is not None:
+            bound[vararg] = SymTuple(extra)
+        for pname in kwonly:
+            if pname in kw_args:
+                bound[pname] = kw_args.pop(pname)
+        for pname in params:
+            if pname in kw_args and pname not in bound:
+                bound[pname] = kw_args.pop(pname)
+        if kw_args:
+            return _opaque("lambda (unexpected keyword)")
+        saved_env = self.env
+        self._depth += 1
+        result: Optional[SymVal] = None
+        try:
+            # defaults evaluate in the lambda's closure (the def site)
+            self.env = dict(lam.closure)
+            for p, d in zip(params[len(params) - len(fn.args.defaults):],
+                           fn.args.defaults):
+                if p not in bound:
+                    bound[p] = self._eval(d)
+            for p, d in zip(kwonly, fn.args.kw_defaults):
+                if d is not None and p not in bound:
+                    bound[p] = self._eval(d)
+            missing = [p for p in params if p not in bound]
+            if missing:
+                result = _opaque(f"lambda (unbound {missing[0]})")
+            else:
+                self.env.update(bound)
+                entry_steps = self._steps
+                result = self._eval(fn.body)
+                if self._steps - entry_steps > _HELPER_STEP_BUDGET:
+                    raise _HelperBudget()
+        except _HelperBudget:
+            result = _opaque("lambda (budget)")
+        except GridError as exc:
+            result = _opaque(f"lambda ({exc.construct})")
+        except RecursionError:
+            result = _opaque("lambda (recursion)")
+        except Exception as exc:            # interpretation beyond the model
+            result = _opaque(f"lambda ({type(exc).__name__})")
+        finally:
+            self.env = saved_env
+            self._depth -= 1
+        assert result is not None
+        return result
+
     def _call(self, node: ast.Call) -> SymVal:
         func = node.func
         name = func.id if isinstance(func, ast.Name) else None
@@ -1528,13 +1719,18 @@ class _Interpreter:
                 # scalar-shaped value preserves the extents/provenance (a
                 # copy never reshapes; the dtype argument never changes an
                 # extent) -- cholesky's STATUS passes through it into the
-                # args literal.  Anything else stays opaque.
+                # args literal.  T037: over a tracked TUPLE the element
+                # VALUES pass through too (a copy never changes them), so
+                # a case-layer loop over the result enumerates the items
+                # with their provenance (grouped_mm's ``ends``).  Anything
+                # else stays opaque.
                 arg = self._eval(node.args[0])
                 if isinstance(arg, SymArray):
                     return arg
-                if not isinstance(arg, (SymTuple, SymDict, SymIter,
-                                        SymFunc, SymLambda)) \
-                        and not isinstance(arg, SymArray):
+                if isinstance(arg, SymTuple):
+                    return arg
+                if not isinstance(arg, (SymDict, SymIter, SymFunc,
+                                        SymLambda)):
                     return arg        # a scalar-shaped value passes
                 return _opaque(f"np.{tail}")
             if tail in _NP_ELEMENTWISE and node.args:
@@ -1714,13 +1910,38 @@ class _Interpreter:
                     return _lit(concrete)
                 return SymVal(gexpr=Bin("add", acc, Lit(concrete))
                               if concrete else acc)
-            return _opaque("sum")
+            # T037: name the aggregated sequence, so the located refusal
+            # names the untraceable input (grouped_gemm's runtime-length
+            # tile-count sum over ``range(groups)``)
+            if isinstance(arg, ast.GeneratorExp) \
+                    and len(arg.generators) == 1:
+                return _opaque(
+                    f"sum over "
+                    f"{self._why(self._eval(arg.generators[0].iter))}")
+            return _opaque(f"sum over {self._why(self._eval(arg))}")
+        if name == "range" and not node.keywords \
+                and name not in self.env and name not in self.module_functions:
+            # T037: a ``range`` in expression position (a comprehension's
+            # iterable evaluated as a value): name its bound so an
+            # unenumerable loop's located refusal names the untraceable
+            # input (grouped_gemm's ``range(groups)`` -- a case-shape axis
+            # with no identity-signed count)
+            args = [self._eval(a) for a in node.args]
+            if args:
+                return _opaque(f"range({self._range_why(args[-1])})")
+            return _opaque("range()")
         # a module-level helper function of the operator file (``_case``,
         # ``_aligned``, ``_dims``, ...): interpreted in the same provenance
         # domain under the step budget -- the payload dict it returns and
         # the arrays it builds carry their tracked extents onward
         if name is not None:
             local = self.env.get(name)
+            if isinstance(local, SymLambda):
+                # T037: a lambda value called directly (``q = lambda *s,
+                # r=2: ...`` -- the value-massaging idiom): interpreted in
+                # the provenance domain under the helper bounds, so the
+                # arrays built through its body keep their tracked extents
+                return self._call_lambda(node, local)
             fn_node = local.node if isinstance(local, SymFunc) else \
                 (self.module_functions.get(name)
                  if local is None and name in self.module_functions else None)
@@ -1740,6 +1961,23 @@ class _Interpreter:
         base = self._eval(node.value)
         index = self._eval(node.slice) if not isinstance(node.slice, ast.Slice) \
             else None
+        if base.opaque is not None and index is not None \
+                and isinstance(index.concrete, (str, int)) \
+                and not isinstance(index.concrete, bool):
+            # T037: a read on one opaque base with the same concrete key
+            # is ONE value, memoized per base identity (exactly the
+            # ``triton.next_power_of_2`` discipline: the corpus's config
+            # dicts -- ``cfg = _CFG[tuple(shape)]`` -- are read-only, and
+            # the interpreter itself formed every occurrence from the same
+            # base+key).  The memo keeps the base alive so its id is never
+            # reused; a tracked dict/tuple/array never reaches here (their
+            # reads are already deterministic in the domain).
+            slot = self._sub_memo.setdefault(id(base), (base, {}))
+            if index.concrete in slot[1]:
+                return slot[1][index.concrete]
+            value = _opaque("subscript")
+            slot[1][index.concrete] = value
+            return value
         if isinstance(base, SymTuple):
             if isinstance(index, SymTuple):
                 # a multi-dimensional index over a tuple-shaped value: an
@@ -1929,6 +2167,12 @@ def _array_args(case: dict) -> Dict[str, tuple]:
     return out
 
 
+def _is_integral(value) -> bool:
+    """A plain (non-bool) integral value -- a meta constant or a scalar
+    argument the bundle can serve."""
+    return not isinstance(value, bool) and isinstance(value, numbers.Integral)
+
+
 def _grid_leafs(expr) -> Iterable[Ref]:
     if isinstance(expr, Ref):
         yield expr
@@ -2010,7 +2254,9 @@ def _interp_once(source: OperatorSource, case: dict,
                  view_bindings: Dict[str, SymArray],
                  module_constants: Dict[str, object],
                  module_functions: Dict[str, ast.FunctionDef],
-                 make_case: ast.FunctionDef) -> Tuple[_Interpreter, Dict[str, SymVal]]:
+                 make_case: ast.FunctionDef,
+                 shape_counts: Optional[Dict[int, int]] = None
+                 ) -> Tuple[_Interpreter, Dict[str, SymVal]]:
     shape, ndim = _shape_arity(source, case)
     # The shape axes stay SYMBOLIC in the expression (their concrete values
     # are self-check inputs only): folding a case's shape into the grid
@@ -2035,7 +2281,8 @@ def _interp_once(source: OperatorSource, case: dict,
     if isinstance(seed_payload, int) and not isinstance(seed_payload, bool):
         params["seed"] = SymVal(origin=Ref("case_param", ("seed",)),
                                 concrete=seed_payload)
-    interp = _Interpreter(source, module_constants, module_functions)
+    interp = _Interpreter(source, module_constants, module_functions,
+                          shape_counts=shape_counts)
     try:
         env = interp.run(make_case, params,
                          prelude=view_bindings or None)
@@ -2046,6 +2293,40 @@ def _interp_once(source: OperatorSource, case: dict,
                         "_make_case",
                         f"case-layer interpretation failed: {exc}") from None
     return interp, env
+
+
+def _signed_shape_counts(interp: _Interpreter, case: dict) -> Dict[int, int]:
+    """Case-shape axes whose concrete value the identity SIGNS: a
+    meta/launch_meta constexpr the interpreter proved equal to the bare
+    shape leaf (its own object equality -- the case layer wrote
+    ``meta = {"num_groups": num_groups}``).  Such an axis may serve as a
+    concrete loop trip count: every case sharing the artifact sees the
+    same constexpr value, so the unrolled STRUCTURE is identity-invariant
+    while the accumulated expression stays symbolic over runtime reads.
+    An axis no constexpr signs is absent -- its count is per-case data,
+    and unrolling it would bake one case's loop shape into the grid
+    routine (grouped_gemm's ``groups``: its single identity spans
+    groups=3 and groups=4 cases)."""
+    counts: Dict[int, int] = {}
+    if not isinstance(interp.returned, SymDict):
+        return counts
+    for table in ("meta", "launch_meta"):
+        sym_table = interp.returned.mapping.get(table)
+        payload_table = case.get(table) or {}
+        if not isinstance(sym_table, SymDict) \
+                or not isinstance(payload_table, dict):
+            continue
+        for mname in sorted(sym_table.mapping):
+            mvalue = payload_table.get(mname)
+            if not _is_integral(mvalue):
+                continue
+            sv = sym_table.mapping[mname]
+            if sv is None or not isinstance(sv.gexpr, Ref):
+                continue
+            if sv.gexpr.kind == "shape_extent" and sv.gexpr.key \
+                    and isinstance(sv.gexpr.key[0], int):
+                counts.setdefault(sv.gexpr.key[0], int(mvalue))
+    return counts
 
 
 def extract_grid(source: OperatorSource, case: dict) -> GridModel:
@@ -2074,11 +2355,7 @@ def extract_grid(source: OperatorSource, case: dict) -> GridModel:
     module_functions = _module_functions(tree, source.kernel_name)
     arrays = _array_args(case)
     args_payload = case.get("args") or {}
-    import numbers as _numbers
-
-    def _integral(value) -> bool:
-        return not isinstance(value, bool) \
-            and isinstance(value, _numbers.Integral)
+    _integral = _is_integral
 
     # which case arguments the bundle can actually serve at run time: the
     # kernel's own non-constexpr parameters (extra case arguments and
@@ -2091,9 +2368,23 @@ def extract_grid(source: OperatorSource, case: dict) -> GridModel:
                      if n not in arrays and n not in oracle_args
                      and _integral(args_payload.get(n))}
 
+    # -- pass 0 (T037): discover the identity-signed shape-axis trip counts
+    # (a meta/launch_meta constexpr the interpreter proved equal to the
+    # bare leaf) before the working passes, then re-interpret with them so
+    # a loop over such an axis unrolls its structure while the accumulated
+    # expression stays symbolic (grouped_mm's ends/total_tiles)
+    signed_counts: Dict[int, int] = {}
+    try:
+        interp, env = _interp_once(source, case, {}, module_constants,
+                                   module_functions, make_case)
+        signed_counts = _signed_shape_counts(interp, case)
+    except GridError:
+        signed_counts = {}          # the working pass raises it, located
+
     # -- pass 1: find which locals flow into the array args -------------------
     interp, env = _interp_once(source, case, {}, module_constants,
-                               module_functions, make_case)
+                               module_functions, make_case,
+                               shape_counts=signed_counts or None)
     args_value = env.get("args")
     if not isinstance(args_value, SymDict) and isinstance(interp.returned,
                                                           SymDict):
@@ -2115,7 +2406,8 @@ def extract_grid(source: OperatorSource, case: dict) -> GridModel:
     view_bindings: Dict[str, SymArray] = {}
     if array_locals:
         interp, env = _interp_once(source, case, {}, module_constants,
-                                   module_functions, make_case)
+                                   module_functions, make_case,
+                                   shape_counts=signed_counts or None)
         for argname in sorted(array_locals):
             shape = arrays[argname]
             # the view extents stay symbolic in the expression (the
@@ -2136,7 +2428,8 @@ def extract_grid(source: OperatorSource, case: dict) -> GridModel:
         if view_bindings:
             interp, env = _interp_once(source, case, view_bindings,
                                        module_constants, module_functions,
-                                       make_case)
+                                       make_case,
+                                       shape_counts=signed_counts or None)
 
     # -- the grid value: the RETURNED payload is authoritative (the local
     # ``grid`` name is a fallback -- a dead local must never shadow the
@@ -2458,13 +2751,26 @@ def extract_grid(source: OperatorSource, case: dict) -> GridModel:
                 view, axis = value_view_ties[ref.key]
                 ties[ref.key] = ("view_extent", view, axis)
                 return
+            # T037: name what IS visible -- the view-extent products this
+            # leaf factors into -- so the refusal names the genuinely
+            # untraceable input precisely (gn_finalize's axes appear only
+            # as the view extent n*g: the factors themselves are in no
+            # scalar argument and no view extent)
+            visible = []
+            for view, vaxis, tree in view_extent_trees:
+                if any(f == ref for f in _factors(tree)):
+                    visible.append(f"{view}[{vaxis}] = {tree!r}")
+                    break
+            hint = (f"; only as a factor of a view extent ({visible[0]}) "
+                    if visible else
+                    "; no scalar argument and no view extent shares its "
+                    "origin")
             raise GridError(
                 source.path, make_case.lineno, make_case.col_offset + 1,
                 "grid",
                 f"grid input {ref!r} (case-shape axis {ref.key[0]}) cannot "
-                "be proven equal to a bundle-visible quantity (no scalar "
-                "argument and no view extent shares its origin); refusing "
-                "to bake a launch geometry")
+                f"be proven equal to a bundle-visible quantity{hint}; "
+                "refusing to bake a launch geometry")
         if ref.kind in ("view_extent", "bundle_view"):
             ties[ref.key] = ("view_extent", ref.key[0], ref.key[1])
             return

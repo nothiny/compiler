@@ -37,9 +37,8 @@ Controls (MECH-WITNESS-TEST): the fp16 guard-region witness (a masked
 block atomic whose disabled lanes address a poisoned guard -- intact in
 the real build, corrupted in the degraded witness_drop_atomic_masks
 build), the assembly carries the lr.w/sc.w ordered suffixes of the
-declared sem/scope mapping, and the located refusals (grouped_mm /
-grouped_gemm grids, logsumexp's chunked carried value) name their
-construct.
+declared sem/scope mapping, and the located refusals (grouped_gemm's
+grid, logsumexp's chunked carried value) name their construct.
 
 Run: python3 a100c/tests/test_t034_repairs.py  (exit 0 = all PASS)
 """
@@ -353,29 +352,51 @@ def check_scalar_width():
 
 
 def check_located_refusals():
-    """The honest boundaries: the grouped_mm / grouped_gemm grids depend
-    on data/symbolic values no bundle-visible quantity can tie (a
-    located grid refusal, never a baked launch).  T036 repaired the
-    chunked carried-value family this record used to pin: logsumexp's
+    """The honest boundaries: grouped_gemm's grid depends on data/symbolic
+    values no bundle-visible quantity can tie (a located grid refusal,
+    never a baked launch).  T037 repaired the grouped_mm grid this record
+    used to pin (the identity-signed trip count), and T036 repaired the
+    chunked carried-value family it also used to pin: logsumexp's
     ``maximum = tl.maximum(maximum, tl.max(...))`` now carries a
     recognized extremum merge rule, so the operator COMPILES (and its
     identities execute and compare PASS at 1 and 4 workers -- the T036
     repair test) instead of refusing at 'loop'."""
     c = _compiler("refusals")
     bad = []
-    for opname in ("grouped_mm_kernel.py", "grouped_gemm_kernel.py"):
-        module = _load(OPS / "suite" / "dev" / opname)
-        try:
-            c.compile_case(
-                {k: v for k, v in module.make_case().items()
-                 if k not in ("expected", "oracle_args")})
-            bad.append(f"{opname}: compiled (expected a located refusal)")
-        except PipelineError as exc:
-            if exc.construct != "grid":
-                bad.append(f"{opname}: construct {exc.construct!r}, "
-                           f"expected 'grid'")
-        except Exception as exc:               # noqa: BLE001
-            bad.append(f"{opname}: wrong error {type(exc).__name__}")
+    # T037 repaired the grouped_mm grid this record used to pin: the
+    # tile-count loop's ``range(num_groups)`` bound is a case-shape axis
+    # the identity SIGNS (meta num_groups), so the loop unrolls its
+    # structure while the accumulated expression reads the M scalar and
+    # the offs[0] view extent at run time -- the operator now COMPILES
+    # (its identities execute and compare PASS -- the T037 repair test)
+    gm = _load(OPS / "suite" / "dev" / "grouped_mm_kernel.py")
+    try:
+        c.compile_case(
+            {k: v for k, v in gm.make_case().items()
+             if k not in ("expected", "oracle_args")})
+    except PipelineError as exc:
+        bad.append(f"grouped_mm_kernel.py: refused at {exc.construct!r} "
+                   "(T037 repaired the signed-count grid tie)")
+    except Exception as exc:               # noqa: BLE001
+        bad.append(f"grouped_mm_kernel.py: wrong error "
+                   f"{type(exc).__name__}")
+    # grouped_gemm keeps its located refusal: its single identity spans
+    # groups=3 and groups=4 cases, so the tile-count sum's trip count is
+    # per-case data no bundle-visible quantity can tie (never a bake)
+    gg = _load(OPS / "suite" / "dev" / "grouped_gemm_kernel.py")
+    try:
+        c.compile_case(
+            {k: v for k, v in gg.make_case().items()
+             if k not in ("expected", "oracle_args")})
+        bad.append("grouped_gemm_kernel.py: compiled (expected a located "
+                   "refusal)")
+    except PipelineError as exc:
+        if exc.construct != "grid":
+            bad.append(f"grouped_gemm_kernel.py: construct "
+                       f"{exc.construct!r}, expected 'grid'")
+    except Exception as exc:               # noqa: BLE001
+        bad.append(f"grouped_gemm_kernel.py: wrong error "
+                   f"{type(exc).__name__}")
     lse = _load(OPS / "suite" / "perf" / "logsumexp.py")
     try:
         c.compile_case(

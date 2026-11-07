@@ -38,9 +38,8 @@ and compared against a reference computed independently of the compiler
 (numpy in this test, or the corpus case's own numpy reference), at 1 and
 4 workers.  The controls (MECH-WITNESS-TEST) pin the boundaries that
 must keep refusing: the block-tensor condition at a non-==1 identity,
-the genuinely untraceable grids (gn_finalize's product-only factors,
-chunk_abc's opaque aligned views) and the TIR verifier's descending-flag
-pin.
+the genuinely untraceable grids (gn_finalize's product-only factors) and
+the TIR verifier's descending-flag pin.
 
 Run: python3 a100c/tests/test_t033_repairs.py   (exit 0 = all PASS)
 """
@@ -640,17 +639,20 @@ def check_grid_no_baking(workdir, compiler):
 
 def check_refusal_controls(compiler):
     """The boundaries that must keep refusing, located: the genuinely
-    untraceable grids (gn_finalize's product-only shape factors,
-    chunk_abc's opaque aligned views) and the TIR verifier's
-    descending-flag pin (a hand-built module with a flag/step
-    disagreement is rejected)."""
+    untraceable grids (gn_finalize's product-only shape factors) and the
+    TIR verifier's descending-flag pin (a hand-built module with a
+    flag/step disagreement is rejected).
+
+    T037 repaired the chunk_abc grid this record used to pin: the opaque
+    aligned views now carry their extents (the ``.reshape(tracked)``
+    rule), so the B*H grid axis ties to the A[0] view extent and the
+    operator extracts (and executes and compares PASS -- the T037 repair
+    test)."""
     from a100c.frontend.gridmodel import extract_grid, GridError
     from a100c.frontend.source import load_operator
     bad = []
     for rel, fragment in (
-            ("suite/dev/gn_finalize_kernel.py", "cannot be proven equal"),
-            ("suite/dev/chunk_abc_fwd_kernel_intra_K.py",
-             "cannot be proven equal")):
+            ("suite/dev/gn_finalize_kernel.py", "cannot be proven equal"),):
         path = ROOT / "ops" / rel
         spec = importlib.util.spec_from_file_location(path.stem, str(path))
         module = importlib.util.module_from_spec(spec)
