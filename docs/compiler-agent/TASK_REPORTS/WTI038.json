@@ -1,0 +1,89 @@
+{
+  "invocation_id": "WTI038",
+  "task_id": "T036",
+  "attempt": 1,
+  "context_sha256": "d57fdedb3840314a3a5626d3c311360294543eeeff8537697ed1a01abe832541",
+  "outcome": "COMPLETED",
+  "failure_kind": "implementation",
+  "summary": "Round-3 repair of the loop-carried merge and lowering-ordering census family. (1) The stage plan (a100c/plan/stages.py) now recognizes two more carried-update forms as merge rules: the extremum binops (acc = tl.maximum/tl.minimum(acc, term), either operand order, all eight TIR min/max codes) and the guarded extremum select (acc = tl.where(term < acc, term, acc) and its operand/direction variants, requiring the compare's operands to be the select's own two values with the carried value on one side). A rebinding that drops the carried value, a compound-condition select (the arg-select pair) and unrecognized forms keep the located 'escapes without a merge rule' refusal. (2) The chunk a SCALAR segment's block statement opens (the extent-1 splat sources) no longer rides the unfiltered kernel-level frame list (its close refused 'a partial has no lowered value at the chunk back edge' before the restructured region ever lowered), and the no-pass fallback vl is the block extent's own chunk plan: the scalar-opened chunk ran 32 lanes over extent-1 staged slots and its stores overflowed them -- nansum's executed sum came out 0.0 for a 0.787 input (reproduced with a QEMU observation harness, root-caused to the mask reload reading the start-splat's zeros). (3) The region close drops stale chunk-body bindings (pure trees re-materialize; merged partials and liveouts rebind at the exit) and clears the chunk so suffix-level control flow stops threading per-chunk candidates; each if-arm starts from the pre-if merge-slot state (the else arm previously branched to the join with the THEN arm's scan carry); a restructured if's arm-close join values are nested-liveout uses of the arm's passes; a chunk open resets the frames' per-chunk slot state. (4) A 16-bit float scan's carry computes at fp32 (the target's e16 float lanes are fp16; a bf16 scan's inner adds silently reinterpreted the bits -- masked_cumsum bf16 executed garbage). All 58 identities of the 13 owned operators now compile to artifacts (0 refusals); all 54 census identities of the three classes execute and compare PASS at 1 and 4 workers (108 runs) under their declared policies; three earlier rounds' stale boundary records were updated to the moved boundaries; a new regression test covers the carried-update shape, the join-ordering failure mode with the TIR/MIR verifiers accepting, and the two executed miscompile traps, with controls that the recognition is not over-broad.",
+  "files_changed": [
+    "a100c/plan/stages.py",
+    "a100c/lower/vectorize.py",
+    "a100c/tests/test_t034_repairs.py",
+    "a100c/tests/test_t035_repairs.py",
+    "a100c/tests/test_t036_repairs.py",
+    "a100c/tests/test_t036_loop_merge_ordering.py",
+    "docs/compiler-agent/COMPILE_CENSUS.wti038-owned-classes.json"
+  ],
+  "artifacts": [
+    "docs/compiler-agent/COMPILE_CENSUS.wti038-owned-classes.json",
+    "a100c/tests/test_t036_loop_merge_ordering.py"
+  ],
+  "commands": [
+    {
+      "command": "set -a; . ./.env; set +a; python3 a100c/tests/test_compile_sweep.py --operator suite/perf/argmax.py --operator suite/perf/logsumexp.py --operator suite/perf/max.py --operator suite/perf/min.py --operator suite/perf/sigmoid_argmax.py --operator suite/dev/nansum_kernel_2.py --operator suite/dev/pdist_forward__pdist_forward_inf_kernel.py --operator suite/dev/nanmedian_ascend_byte_histogram_find_index_kernel.py --operator suite/dev/cross_entropy_kernel.py --operator suite/dev/cumprod_dim1_kernel_log2exp2_early.py --operator suite/dev/masked_cumsum_kernel_db.py --operator suite/dev/reduce_kernel.py --operator suite/dev/renorm_kernel_norms.py --cache-root /tmp/a100-wti038-sweep --census-out docs/compiler-agent/COMPILE_CENSUS.wti038-owned-classes.json",
+      "exit_code": 0,
+      "observed": "all compile-sweep checks PASS; partition {artifacts: 58, refused: 0, over_budget: 0, crash: 0, case_build_failures: 0, sums_to_identity_census: true} over the 13 owned operators; refusals by_construct {} (the loop/merge/mir-verifier-use-before-def classes at zero)"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; python3 a100c/tests/test_t036_loop_merge_ordering.py",
+      "exit_code": 0,
+      "observed": "all 10 checks PASS: plan-extremum-binop-max-merge, plan-guarded-select-min-merge, plan-pair-select-keeps-pair-merge, plan-unrecognized-update-still-refuses, plan-rebinding-select-not-an-extremum, carried-update-executes-1-4-workers, scalar-chunk-staging-executes-1-4-workers, join-ordering-verifiers-accept, bf16-scan-fp32-policy-executes-1-4, owned-operators-execute-1-4-workers"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; for t in a100c/tests/test_*.py (excluding test_compile_sweep.py)",
+      "exit_code": 0,
+      "observed": "all 41 test files PASS (including test_control_flow, test_reductions, test_mir_verifier, test_stage_plan and every earlier repair-round test; the three stale boundary records were updated to the repaired boundaries)"
+    }
+  ],
+  "acceptance": [
+    {
+      "ref": "acceptance[0]",
+      "command": "set -a; . ./.env; set +a; python3 a100c/tests/test_compile_sweep.py --operator <the 13 owned operators> --cache-root /tmp/a100-wti038-sweep --census-out docs/compiler-agent/COMPILE_CENSUS.wti038-owned-classes.json",
+      "exit_code": 0,
+      "observed": "all compile-sweep checks PASS; the filtered census over the operators carrying the merge-rule, chunk-back-edge and use-before-definition rows shows those classes at ZERO: 58 artifacts, 0 refusals (by_construct {}), 0 over-budget, 0 crashes -- every owned identity produces an artifact (none needs a located refusal of a different construct)"
+    },
+    {
+      "ref": "acceptance[1]",
+      "command": "set -a; . ./.env; set +a; python3 a100c/tests/test_t036_loop_merge_ordering.py (check owned-operators-execute-1-4-workers; independently reproduced with an equivalent 54-identity x {1,4} execution harness during the repair)",
+      "exit_code": 0,
+      "observed": "every owned loop-carried identity (argmax/max/min/logsumexp families at both census shapes and all three dtypes, plus sigmoid_argmax, pdist, nanmedian, nansum, cross_entropy, cumprod, masked_cumsum, reduce, renorm) executes and compares PASS at 1 and 4 workers under its own declared policy: 108/108 runs ok; integer/index outputs exact; the argmax tie-break-left pair semantics and the guarded-minimum first-NaN-index tracking are asserted exact in the regression test's carried-update probe"
+    },
+    {
+      "ref": "acceptance[2]",
+      "command": "set -a; . ./.env; set +a; python3 a100c/tests/test_t036_loop_merge_ordering.py",
+      "exit_code": 0,
+      "observed": "the regression test reproduces the non-reduction carried-update shape (a where-guarded maximum with paired index tracking and a guarded minimum over a 128-lane block across 4 chunks and 3 source iterations, executed at 1 and 4 workers) and the join-ordering failure mode (the five use-before-def operator shapes compiled through the real driver AND lowered explicitly with the TIR and MIR verifiers accepting the built module); controls assert the unrecognized subtract update still refuses located and a non-extremum rebinding select is not classified"
+    },
+    {
+      "ref": "acceptance[3]",
+      "command": "set -a; . ./.env; set +a; for t in a100c/tests/test_*.py; do python3 $t; done (test_compile_sweep excluded from the loop; run separately as acceptance[0])",
+      "exit_code": 0,
+      "observed": "all 41 pre-existing test files pass; the three earlier-round boundary records whose classes this round repaired (test_t034 logsumexp 'loop' refusal, test_t035 nansum 'merge' refusal, test_t036 remaining-classes list) were updated to the moved boundaries with the T036 provenance documented in place"
+    }
+  ],
+  "tests": [
+    {
+      "ref": "tests[0]",
+      "command": "set -a; . ./.env; set +a; python3 a100c/tests/test_compile_sweep.py --operator suite/perf/argmax.py --operator suite/perf/logsumexp.py --operator suite/perf/max.py --operator suite/perf/min.py --operator suite/perf/sigmoid_argmax.py --operator suite/dev/nansum_kernel_2.py --operator suite/dev/pdist_forward__pdist_forward_inf_kernel.py --operator suite/dev/nanmedian_ascend_byte_histogram_find_index_kernel.py --operator suite/dev/cross_entropy_kernel.py --operator suite/dev/cumprod_dim1_kernel_log2exp2_early.py --operator suite/dev/masked_cumsum_kernel_db.py --operator suite/dev/reduce_kernel.py --operator suite/dev/renorm_kernel_norms.py --cache-root /tmp/a100-wti038-sweep --census-out docs/compiler-agent/COMPILE_CENSUS.wti038-owned-classes.json",
+      "exit_code": 0,
+      "observed": "all compile-sweep checks PASS (census-covers-every-case, census-covers-all-operators, partition-sums-to-identity-census, artifacts-are-riscv64-elf, compile-count-within-economics, repeat-cases-reuse-one-artifact, refusals-located-and-countable, compile-budget-respected, enabled-pipeline-passes-on); classes at zero: 58 artifacts, refused 0"
+    },
+    {
+      "ref": "tests[1]",
+      "command": "set -a; . ./.env; set +a; python3 a100c/tests/test_control_flow.py && python3 a100c/tests/test_reductions.py && python3 a100c/tests/test_mir_verifier.py && <the full a100c test suite>",
+      "exit_code": 0,
+      "observed": "test_control_flow: all checks PASS; test_reductions: all checks PASS (including vdot_kernel_complex executed at 1/2/4/8 workers and reduce_kernel executed); test_mir_verifier: all checks PASS; the full suite: all 41 test files PASS"
+    }
+  ],
+  "evidence": "docs/compiler-agent/COMPILE_CENSUS.wti038-owned-classes.json is the filtered compile sweep over the 13 owned operators at the repaired tree: 58 artifacts, 0 refusals -- the 31 'escapes without a merge rule' rows, the 3 'chunk back edge' rows and the ~20 mir-verifier use-before-definition rows of the final 109-row census are all at zero (every identity compiles). a100c/tests/test_t036_loop_merge_ordering.py is the executed-and-compared evidence: the carried-update probe (where-guarded maximum + index tracking + guarded minimum, chunked 128-lane block, multi-iteration source loop) executes PASS at 1 and 4 workers with exact index outputs; the scalar-chunk staging probe (the nansum shape) executes PASS (pre-fix: the located merge refusal, and with the frame filter alone: the executed 0.0-for-0.787 miscompile); the bf16 scan probe executes PASS (pre-fix: garbage from row 1); the five use-before-def shapes compile through the real driver and lower with the TIR and MIR verifiers accepting; the owned-operator check executes all 54 census identities of the three classes at 1 and 4 workers under their own policies (108/108 PASS). During the repair the two executed miscompiles were root-caused with a QEMU observation harness (patched assembly routing observed values into the runtime's items stat): the nansum 0.0 traced to the scalar-opened chunk's 32-lane staged stores overflowing the 1-element slots (the mask reload read the start-splat's zeros), and the masked_cumsum bf16 garbage traced to the scan's inner adds running at the e16 fp16 lanes on bf16 bits.",
+  "design_issue": {},
+  "debug_request": {},
+  "attack": {},
+  "remaining_work": [
+    "l1_norm_fused_kernel_2cb0f555's refusal moved from 'ptradd' (the scalar-tree materialization) to the v0-mask mir-verifier family -- the restructured-region frames fix let it past the old boundary and the next blocker is T038's v0-mask class; recorded in test_t036_repairs.py's updated boundary list for that round.",
+    "naive_attn_decoding's 4-worker execution fault (T035's recorded open defect) is untouched by this round -- it is not in this task's census classes."
+  ],
+  "end_revision": "",
+  "at": "2026-11-07T10:16:01.042419+00:00"
+}

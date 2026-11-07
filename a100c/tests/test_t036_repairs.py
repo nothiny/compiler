@@ -333,12 +333,18 @@ def check_naive_attn_single_worker():
 # the located-refusal boundary that stays (the classes not in this round)
 # ---------------------------------------------------------------------------
 
+# T036 (the loop-merge/ordering round) repaired two entries of this
+# list: nansum_kernel_2's ``merge`` class (the scalar-opened chunk's
+# frames and fallback vl -- it now compiles and its identities execute
+# and compare PASS at 1 and 4 workers) and l1_norm's refusal moved from
+# ``ptradd`` to the v0-mask family (``mir-verifier``) -- the rework let
+# it past the scalar-tree materialization and the next boundary is the
+# v0-mask class (T038's family).  Both stay located refusals or better.
 REMAINING_BOUNDARIES = [
     ("suite/dev/ranked_distribution_semantic.py", (16,), "float32",
      "tl.sort"),
     ("suite/dev/cumprod_dim1_grouped_mixed_kernel.py", (1, 1), "float32",
      "tl.cumsum/cumprod"),
-    ("suite/dev/nansum_kernel_2.py", (17,), "float32", "merge"),
     ("suite/dev/nanmedian_ascend_histogram_count_kernel.py", (17,), "int8",
      "tl.histogram"),
     ("suite/dev/chunk_generalized_iplr_delta_rule_fwd_kernel_o.py", (17,),
@@ -346,7 +352,7 @@ REMAINING_BOUNDARIES = [
     ("suite/dev/chunk_transform_qk_fwd_kernel.py", (6, 33, 11, 13, 16),
      "float16", "layout"),
     ("suite/dev/l1_norm_fused_kernel_2cb0f555.py", (128,), "float32",
-     "ptradd"),
+     "mir-verifier"),
 ]
 
 

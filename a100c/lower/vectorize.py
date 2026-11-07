@@ -999,8 +999,26 @@ class SliceLowering:
         # else the arange's; else the void default (scalar-only kernels)
         first = next((p for p in self._pass_params if p is not None), None)
         if first is None:
+            # T036: the no-pass form (scalar segments + restructured
+            # regions) still opens chunks for the extent-1 splat sources,
+            # and those chunks cover the BLOCK EXTENT: the fallback vl is
+            # the extent's own chunk plan (extent 1 -> vl 1).  The old
+            # vlmax default made the scalar-opened chunk run 32 lanes --
+            # every staged store wrote 32 elements into the staged slots
+            # (sized for the record's 1-element extent), corrupting the
+            # whole staging area: nansum's mask reload then read the
+            # start-splat's zeros and the executed sum came out 0.0 for a
+            # 0.787 input.  A no-arange scalar-only kernel keeps the
+            # vlmax default (it opens no chunk at all).
+            if arange_extent and arange_extent > 0:
+                fb_chunks = self.target.chunk_plan(arange_extent, 32, 1)
+                fb_vls = {vl for vl, _ in fb_chunks}
+                fb_vl = fb_vls.pop() if len(fb_vls) == 1 else fb_chunks[0][0]
+            else:
+                fb_chunks = ()
+                fb_vl = self.target.vlmax(32, 1)
             first = {"extent": arange_extent, "sew": 32,
-                     "vl": self.target.vlmax(32, 1), "chunks": ()}
+                     "vl": fb_vl, "chunks": fb_chunks}
         self._sew = first["sew"]
         self._vl = first["vl"]
         self.plan.chunks = first["chunks"] or ((self._vl, 1),)
@@ -1258,12 +1276,17 @@ class SliceLowering:
         # never binds is never stored or reloaded).
         self._nested_liveouts: Dict[int, Dict[int, list]] = {}
 
-        def nested_liveout_walk(segments: list, into: dict) -> None:
+        def nested_liveout_walk(segments: list, into: dict,
+                                extra_uses: set = ()) -> None:
             for si, seg in enumerate(segments):
                 if seg[0] != "pass":
                     continue
                 defined = self._pass_defined_vids(seg[1])
-                later_uses: set = set()
+                # T036: ``extra_uses`` are consumed AFTER every segment of
+                # this segmentation closes (a restructured if's arm close
+                # passes each scalar join name's arm-end value as a branch
+                # argument) -- they are uses of every pass's liveout walk
+                later_uses: set = set(extra_uses)
                 for later in segments[si + 1:]:
                     # T030: scalar segments consume values too (the same
                     # fix as the top-level walk above)
@@ -1341,8 +1364,26 @@ class SliceLowering:
                     for arm_index, arm in enumerate((st.then, st.els)):
                         arm_segs = self._segment_region(
                             list(arm.statements))
+                        # T036: the arm CLOSE passes every scalar join
+                        # name's arm-end value as a branch argument after
+                        # the arm's last segment closed -- a value defined
+                        # inside an arm pass's chunk body (cross_entropy's
+                        # loop induction ``i``) must live out of that
+                        # pass or its register does not dominate the arm
+                        # close (the MIR verifier's use-before-def).
+                        # Block joins stage through the workspace and the
+                        # arm close skips them; names an arm never
+                        # rebinds keep their pre-if binding, which
+                        # dominates the if.
+                        arm_end = self._tir_end_names(arm.statements)
+                        arm_join_vids = set()
+                        for jname in st.join_names:
+                            jv = arm_end.get(jname)
+                            if jv is not None and jv.rank == 0:
+                                arm_join_vids.add(jv.vid)
                         arm_liveouts: Dict[int, list] = {}
-                        nested_liveout_walk(arm_segs, arm_liveouts)
+                        nested_liveout_walk(arm_segs, arm_liveouts,
+                                            extra_uses=arm_join_vids)
                         if arm_liveouts:
                             self._nested_liveouts[(id(st), arm_index)] = \
                                 arm_liveouts
@@ -1456,10 +1497,19 @@ class SliceLowering:
                         "are not in this path (the layout lane owns "
                         "multi-axis blocks)")
                 row_extent = 1
+                vty = self._vtype(op.results[0].type)
+                if vty.kind == "float" and vty.sew == 16:
+                    # T036: the fp32-lane policy for a 16-bit float scan:
+                    # the target's e16 float lanes are fp16 and bf16 has
+                    # no native vector arithmetic -- the carry's compute
+                    # class is fp32 (the element widens exactly before
+                    # each combine and narrows back at the slice store,
+                    # exactly like the elementwise and reduce lanes).
+                    vty = mir.VectorType(32, 1, "float")
                 self._scan_accs.append({
                     "vid": op.results[0].vid,
                     "kind": op.attrs["kind"],
-                    "vtype": self._vtype(op.results[0].type),
+                    "vtype": vty,
                     "tir_type": op.results[0].type,
                     "loc": op.loc,
                     "row_extent": row_extent,
@@ -3197,22 +3247,48 @@ class SliceLowering:
         # the exit block binds the merged values and reloads the live-out
         # scalars (chunk-invariant region values the suffix consumes --
         # the store's address arithmetic lowered inside the region)
+        exit_params: list = []
+        exit_params_items = items_b
+        closed_frames: Optional[list] = None
         if self._chunk is not None:
             self._close_chunk_back_edge(ctx, fn, strided=strided)
+            exit_params = list(self._chunk["exit_params"])
+            exit_params_items = self._chunk["exit_params_items"]
+            closed_frames = list(self._chunk.get("frames") or [])
+            # T036: the chunk is CLOSED -- the suffix (and the split
+            # path's merge step) must not see the chunk body's state:
+            # the register cache still holds chunk-body bindings that do
+            # not dominate the exit (renorm's suffix reusing the hoisted
+            # ``p_val == 2.0`` mask -- the verifier's use-before-def),
+            # and _merge_slots threads per-chunk candidates through
+            # suffix-level ifs (reduce_kernel's if2.join arg).  Same
+            # discipline as _close_pass: drop the stale bindings FIRST
+            # (pure trees re-materialize at their suffix uses), then let
+            # the exit bindings -- the merged partials and the reloaded
+            # liveouts, both of which dominate the suffix -- overwrite
+            # their vids, then clear the chunk.
+            liveout_vids = {vid for vid, _slot in self._liveouts}
+            for vid in self._staged:
+                if vid not in liveout_vids:
+                    self.values.pop(vid, None)
+            for vid in list(self._pass_bound):
+                if vid not in liveout_vids:
+                    self.values.pop(vid, None)
+            self._pass_bound = set()
+            self._drop_ws_caches()
             exit_name = self._chunk["exit"]
             ctx.switch(ctx.blocks[exit_name])
             self._bind_chunk_merges(ctx, loc)
             self._reload_liveouts(ctx, loc)
-        else:
-            exit_name = None
+            self._chunk = None
+            self._count_reg = None
 
         if not strided:
             # the suffix runs once, after the region closed, on the merged
             # values; then the program loop steps (with the region's
             # accumulated items count -- not the path's entry value)
             self._lower_statements(ctx, suffix, fn, view_regs)
-            items_out = self._chunk["exit_params_items"] \
-                if self._chunk else items_b
+            items_out = exit_params_items
             ctx.emit0(mir.MOp("br", [], [],
                               attrs={"target": "prog_next",
                                      "args": [pid_b, items_out]}, loc=loc))
@@ -3230,11 +3306,9 @@ class SliceLowering:
         wsbase = ctx.emit(mir.MOp(
             "sadd", [ws, wbase],
             [ctx.vreg(mir.I64, hint="wsb", loc=loc)], loc=loc))
-        exit_params = list(self._chunk["exit_params"])
         pi = 0
-        _frames = self._chunk.get("frames")
-        if _frames is None:
-            _frames = self._chunk_merges
+        _frames = closed_frames if closed_frames is not None \
+            else list(self._chunk_merges)
         for i, frame in enumerate(_frames):
             if frame["source"] != "plan":
                 continue              # scan carries never leave the worker
@@ -3261,8 +3335,7 @@ class SliceLowering:
                                  "false_target": merge_b.name,
                                  "false_args": []}, loc=loc))
         ctx.switch(skip_b)
-        items_now = self._chunk["exit_params_items"] if self._chunk \
-            else items_b
+        items_now = exit_params_items
         pid_now = self._pid_b
         ctx.emit0(mir.MOp("br", [], [],
                           attrs={"target": "prog_exit",
@@ -4101,9 +4174,20 @@ class SliceLowering:
                        # accumulator params, never with the later filter
                        "frames": list(self._chunk_merges)}
         # frame -> its accumulator params (shared head/body: the value
-        # entering this chunk iteration)
+        # entering this chunk iteration).  T036: the per-chunk slot state
+        # RESETS here -- a scan's acc_now / a plan frame's cand_val left
+        # over from a previous chunk (an earlier pass, or the split
+        # path's first phase) references registers that do not dominate
+        # THIS chunk's body; the incoming accumulator param is the only
+        # valid incoming value, and the frame's own producers re-record
+        # their candidates as they lower inside this chunk.
         pi = 0
         for frame in self._chunk_merges:
+            if frame["source"] == "scan":
+                frame["acc_now"] = None
+            else:
+                frame["cand_val"] = None
+                frame["cand_idx"] = None
             if frame["source"] == "plan" and frame.get("index"):
                 frame["acc_v"] = acc_params[pi]
                 frame["acc_i"] = acc_params[pi + 1]
@@ -4219,6 +4303,23 @@ class SliceLowering:
                 outer_defined.update(self._pass_defined_vids_outer(seg[1]))
         for si, seg in enumerate(segments):
             if seg[0] == "scalar":
+                # T036: a block statement inside a scalar segment (the
+                # extent-1 splat sources) OPENS a chunk -- and that chunk
+                # closes at the next layout/preduce/matrix segment or the
+                # segmentation's end.  Its merge frames must be the ones
+                # THIS chunk's own statements produce: the unfiltered
+                # kernel-level list would ride frames whose producers sit
+                # in a LATER restructured region (nansum's loop-carried
+                # _sum and its inner reduce -- the outer close refused
+                # "a partial has no lowered value at the chunk back edge"
+                # before the loop ever lowered) or re-ride a partial an
+                # earlier pass already merged (a double combine per chunk
+                # iteration).  Scalar segments produce no partial vids
+                # (reduces/loops are pass or matrix segments), so the
+                # filter is empty in practice -- computed, not assumed.
+                scalar_defined = self._pass_defined_vids_outer(seg[1])
+                self._chunk_merges = [f for f in all_merges
+                                      if f["vid"] in scalar_defined]
                 self._lower_statements(ctx, seg[1], fn, view_regs)
                 continue
             if seg[0] == "layout":
@@ -5681,6 +5782,16 @@ class SliceLowering:
                 ((frame.then_block, stmt.then),
                  (frame.else_block, stmt.els))):
             self.values = dict(saved_values)
+            # T036: each arm starts from the PRE-IF slot state.  The
+            # frames are shared mutable state: without the reset, the
+            # second arm's close passes the FIRST arm's slot register
+            # (masked_cumsum's else arm branching to the join with the
+            # then arm's scan-exit carry -- a register the sibling arm
+            # does not dominate; the MIR verifier's use-before-def).  An
+            # arm that never touches a frame passes the incoming
+            # register, which dominates both arms.
+            for f in merge_slots:
+                self._set_slot(f, slot_incoming[id(f)])
             ctx.switch(block)
             names.push()
             self._region_depth += 1
@@ -7816,16 +7927,17 @@ class SliceLowering:
                 [ctx.vreg(mir.I64, hint="srb", loc=loc)], loc=loc))
             ident = stages_mod.identity_for(kind, frame["tir_type"])
             mask = self._mask_of_bool(ctx, rowb, loc)
-            if vreg.type.kind == "float":
+            if frame["vtype"].kind == "float":
                 ident_vec = self._splat_const(
-                    ctx, ident, vreg.type, loc,
+                    ctx, ident, frame["vtype"], loc,
                     tir_type=frame.get("tir_type"))
                 cur_vec = cur if cur.is_vector() else \
-                    self._splat_reg(ctx, cur, vreg.type, loc)
-                self._vregion(ctx, vreg.type, loc)
+                    self._splat_reg(ctx, cur, frame["vtype"], loc)
+                self._vregion(ctx, frame["vtype"], loc)
                 cur = ctx.emit(mir.MOp(
                     "vsel", [mask, ident_vec, cur_vec],
-                    [ctx.vreg(vreg.type, hint="scr", loc=loc)], loc=loc))
+                    [ctx.vreg(frame["vtype"], hint="scr", loc=loc)],
+                    loc=loc))
             else:
                 vt = mir.VectorType(sew, 1, vreg.type.kind)
                 self._vregion(ctx, vt, loc)
@@ -7848,25 +7960,44 @@ class SliceLowering:
             "sload", [ws_i], [ctx.vreg(sty, hint="sv", loc=loc)],
             attrs={"width": sew, "offset": 0, "ext": "sext"},
             loc=loc))
-        if vreg.type.kind == "float":
+        # T036: the fp32-lane policy -- a 16-bit float scan's carry
+        # computes at fp32 (the frame's vtype): the element widens
+        # exactly before the combine and the store narrows back at the
+        # element type.  The e16 float lanes are fp16; running a bf16
+        # scan's adds through them silently reinterprets the bits
+        # (masked_cumsum bf16's executed garbage).
+        fp32_scan = vreg.type.kind == "float" and vreg.type.sew == 16 \
+            and frame["vtype"].sew == 32
+        if frame["vtype"].kind == "float":
             # the float carry stays a lane-0 vector through the inner loop
             # (scalar float arithmetic runs through the vector path)
             accv = cur if cur.is_vector() else \
-                self._splat_reg(ctx, cur, vreg.type, loc)
-            vv = self._splat_reg(ctx, v, vreg.type, loc)
+                self._splat_reg(ctx, cur, frame["vtype"], loc)
+            if fp32_scan:
+                vv = self._splat_reg(ctx, v, vreg.type, loc)
+                self._vregion(ctx, vv.type, loc)
+                vv = self._f16_to_f32(ctx, vv, frame["tir_type"], loc)
+                self._vregion(ctx, accv.type, loc)
+            else:
+                vv = self._splat_reg(ctx, v, frame["vtype"], loc)
             vop = "add" if kind == "cumsum" else "mul"
             nxt = ctx.emit(mir.MOp(
                 "vbin", [accv, vv],
-                [ctx.vreg(vreg.type, hint="sa", loc=loc)],
+                [ctx.vreg(accv.type, hint="sa", loc=loc)],
                 attrs={"op": vop}, loc=loc))
             new_acc = nxt
+            out_reg = new_acc
+            if fp32_scan:
+                out_reg = self._f32_to_ff(ctx, new_acc, frame["tir_type"],
+                                          loc)
         else:
             code = "sadd" if kind == "cumsum" else "smul"
             new_acc = ctx.emit(mir.MOp(
                 code, [cur, v],
                 [ctx.vreg(sty, hint="sa", loc=loc)], loc=loc))
+            out_reg = new_acc
         ctx.emit0(mir.MOp(
-            "sstore", [ws_i, self._scalarize(ctx, new_acc, loc)], [],
+            "sstore", [ws_i, self._scalarize(ctx, out_reg, loc)], [],
             attrs={"width": sew, "offset": 0}, loc=loc))
         j2 = ctx.emit(mir.MOp(
             "sadd", [j, ctx.const(1, mir.I64, loc)],

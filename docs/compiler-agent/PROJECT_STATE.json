@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-07T08:20:12.151119+00:00",
+  "updated_at": "2026-11-07T10:16:01.126696+00:00",
   "facts": [
     {
       "id": "F001",
@@ -3321,14 +3321,14 @@
       "tags": [
         "compile-sweep-repair"
       ],
-      "status": "RUNNING",
+      "status": "DONE",
       "assignee": "coder",
       "attempts": 1,
-      "evidence": "",
+      "evidence": "worker report WTI038: Round-3 repair of the loop-carried merge and lowering-ordering census family. (1) The stage plan (a100c/plan/stages.py) now recognizes two more carried-update forms as merge rules: the extremum binops (acc = tl.maximum/tl.minimum(acc, term), either operand order, all eight TIR min/max codes) and the guarded extremum select (acc = tl.where(term < acc, term, acc) and its operand/direction variants, requiring the compare's operands to be the select's own two values with the carried value on one side). A rebinding that drops the carried value, a compound-condition select (the arg-select pair) and unrecognized forms keep the located 'escapes without a merge rule' refusal. (2) The chunk a SCALAR segment's block statement opens (the extent-1 splat sources) no longer rides the unfiltered kernel-level frame list (its close refused 'a partial has no lowered value at the chunk back edge' before the restructured region ever lowered), and the no-pass fallback vl is the block extent's own chunk plan: the scalar-opened chunk ran 32 lanes over extent-1 staged slots and its stores overflowed them -- nansum's executed sum came out 0.0 for a 0.787 input (reproduced with a QEMU observation harness, root-caused to the mask reload reading the start-splat's zeros). (3) The region close drops stale chunk-body bindings (pure trees re-materialize; merged partials and liveouts rebind at the exit) and clears the chunk so suffix-level control flow stops threading per-chunk candidates; each if-arm starts from the pre-if merge-slot state (the else arm previously branched to the join with the THEN arm's scan carry); a restructured if's arm-close join values are nested-liveout uses of the arm's passes; a chunk open resets the frames' per-chunk slot state. (4) A 16-bit float scan's carry computes at fp32 (the target's e16 float lanes are fp16; a bf16 scan's inner adds silently reinterpreted the bits -- masked_cumsum bf16 executed garbage). All 58 identities of the 13 owned oper",
       "last_error": "",
       "failure_kind": "",
       "start_revision": "17e689eecf5b952e602dbb7037706ce7a24d0e11",
-      "end_revision": "",
+      "end_revision": "8983cbbdbdb96fdb1cb339a8330d8e173c71b2a3",
       "completed_seq": 0,
       "debug_required": false,
       "debug_request_id": "",
@@ -9009,6 +9009,24 @@
       "phase": "IMPLEMENTATION",
       "event": "task-delegate",
       "detail": "WTI038 task=T036 attempt=1 profile=general-purpose"
+    },
+    {
+      "at": "2026-11-07T10:16:01.089481+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "task-report-out-of-contract",
+      "detail": "T036: a100c/cache/26cb2b3b5f1314d33a71dd5bcf2dcbe58e4e5ff1bc1095fdc6e9fd4c1739443a/stage.selection.txt, a100c/cache/26cb2b3b5f1314d33a71dd5bcf2dcbe58e4e5ff1bc1095fdc6e9fd4c1739443a/stage.mir.lowered.txt, a100c/cache/5e4cff17c68f6ecd40ff6f33526d3886d316ae7f723d3d6f346d447358f40bd4/program.S, a100c/cache/5e4cff17c68f6ecd40ff6f33526d3886d316ae7f723d3d6f346d447358f40bd4/stage.selection.txt, a100c/plan/stages.py"
+    },
+    {
+      "at": "2026-11-07T10:16:01.096896+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "task-report",
+      "detail": "WTI038 COMPLETED attempt=1 [changes outside the declared paths: a100c/cache/26cb2b3b5f1314d33a71dd5bcf2dcbe58e4e5ff1bc1095fdc6e9fd4c1739443a/stage.selection.txt, a100c/cache/26cb2b3b5f1314d33a71dd5bcf2dcbe58e4e5ff1bc1095fdc6e9fd4c1739443a/stage.mir.lowered.txt, a100c/cache/5e4cff17c68f6ecd40ff6f33526d3886d316ae7f723d3d6f346d447358f40bd4/program.S, a100c/cache/5e4cff17c68f6ecd40ff6f33526d3886d316ae7f723d3d6f346d447358f40bd4/stage.selection.txt, a100c/plan/stages.py]"
+    },
+    {
+      "at": "2026-11-07T10:16:01.126683+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "complete-task",
+      "detail": "T036 worker report WTI038: Round-3 repair of the loop-carried merge and lowering-ordering census family. (1) The stage plan (a100c/plan/stages.py) now recognizes two more carried-update forms as merge rules: the extremum binops (acc = tl.maximum/tl.minimum(acc, term), either operand order, all eight TIR min/max codes) and the guarded extremum select (acc = tl.where(term < acc, term, acc) and its operand/direction variants, requiring the compare's operands to be the select's own two values with the carried value on one side). A rebinding that drops the carried value, a compound-condition select (the arg-select pair) and unrecognized forms keep the located 'escapes without a merge rule' refusal. (2) The chunk a SCALAR segment's block statement opens (the extent-1 splat sources) no longer rides the unfiltered kernel-level frame list (its close refused 'a partial has no lowered value at the chunk back edge' before the restructured region ever lowered), and the no-pass fallback vl is the block extent's own chunk plan: the scalar-opened chunk ran 32 lanes over extent-1 staged slots and its stores overflowed them -- nansum's executed sum came out 0.0 for a 0.787 input (reproduced with a QEMU observation harness, root-caused to the mask reload reading the start-splat's zeros). (3) The region close drops stale chunk-body bindings (pure trees re-materialize; merged partials and liveouts rebind at the exit) and clears the chunk so suffix-level control flow stops threading per-chunk candidates; each if-arm starts from the pre-if merge-slot state (the else arm previously branched to the join with the THEN arm's scan carry); a restructured if's arm-close join values are nested-liveout uses of the arm's passes; a chunk open resets the frames' per-chunk slot state. (4) A 16-bit float scan's carry computes at fp32 (the target's e16 float lanes are fp16; a bf16 scan's inner adds silently reinterpreted the bits -- masked_cumsum bf16 executed garbage). All 58 identities of the 13 owned oper"
     }
   ]
 }
