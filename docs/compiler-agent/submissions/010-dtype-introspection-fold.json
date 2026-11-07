@@ -1,0 +1,35 @@
+{
+  "submission_id": "010-dtype-introspection-fold",
+  "tasks": [
+    {
+      "task_id": "T040",
+      "goal": "Fix the last unjustified compile refusal: suite/dev/chunk_generalized_iplr_delta_rule_fwd_kernel_o.py (identity 762de1caee99, 2 cases, dtypes float32/float16/bfloat16 — none fp64) refuses with 'tl.dot: fp64 tl.dot is outside the corpus dtype surface' at line 76. Root cause: the kernel casts with `.to(b_v.dtype)` (and reads `.shape[1]` of the cast result) where b_v is a block loaded from a pointer whose device dtype IS part of the specialization identity — value-level dtype introspection must fold at specialization to the known dtype, not fall back to a default that produces an fp64 dot no declared case exercises. Fix the shared frontend dtype-introspection fold (`.to(x.dtype)`, `x.dtype` arithmetic like `16 // ...shape[1]` on cast results, for blocks whose dtype is specialization-known from their pointer/creation); update the recorded justification for the fp64 tl.dot refusal if any genuinely-fp64 form remains (none should: no corpus case declares float64). Then re-verify the compile surface.",
+      "capability": "coding",
+      "purpose": "input",
+      "gate": "G6",
+      "parent_task": "T018",
+      "tags": ["compile-sweep-repair"],
+      "inputs": [
+        "docs/compiler-agent/COMPILE_CENSUS.json",
+        "a100c/frontend/types.py",
+        "a100c/frontend/specialize.py",
+        "a100c/frontend/lower_tir.py",
+        "ops/suite/dev/chunk_generalized_iplr_delta_rule_fwd_kernel_o.py"
+      ],
+      "outputs": [
+        "Fixed dtype-introspection fold with regression tests"
+      ],
+      "acceptance": [
+        "The chunk_generalized_iplr_delta_rule_fwd_kernel_o identities compile to artifacts, and their declared cases (float32, float16, bfloat16) execute and compare PASS under their declared policies at 1 and 4 workers.",
+        "The dtype-introspection fold is generic: a regression test covers `.to(x.dtype)` and `x.dtype`-dependent constexpr arithmetic for a block whose dtype comes from each of the corpus dtypes, asserting the fold resolves at specialization (no fp64 fallback, no baking — two dtype identities produce two artifacts, two shapes of one identity share one).",
+        "A full or filtered compile sweep shows zero unjustified refusals: every remaining refusal (if any) names a construct outside the declared surface with its recorded justification.",
+        "All pre-existing test files still pass."
+      ],
+      "tests": [
+        "set -a; . ./.env; set +a; python3 a100c/tests/test_compile_sweep.py --operator suite/dev/chunk_generalized_iplr_delta_rule_fwd_kernel_o.py (artifacts, no refusal)",
+        "python3 a100c/tests/test_frontend_types.py, test_specialize.py and the full a100c test suite"
+      ],
+      "conflicts": ["a100c-ir-frontend"]
+    }
+  ]
+}
