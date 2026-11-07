@@ -1061,6 +1061,7 @@ class Lowering:
         # equal constexpr bindings stay constexpr.
         outer = snap[0]
         join_names = []
+        join_sides = []
         for name in sorted(set(then_state.symbols) | set(else_state.symbols)):
             t, e = then_state.symbols.get(name), else_state.symbols.get(name)
             o = outer.get(name)
@@ -1109,20 +1110,22 @@ class Lowering:
                     f"the arms bind '{name}' with different extent values "
                     f"({list(t_v.shape)} vs {list(e_v.shape)})")
             join_names.append(name)
+            join_sides.append((t_v, e_v))
         node.join_names = tuple(join_names)
         # T034: record the authoritative per-arm sides (the MIR lowering
         # reads these at the arm closes -- the alias-driven name
         # environment resolves a name bound in one arm to that arm's
         # value in EVERY scope the value lowers in, which corrupted the
-        # OTHER arm's side)
+        # OTHER arm's side).  T035: the sides are the MATERIALIZED
+        # values -- a ConstVal side (l1_norm_fused_2cb0f555's
+        # ``remaining = 0`` then-arm) reached the MIR lowering's _need
+        # without a vid and crashed the sweep's census class
         node.join_sides = tuple(
-            (name, then_state.symbols[name], else_state.symbols[name])
-            for name in join_names)
+            (name, t_v, e_v)
+            for name, (t_v, e_v) in zip(join_names, join_sides))
         joins = []
-        for name in join_names:
-            side = self._materialize_join_side(node.then,
-                                               then_state.symbols[name],
-                                               name, loc)
+        for name, (t_v, _e_v) in zip(join_names, join_sides):
+            side = t_v
             jv = tir.Value(side.type, side.shape, loc, name=name)
             jv.add_alias(name)
             joins.append(jv)
@@ -3464,12 +3467,18 @@ class Lowering:
             raise self._err(node, construct, exc.args[0])
 
     def _promote_reduction_input(self, value: tir.Value, kind: str,
-                                 dtype_arg, node, loc, construct) -> tir.Value:
+                                 dtype_arg, node, loc, construct,
+                                 indices_form: bool = False) -> tir.Value:
         """The pinned Triton 3.8 reductions' input promotions (standard.py):
         sum promotes integer widths < 32 to the same-sign 32-bit type
         (overflow prevention); max/min/argmax/argmin additionally promote
         bfloat16 to fp32 (no FMAX/FMIN/CMP for bf16 in hardware) and every
-        <32-bit type to fp32/int32.  A bool block is pinned int1 (an
+        <32-bit type to fp32/int32 -- but ONLY in the value form: the
+        ``return_indices=True`` route (and argmax/argmin, which route
+        through it) promotes bfloat16 alone, so a fp16/int16 max/min pair
+        reduces at its own width (T035: the blanket promotion re-typed
+        argmin's loop-carried ``min_vals`` mid-loop and the TIR verifier
+        refused the type contradiction).  A bool block is pinned int1 (an
         unsigned 1-bit integer): sum(uint32) and max/min(int32) (probed
         against the pinned tracer).  ``dtype=`` overrides (the input
         converts before the reduction)."""
@@ -3487,7 +3496,7 @@ class Lowering:
         elif kind in ("max", "min", "argmax", "argmin"):
             if ty.name == "bf16":
                 target = tir.FLOAT32
-            elif ty.bitwidth() < 32:
+            elif not indices_form and ty.bitwidth() < 32:
                 if ty.is_float():
                     target = tir.FLOAT32
                 elif ty.is_int() or ty.is_bool():
@@ -3505,8 +3514,11 @@ class Lowering:
         kind = _REDUCE_KINDS[construct]
         value = self._reduction_operand(args, node, loc, construct)
         spec = stages_mod.REDUCTION_OPS[construct]
+        # argmax/argmin route through max/min(return_indices=True) in the
+        # pinned standard.py: bfloat16 promotion only (T035)
         value = self._promote_reduction_input(
-            value, kind, args.get("dtype"), node, loc, construct)
+            value, kind, args.get("dtype"), node, loc, construct,
+            indices_form=kind in ("argmax", "argmin"))
         axes = self._reduction_axis(args, node, construct, value.rank)
         if axes is None:
             axes = tuple(range(value.rank))
@@ -3547,8 +3559,17 @@ class Lowering:
         from a100c.plan import stages as stages_mod
         kind = _REDUCE_KINDS[construct]
         value = self._reduction_operand(args, node, loc, construct)
-        value = self._promote_reduction_input(value, kind, None, node, loc,
-                                              construct)
+        return_indices = False
+        if "return_indices" in args:
+            ri = self.env.evaluate(args["return_indices"], self.source.path)
+            if ri is not NOT_CONSTEXPR:
+                return_indices = bool(ri)
+        # the pinned ``return_indices=True`` route promotes bfloat16 only
+        # (T035: the value form's <32-bit promotion re-typed a fp16
+        # loop-carried max/min accumulator mid-loop)
+        value = self._promote_reduction_input(
+            value, kind, None, node, loc, construct,
+            indices_form=return_indices)
         axes = self._reduction_axis(args, node, construct, value.rank)
         if axes is None:
             axes = tuple(range(value.rank))
@@ -3563,11 +3584,6 @@ class Lowering:
                                    self.source.path)
             if tb is not NOT_CONSTEXPR:
                 tie_break_left = bool(tb)
-        return_indices = False
-        if "return_indices" in args:
-            ri = self.env.evaluate(args["return_indices"], self.source.path)
-            if ri is not NOT_CONSTEXPR:
-                return_indices = bool(ri)
         if return_indices and not want_indices:
             raise self._err(
                 node, construct,
@@ -4006,10 +4022,21 @@ class Lowering:
                 f"the philox seed must be an integer (the pinned "
                 f"static_assert), got {seed.type!r}")
         if seed.shape != ():
-            raise self._err(
-                node, construct,
-                "a block seed is not in this lane (the corpus seeds are "
-                "scalars; the key words stay rank-0 across the rounds)")
+            # T035: a block seed that broadcasts ONE rank-0 scalar is the
+            # scalar seed splatted over the lanes -- the philox key words
+            # are value-identical to the rank-0 form
+            # (linear_dropout_softmax's tl.full((BLOCK_N,), rnd_seed,
+            # tl.int32)); a seed that varies per lane stays refused
+            prod = seed.producer
+            if prod is not None and prod.op == "broadcast" \
+                    and prod.operands[0].shape == ():
+                seed = prod.operands[0]
+            else:
+                raise self._err(
+                    node, construct,
+                    "a block seed is not in this lane (the corpus seeds "
+                    "are scalars or one broadcast scalar; key words that "
+                    "vary per lane are not)")
         if seed.type != tir.UINT64:
             seed = self._emit_convert(seed, tir.UINT64, loc)
         # lo = low 32 bits of the uint64 seed; hi = (seed >>u 32)'s low 32

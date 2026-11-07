@@ -592,6 +592,10 @@ class TwoPhasePlan:
     reason: str = ""
     #: partials: the region-exit values that must merge (order = slot order)
     partials: Tuple[PartialSpec, ...] = ()
+    #: T035: the escaping joins that carried no merge rule, with their
+    #: rank (a BLOCK join stages through the workspace -- the per-chunk
+    #: re-derivation hazard applies to the SCALAR joins only)
+    no_merge_join_ranks: Tuple[int, ...] = ()
     workers: Tuple[int, ...] = SPLIT_WORKERS
     #: the split is taken at runtime when worker_count > 1 and the grid
     #: has at most one program (single-program persistent reductions;
@@ -942,6 +946,8 @@ def build_stage_plan(module: tir.Module) -> TwoPhasePlan:
                 continue
             merge = _loop_join_merge(join, region)
             if merge is None:
+                plan.no_merge_join_ranks = \
+                    plan.no_merge_join_ranks + (join.rank,)
                 plan.reason = (f"region value '{join.name}' escapes "
                                "without a merge rule (its loop update is "
                                "not a recognized reduction form)")

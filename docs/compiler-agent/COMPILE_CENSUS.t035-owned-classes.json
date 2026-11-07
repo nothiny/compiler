@@ -1,0 +1,4554 @@
+{
+  "schema": "a100-compile-census/v1",
+  "generator": "a100c/tests/test_compile_sweep.py",
+  "command": "a100c/tests/test_compile_sweep.py --cache-root /tmp/a100-t035-sweep5 --census-out docs/compiler-agent/COMPILE_CENSUS.t035-owned-classes.json --operator suite/dev/adaptive_avg_pool2d_kernel.py --operator suite/dev/argmin_kernel_opt_k1.py --operator suite/dev/chunk_gated_delta_product_fwd_kernel_h_blockdim64.py --operator suite/dev/chunk_generalized_iplr_delta_rule_fwd_kernel_o.py --operator suite/dev/chunk_transform_qk_fwd_kernel.py --operator suite/dev/conv1x1_pool_fc_kernel.py --operator suite/dev/cumprod_dim1_grouped_mixed_kernel.py --operator suite/dev/cumprod_dim1_kernel.py --operator suite/dev/deconv3d_leaky_pool.py --operator suite/dev/forward_pass_chunks.py --operator suite/dev/fused_exponential_kernel_f32_unroll8.py --operator suite/dev/fused_pool_reduce_kernel.py --operator suite/dev/fused_recurrent_fwd_kernel.py --operator suite/dev/implicit_conv2d.py --operator suite/dev/l1_norm_fused_kernel_2cb0f555.py --operator suite/dev/l1_norm_fused_kernel_7f6ce49c.py --operator suite/dev/linear_dropout_softmax_kernel.py --operator suite/dev/matmul_abt_kernel.py --operator suite/dev/matmul_at_b_kernel_043f2a05.py --operator suite/dev/matmul_at_b_kernel_db_551a9cda.py --operator suite/dev/matmul_k32_splitn2_kernel_af4f712c.py --operator suite/dev/matmul_k32_splitn4_paired_kernel_6f1c91c8.py --operator suite/dev/matmul_kernel.py --operator suite/dev/matmul_kernel_0a4f4889.py --operator suite/dev/matmul_kernel_2d_nomask_tc_5d3cdcfe.py --operator suite/dev/matmul_kernel_7e8de72a.py --operator suite/dev/matmul_kernel_8d68babe.py --operator suite/dev/matrix_reduction.py --operator suite/dev/max_kernel.py --operator suite/dev/median_f16_key_select_kernel.py --operator suite/dev/naive_attn_decoding_kernel.py --operator suite/dev/nanmedian_ascend_histogram_count_kernel.py --operator suite/dev/nansum_kernel_2.py --operator suite/dev/parallel_based_fwd_kernel.py --operator suite/dev/prepare_wy_repr_fwd_kernel_safe.py --operator suite/dev/qr.py --operator suite/dev/ranked_distribution_semantic.py --operator suite/dev/renorm_projection_update_s_kernel.py --operator suite/dev/rms_matmul_rbe.py --operator suite/dev/sgn_real_kernel.py --operator suite/dev/softsign_kernel.py --operator suite/dev/topk_stage1_kernel.py --operator suite/dev/transposed_conv3d.py --operator suite/dev/unique_dim_row_single_chunk_first_kernel.py --operator suite/perf/chunk_retention.py --operator suite/perf/chunk_retention_ops.py --operator suite/perf/fused_recurrent_retention.py --operator suite/perf/parallel_retention_attention.py",
+  "seed": 30,
+  "manifest": "ops/suite/manifest.json",
+  "compiler_revision": "a3d59d8dedd26fb1",
+  "pass_config": "passes=default",
+  "restricted": true,
+  "cache": {
+    "root": "/tmp/a100-t035-sweep5",
+    "isolated_temporary": false
+  },
+  "budget_s_per_identity": 600.0,
+  "census": {
+    "operators": 48,
+    "cases": 287,
+    "cases_classified": 287,
+    "identities": 233,
+    "cases_per_identity": 1.232,
+    "declared_full_corpus": {
+      "cases": 2734,
+      "identities": 2161
+    },
+    "identities_with_multiple_cases": 51
+  },
+  "partition": {
+    "artifacts": 147,
+    "refused": 86,
+    "over_budget": 0,
+    "crash": 0,
+    "case_build_failures": 0,
+    "sums_to_identity_census": true
+  },
+  "compile": {
+    "count": 233,
+    "cache_hits": 30,
+    "attempts_one_per_identity": 233,
+    "cold_ms": [
+      55.2,
+      58.5,
+      59.1,
+      59.2,
+      59.7,
+      59.9,
+      62.8,
+      66.9,
+      70.5,
+      70.8,
+      76.9,
+      77.4,
+      77.4,
+      78.4,
+      78.8,
+      79.0,
+      79.8,
+      81.0,
+      82.2,
+      83.5,
+      86.7,
+      87.5,
+      87.8,
+      92.3,
+      94.5,
+      94.7,
+      101.7,
+      103.1,
+      108.0,
+      117.0,
+      117.2,
+      122.4,
+      122.7,
+      367.8,
+      375.8,
+      392.3,
+      409.0,
+      418.0,
+      443.8,
+      467.3,
+      481.7,
+      522.0,
+      528.6,
+      538.7,
+      643.9,
+      648.8,
+      663.6,
+      668.6,
+      670.5,
+      720.3,
+      748.9,
+      779.5,
+      1000.0,
+      1013.3,
+      1398.8,
+      1460.3,
+      1462.3,
+      1464.8,
+      1476.5,
+      1480.9,
+      1540.2,
+      1594.1,
+      1708.2,
+      1714.1,
+      1717.2,
+      1726.7,
+      1841.4,
+      1866.2,
+      1940.1,
+      1941.9,
+      1955.0,
+      1983.7,
+      2035.2,
+      2051.3,
+      2077.0,
+      2081.8,
+      2091.6,
+      2272.9,
+      2277.0,
+      2302.8,
+      2430.6,
+      2449.0,
+      2575.4,
+      2750.8,
+      2765.4,
+      2808.1,
+      2893.7,
+      2925.2,
+      2928.8,
+      2946.7,
+      2968.4,
+      2980.5,
+      3035.1,
+      3048.9,
+      3061.2,
+      3076.9,
+      3249.9,
+      3256.8,
+      3272.7,
+      3326.4,
+      3341.8,
+      3474.9,
+      3630.2,
+      3656.3,
+      3659.1,
+      3668.6,
+      3688.4,
+      3699.1,
+      3804.6,
+      4070.9,
+      4091.0,
+      4101.6,
+      4156.1,
+      4241.1,
+      4276.3,
+      4617.2,
+      4638.6,
+      4714.1,
+      4821.0,
+      4901.1,
+      4931.5,
+      5005.8,
+      5089.7,
+      5098.2,
+      5131.4,
+      5138.1,
+      5139.6,
+      5174.2,
+      5388.7,
+      5415.6,
+      5723.0,
+      5791.0,
+      5816.3,
+      5836.5,
+      5837.8,
+      6042.8,
+      6187.9,
+      6193.4,
+      6551.0,
+      6704.2,
+      6752.0,
+      6754.6,
+      10114.4,
+      10945.0,
+      11190.2,
+      11288.6,
+      11739.2
+    ],
+    "cold_ms_median": 2051.3,
+    "cold_ms_max": 11739.2,
+    "declared_identity_bound_1_25x": 2701,
+    "within_declared_economics": true
+  },
+  "artifact_reuse": {
+    "repeat_case_checks": 30,
+    "all_reused_one_artifact": true,
+    "violations": []
+  },
+  "passes": {
+    "totals_fired": {
+      "constprop": 644,
+      "copyprop": 66,
+      "strength_reduction": 676,
+      "cse": 4950,
+      "licm": 1880,
+      "dce": 928
+    },
+    "markers_read": 147,
+    "markers_with_enabled_config": 147
+  },
+  "refusals": {
+    "count": 86,
+    "by_construct": {
+      "allocation": 66,
+      "tl.sort": 6,
+      "tl.cumsum/cumprod": 3,
+      "merge": 3,
+      "tl.histogram": 2,
+      "convert": 2,
+      "tl.dot": 1,
+      "layout": 1,
+      "ptradd": 1,
+      "mir-verifier": 1
+    },
+    "by_operator": {
+      "suite/dev/forward_pass_chunks.py": 6,
+      "suite/dev/median_f16_key_select_kernel.py": 6,
+      "suite/dev/parallel_based_fwd_kernel.py": 6,
+      "suite/dev/ranked_distribution_semantic.py": 6,
+      "suite/perf/chunk_retention.py": 6,
+      "suite/perf/chunk_retention_ops.py": 6,
+      "suite/perf/fused_recurrent_retention.py": 6,
+      "suite/perf/parallel_retention_attention.py": 6,
+      "suite/dev/chunk_generalized_iplr_delta_rule_fwd_kernel_o.py": 3,
+      "suite/dev/chunk_transform_qk_fwd_kernel.py": 3,
+      "suite/dev/cumprod_dim1_grouped_mixed_kernel.py": 3,
+      "suite/dev/nansum_kernel_2.py": 3,
+      "suite/dev/prepare_wy_repr_fwd_kernel_safe.py": 3,
+      "suite/dev/transposed_conv3d.py": 3,
+      "suite/dev/conv1x1_pool_fc_kernel.py": 2,
+      "suite/dev/deconv3d_leaky_pool.py": 2,
+      "suite/dev/matmul_abt_kernel.py": 2,
+      "suite/dev/matmul_kernel.py": 2,
+      "suite/dev/matmul_kernel_8d68babe.py": 2,
+      "suite/dev/nanmedian_ascend_histogram_count_kernel.py": 2,
+      "suite/dev/renorm_projection_update_s_kernel.py": 2,
+      "suite/dev/adaptive_avg_pool2d_kernel.py": 1,
+      "suite/dev/chunk_gated_delta_product_fwd_kernel_h_blockdim64.py": 1,
+      "suite/dev/fused_exponential_kernel_f32_unroll8.py": 1,
+      "suite/dev/fused_recurrent_fwd_kernel.py": 1,
+      "suite/dev/implicit_conv2d.py": 1,
+      "suite/dev/l1_norm_fused_kernel_2cb0f555.py": 1
+    },
+    "rows": [
+      {
+        "identity": "cfeb2af80fbf",
+        "operator": "suite/dev/adaptive_avg_pool2d_kernel.py",
+        "cases": 2,
+        "first_case": {
+          "shape": [
+            1,
+            2,
+            5,
+            7,
+            3,
+            4
+          ],
+          "dtype": "float32"
+        },
+        "construct": "allocation",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/adaptive_avg_pool2d_kernel.py:11:1",
+        "detail": "allocation: allocation did not converge for 'operator_entry' after 65 spill rounds (each round rematerializes or splits one value); the pressure source is value 'k402' (i32) at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/adaptive_avg_pool2d_kernel.py:11:1 with 26 values simultaneously live against 25 allocatable GPRs and 31 vector registers -- a register-pressure pattern the splitte"
+      },
+      {
+        "identity": "a08299beb292",
+        "operator": "suite/dev/chunk_gated_delta_product_fwd_kernel_h_blockdim64.py",
+        "cases": 2,
+        "first_case": {
+          "shape": [
+            2,
+            2,
+            16,
+            7,
+            9,
+            4,
+            2
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "allocation",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_gated_delta_product_fwd_kernel_h_blockdim64.py:138:320",
+        "detail": "allocation: allocation did not converge for 'operator_entry' after 65 spill rounds (each round rematerializes or splits one value); the pressure source is value 'vkm2' (i64) at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_gated_delta_product_fwd_kernel_h_blockdim64.py:138:320 with 30 values simultaneously live against 25 allocatable GPRs and 31 vector registers -- a register-pr"
+      },
+      {
+        "identity": "762de1caee99",
+        "operator": "suite/dev/chunk_generalized_iplr_delta_rule_fwd_kernel_o.py",
+        "cases": 2,
+        "first_case": {
+          "shape": [
+            17
+          ],
+          "dtype": "float32"
+        },
+        "construct": "tl.dot",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_generalized_iplr_delta_rule_fwd_kernel_o.py:76:394",
+        "detail": "tl.dot: fp64 tl.dot is outside the corpus dtype surface (F037: bfloat16/bool/float16/float32/int16/int32/int64/int8 only)"
+      },
+      {
+        "identity": "2faa0a399bd5",
+        "operator": "suite/dev/chunk_generalized_iplr_delta_rule_fwd_kernel_o.py",
+        "cases": 2,
+        "first_case": {
+          "shape": [
+            17
+          ],
+          "dtype": "float16"
+        },
+        "construct": "allocation",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_generalized_iplr_delta_rule_fwd_kernel_o.py:50:5",
+        "detail": "allocation: allocation did not converge for 'operator_entry' after 65 spill rounds (each round rematerializes or splits one value); the pressure source is value 'k2044' (i64) at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_generalized_iplr_delta_rule_fwd_kernel_o.py:50:5 with 27 values simultaneously live against 25 allocatable GPRs and 31 vector registers -- a register-pressur"
+      },
+      {
+        "identity": "d9da693c10dc",
+        "operator": "suite/dev/chunk_generalized_iplr_delta_rule_fwd_kernel_o.py",
+        "cases": 2,
+        "first_case": {
+          "shape": [
+            17
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "allocation",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_generalized_iplr_delta_rule_fwd_kernel_o.py:50:5",
+        "detail": "allocation: allocation did not converge for 'operator_entry' after 65 spill rounds (each round rematerializes or splits one value); the pressure source is value 'k2236' (i64) at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_generalized_iplr_delta_rule_fwd_kernel_o.py:50:5 with 27 values simultaneously live against 25 allocatable GPRs and 31 vector registers -- a register-pressur"
+      },
+      {
+        "identity": "8e6a2c626283",
+        "operator": "suite/dev/chunk_transform_qk_fwd_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            4,
+            17,
+            7,
+            9,
+            8
+          ],
+          "dtype": "float16"
+        },
+        "construct": "allocation",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_transform_qk_fwd_kernel.py:47:22",
+        "detail": "allocation: allocation did not converge for 'operator_entry' after 65 spill rounds (each round rematerializes or splits one value); the pressure source is value 'k2818' (i64) at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_transform_qk_fwd_kernel.py:47:22 with 30 values simultaneously live against 25 allocatable GPRs and 31 vector registers -- a register-pressure pattern the sp"
+      },
+      {
+        "identity": "2b59c79f78ab",
+        "operator": "suite/dev/chunk_transform_qk_fwd_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            4,
+            17,
+            7,
+            9,
+            8
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "allocation",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_transform_qk_fwd_kernel.py:47:22",
+        "detail": "allocation: allocation did not converge for 'operator_entry' after 65 spill rounds (each round rematerializes or splits one value); the pressure source is value 'k3230' (i64) at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_transform_qk_fwd_kernel.py:47:22 with 30 values simultaneously live against 25 allocatable GPRs and 31 vector registers -- a register-pressure pattern the sp"
+      },
+      {
+        "identity": "26e9259622e3",
+        "operator": "suite/dev/chunk_transform_qk_fwd_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            6,
+            33,
+            11,
+            13,
+            16
+          ],
+          "dtype": "float16"
+        },
+        "construct": "layout",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_transform_qk_fwd_kernel.py:31:353",
+        "detail": "layout: a layout op over a matrix-native staged operand ('pm's source) is not in the lane (the record's narrow native lanes have no safe indexed read here; a located refusal, never a crashing emission)"
+      },
+      {
+        "identity": "25781c2b9a71",
+        "operator": "suite/dev/conv1x1_pool_fc_kernel.py",
+        "cases": 2,
+        "first_case": {
+          "shape": [
+            2,
+            128,
+            128,
+            128,
+            10
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "allocation",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/conv1x1_pool_fc_kernel.py:65:9",
+        "detail": "allocation: allocation did not converge for 'operator_entry' after 65 spill rounds (each round rematerializes or splits one value); the pressure source is value 'k1745' (i32) at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/conv1x1_pool_fc_kernel.py:65:9 with 30 values simultaneously live against 25 allocatable GPRs and 31 vector registers -- a register-pressure pattern the splitter c"
+      },
+      {
+        "identity": "be981bf7a09a",
+        "operator": "suite/dev/conv1x1_pool_fc_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            1,
+            128,
+            128,
+            128,
+            10
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "allocation",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/conv1x1_pool_fc_kernel.py:65:9",
+        "detail": "allocation: allocation did not converge for 'operator_entry' after 65 spill rounds (each round rematerializes or splits one value); the pressure source is value 'k1745' (i32) at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/conv1x1_pool_fc_kernel.py:65:9 with 30 values simultaneously live against 25 allocatable GPRs and 31 vector registers -- a register-pressure pattern the splitter c"
+      },
+      {
+        "identity": "46f0f6a7c459",
+        "operator": "suite/dev/cumprod_dim1_grouped_mixed_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            1,
+            1
+          ],
+          "dtype": "float32"
+        },
+        "construct": "tl.cumsum/cumprod",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/cumprod_dim1_grouped_mixed_kernel.py:49:25",
+        "detail": "tl.cumsum/cumprod: scans along a non-last axis of a multi-axis block are not in this path (the layout lane owns multi-axis blocks)"
+      },
+      {
+        "identity": "d9115226b525",
+        "operator": "suite/dev/cumprod_dim1_grouped_mixed_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            1,
+            1
+          ],
+          "dtype": "float16"
+        },
+        "construct": "tl.cumsum/cumprod",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/cumprod_dim1_grouped_mixed_kernel.py:49:25",
+        "detail": "tl.cumsum/cumprod: scans along a non-last axis of a multi-axis block are not in this path (the layout lane owns multi-axis blocks)"
+      },
+      {
+        "identity": "aede24eba08a",
+        "operator": "suite/dev/cumprod_dim1_grouped_mixed_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            1,
+            1
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "tl.cumsum/cumprod",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/cumprod_dim1_grouped_mixed_kernel.py:49:25",
+        "detail": "tl.cumsum/cumprod: scans along a non-last axis of a multi-axis block are not in this path (the layout lane owns multi-axis blocks)"
+      },
+      {
+        "identity": "c1d170a97fb5",
+        "operator": "suite/dev/deconv3d_leaky_pool.py",
+        "cases": 2,
+        "first_case": {
+          "shape": [
+            1,
+            2,
+            3,
+            2,
+            2,
+            2
+          ],
+          "dtype": "float32"
+        },
+        "construct": "allocation",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/deconv3d_leaky_pool.py:22:1",
+        "detail": "allocation: allocation did not converge for 'operator_entry' after 65 spill rounds (each round rematerializes or splits one value); the pressure source is value 'cgo13' (i64) at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/deconv3d_leaky_pool.py:22:1 with 25 values simultaneously live against 25 allocatable GPRs and 31 vector registers -- a register-pressure pattern the splitter cann"
+      },
+      {
+        "identity": "6f68bdb3b8e6",
+        "operator": "suite/dev/deconv3d_leaky_pool.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            2,
+            2,
+            3,
+            2,
+            2,
+            2
+          ],
+          "dtype": "float32"
+        },
+        "construct": "allocation",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/deconv3d_leaky_pool.py:66:68",
+        "detail": "allocation: allocation did not converge for 'operator_entry' after 65 spill rounds (each round rematerializes or splits one value); the pressure source is value 'k508' (i32) at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/deconv3d_leaky_pool.py:66:68 with 28 values simultaneously live against 25 allocatable GPRs and 31 vector registers -- a register-pressure pattern the splitter cann"
+      },
+      {
+        "identity": "a6671184cc69",
+        "operator": "suite/dev/forward_pass_chunks.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            2,
+            17,
+            3,
+            13
+          ],
+          "dtype": "float32"
+        },
+        "construct": "allocation",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/forward_pass_chunks.py:11:1",
+        "detail": "allocation: allocation did not converge for 'operator_entry' after 65 spill rounds (each round rematerializes or splits one value); the pressure source is value 'sa_stride_bn1.a1' (i32) at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/forward_pass_chunks.py:11:1 with 10 values simultaneously live against 25 allocatable GPRs and 31 vector registers -- a register-pressure pattern the sp"
+      },
+      {
+        "identity": "94ef0c621022",
+        "operator": "suite/dev/forward_pass_chunks.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            2,
+            17,
+            3,
+            13
+          ],
+          "dtype": "float16"
+        },
+        "construct": "allocation",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/forward_pass_chunks.py:11:1",
+        "detail": "allocation: allocation did not converge for 'operator_entry' after 65 spill rounds (each round rematerializes or splits one value); the pressure source is value 'sa_stride_bn1.a1' (i32) at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/forward_pass_chunks.py:11:1 with 10 values simultaneously live against 25 allocatable GPRs and 31 vector registers -- a register-pressure pattern the sp"
+      },
+      {
+        "identity": "e1f83e298094",
+        "operator": "suite/dev/forward_pass_chunks.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            2,
+            17,
+            3,
+            13
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "allocation",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/forward_pass_chunks.py:11:1",
+        "detail": "allocation: allocation did not converge for 'operator_entry' after 65 spill rounds (each round rematerializes or splits one value); the pressure source is value 'sa_stride_bn1.a1' (i32) at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/forward_pass_chunks.py:11:1 with 10 values simultaneously live against 25 allocatable GPRs and 31 vector registers -- a register-pressure pattern the sp"
+      },
+      {
+        "identity": "c0f0219b50ec",
+        "operator": "suite/dev/forward_pass_chunks.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            4,
+            65,
+            5,
+            61
+          ],
+          "dtype": "float32"
+        },
+        "construct": "allocation",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/forward_pass_chunks.py:11:1",
+        "detail": "allocation: allocation did not converge for 'operator_entry' after 65 spill rounds (each round rematerializes or splits one value); the pressure source is value 'sa_stride_bn1.a1' (i32) at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/forward_pass_chunks.py:11:1 with 10 values simultaneously live against 25 allocatable GPRs and 31 vector registers -- a register-pressure pattern the sp"
+      },
+      {
+        "identity": "4df18eac5164",
+        "operator": "suite/dev/forward_pass_chunks.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            4,
+            65,
+            5,
+            61
+          ],
+          "dtype": "float16"
+        },
+        "construct": "allocation",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/forward_pass_chunks.py:11:1",
+        "detail": "allocation: allocation did not converge for 'operator_entry' after 65 spill rounds (each round rematerializes or splits one value); the pressure source is value 'sa_stride_bn1.a1' (i32) at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/forward_pass_chunks.py:11:1 with 10 values simultaneously live against 25 allocatable GPRs and 31 vector registers -- a register-pressure pattern the sp"
+      },
+      {
+        "identity": "a9b746c2b6c9",
+        "operator": "suite/dev/forward_pass_chunks.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            4,
+            65,
+            5,
+            61
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "allocation",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/forward_pass_chunks.py:11:1",
+        "detail": "allocation: allocation did not converge for 'operator_entry' after 65 spill rounds (each round rematerializes or splits one value); the pressure source is value 'sa_stride_bn1.a1' (i32) at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/forward_pass_chunks.py:11:1 with 10 values simultaneously live against 25 allocatable GPRs and 31 vector registers -- a register-pressure pattern the sp"
+      },
+      {
+        "identity": "44ef52e9deb7",
+        "operator": "suite/dev/fused_exponential_kernel_f32_unroll8.py",
+        "cases": 2,
+        "first_case": {
+          "shape": [
+            17
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "allocation",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/fused_exponential_kernel_f32_unroll8.py:233:14",
+        "detail": "allocation: vector value 'cvk1' must spill outside a full-vl region; vector spill in partial-vl regions is not implemented (located refusal)"
+      },
+      {
+        "identity": "b0bd01055626",
+        "operator": "suite/dev/fused_recurrent_fwd_kernel.py",
+        "cases": 2,
+        "first_case": {
+          "shape": [
+            2,
+            17,
+            3,
+            7,
+            9
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "allocation",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/fused_recurrent_fwd_kernel.py:47:9",
+        "detail": "allocation: allocation did not converge for 'operator_entry' after 65 spill rounds (each round rematerializes or splits one value); the pressure source is value 'k1119.c1' (i64) at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/fused_recurrent_fwd_kernel.py:47:9 with 28 values simultaneously live against 25 allocatable GPRs and 31 vector registers -- a register-pressure pattern the spl"
+      },
+      {
+        "identity": "c4b966bec227",
+        "operator": "suite/dev/implicit_conv2d.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            2,
+            8,
+            6,
+            5,
+            19
+          ],
+          "dtype": "float16"
+        },
+        "construct": "allocation",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/implicit_conv2d.py:22:1",
+        "detail": "allocation: allocation did not converge for 'operator_entry' after 65 spill rounds (each round rematerializes or splits one value); the pressure source is value 'views1.a2' (i64) at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/implicit_conv2d.py:22:1 with 11 values simultaneously live against 25 allocatable GPRs and 31 vector registers -- a register-pressure pattern the splitter cann"
+      },
+      {
+        "identity": "f4245ffce523",
+        "operator": "suite/dev/l1_norm_fused_kernel_2cb0f555.py",
+        "cases": 2,
+        "first_case": {
+          "shape": [
+            128
+          ],
+          "dtype": "float32"
+        },
+        "construct": "ptradd",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/l1_norm_fused_kernel_2cb0f555.py:115:5",
+        "detail": "ptradd: the scalar value 'red.8' is not a re-materializable scalar tree ('reduce' is not pure over outside values; the uniform-recurrence step and the cross-pass re-materialization share this rule)"
+      },
+      {
+        "identity": "9e0ea8030cb9",
+        "operator": "suite/dev/matmul_abt_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            128,
+            96,
+            100
+          ],
+          "dtype": "float16"
+        },
+        "construct": "allocation",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:25:1",
+        "detail": "allocation: allocation did not converge for 'operator_entry' after 65 spill rounds (each round rematerializes or splits one value); the pressure source is value 'items.xreg' (i64) at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:25:1 with 10 values simultaneously live against 25 allocatable GPRs and 31 vector registers -- a register-pressure pattern the splitter c"
+      },
+      {
+        "identity": "0b810aac96d3",
+        "operator": "suite/dev/matmul_abt_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            40,
+            24,
+            100
+          ],
+          "dtype": "float16"
+        },
+        "construct": "allocation",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15",
+        "detail": "allocation: allocation did not converge for 'operator_entry' after 65 spill rounds (each round rematerializes or splits one value); the pressure source is value 'mnd10' (i64) at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15 with 31 values simultaneously live against 25 allocatable GPRs and 31 vector registers -- a register-pressure pattern the splitter canno"
+      },
+      {
+        "identity": "d6087dcb37f8",
+        "operator": "suite/dev/matmul_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            128,
+            128,
+            128
+          ],
+          "dtype": "float16"
+        },
+        "construct": "allocation",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_kernel.py:71:15",
+        "detail": "allocation: allocation did not converge for 'operator_entry' after 65 spill rounds (each round rematerializes or splits one value); the pressure source is value 'slt1' (i64) at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_kernel.py:71:15 with 31 values simultaneously live against 25 allocatable GPRs and 31 vector registers -- a register-pressure pattern the splitter cannot res"
+      },
+      {
+        "identity": "963928fa916a",
+        "operator": "suite/dev/matmul_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            17,
+            33,
+            100
+          ],
+          "dtype": "float16"
+        },
+        "construct": "allocation",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_kernel.py:71:15",
+        "detail": "allocation: allocation did not converge for 'operator_entry' after 65 spill rounds (each round rematerializes or splits one value); the pressure source is value 'mnd1' (i64) at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_kernel.py:71:15 with 31 values simultaneously live against 25 allocatable GPRs and 31 vector registers -- a register-pressure pattern the splitter cannot res"
+      },
+      {
+        "identity": "418d3d61bbc9",
+        "operator": "suite/dev/matmul_kernel_8d68babe.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            128
+          ],
+          "dtype": "float32"
+        },
+        "construct": "allocation",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_kernel_8d68babe.py:78:16",
+        "detail": "allocation: allocation did not converge for 'operator_entry' after 65 spill rounds (each round rematerializes or splits one value); the pressure source is value 'vbs1' (vf32m8) at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_kernel_8d68babe.py:78:16 with 14 values simultaneously live against 25 allocatable GPRs and 31 vector registers -- a register-pressure pattern the splitte"
+      },
+      {
+        "identity": "9bb29781ae67",
+        "operator": "suite/dev/matmul_kernel_8d68babe.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            127
+          ],
+          "dtype": "float32"
+        },
+        "construct": "allocation",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_kernel_8d68babe.py:78:16",
+        "detail": "allocation: allocation did not converge for 'operator_entry' after 65 spill rounds (each round rematerializes or splits one value); the pressure source is value 'vbs1' (vf32m8) at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_kernel_8d68babe.py:78:16 with 14 values simultaneously live against 25 allocatable GPRs and 31 vector registers -- a register-pressure pattern the splitte"
+      },
+      {
+        "identity": "f8a971759a69",
+        "operator": "suite/dev/median_f16_key_select_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            1,
+            17
+          ],
+          "dtype": "float16"
+        },
+        "construct": "allocation",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/median_f16_key_select_kernel.py:22:1",
+        "detail": "allocation: allocation did not converge for 'operator_entry' after 65 spill rounds (each round rematerializes or splits one value); the pressure source is value 'k583' (i32) at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/median_f16_key_select_kernel.py:22:1 with 27 values simultaneously live against 25 allocatable GPRs and 31 vector registers -- a register-pressure pattern the split"
+      },
+      {
+        "identity": "fb08534a7327",
+        "operator": "suite/dev/median_f16_key_select_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            1,
+            17
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "allocation",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/median_f16_key_select_kernel.py:22:1",
+        "detail": "allocation: allocation did not converge for 'operator_entry' after 65 spill rounds (each round rematerializes or splits one value); the pressure source is value 'k614' (i32) at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/median_f16_key_select_kernel.py:22:1 with 27 values simultaneously live against 25 allocatable GPRs and 31 vector registers -- a register-pressure pattern the split"
+      },
+      {
+        "identity": "613f94814e9c",
+        "operator": "suite/dev/median_f16_key_select_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            3,
+            33
+          ],
+          "dtype": "float16"
+        },
+        "construct": "allocation",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/median_f16_key_select_kernel.py:22:1",
+        "detail": "allocation: allocation did not converge for 'operator_entry' after 65 spill rounds (each round rematerializes or splits one value); the pressure source is value 'k583' (i32) at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/median_f16_key_select_kernel.py:22:1 with 27 values simultaneously live against 25 allocatable GPRs and 31 vector registers -- a register-pressure pattern the split"
+      },
+      {
+        "identity": "11739eac9895",
+        "operator": "suite/dev/median_f16_key_select_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            3,
+            33
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "allocation",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/median_f16_key_select_kernel.py:22:1",
+        "detail": "allocation: allocation did not converge for 'operator_entry' after 65 spill rounds (each round rematerializes or splits one value); the pressure source is value 'k614' (i32) at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/median_f16_key_select_kernel.py:22:1 with 27 values simultaneously live against 25 allocatable GPRs and 31 vector registers -- a register-pressure pattern the split"
+      },
+      {
+        "identity": "6dfa3b8d12c3",
+        "operator": "suite/dev/median_f16_key_select_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            1,
+            34
+          ],
+          "dtype": "float16"
+        },
+        "construct": "allocation",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/median_f16_key_select_kernel.py:22:1",
+        "detail": "allocation: allocation did not converge for 'operator_entry' after 65 spill rounds (each round rematerializes or splits one value); the pressure source is value 'k584' (i32) at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/median_f16_key_select_kernel.py:22:1 with 27 values simultaneously live against 25 allocatable GPRs and 31 vector registers -- a register-pressure pattern the split"
+      },
+      {
+        "identity": "284e932320b7",
+        "operator": "suite/dev/median_f16_key_select_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            1,
+            34
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "allocation",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/median_f16_key_select_kernel.py:22:1",
+        "detail": "allocation: allocation did not converge for 'operator_entry' after 65 spill rounds (each round rematerializes or splits one value); the pressure source is value 'k615' (i32) at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/median_f16_key_select_kernel.py:22:1 with 27 values simultaneously live against 25 allocatable GPRs and 31 vector registers -- a register-pressure pattern the split"
+      },
+      {
+        "identity": "792217d32b65",
+        "operator": "suite/dev/nanmedian_ascend_histogram_count_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            17
+          ],
+          "dtype": "int8"
+        },
+        "construct": "tl.histogram",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:49:14",
+        "detail": "tl.histogram: tl.histogram produces a [num_bins] block whose shape differs from the kernel's block extent; multi-shape blocks are the layout lane's path -- the counting semantics are declared in a100c/plan/stages.py"
+      },
+      {
+        "identity": "34fe97932edf",
+        "operator": "suite/dev/nanmedian_ascend_histogram_count_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            108
+          ],
+          "dtype": "int8"
+        },
+        "construct": "tl.histogram",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:49:14",
+        "detail": "tl.histogram: tl.histogram produces a [num_bins] block whose shape differs from the kernel's block extent; multi-shape blocks are the layout lane's path -- the counting semantics are declared in a100c/plan/stages.py"
+      },
+      {
+        "identity": "a82fda3f8ea8",
+        "operator": "suite/dev/nansum_kernel_2.py",
+        "cases": 2,
+        "first_case": {
+          "shape": [
+            17
+          ],
+          "dtype": "float32"
+        },
+        "construct": "merge",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nansum_kernel_2.py:22:1",
+        "detail": "merge: a partial has no lowered value at the chunk back edge (the plan and the lowering disagree)"
+      },
+      {
+        "identity": "7a7c8f90072c",
+        "operator": "suite/dev/nansum_kernel_2.py",
+        "cases": 2,
+        "first_case": {
+          "shape": [
+            17
+          ],
+          "dtype": "float16"
+        },
+        "construct": "merge",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nansum_kernel_2.py:22:1",
+        "detail": "merge: a partial has no lowered value at the chunk back edge (the plan and the lowering disagree)"
+      },
+      {
+        "identity": "1d0846f1fc9e",
+        "operator": "suite/dev/nansum_kernel_2.py",
+        "cases": 2,
+        "first_case": {
+          "shape": [
+            17
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "merge",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nansum_kernel_2.py:22:1",
+        "detail": "merge: a partial has no lowered value at the chunk back edge (the plan and the lowering disagree)"
+      },
+      {
+        "identity": "8da48f50e1a4",
+        "operator": "suite/dev/parallel_based_fwd_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            4,
+            17,
+            7,
+            9,
+            8
+          ],
+          "dtype": "float32"
+        },
+        "construct": "allocation",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/parallel_based_fwd_kernel.py:35:15",
+        "detail": "allocation: allocation did not converge for 'operator_entry' after 65 spill rounds (each round rematerializes or splits one value); the pressure source is value 'vkm1' (i64) at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/parallel_based_fwd_kernel.py:35:15 with 30 values simultaneously live against 25 allocatable GPRs and 31 vector registers -- a register-pressure pattern the splitte"
+      },
+      {
+        "identity": "cc4d0d57bf78",
+        "operator": "suite/dev/parallel_based_fwd_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            4,
+            17,
+            7,
+            9,
+            8
+          ],
+          "dtype": "float16"
+        },
+        "construct": "allocation",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/parallel_based_fwd_kernel.py:27:5",
+        "detail": "allocation: allocation did not converge for 'operator_entry' after 65 spill rounds (each round rematerializes or splits one value); the pressure source is value 'k2254' (i64) at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/parallel_based_fwd_kernel.py:27:5 with 27 values simultaneously live against 25 allocatable GPRs and 31 vector registers -- a register-pressure pattern the splitte"
+      },
+      {
+        "identity": "73672c5d6dbb",
+        "operator": "suite/dev/parallel_based_fwd_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            4,
+            17,
+            7,
+            9,
+            8
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "allocation",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/parallel_based_fwd_kernel.py:27:5",
+        "detail": "allocation: allocation did not converge for 'operator_entry' after 65 spill rounds (each round rematerializes or splits one value); the pressure source is value 'k2459' (i64) at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/parallel_based_fwd_kernel.py:27:5 with 27 values simultaneously live against 25 allocatable GPRs and 31 vector registers -- a register-pressure pattern the splitte"
+      },
+      {
+        "identity": "cc96f6198bef",
+        "operator": "suite/dev/parallel_based_fwd_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            6,
+            33,
+            11,
+            13,
+            16
+          ],
+          "dtype": "float32"
+        },
+        "construct": "allocation",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/parallel_based_fwd_kernel.py:29:15",
+        "detail": "allocation: allocation did not converge for 'operator_entry' after 65 spill rounds (each round rematerializes or splits one value); the pressure source is value 'k770' (i32) at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/parallel_based_fwd_kernel.py:29:15 with 29 values simultaneously live against 25 allocatable GPRs and 31 vector registers -- a register-pressure pattern the splitte"
+      },
+      {
+        "identity": "4f97a5e67935",
+        "operator": "suite/dev/parallel_based_fwd_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            6,
+            33,
+            11,
+            13,
+            16
+          ],
+          "dtype": "float16"
+        },
+        "construct": "allocation",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/parallel_based_fwd_kernel.py:51:310",
+        "detail": "allocation: allocation did not converge for 'operator_entry' after 65 spill rounds (each round rematerializes or splits one value); the pressure source is value 'go18' (i64) at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/parallel_based_fwd_kernel.py:51:310 with 31 values simultaneously live against 25 allocatable GPRs and 31 vector registers -- a register-pressure pattern the splitt"
+      },
+      {
+        "identity": "27f59ea7e4c0",
+        "operator": "suite/dev/parallel_based_fwd_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            6,
+            33,
+            11,
+            13,
+            16
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "allocation",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/parallel_based_fwd_kernel.py:27:5",
+        "detail": "allocation: allocation did not converge for 'operator_entry' after 65 spill rounds (each round rematerializes or splits one value); the pressure source is value 'k1923' (i64) at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/parallel_based_fwd_kernel.py:27:5 with 27 values simultaneously live against 25 allocatable GPRs and 31 vector registers -- a register-pressure pattern the splitte"
+      },
+      {
+        "identity": "f8b30dbf1b8c",
+        "operator": "suite/dev/prepare_wy_repr_fwd_kernel_safe.py",
+        "cases": 2,
+        "first_case": {
+          "shape": [
+            2,
+            33,
+            3,
+            16
+          ],
+          "dtype": "float32"
+        },
+        "construct": "mir-verifier",
+        "location": null,
+        "detail": "mir-verifier: vsetvli-region-inconsistency: vector width v16m1 does not match the active region e32m1 (at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/prepare_wy_repr_fwd_kernel_safe.py:44:29)"
+      },
+      {
+        "identity": "63066d58b826",
+        "operator": "suite/dev/prepare_wy_repr_fwd_kernel_safe.py",
+        "cases": 2,
+        "first_case": {
+          "shape": [
+            2,
+            33,
+            3,
+            16
+          ],
+          "dtype": "float16"
+        },
+        "construct": "allocation",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/prepare_wy_repr_fwd_kernel_safe.py:46:30",
+        "detail": "allocation: allocation did not converge for 'operator_entry' after 65 spill rounds (each round rematerializes or splits one value); the pressure source is value 'tak02' (i64) at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/prepare_wy_repr_fwd_kernel_safe.py:46:30 with 32 values simultaneously live against 25 allocatable GPRs and 31 vector registers -- a register-pressure pattern the "
+      },
+      {
+        "identity": "7d1939c41f11",
+        "operator": "suite/dev/prepare_wy_repr_fwd_kernel_safe.py",
+        "cases": 2,
+        "first_case": {
+          "shape": [
+            2,
+            33,
+            3,
+            16
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "allocation",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/prepare_wy_repr_fwd_kernel_safe.py:46:30",
+        "detail": "allocation: allocation did not converge for 'operator_entry' after 65 spill rounds (each round rematerializes or splits one value); the pressure source is value 'tak02' (i64) at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/prepare_wy_repr_fwd_kernel_safe.py:46:30 with 32 values simultaneously live against 25 allocatable GPRs and 31 vector registers -- a register-pressure pattern the "
+      },
+      {
+        "identity": "dd1921f7b79a",
+        "operator": "suite/dev/ranked_distribution_semantic.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            16
+          ],
+          "dtype": "float32"
+        },
+        "construct": "tl.sort",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/ranked_distribution_semantic.py:25:13",
+        "detail": "tl.sort: a whole-block reorder needs the block-materialization protocol of the layout lane (multi-shape blocks); the sort semantics (dim, descending, stability) are declared in a100c/plan/stages.py (a located refusal, never a wrong order)"
+      },
+      {
+        "identity": "2d956f1ffc12",
+        "operator": "suite/dev/ranked_distribution_semantic.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            16
+          ],
+          "dtype": "float16"
+        },
+        "construct": "tl.sort",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/ranked_distribution_semantic.py:25:13",
+        "detail": "tl.sort: a whole-block reorder needs the block-materialization protocol of the layout lane (multi-shape blocks); the sort semantics (dim, descending, stability) are declared in a100c/plan/stages.py (a located refusal, never a wrong order)"
+      },
+      {
+        "identity": "0cbe41c4b30f",
+        "operator": "suite/dev/ranked_distribution_semantic.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            16
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "tl.sort",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/ranked_distribution_semantic.py:25:13",
+        "detail": "tl.sort: a whole-block reorder needs the block-materialization protocol of the layout lane (multi-shape blocks); the sort semantics (dim, descending, stability) are declared in a100c/plan/stages.py (a located refusal, never a wrong order)"
+      },
+      {
+        "identity": "cb3125fc52a6",
+        "operator": "suite/dev/ranked_distribution_semantic.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            64
+          ],
+          "dtype": "float32"
+        },
+        "construct": "tl.sort",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/ranked_distribution_semantic.py:25:13",
+        "detail": "tl.sort: a whole-block reorder needs the block-materialization protocol of the layout lane (multi-shape blocks); the sort semantics (dim, descending, stability) are declared in a100c/plan/stages.py (a located refusal, never a wrong order)"
+      },
+      {
+        "identity": "1a79371539ab",
+        "operator": "suite/dev/ranked_distribution_semantic.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            64
+          ],
+          "dtype": "float16"
+        },
+        "construct": "tl.sort",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/ranked_distribution_semantic.py:25:13",
+        "detail": "tl.sort: a whole-block reorder needs the block-materialization protocol of the layout lane (multi-shape blocks); the sort semantics (dim, descending, stability) are declared in a100c/plan/stages.py (a located refusal, never a wrong order)"
+      },
+      {
+        "identity": "db3310b7b5fa",
+        "operator": "suite/dev/ranked_distribution_semantic.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            64
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "tl.sort",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/ranked_distribution_semantic.py:25:13",
+        "detail": "tl.sort: a whole-block reorder needs the block-materialization protocol of the layout lane (multi-shape blocks); the sort semantics (dim, descending, stability) are declared in a100c/plan/stages.py (a located refusal, never a wrong order)"
+      },
+      {
+        "identity": "5940813e23c1",
+        "operator": "suite/dev/renorm_projection_update_s_kernel.py",
+        "cases": 2,
+        "first_case": {
+          "shape": [
+            17
+          ],
+          "dtype": "float16"
+        },
+        "construct": "convert",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/renorm_projection_update_s_kernel.py:22:43",
+        "detail": "convert: fp64 conversions are not in the lane (the corpus dtype surface has no fp64 tensors; the internal-compute routes int->f64 and f64->f32 are the exception): fp16 -> fp64"
+      },
+      {
+        "identity": "1147be97dbd0",
+        "operator": "suite/dev/renorm_projection_update_s_kernel.py",
+        "cases": 2,
+        "first_case": {
+          "shape": [
+            17
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "convert",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/renorm_projection_update_s_kernel.py:22:43",
+        "detail": "convert: fp64 conversions are not in the lane (the corpus dtype surface has no fp64 tensors; the internal-compute routes int->f64 and f64->f32 are the exception): bf16 -> fp64"
+      },
+      {
+        "identity": "77842cc1a08a",
+        "operator": "suite/dev/transposed_conv3d.py",
+        "cases": 3,
+        "first_case": {
+          "shape": [
+            1,
+            3,
+            5,
+            2,
+            3,
+            4,
+            1,
+            0
+          ],
+          "dtype": "float16"
+        },
+        "construct": "allocation",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/transposed_conv3d.py:22:1",
+        "detail": "allocation: allocation did not converge for 'operator_entry' after 65 spill rounds (each round rematerializes or splits one value); the pressure source is value 'lo2' (i32) at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/transposed_conv3d.py:22:1 with 11 values simultaneously live against 25 allocatable GPRs and 31 vector registers -- a register-pressure pattern the splitter cannot r"
+      },
+      {
+        "identity": "0dd28ef6ac63",
+        "operator": "suite/dev/transposed_conv3d.py",
+        "cases": 3,
+        "first_case": {
+          "shape": [
+            1,
+            3,
+            5,
+            2,
+            3,
+            4,
+            1,
+            0
+          ],
+          "dtype": "float32"
+        },
+        "construct": "allocation",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/transposed_conv3d.py:22:1",
+        "detail": "allocation: allocation did not converge for 'operator_entry' after 65 spill rounds (each round rematerializes or splits one value); the pressure source is value 'items.xreg' (i64) at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/transposed_conv3d.py:22:1 with 20 values simultaneously live against 25 allocatable GPRs and 31 vector registers -- a register-pressure pattern the splitter c"
+      },
+      {
+        "identity": "e100f5d7fd0e",
+        "operator": "suite/dev/transposed_conv3d.py",
+        "cases": 3,
+        "first_case": {
+          "shape": [
+            1,
+            3,
+            5,
+            2,
+            3,
+            4,
+            1,
+            0
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "allocation",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/transposed_conv3d.py:22:1",
+        "detail": "allocation: allocation did not converge for 'operator_entry' after 65 spill rounds (each round rematerializes or splits one value); the pressure source is value 'items.xreg' (i64) at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/transposed_conv3d.py:22:1 with 19 values simultaneously live against 25 allocatable GPRs and 31 vector registers -- a register-pressure pattern the splitter c"
+      },
+      {
+        "identity": "6b2dfd9b4393",
+        "operator": "suite/perf/chunk_retention.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            2,
+            2,
+            16,
+            32,
+            32
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "allocation",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/chunk_retention.py:36:5",
+        "detail": "allocation: allocation did not converge for 'operator_entry' after 65 spill rounds (each round rematerializes or splits one value); the pressure source is value 'k476' (i32) at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/chunk_retention.py:36:5 with 26 values simultaneously live against 25 allocatable GPRs and 31 vector registers -- a register-pressure pattern the splitter cannot r"
+      },
+      {
+        "identity": "43b3abdf4c53",
+        "operator": "suite/perf/chunk_retention.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            2,
+            2,
+            16,
+            32,
+            32
+          ],
+          "dtype": "float32"
+        },
+        "construct": "allocation",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/chunk_retention.py:36:5",
+        "detail": "allocation: allocation did not converge for 'operator_entry' after 65 spill rounds (each round rematerializes or splits one value); the pressure source is value 'k331' (i32) at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/chunk_retention.py:36:5 with 27 values simultaneously live against 25 allocatable GPRs and 31 vector registers -- a register-pressure pattern the splitter cannot r"
+      },
+      {
+        "identity": "cc3c8f08cfa4",
+        "operator": "suite/perf/chunk_retention.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            2,
+            2,
+            16,
+            32,
+            32
+          ],
+          "dtype": "float16"
+        },
+        "construct": "allocation",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/chunk_retention.py:36:5",
+        "detail": "allocation: allocation did not converge for 'operator_entry' after 65 spill rounds (each round rematerializes or splits one value); the pressure source is value 'k408' (i32) at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/chunk_retention.py:36:5 with 26 values simultaneously live against 25 allocatable GPRs and 31 vector registers -- a register-pressure pattern the splitter cannot r"
+      },
+      {
+        "identity": "fa92b7c8e031",
+        "operator": "suite/perf/chunk_retention.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            4,
+            4,
+            32,
+            64,
+            64
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "allocation",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/chunk_retention.py:36:5",
+        "detail": "allocation: allocation did not converge for 'operator_entry' after 65 spill rounds (each round rematerializes or splits one value); the pressure source is value 'k476' (i32) at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/chunk_retention.py:36:5 with 26 values simultaneously live against 25 allocatable GPRs and 31 vector registers -- a register-pressure pattern the splitter cannot r"
+      },
+      {
+        "identity": "f153419a6beb",
+        "operator": "suite/perf/chunk_retention.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            4,
+            4,
+            32,
+            64,
+            64
+          ],
+          "dtype": "float32"
+        },
+        "construct": "allocation",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/chunk_retention.py:36:5",
+        "detail": "allocation: allocation did not converge for 'operator_entry' after 65 spill rounds (each round rematerializes or splits one value); the pressure source is value 'k331' (i32) at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/chunk_retention.py:36:5 with 27 values simultaneously live against 25 allocatable GPRs and 31 vector registers -- a register-pressure pattern the splitter cannot r"
+      },
+      {
+        "identity": "2073b5d76383",
+        "operator": "suite/perf/chunk_retention.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            4,
+            4,
+            32,
+            64,
+            64
+          ],
+          "dtype": "float16"
+        },
+        "construct": "allocation",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/chunk_retention.py:36:5",
+        "detail": "allocation: allocation did not converge for 'operator_entry' after 65 spill rounds (each round rematerializes or splits one value); the pressure source is value 'k408' (i32) at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/chunk_retention.py:36:5 with 26 values simultaneously live against 25 allocatable GPRs and 31 vector registers -- a register-pressure pattern the splitter cannot r"
+      },
+      {
+        "identity": "d989c50c7b67",
+        "operator": "suite/perf/chunk_retention_ops.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            2,
+            2,
+            16,
+            32,
+            32
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "allocation",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/chunk_retention_ops.py:36:5",
+        "detail": "allocation: allocation did not converge for 'operator_entry' after 65 spill rounds (each round rematerializes or splits one value); the pressure source is value 'k476' (i32) at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/chunk_retention_ops.py:36:5 with 26 values simultaneously live against 25 allocatable GPRs and 31 vector registers -- a register-pressure pattern the splitter cann"
+      },
+      {
+        "identity": "ec503435f1df",
+        "operator": "suite/perf/chunk_retention_ops.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            2,
+            2,
+            16,
+            32,
+            32
+          ],
+          "dtype": "float32"
+        },
+        "construct": "allocation",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/chunk_retention_ops.py:36:5",
+        "detail": "allocation: allocation did not converge for 'operator_entry' after 65 spill rounds (each round rematerializes or splits one value); the pressure source is value 'k331' (i32) at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/chunk_retention_ops.py:36:5 with 27 values simultaneously live against 25 allocatable GPRs and 31 vector registers -- a register-pressure pattern the splitter cann"
+      },
+      {
+        "identity": "ad291efd42e7",
+        "operator": "suite/perf/chunk_retention_ops.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            2,
+            2,
+            16,
+            32,
+            32
+          ],
+          "dtype": "float16"
+        },
+        "construct": "allocation",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/chunk_retention_ops.py:36:5",
+        "detail": "allocation: allocation did not converge for 'operator_entry' after 65 spill rounds (each round rematerializes or splits one value); the pressure source is value 'k408' (i32) at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/chunk_retention_ops.py:36:5 with 26 values simultaneously live against 25 allocatable GPRs and 31 vector registers -- a register-pressure pattern the splitter cann"
+      },
+      {
+        "identity": "abb15ac00d27",
+        "operator": "suite/perf/chunk_retention_ops.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            4,
+            4,
+            32,
+            64,
+            64
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "allocation",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/chunk_retention_ops.py:36:5",
+        "detail": "allocation: allocation did not converge for 'operator_entry' after 65 spill rounds (each round rematerializes or splits one value); the pressure source is value 'k476' (i32) at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/chunk_retention_ops.py:36:5 with 26 values simultaneously live against 25 allocatable GPRs and 31 vector registers -- a register-pressure pattern the splitter cann"
+      },
+      {
+        "identity": "81b882d6c02b",
+        "operator": "suite/perf/chunk_retention_ops.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            4,
+            4,
+            32,
+            64,
+            64
+          ],
+          "dtype": "float32"
+        },
+        "construct": "allocation",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/chunk_retention_ops.py:36:5",
+        "detail": "allocation: allocation did not converge for 'operator_entry' after 65 spill rounds (each round rematerializes or splits one value); the pressure source is value 'k331' (i32) at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/chunk_retention_ops.py:36:5 with 27 values simultaneously live against 25 allocatable GPRs and 31 vector registers -- a register-pressure pattern the splitter cann"
+      },
+      {
+        "identity": "5c4f5d1111d0",
+        "operator": "suite/perf/chunk_retention_ops.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            4,
+            4,
+            32,
+            64,
+            64
+          ],
+          "dtype": "float16"
+        },
+        "construct": "allocation",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/chunk_retention_ops.py:36:5",
+        "detail": "allocation: allocation did not converge for 'operator_entry' after 65 spill rounds (each round rematerializes or splits one value); the pressure source is value 'k408' (i32) at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/chunk_retention_ops.py:36:5 with 26 values simultaneously live against 25 allocatable GPRs and 31 vector registers -- a register-pressure pattern the splitter cann"
+      },
+      {
+        "identity": "1f882c98fce0",
+        "operator": "suite/perf/fused_recurrent_retention.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            2,
+            2,
+            16,
+            32,
+            32
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "allocation",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/fused_recurrent_retention.py:36:5",
+        "detail": "allocation: allocation did not converge for 'operator_entry' after 65 spill rounds (each round rematerializes or splits one value); the pressure source is value 'k476' (i32) at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/fused_recurrent_retention.py:36:5 with 26 values simultaneously live against 25 allocatable GPRs and 31 vector registers -- a register-pressure pattern the splitte"
+      },
+      {
+        "identity": "f6bd8e469627",
+        "operator": "suite/perf/fused_recurrent_retention.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            2,
+            2,
+            16,
+            32,
+            32
+          ],
+          "dtype": "float32"
+        },
+        "construct": "allocation",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/fused_recurrent_retention.py:36:5",
+        "detail": "allocation: allocation did not converge for 'operator_entry' after 65 spill rounds (each round rematerializes or splits one value); the pressure source is value 'k331' (i32) at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/fused_recurrent_retention.py:36:5 with 27 values simultaneously live against 25 allocatable GPRs and 31 vector registers -- a register-pressure pattern the splitte"
+      },
+      {
+        "identity": "d0b9beb210b0",
+        "operator": "suite/perf/fused_recurrent_retention.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            2,
+            2,
+            16,
+            32,
+            32
+          ],
+          "dtype": "float16"
+        },
+        "construct": "allocation",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/fused_recurrent_retention.py:36:5",
+        "detail": "allocation: allocation did not converge for 'operator_entry' after 65 spill rounds (each round rematerializes or splits one value); the pressure source is value 'k408' (i32) at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/fused_recurrent_retention.py:36:5 with 26 values simultaneously live against 25 allocatable GPRs and 31 vector registers -- a register-pressure pattern the splitte"
+      },
+      {
+        "identity": "728d4e1b569d",
+        "operator": "suite/perf/fused_recurrent_retention.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            4,
+            4,
+            32,
+            64,
+            64
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "allocation",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/fused_recurrent_retention.py:36:5",
+        "detail": "allocation: allocation did not converge for 'operator_entry' after 65 spill rounds (each round rematerializes or splits one value); the pressure source is value 'k476' (i32) at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/fused_recurrent_retention.py:36:5 with 26 values simultaneously live against 25 allocatable GPRs and 31 vector registers -- a register-pressure pattern the splitte"
+      },
+      {
+        "identity": "9de2f32e586c",
+        "operator": "suite/perf/fused_recurrent_retention.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            4,
+            4,
+            32,
+            64,
+            64
+          ],
+          "dtype": "float32"
+        },
+        "construct": "allocation",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/fused_recurrent_retention.py:36:5",
+        "detail": "allocation: allocation did not converge for 'operator_entry' after 65 spill rounds (each round rematerializes or splits one value); the pressure source is value 'k331' (i32) at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/fused_recurrent_retention.py:36:5 with 27 values simultaneously live against 25 allocatable GPRs and 31 vector registers -- a register-pressure pattern the splitte"
+      },
+      {
+        "identity": "97e76773a66c",
+        "operator": "suite/perf/fused_recurrent_retention.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            4,
+            4,
+            32,
+            64,
+            64
+          ],
+          "dtype": "float16"
+        },
+        "construct": "allocation",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/fused_recurrent_retention.py:36:5",
+        "detail": "allocation: allocation did not converge for 'operator_entry' after 65 spill rounds (each round rematerializes or splits one value); the pressure source is value 'k408' (i32) at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/fused_recurrent_retention.py:36:5 with 26 values simultaneously live against 25 allocatable GPRs and 31 vector registers -- a register-pressure pattern the splitte"
+      },
+      {
+        "identity": "243a23d20503",
+        "operator": "suite/perf/parallel_retention_attention.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            2,
+            2,
+            16,
+            32,
+            32
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "allocation",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/parallel_retention_attention.py:36:5",
+        "detail": "allocation: allocation did not converge for 'operator_entry' after 65 spill rounds (each round rematerializes or splits one value); the pressure source is value 'k476' (i32) at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/parallel_retention_attention.py:36:5 with 26 values simultaneously live against 25 allocatable GPRs and 31 vector registers -- a register-pressure pattern the spli"
+      },
+      {
+        "identity": "b4a11bf64cb3",
+        "operator": "suite/perf/parallel_retention_attention.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            2,
+            2,
+            16,
+            32,
+            32
+          ],
+          "dtype": "float32"
+        },
+        "construct": "allocation",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/parallel_retention_attention.py:36:5",
+        "detail": "allocation: allocation did not converge for 'operator_entry' after 65 spill rounds (each round rematerializes or splits one value); the pressure source is value 'k331' (i32) at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/parallel_retention_attention.py:36:5 with 27 values simultaneously live against 25 allocatable GPRs and 31 vector registers -- a register-pressure pattern the spli"
+      },
+      {
+        "identity": "e0d1c8303a0e",
+        "operator": "suite/perf/parallel_retention_attention.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            2,
+            2,
+            16,
+            32,
+            32
+          ],
+          "dtype": "float16"
+        },
+        "construct": "allocation",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/parallel_retention_attention.py:36:5",
+        "detail": "allocation: allocation did not converge for 'operator_entry' after 65 spill rounds (each round rematerializes or splits one value); the pressure source is value 'k408' (i32) at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/parallel_retention_attention.py:36:5 with 26 values simultaneously live against 25 allocatable GPRs and 31 vector registers -- a register-pressure pattern the spli"
+      },
+      {
+        "identity": "2999c4efa92a",
+        "operator": "suite/perf/parallel_retention_attention.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            4,
+            4,
+            32,
+            64,
+            64
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "allocation",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/parallel_retention_attention.py:36:5",
+        "detail": "allocation: allocation did not converge for 'operator_entry' after 65 spill rounds (each round rematerializes or splits one value); the pressure source is value 'k476' (i32) at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/parallel_retention_attention.py:36:5 with 26 values simultaneously live against 25 allocatable GPRs and 31 vector registers -- a register-pressure pattern the spli"
+      },
+      {
+        "identity": "6d1a2bfc1ab8",
+        "operator": "suite/perf/parallel_retention_attention.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            4,
+            4,
+            32,
+            64,
+            64
+          ],
+          "dtype": "float32"
+        },
+        "construct": "allocation",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/parallel_retention_attention.py:36:5",
+        "detail": "allocation: allocation did not converge for 'operator_entry' after 65 spill rounds (each round rematerializes or splits one value); the pressure source is value 'k331' (i32) at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/parallel_retention_attention.py:36:5 with 27 values simultaneously live against 25 allocatable GPRs and 31 vector registers -- a register-pressure pattern the spli"
+      },
+      {
+        "identity": "83cd93212957",
+        "operator": "suite/perf/parallel_retention_attention.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            4,
+            4,
+            32,
+            64,
+            64
+          ],
+          "dtype": "float16"
+        },
+        "construct": "allocation",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/parallel_retention_attention.py:36:5",
+        "detail": "allocation: allocation did not converge for 'operator_entry' after 65 spill rounds (each round rematerializes or splits one value); the pressure source is value 'k408' (i32) at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/parallel_retention_attention.py:36:5 with 26 values simultaneously live against 25 allocatable GPRs and 31 vector registers -- a register-pressure pattern the spli"
+      }
+    ]
+  },
+  "over_budget_rows": [],
+  "crash_rows": [],
+  "crashes": {
+    "count": 0,
+    "by_exception_class": {}
+  },
+  "case_build_failures": [],
+  "wall": {
+    "total_s": 863.7,
+    "build_s": 0.3,
+    "compile_s": 863.1
+  },
+  "identities": [
+    {
+      "identity": "90f3fca69f39",
+      "operator": "suite/dev/adaptive_avg_pool2d_kernel.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "58abed21aec027b03fd7599b5bf22796ce6c225ec6565d40ba8b5a5a783fb024",
+      "sha256": "31e7e113e8e865a58781458f51069285c551da4e28605e9b9aae8aba1dca82f5",
+      "compile_ms": 4241.1,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "cfeb2af80fbf",
+      "operator": "suite/dev/adaptive_avg_pool2d_kernel.py",
+      "cases": 2,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "allocation",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/adaptive_avg_pool2d_kernel.py:11:1"
+    },
+    {
+      "identity": "216e10750840",
+      "operator": "suite/dev/adaptive_avg_pool2d_kernel.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "1c7783c8c136a6c4b094fb0de7f9d8b4c33c55b996aa210cebbcf7aff14ae027",
+      "sha256": "e67c44594bffce87a2e0b8418cef8e791991b919c787bc970a7068ed71704880",
+      "compile_ms": 4070.9,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "a0014884bc89",
+      "operator": "suite/dev/argmin_kernel_opt_k1.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "6e7fa02f75ff92770bad9f23fea8a8ad5e89c9fce6a7e2e07ebbfc2c091e8f1d",
+      "sha256": "97d56a051b65b19e241080ede590b48ec34048d1881080026efac942508ab099",
+      "compile_ms": 467.3,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "dbca3fe460c5",
+      "operator": "suite/dev/argmin_kernel_opt_k1.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "1b1613927211073a895ff996584bb103a8bed695d4c5838268ddc08c9bdd5e96",
+      "sha256": "e863f05f030bb9f18269f59b5c117152014862ddec67b2ec4038d9147276704b",
+      "compile_ms": 648.8,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "253009449490",
+      "operator": "suite/dev/argmin_kernel_opt_k1.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "56eabd192330a0ddccb77eeb3ead8d29bf7f7b6bda474ecfbaa5ad6bbb0941ce",
+      "sha256": "ac1fb23598f6a01ca7f39ef660f1247dc5bef5f5280271238f2c01e9bec581a4",
+      "compile_ms": 670.5,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "3fd833a9cd15",
+      "operator": "suite/dev/argmin_kernel_opt_k1.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "b89d3105d81c3f2538011ef165aee326b00d62cb7da890450cfb9c254ef1a0bd",
+      "sha256": "bb004cac1e70b07fa2dba914f4cd3fb58378866ffff19b1088b31d060c1401b1",
+      "compile_ms": 481.7,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "bb4aa2137e4a",
+      "operator": "suite/dev/argmin_kernel_opt_k1.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "75b9cf13cb857c91eccd0f19eaafa9a70a57cfe947e07ac0d95cdf8b40ea0ef0",
+      "sha256": "817a320b8d2cb87656c76c53d1af7d4c7ecae3a5fdcb38291dcb8da7643f9679",
+      "compile_ms": 643.9,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "03eb29b2ca28",
+      "operator": "suite/dev/argmin_kernel_opt_k1.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "3788eaf6c76c5e16f6bbe9dbf639fac3b11a2985e0bd3f0ad5670ee361b8ee65",
+      "sha256": "1cf05591d4aa56bc0a649ee62c6b181a0139af4f2ce079e11cfe703009933f3f",
+      "compile_ms": 663.6,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "d9d18762f27a",
+      "operator": "suite/dev/chunk_gated_delta_product_fwd_kernel_h_blockdim64.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "b2df536bf69d46ea3d808be2e1f6d9de4ff67fe113df5eede62222f782a3e221",
+      "sha256": "ed5018d9c2d88524ad8520cbf84146e5e38a6ea3d765c62647e525cf670c2b41",
+      "compile_ms": 6551.0,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "84544eece34b",
+      "operator": "suite/dev/chunk_gated_delta_product_fwd_kernel_h_blockdim64.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "01aabefa304b20259473e3c84d154abc4519253f9a917c904054e2aa2bffd876",
+      "sha256": "d9005fd96e004b77ad604659869993365eee75a4cd8e1b3952327aaa2dc018a6",
+      "compile_ms": 10945.0,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "a08299beb292",
+      "operator": "suite/dev/chunk_gated_delta_product_fwd_kernel_h_blockdim64.py",
+      "cases": 2,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "allocation",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_gated_delta_product_fwd_kernel_h_blockdim64.py:138:320"
+    },
+    {
+      "identity": "916536c3624d",
+      "operator": "suite/dev/chunk_gated_delta_product_fwd_kernel_h_blockdim64.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "697adb7e2047ace7216bb97ec5c17fc6f2ff38b8785bf53aa2c723bcd895eb0b",
+      "sha256": "4943ac710979081836adf1f586788f0b395ac3f96d2f5aa879de1a0d2b6be9f0",
+      "compile_ms": 5836.5,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "61997c08417b",
+      "operator": "suite/dev/chunk_gated_delta_product_fwd_kernel_h_blockdim64.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "33d0dea6a922645fe2f33c2bb0d5edd7c1e8ef8ded64ae5549a2f416f2a4a7a1",
+      "sha256": "c6615bcdeba003ce7b7f61b43cc01ca209a62e3b758e6f035c06e5ef86ae6417",
+      "compile_ms": 10114.4,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "fe545ebfe2cb",
+      "operator": "suite/dev/chunk_gated_delta_product_fwd_kernel_h_blockdim64.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "7132676f899846fa30e10c4468f636c490f120d55c408cb0559a92854bebb8b3",
+      "sha256": "fd8eab8f75a5db6e43a87efaae6717995661d3f0eaef7701e85491d1ec008bd4",
+      "compile_ms": 11288.6,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "762de1caee99",
+      "operator": "suite/dev/chunk_generalized_iplr_delta_rule_fwd_kernel_o.py",
+      "cases": 2,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "tl.dot",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_generalized_iplr_delta_rule_fwd_kernel_o.py:76:394"
+    },
+    {
+      "identity": "2faa0a399bd5",
+      "operator": "suite/dev/chunk_generalized_iplr_delta_rule_fwd_kernel_o.py",
+      "cases": 2,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "allocation",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_generalized_iplr_delta_rule_fwd_kernel_o.py:50:5"
+    },
+    {
+      "identity": "d9da693c10dc",
+      "operator": "suite/dev/chunk_generalized_iplr_delta_rule_fwd_kernel_o.py",
+      "cases": 2,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "allocation",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_generalized_iplr_delta_rule_fwd_kernel_o.py:50:5"
+    },
+    {
+      "identity": "d2ac79876447",
+      "operator": "suite/dev/chunk_transform_qk_fwd_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "298c35ca6802268ed36febb23ff54bb0bd17cf8bdd303e5ac904e25469ed3e5c",
+      "sha256": "b91628c0a3a919fa2e4246f3477427bd587ea2e8751a7f74860514edcfdc4063",
+      "compile_ms": 11739.2,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "8e6a2c626283",
+      "operator": "suite/dev/chunk_transform_qk_fwd_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "allocation",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_transform_qk_fwd_kernel.py:47:22"
+    },
+    {
+      "identity": "2b59c79f78ab",
+      "operator": "suite/dev/chunk_transform_qk_fwd_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "allocation",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_transform_qk_fwd_kernel.py:47:22"
+    },
+    {
+      "identity": "5c82c54d8fa1",
+      "operator": "suite/dev/chunk_transform_qk_fwd_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "0ed6f33885aa0f7f233547fdb74712be6f3bee593a3ca5fcd0f098de238b413b",
+      "sha256": "94d53a5a96c756d3a2e975ab04910a21ce8474c448ad911bb02e195de4db953a",
+      "compile_ms": 6042.8,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "26e9259622e3",
+      "operator": "suite/dev/chunk_transform_qk_fwd_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "layout",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_transform_qk_fwd_kernel.py:31:353"
+    },
+    {
+      "identity": "5e333802e462",
+      "operator": "suite/dev/chunk_transform_qk_fwd_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "e513c3907673d7f076034ba6d675932b588ffc116bac37cf093c5bbcc890cd19",
+      "sha256": "feded49f00b1fc5c24b8d58158791a59a00317befa68915af6e298ccb90478b7",
+      "compile_ms": 11190.2,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "3dec21ad2138",
+      "operator": "suite/dev/conv1x1_pool_fc_kernel.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "b39442fc1151b99bdef2dfa523371170dbbbfadf5816e623c2cf874a096cd42e",
+      "sha256": "2fafe0bf192d680cabd423d5b420b8546f605c86f8b05d18cfe623e7fa14e93c",
+      "compile_ms": 5723.0,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "19c0b1b6074c",
+      "operator": "suite/dev/conv1x1_pool_fc_kernel.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "44d27310a966465743d54ba2ed32293890391711ae5fe13c544a0cf2406d7f9a",
+      "sha256": "7284da0e5ee00d87f38cb1e254852d84c15c1fa6cd4058509561dfeb14d76ac8",
+      "compile_ms": 6754.6,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "25781c2b9a71",
+      "operator": "suite/dev/conv1x1_pool_fc_kernel.py",
+      "cases": 2,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "allocation",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/conv1x1_pool_fc_kernel.py:65:9"
+    },
+    {
+      "identity": "9bbe74822d5d",
+      "operator": "suite/dev/conv1x1_pool_fc_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "1fc13aee282ee83ca977345854e2dad6f8f0886a4e29fedaa6096adc6cecec58",
+      "sha256": "ea7b6d2848b53a2a9c98cd4ade6ba4d9c1cf2e0cae3cb9b1b200cafa1dc4ddeb",
+      "compile_ms": 5791.0,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "280a50654e0f",
+      "operator": "suite/dev/conv1x1_pool_fc_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "56fe209576b6353d17fe7cf908240b2ee9f283930e5a5a88e7683c239241122b",
+      "sha256": "4cebbae5083ad909781f1d4cb53b4958bbd2489b04c49a6f79ab608ced49c656",
+      "compile_ms": 6752.0,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "be981bf7a09a",
+      "operator": "suite/dev/conv1x1_pool_fc_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "allocation",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/conv1x1_pool_fc_kernel.py:65:9"
+    },
+    {
+      "identity": "46f0f6a7c459",
+      "operator": "suite/dev/cumprod_dim1_grouped_mixed_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "tl.cumsum/cumprod",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/cumprod_dim1_grouped_mixed_kernel.py:49:25"
+    },
+    {
+      "identity": "d9115226b525",
+      "operator": "suite/dev/cumprod_dim1_grouped_mixed_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "tl.cumsum/cumprod",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/cumprod_dim1_grouped_mixed_kernel.py:49:25"
+    },
+    {
+      "identity": "aede24eba08a",
+      "operator": "suite/dev/cumprod_dim1_grouped_mixed_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "tl.cumsum/cumprod",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/cumprod_dim1_grouped_mixed_kernel.py:49:25"
+    },
+    {
+      "identity": "552e1a62aec0",
+      "operator": "suite/dev/cumprod_dim1_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "faf241f3d72a30a2cd22da183203c2d7e12102e48450fb366f64a2cf9e258022",
+      "sha256": "774aaa8e2d1096c4453f3d090ed8fac80b7d61800c8fb1dd2cffa0ff79467ed6",
+      "compile_ms": 79.0,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "7cd0287cce68",
+      "operator": "suite/dev/cumprod_dim1_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "de80bcf6331a91e361e2cd961d8fd946c05d9f1f3e618e6b15b9340ba18cfe12",
+      "sha256": "36c3779bab0a4e1f21cf04ece1ef86a2ffcb8475e183824b460d65dfd4a72cef",
+      "compile_ms": 87.5,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "e4d390bfd847",
+      "operator": "suite/dev/cumprod_dim1_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "3ace146c3ad8ddaa1793195abc09f3c11f936df6d99b18e94b74ed6f6f9aef4f",
+      "sha256": "083d41762071f2d1f4cf9e839aed90e674ae9e3bdc05946caa7cca4014902814",
+      "compile_ms": 94.5,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "aa605c5a59d5",
+      "operator": "suite/dev/cumprod_dim1_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "05dd167ee304d9f367913afd613c969da285858a4f22c267d108af5e29e56b25",
+      "sha256": "1ec4f9895c50a9d7e5df9145feb21441b7105c719118f151b347678c9e959fe2",
+      "compile_ms": 78.4,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "a5b9873799e8",
+      "operator": "suite/dev/cumprod_dim1_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "f3e0420942274629b425956780aecb6b9cb3ef40a0d9bdaa68c1cc4cfac20962",
+      "sha256": "6ac795a70726537d729de163a5192bac92d6b19c4367107bc38a4e45ff08ea5d",
+      "compile_ms": 86.7,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "84d2e6c0eedb",
+      "operator": "suite/dev/cumprod_dim1_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "8dd1c57148c8d9718a31e0cdb381f7c424915211c36f6138aaccb666638e8194",
+      "sha256": "b8702cbc4d17e9f39975fcbdb19d0f4ea15390324627a61fe837da80e6aa7e50",
+      "compile_ms": 92.3,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "24b47e3fde11",
+      "operator": "suite/dev/cumprod_dim1_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "754846651ecb889b86f47d69a748f285db1155cccb1613c410e03f52336d7d3a",
+      "sha256": "81d1dccc9e5e3eeb6fabc8de9ed4deac1768cf163ca059d96092a3c2e737e634",
+      "compile_ms": 76.9,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "3daabb8fc550",
+      "operator": "suite/dev/cumprod_dim1_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "02b8e3d109fc0df63e70ff816b9b6576dbb292ea84dd2462432a9482e1b3259d",
+      "sha256": "90941f6f17628f487ea81c621008fd6980644cad72f666659c0fbe005d798dfa",
+      "compile_ms": 87.8,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "148587f8207c",
+      "operator": "suite/dev/cumprod_dim1_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "ae75d5a141747442525c665f5ba9649675592e3fc83c0be175914693a6defab9",
+      "sha256": "5f9dfac871c13282aa7dfe9bf5033b5407260589befd2031c719d90864cb435d",
+      "compile_ms": 94.7,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "c1d170a97fb5",
+      "operator": "suite/dev/deconv3d_leaky_pool.py",
+      "cases": 2,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "allocation",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/deconv3d_leaky_pool.py:22:1"
+    },
+    {
+      "identity": "6f68bdb3b8e6",
+      "operator": "suite/dev/deconv3d_leaky_pool.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "allocation",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/deconv3d_leaky_pool.py:66:68"
+    },
+    {
+      "identity": "a6671184cc69",
+      "operator": "suite/dev/forward_pass_chunks.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "allocation",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/forward_pass_chunks.py:11:1"
+    },
+    {
+      "identity": "94ef0c621022",
+      "operator": "suite/dev/forward_pass_chunks.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "allocation",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/forward_pass_chunks.py:11:1"
+    },
+    {
+      "identity": "e1f83e298094",
+      "operator": "suite/dev/forward_pass_chunks.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "allocation",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/forward_pass_chunks.py:11:1"
+    },
+    {
+      "identity": "c0f0219b50ec",
+      "operator": "suite/dev/forward_pass_chunks.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "allocation",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/forward_pass_chunks.py:11:1"
+    },
+    {
+      "identity": "4df18eac5164",
+      "operator": "suite/dev/forward_pass_chunks.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "allocation",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/forward_pass_chunks.py:11:1"
+    },
+    {
+      "identity": "a9b746c2b6c9",
+      "operator": "suite/dev/forward_pass_chunks.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "allocation",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/forward_pass_chunks.py:11:1"
+    },
+    {
+      "identity": "3dbdc22d4657",
+      "operator": "suite/dev/fused_exponential_kernel_f32_unroll8.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "105987955b634f28261507195e887f3040ad6852a540aea0994abf39294188c9",
+      "sha256": "c5b3b4067c8ea37122aec00c56992dbda3c3138ae1c603c27f71fdf3d9757e47",
+      "compile_ms": 1000.0,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "8e47d687167a",
+      "operator": "suite/dev/fused_exponential_kernel_f32_unroll8.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "6b2fe44adbb44b53109ff84887d3e60ac60f71f093081ebdbea0b6562588352c",
+      "sha256": "60b188be17876e0517b6e1f86a1d648fae069db1b4bef3c7487c0e7e5a795b53",
+      "compile_ms": 1866.2,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "44ef52e9deb7",
+      "operator": "suite/dev/fused_exponential_kernel_f32_unroll8.py",
+      "cases": 2,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "allocation",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/fused_exponential_kernel_f32_unroll8.py:233:14"
+    },
+    {
+      "identity": "82103566a82c",
+      "operator": "suite/dev/fused_pool_reduce_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "6caefac2109fb73e2187d0761b38c2af8f2dcabf4d3de9dc78a9d9a9dea99dab",
+      "sha256": "ef2545f3ad7b1b207a295e5d4978b2bd39bae3af5445ee73bde0bb0a8e0a7c3a",
+      "compile_ms": 2277.0,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "75ce8be56718",
+      "operator": "suite/dev/fused_pool_reduce_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "7eeb1ed1ca3546185f027e702b3e532479f73948bfb8caa7c8bf4f8d21458feb",
+      "sha256": "31a6d1037a825b669f64a012c764357b841c38ae968c1e9cf9e36a98e880da5c",
+      "compile_ms": 2968.4,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "2623f6947c13",
+      "operator": "suite/dev/fused_pool_reduce_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "9f9e6fd53573a861b3482f6c128d05a72e496e99cb256e2817bde285ca96ab62",
+      "sha256": "1fc22b4335d024d3ea7a67a7528775e7c254b251f32856ec0a6560cba5725c05",
+      "compile_ms": 3048.9,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "2e86d57be175",
+      "operator": "suite/dev/fused_pool_reduce_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "600c14f54db4f7e26599abdda6813eb6247b2081cac2cf73a1f2006b6897b7a9",
+      "sha256": "cfbdbc62f86322683ac00344125539967c05ab53153e5b07687bc2c50e29c81a",
+      "compile_ms": 2272.9,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "3a62e5319d8d",
+      "operator": "suite/dev/fused_pool_reduce_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "e04587a0ba86c2849e24b5d73be9ba142003f56b957f6220a8ac4e04fa248b10",
+      "sha256": "315a686d91909ce139d477664f614b7897457d752c2ab056a09fde8b6d00d8c3",
+      "compile_ms": 2980.5,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "9eda81eb0890",
+      "operator": "suite/dev/fused_pool_reduce_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "0ce813aa79764af9fa954fd35b493efa088b3a3d7be9d43261aa858dcc04a65f",
+      "sha256": "54b3fd450a49087653337df63372825da07795675eb95b903d89eedb18cb4b5b",
+      "compile_ms": 3061.2,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "a22cbe905da2",
+      "operator": "suite/dev/fused_recurrent_fwd_kernel.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "fdb19ae8981cd00ced327ae52da7f5b0a7feaf66b06fa80f2143765a5034cb64",
+      "sha256": "845d4a589a8d9ebc129b7496195c45f85d59cd592895f576a1660c22b6f7d2eb",
+      "compile_ms": 4821.0,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "b0205849d5b6",
+      "operator": "suite/dev/fused_recurrent_fwd_kernel.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "0dbc220921f97f6cb2db36fb4d63aa533bd034569df7bc3c3cc6314bf83549af",
+      "sha256": "b606d223157d2f8bec0f93df421f44799a0b8b72660be6ae65c0c2e1d09657c9",
+      "compile_ms": 6704.2,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "b0bd01055626",
+      "operator": "suite/dev/fused_recurrent_fwd_kernel.py",
+      "cases": 2,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "allocation",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/fused_recurrent_fwd_kernel.py:47:9"
+    },
+    {
+      "identity": "a8c0107e4358",
+      "operator": "suite/dev/implicit_conv2d.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "48b22ed635c30675c521f9e38e087d4d639558f281aa03cbe8bc29915fed8cc1",
+      "sha256": "b4b3f5226e8fba07093ab11cfebbd902a497872069e6a8da4494cee635172bf5",
+      "compile_ms": 5089.7,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "58f39ccdb1a6",
+      "operator": "suite/dev/implicit_conv2d.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "cf4dfc4fbac9ef928cc9ae5a8ef7011c57fe279f7fd6e69ec191c8ca285cb5c5",
+      "sha256": "8788afdbb44378dcd1a88307ed23e4de04e5c3956706ad99ecbd5fc0057f5af1",
+      "compile_ms": 1594.1,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "959d5456570d",
+      "operator": "suite/dev/implicit_conv2d.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "0945b6b336e15a54b145e08bffacedc1079b4959499f21b01bb7f9a4f99220b7",
+      "sha256": "fd933b6955ba897581f4c5e0d6d65e1dca13f1160cb88e23eccaf636f9fcf451",
+      "compile_ms": 2928.8,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "c4b966bec227",
+      "operator": "suite/dev/implicit_conv2d.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "allocation",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/implicit_conv2d.py:22:1"
+    },
+    {
+      "identity": "901f080c0d49",
+      "operator": "suite/dev/implicit_conv2d.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "cf22c17c5762ea32f50c8c0afac4ec1a828917694365e320c0af89647575dd25",
+      "sha256": "3b2d1d9b1d834ffaf4d9bcfa1a23032a4a89d5efda9fc7566efb0f1db87b8232",
+      "compile_ms": 1941.9,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "5fe8f4a1f5f3",
+      "operator": "suite/dev/implicit_conv2d.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "66f031e38ecd6f9679f5f8aa377abd3f4e3d63f1b7072f07d08805f071c48421",
+      "sha256": "c8f0f22329a931d28bc38e1e1f29ae642ec0d0384ebe57bc491515dd6d7a26a2",
+      "compile_ms": 3474.9,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "f4245ffce523",
+      "operator": "suite/dev/l1_norm_fused_kernel_2cb0f555.py",
+      "cases": 2,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "ptradd",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/l1_norm_fused_kernel_2cb0f555.py:115:5"
+    },
+    {
+      "identity": "07125930754a",
+      "operator": "suite/dev/l1_norm_fused_kernel_7f6ce49c.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "36d7df75e075f871094200f5127861bfe66524b2e2baab4e00159d0387c66e02",
+      "sha256": "8f03e9f4268bd1a909946c8980b773b6805597b2162dbc9c8a2ac82261a36281",
+      "compile_ms": 108.0,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "a1bd69cf339a",
+      "operator": "suite/dev/l1_norm_fused_kernel_7f6ce49c.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "67b79f39a3cb59379774a443f0393b9dd05e7b19e0fe612ed242c3955c9db09e",
+      "sha256": "f19db81ce51be74d5790f9392e66134f83623714332ac4b94050df29fd26f5b3",
+      "compile_ms": 117.2,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "be4c8b6835a3",
+      "operator": "suite/dev/l1_norm_fused_kernel_7f6ce49c.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "eeaf80e2cdfef2d9796f28bf0b1eb59d9a6c7e4587ff7fd1d41572017b8e47fe",
+      "sha256": "0b3cf331e2f2a93d0ab842b4c9bbb095ca54f65159b5bf4a7c4760abb977caa6",
+      "compile_ms": 122.4,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "e33ede915c99",
+      "operator": "suite/dev/l1_norm_fused_kernel_7f6ce49c.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "278d5536c4e2c52373b9781d5b2c467e80c967ee24dd066fd8fb457e2813da96",
+      "sha256": "05d885f996295e9cb07f68b1c8e4130be7a92602f7c3bb96ae6ffcb8dc9e87fc",
+      "compile_ms": 103.1,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "338836f53c28",
+      "operator": "suite/dev/l1_norm_fused_kernel_7f6ce49c.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "0bf434a6b1cf9c898beca16836a29f3a40565cb0de9329da1fab3d446b642282",
+      "sha256": "94f0b2406ddfa4a21f5db18ecf96f1cfac345bb293a8527aa48609777107b1ad",
+      "compile_ms": 117.0,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "cc1b3e1c0336",
+      "operator": "suite/dev/l1_norm_fused_kernel_7f6ce49c.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "4197783c6529c925c06826c04425646cf8d482130d72f24939bd2eaafaf5dff6",
+      "sha256": "cdb9b5a997ef97fe32eaa4dcc79394b08521ac3aca581c219ec4ec1b73d02a47",
+      "compile_ms": 122.7,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "0c54f9728860",
+      "operator": "suite/dev/linear_dropout_softmax_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "51d2c72bc2f2f1ff469a9560e3299caa997a19b0f5a35b3110e1cdef04006dbc",
+      "sha256": "5797c3dd5815b19f5b801f191bdda0f00083e69c98ffa861e2ba28a94862dea4",
+      "compile_ms": 2765.4,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "8c1ed21afa72",
+      "operator": "suite/dev/linear_dropout_softmax_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "eccac5fd9b175b9c3241c3b2281bd0bc0822a22e9c94c415ff6227f98f2033ea",
+      "sha256": "b1be1b17015c3e1a3c9bec9ceaccc454b144a497c8aa0ac50433938d847aea90",
+      "compile_ms": 3688.4,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "b4524e84f71e",
+      "operator": "suite/dev/linear_dropout_softmax_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "8c9966182098daff99b355ace6e7eda5110b7b2656752acd90d5ec9ed42fd7ca",
+      "sha256": "a1ba759394a091d10fafef46973e4ba9ce5f88042480d554d9a1391fb024c109",
+      "compile_ms": 4101.6,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "80f4796da0b2",
+      "operator": "suite/dev/linear_dropout_softmax_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "a398dabd110659186a03b1f4c1dba320152a151952360ddbc5fad40b91e053cf",
+      "sha256": "18adca7b3d5d494cedcf82c04addd32002ea13fe4b4d5071d3bd866941f29c4d",
+      "compile_ms": 2893.7,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "22de74793d42",
+      "operator": "suite/dev/linear_dropout_softmax_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "84f1ace98db1fb2511b76eb0b50f6893f2a1dadb647eb4275756939da2144796",
+      "sha256": "f787893cb124b1fdcaff100b0c0159c096b26637778f99a1f78fbf7d8498ee75",
+      "compile_ms": 3699.1,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "ab651792cbe7",
+      "operator": "suite/dev/linear_dropout_softmax_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "957cf4d74424d3c3257a79996597cc362ad80dfaae6e01d2ff4ba506ee8aeac4",
+      "sha256": "fcd7eec81000f78c8e7731564cb318d3c07bbf4037060a9e44958ee8aa700fda",
+      "compile_ms": 4156.1,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "9e0ea8030cb9",
+      "operator": "suite/dev/matmul_abt_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "allocation",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:25:1"
+    },
+    {
+      "identity": "ba35bdd1f35e",
+      "operator": "suite/dev/matmul_abt_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "203175a84ce782640088a0593a6717ec26994c7b7b46a9f469e3336d11f31c35",
+      "sha256": "2c9879b98391560b356bdc3b08163f05f51362814b6122d860fc133d5d819254",
+      "compile_ms": 1013.3,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "9d811705fb64",
+      "operator": "suite/dev/matmul_abt_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "620e2ac7cf02cc91014148f277ae77ab975f525cb6b0b71a63636dc7afcfe6ca",
+      "sha256": "6abc8cfd7f80b37d3052fc7df9d15eab81ac5ffef21cc965c5af151b5ed3c335",
+      "compile_ms": 528.6,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "0b810aac96d3",
+      "operator": "suite/dev/matmul_abt_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "allocation",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15"
+    },
+    {
+      "identity": "a8569bee70cb",
+      "operator": "suite/dev/matmul_abt_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "c69d279be31fc663742de6fb08e894f5a4c080b0c8322a5c80432f39d5e817db",
+      "sha256": "cf318e8eb56b463bdb56089da6f6047c8d9e3fa744adb0c6cca49124bbc18862",
+      "compile_ms": 1462.3,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "9f5799ca18a1",
+      "operator": "suite/dev/matmul_abt_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "511bbfbc552eb237e339293f0a8be101b9679455ffdddfbf04ff474b7940daaf",
+      "sha256": "e6ebace3c0faae9ff7362621b82062d7bccd0980ad3eb4787fdf30e3d0394b26",
+      "compile_ms": 668.6,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "7e39cb1cef55",
+      "operator": "suite/dev/matmul_at_b_kernel_043f2a05.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "a7edf635ec51ce252dc2f9dafbde6883682407aee3ded485edb8cb1ac4cc2d79",
+      "sha256": "b5ed624def7b6d6c6b9b67693a5ca3d7bbd6784045728a613c3246c786c10624",
+      "compile_ms": 3326.4,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "7ea87dee146e",
+      "operator": "suite/dev/matmul_at_b_kernel_043f2a05.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "29303b36dd5433410b05868570ecda08afc9ec227d65af08973402d03b38e16c",
+      "sha256": "20137b6899f659cb706df1818f8d7817f5373560ceec64bd5d04365bef2d5cc9",
+      "compile_ms": 4901.1,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "506696d22520",
+      "operator": "suite/dev/matmul_at_b_kernel_043f2a05.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "3184363fd6799dbb38daa841b42fc2db94a802e146d4021ca4bb354d56efee7b",
+      "sha256": "d259e386953bc851df206c8c2837608c04f04c877a8babc719ff8d5ea41dface",
+      "compile_ms": 6193.4,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "84b5570673f4",
+      "operator": "suite/dev/matmul_at_b_kernel_043f2a05.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "df01514eba092e20dde3c92b7aded8b3639df6ce9e0d9de4fbc89b7925cb7321",
+      "sha256": "59eb00207723b09827323924315fb086b8c4b5c9123f780b43a8bdc4b4aaee87",
+      "compile_ms": 3341.8,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "493e46cc3693",
+      "operator": "suite/dev/matmul_at_b_kernel_043f2a05.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "89985ecc75fbb2b2fbda31cb7e3403d658e30080b0bc1150161c4718d31c6a68",
+      "sha256": "65d95e29bd2840c817f6419e53fff78ee8325dcec78255219bde6ec9c647b73a",
+      "compile_ms": 4931.5,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "410731ea5951",
+      "operator": "suite/dev/matmul_at_b_kernel_043f2a05.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "ab266ab149caddb1d8f1b96aca05a0d5764be1553d2044feaf9357f32314e774",
+      "sha256": "2306bad672ec106063407d6696f2116524c0e613c61bc2c2e3440c63f7545ba6",
+      "compile_ms": 6187.9,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "8950ba725ad1",
+      "operator": "suite/dev/matmul_at_b_kernel_db_551a9cda.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "7f2795be10b0dd60bf262ba0bedb8f81fcc27a1a72224d80124933154f2169ef",
+      "sha256": "d8cb7e999e38148d493be9195ffb2fac1ccde9db74da0d76fac0579d0087504e",
+      "compile_ms": 2449.0,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "750b7a907fa8",
+      "operator": "suite/dev/matmul_at_b_kernel_db_551a9cda.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "475aac1040be0476319dfc1b282a016d95fa46c0b8ce3492cc0184b5f8a4a68d",
+      "sha256": "fa720fb4486e571b55d699e7b44e67e075ccdf9f7090eae5df05c5004a3ae26a",
+      "compile_ms": 4638.6,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "5fc98d23b60c",
+      "operator": "suite/dev/matmul_at_b_kernel_db_551a9cda.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "b47bb69246d66ce1ccdd562fbc46d785d7d056147bfe7ed2077f0d71fe7e0fe2",
+      "sha256": "34b671e9d15ba5e4cc8d71b37966d822a1ca7140d1771463d45387ee967ddecf",
+      "compile_ms": 4091.0,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "b6eda9e44cfd",
+      "operator": "suite/dev/matmul_k32_splitn2_kernel_af4f712c.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "4356cc0af075e1072524f17dd3e4820d978a6b194cd50af2d0465ed06a3a8999",
+      "sha256": "22c3927c0bd9c1316a738497dec2d14fd02ca897395b600989544b871b9b065f",
+      "compile_ms": 522.0,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "f683ff318385",
+      "operator": "suite/dev/matmul_k32_splitn2_kernel_af4f712c.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "00386b28c37330eeed0f44a2f5d7ab80ed5ee25f1b724d1e56346496a7c694c3",
+      "sha256": "9bc2de9172aea5f8e37d1ed39fd9524581ab44f36a62c4a62081522b40d5f668",
+      "compile_ms": 4617.2,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "8eb6a96cfea7",
+      "operator": "suite/dev/matmul_k32_splitn2_kernel_af4f712c.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "85049fb4ec112f87dada6397eee1c52c5a382823003b1a68a8cf60b690b61660",
+      "sha256": "daf4544d114e18dcc3d4a85961b9ae6db10cc72477f6b5a94a33cb9ff5a4e97e",
+      "compile_ms": 779.5,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "8e4eb59f0934",
+      "operator": "suite/dev/matmul_k32_splitn4_paired_kernel_6f1c91c8.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "470dcfe871fc3274baa0ad0007721ec6479006e37933ec7466a7a5a9a0d96c8a",
+      "sha256": "18543cd3179e33bc6f0baa4455627250078c341c2b0f0b310ee601a6758d083a",
+      "compile_ms": 1955.0,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "63d5d38b948d",
+      "operator": "suite/dev/matmul_k32_splitn4_paired_kernel_6f1c91c8.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "6f8e61d905d54b0f4128c7f5205799731058d68fbd67a2343edbf708a06360bf",
+      "sha256": "d856aac986eb366b27ed8edd8504b76a548ff166a659fe0048301c9ed140e7e6",
+      "compile_ms": 5005.8,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "a8b035dcccea",
+      "operator": "suite/dev/matmul_k32_splitn4_paired_kernel_6f1c91c8.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "8062e41fcfd0d2475c79250e7d8f9d75521a65d98e24dd15c9679df6080f9809",
+      "sha256": "247fd0e621525ac1f008f54e3508a26a0883765d58fc8379dfb53d8947bbecb2",
+      "compile_ms": 3076.9,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "d6087dcb37f8",
+      "operator": "suite/dev/matmul_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "allocation",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_kernel.py:71:15"
+    },
+    {
+      "identity": "ade8580453db",
+      "operator": "suite/dev/matmul_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "4dc95b0f01ca525f4f0a3e8b7705adc9e035a1323394fec33e69539909513558",
+      "sha256": "7da3b3c1055060d376fd1dbf8006b4e1caff8b88ed7c33d5d44d457d13f9c02b",
+      "compile_ms": 2302.8,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "729c7349f903",
+      "operator": "suite/dev/matmul_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "2dd832dcfbdfb53b1957714ffedddfd43f47ec7b1117593430b45abdebf1b23d",
+      "sha256": "7c2b712d2366f056e027b21e21827acc49a544ee4b0453a992f5ece21ad6b843",
+      "compile_ms": 1398.8,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "963928fa916a",
+      "operator": "suite/dev/matmul_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "allocation",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_kernel.py:71:15"
+    },
+    {
+      "identity": "b4ec048005a8",
+      "operator": "suite/dev/matmul_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "c798a9af5cc6b10aa9b71f2eb71c698a8f2cae39a8b3a0ec0b53f257d82a7057",
+      "sha256": "72ef06536d9a2d333db291fc98a7fdd70b69a8f2116c6836a37ec5b402b41580",
+      "compile_ms": 5098.2,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "cb9ac0522d2c",
+      "operator": "suite/dev/matmul_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "054ee9bfbe5e309bc16b3751d5dc7c3b8ae5ec28d8362dd861ece7b63e0abb6c",
+      "sha256": "3f5f65bb0b542f9cc0d30ff32d591b3a3117e4c9e4a36558bd4317928075dc82",
+      "compile_ms": 2750.8,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "1c41b7f62c41",
+      "operator": "suite/dev/matmul_kernel_0a4f4889.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "efdb784d74214725f07117b604db1c8db9c6f7d4b09b2deb3cc1ccaa784fe9cb",
+      "sha256": "2516da8a4563eedafa6e3f6d36672c043a677e2d9373904e5ce4675eda6c69bd",
+      "compile_ms": 2946.7,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "54dc6a335ef4",
+      "operator": "suite/dev/matmul_kernel_0a4f4889.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "a31a2da6b1f3e903b1c345844dfc10de98bb61f2024c4314b24da8f433310eef",
+      "sha256": "f37058294d7abb6fb934617f5fe686d1a80a0966f1e514736dc58075aad88900",
+      "compile_ms": 3249.9,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "eaa5e3d19fc0",
+      "operator": "suite/dev/matmul_kernel_0a4f4889.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "2e924e9b3c12bd71d6f4f923c9b08d57d7a851561fec455a7a1ea65a6172e311",
+      "sha256": "0e304852820463604dfe12d119060782af78b265ab8bb6545af64ce0cd7dce45",
+      "compile_ms": 5816.3,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "14e7c33d2ceb",
+      "operator": "suite/dev/matmul_kernel_0a4f4889.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "8bef12d7dfbb6b5722ebc94b742334632ab94d976a7a357cf95dca269520e68c",
+      "sha256": "a2e2315bd8b95930b7cc93d9c5d5e3c4643127d8514d2ca10032d4fc7f4398f7",
+      "compile_ms": 2925.2,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "790017c7494e",
+      "operator": "suite/dev/matmul_kernel_0a4f4889.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "839402aed520c3915a809fd656d630bb76eac70bcba35d6d8b11cda317f0066b",
+      "sha256": "b3a52d7e7c217523de06f3e3f8e635f69ab78d92fcdb4d21498fa38bff0cb007",
+      "compile_ms": 3272.7,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "670b0d4983c1",
+      "operator": "suite/dev/matmul_kernel_0a4f4889.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "390e2d7908d7ad08245df1cb12667d8068eb0aad6b99d1af72f855cf2c2c9180",
+      "sha256": "218fbd90ad38feab13a60d2233f5255301081ddcc0647e5b90843787b585f41f",
+      "compile_ms": 5837.8,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "73e4d51d14bb",
+      "operator": "suite/dev/matmul_kernel_2d_nomask_tc_5d3cdcfe.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "be9c82d23266536ea0570033bc17103efc71c2a582bd4cd08065f589275b35cc",
+      "sha256": "8d6021be9b2f60cc8af85c266e4bf843b9ba6707db16f3d4f034f08dd7182521",
+      "compile_ms": 2091.6,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "f5f5a224d667",
+      "operator": "suite/dev/matmul_kernel_2d_nomask_tc_5d3cdcfe.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "fc0bb40bb5413050755ff172453b3ca64cf56ce7063dfa21f2415739c3274c3e",
+      "sha256": "c6a3705fef92172e7ea56aaa25d5f51f51d5deec6a3300fbdf3c87d583c2bde5",
+      "compile_ms": 4276.3,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "2fbcd80b6775",
+      "operator": "suite/dev/matmul_kernel_2d_nomask_tc_5d3cdcfe.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "1281b6e538c82972fdec9d7ff3d71763a2adfe2fd71e0f87c2c69c2ea567b561",
+      "sha256": "a73054b61501e1602761e4108935b1683254c357db1a79a6f71d2d477db7c5fb",
+      "compile_ms": 3256.8,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "e813e1b7f565",
+      "operator": "suite/dev/matmul_kernel_7e8de72a.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "39eb3bdd03d87c9d8a71ae97fa119e686e02fc132c3d960159dff344ef6d2985",
+      "sha256": "0e3f92734e7fffbc540c2c83b516aa07ecfc061124667fa5dff7a17d4a01743c",
+      "compile_ms": 3668.6,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "dca68c865a01",
+      "operator": "suite/dev/matmul_kernel_7e8de72a.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "9c42d39508c38bb3a2f51caff38132825201699ccb561e4624169c4e72f5752c",
+      "sha256": "1bbd678c387d4276da005156f77066ae40f0478452b5729459390c7b8dd7676a",
+      "compile_ms": 3659.1,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "1bd3678b661a",
+      "operator": "suite/dev/matmul_kernel_7e8de72a.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "568533dc7123b1e4c6daaa2ea71a45314f25180fc34c18595b61a51750923a62",
+      "sha256": "04bab338518564ee3502b13f7e03f434a28377adf0c145d39da88ee1b2ab7177",
+      "compile_ms": 5131.4,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "50029074df99",
+      "operator": "suite/dev/matmul_kernel_7e8de72a.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "880429517b704415840cad4313945d085f81328ece5065e066d4ef384be5b557",
+      "sha256": "468f3ec66dfaa7ff6a919cdb0a396c1ada38f61906a9b6f3ea7cfd5b58f4fecb",
+      "compile_ms": 3630.2,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "476d5a9346dd",
+      "operator": "suite/dev/matmul_kernel_7e8de72a.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "7fef8f6ac26964cd294096dc569d8dcae34e8e3927f866d20f67700687879022",
+      "sha256": "e6ae9fac5f380b02e14e182e41ef25063bcc9358c17027263937ae1a28963e07",
+      "compile_ms": 3656.3,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "79b02b125368",
+      "operator": "suite/dev/matmul_kernel_7e8de72a.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "eb94b40f0f150bc29ebdd41e38e3cdcafd21db0014501a9cf2263bcf5c2785fb",
+      "sha256": "5c117e888da2e5ef5b980355d0a6c5a1adf6abf5d9de9a8abd4a0ea70d3bd5d7",
+      "compile_ms": 5138.1,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "418d3d61bbc9",
+      "operator": "suite/dev/matmul_kernel_8d68babe.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "allocation",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_kernel_8d68babe.py:78:16"
+    },
+    {
+      "identity": "16b366e56e63",
+      "operator": "suite/dev/matmul_kernel_8d68babe.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "f335e88297e7791fc0d83ff4b35f955231bcea240ab844f3eca6a5290a74677e",
+      "sha256": "3057ff9f61b1aae183b0a544ff7db807e3c6803ee6d20925f5e90d3d968352c5",
+      "compile_ms": 5174.2,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "cec46761560f",
+      "operator": "suite/dev/matmul_kernel_8d68babe.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "8e92267f4b3cd5e527dd03500b34be563c04d7fbaa1720b144dcd72e3779045c",
+      "sha256": "a62669221bdf4903ce149e810c2517b3ecf4a09965eca6fa8112340bacecf6d7",
+      "compile_ms": 5388.7,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "9bb29781ae67",
+      "operator": "suite/dev/matmul_kernel_8d68babe.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "allocation",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_kernel_8d68babe.py:78:16"
+    },
+    {
+      "identity": "01778d523233",
+      "operator": "suite/dev/matmul_kernel_8d68babe.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "cf951345ec88c80053558db53ea330c9aaeaf441063c5896fa4e115407e14753",
+      "sha256": "de66645f51538ffe5cb9f107878f1646d8a4a9e0f20c3b26c0099284985a6ae5",
+      "compile_ms": 5139.6,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "95824705c595",
+      "operator": "suite/dev/matmul_kernel_8d68babe.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "39951e6e927e4baddaa190fc787179ebee360a4aee35aa4a650789a80fca1a81",
+      "sha256": "845b2a39a315f95f0ef8419400283dc07fe03221c3068f44968e8990a941d301",
+      "compile_ms": 5415.6,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "5ad32c2e6406",
+      "operator": "suite/dev/matrix_reduction.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "a4ddba2f6b29fa7ec83b104af8e72db06b08b39f919b7e9a491f75b2b324a916",
+      "sha256": "8d3d59f46823203d76c706ca9ac04072e1065675fcb63389382a54b11ec174ca",
+      "compile_ms": 59.1,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "c37879ac78cf",
+      "operator": "suite/dev/matrix_reduction.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "24649a59f56ee3fae94da2660619488cba4ec778c137a85100fb6b86179090a1",
+      "sha256": "cb041b891eabf22d9018635ce181fecdfc6fb675cb17f25eb9dd754ae8820389",
+      "compile_ms": 78.8,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "8524f55133b5",
+      "operator": "suite/dev/matrix_reduction.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "31b830b8b810a6a928b8c411d937d1dc6f961424264b531399e294914aa68d90",
+      "sha256": "1e2b5f863426b4d501be2c71a5de2b918eb15003e6d5034fe426faa688a41c9a",
+      "compile_ms": 81.0,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "f16a187cfcd7",
+      "operator": "suite/dev/matrix_reduction.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "d950cce201c81f0261320458de848b39543b9579b196d702d601bbf3c4cc9fcb",
+      "sha256": "d61790edb4c2382ab23bb3cce53c9923f4c6b5251dbedeea9fa61f0b3e8d0b30",
+      "compile_ms": 58.5,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "95bbf060aca3",
+      "operator": "suite/dev/matrix_reduction.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "8e2b948cd46adc5fb32b2132d7c2a54b5bfb803b51ce0dd9c37eabdfc754d437",
+      "sha256": "ede3ac8100ba3a47fd3ac8f2e154dccc0f23bd2bd3dce2b6dcaca51c2db956b9",
+      "compile_ms": 77.4,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "48b1479060c4",
+      "operator": "suite/dev/matrix_reduction.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "4290c53c5e5dd753ac7f5af168b6179db2352be608f2a7b7776b20962c052f76",
+      "sha256": "7d0dd64eb5b37ff730ec33f054054da58f40848c7cd249a3c573352f63a0e02a",
+      "compile_ms": 77.4,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "a6b4a39b881c",
+      "operator": "suite/dev/max_kernel.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "83548277387ca955dbff0b5a7f5bd0821bbf4877e87fa7cb7d0f1910d83881e8",
+      "sha256": "cb75bf387d89ca3e45774f62bc6baef29cbf1886873f9069f6450428adfe1221",
+      "compile_ms": 538.7,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "94ee3d4e7c72",
+      "operator": "suite/dev/max_kernel.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "1bb13f6b2f09ff8e9dd552f907de000b33ad1f6fa511ec20af44d9cf7cfb3ea3",
+      "sha256": "09c6308ac84e3b993995e04c0120c222f59896d4a61b2eec158abfcc31f7c57d",
+      "compile_ms": 720.3,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "1f8e451fb1a7",
+      "operator": "suite/dev/max_kernel.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "0337fc26903830bad5f3cca904d87e106088e2ac00f03d4560f9b50187e3c614",
+      "sha256": "e8cdbd794d5488725eb946ab9ec49474358087a811e1030fad5df6de0899b470",
+      "compile_ms": 748.9,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "f8a971759a69",
+      "operator": "suite/dev/median_f16_key_select_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "allocation",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/median_f16_key_select_kernel.py:22:1"
+    },
+    {
+      "identity": "fb08534a7327",
+      "operator": "suite/dev/median_f16_key_select_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "allocation",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/median_f16_key_select_kernel.py:22:1"
+    },
+    {
+      "identity": "613f94814e9c",
+      "operator": "suite/dev/median_f16_key_select_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "allocation",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/median_f16_key_select_kernel.py:22:1"
+    },
+    {
+      "identity": "11739eac9895",
+      "operator": "suite/dev/median_f16_key_select_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "allocation",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/median_f16_key_select_kernel.py:22:1"
+    },
+    {
+      "identity": "6dfa3b8d12c3",
+      "operator": "suite/dev/median_f16_key_select_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "allocation",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/median_f16_key_select_kernel.py:22:1"
+    },
+    {
+      "identity": "284e932320b7",
+      "operator": "suite/dev/median_f16_key_select_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "allocation",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/median_f16_key_select_kernel.py:22:1"
+    },
+    {
+      "identity": "237d674f9c47",
+      "operator": "suite/dev/naive_attn_decoding_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "a8c423bdf3a69f2bb7675ee6197164fae56f88561eac52e44fa64339bcd72b35",
+      "sha256": "d245b32c5f2d5e934158d61554bb613439c61c1a20edd3dc372e2d17c3e3b341",
+      "compile_ms": 2430.6,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "53d959f313a0",
+      "operator": "suite/dev/naive_attn_decoding_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "7538f6157a4163f31eb625f063c4a7b57b2e67eb11e496ef126be9d5e2be180a",
+      "sha256": "b6795b77381d81c434eef71519fecf2ca7ca2bd4fe11dca8d37327315201ae8f",
+      "compile_ms": 1841.4,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "2f2efd61eba1",
+      "operator": "suite/dev/naive_attn_decoding_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "25cfd678b6efcb86137c01283fb6e68cf9469d0973e1dd261a9da21c3764cb25",
+      "sha256": "fbe62e6784c17d4344842582c790d39d2c621af370fc6db5ae0f8e35c9da38db",
+      "compile_ms": 2808.1,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "d82222d31d59",
+      "operator": "suite/dev/naive_attn_decoding_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "a73e9f5d8e880da34380d1c36ca2fa0ab36e066f35f9dcc8c58834f8cebf8efe",
+      "sha256": "fbb02ca3c33d776c25f27d41b95e420c0dd8a23f6af7bc48d799c80dd2594de1",
+      "compile_ms": 2575.4,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "044c58c4aeff",
+      "operator": "suite/dev/naive_attn_decoding_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "e60b2d0ec645898f9a5ce185cfd42cb8009d021a84e9ee09119e34b902fe9998",
+      "sha256": "0dfccbb1fcce1dd30fef31e1d175c84b70f4cda30f44159feec6bebb868e7cb9",
+      "compile_ms": 1940.1,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "ee36ab4d2d73",
+      "operator": "suite/dev/naive_attn_decoding_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "1d5bb278b1624c8bf42f40791a10f08bb8387da7bc5136a15aaef9effbb0038a",
+      "sha256": "e73d860332ae841b84f06db5ee7cf85439c1ced1e1aa296a073a880497f2da90",
+      "compile_ms": 3035.1,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "792217d32b65",
+      "operator": "suite/dev/nanmedian_ascend_histogram_count_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "tl.histogram",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:49:14"
+    },
+    {
+      "identity": "34fe97932edf",
+      "operator": "suite/dev/nanmedian_ascend_histogram_count_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "tl.histogram",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:49:14"
+    },
+    {
+      "identity": "a82fda3f8ea8",
+      "operator": "suite/dev/nansum_kernel_2.py",
+      "cases": 2,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "merge",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nansum_kernel_2.py:22:1"
+    },
+    {
+      "identity": "7a7c8f90072c",
+      "operator": "suite/dev/nansum_kernel_2.py",
+      "cases": 2,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "merge",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nansum_kernel_2.py:22:1"
+    },
+    {
+      "identity": "1d0846f1fc9e",
+      "operator": "suite/dev/nansum_kernel_2.py",
+      "cases": 2,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "merge",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nansum_kernel_2.py:22:1"
+    },
+    {
+      "identity": "8da48f50e1a4",
+      "operator": "suite/dev/parallel_based_fwd_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "allocation",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/parallel_based_fwd_kernel.py:35:15"
+    },
+    {
+      "identity": "cc4d0d57bf78",
+      "operator": "suite/dev/parallel_based_fwd_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "allocation",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/parallel_based_fwd_kernel.py:27:5"
+    },
+    {
+      "identity": "73672c5d6dbb",
+      "operator": "suite/dev/parallel_based_fwd_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "allocation",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/parallel_based_fwd_kernel.py:27:5"
+    },
+    {
+      "identity": "cc96f6198bef",
+      "operator": "suite/dev/parallel_based_fwd_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "allocation",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/parallel_based_fwd_kernel.py:29:15"
+    },
+    {
+      "identity": "4f97a5e67935",
+      "operator": "suite/dev/parallel_based_fwd_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "allocation",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/parallel_based_fwd_kernel.py:51:310"
+    },
+    {
+      "identity": "27f59ea7e4c0",
+      "operator": "suite/dev/parallel_based_fwd_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "allocation",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/parallel_based_fwd_kernel.py:27:5"
+    },
+    {
+      "identity": "f8b30dbf1b8c",
+      "operator": "suite/dev/prepare_wy_repr_fwd_kernel_safe.py",
+      "cases": 2,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "mir-verifier",
+      "location": null
+    },
+    {
+      "identity": "63066d58b826",
+      "operator": "suite/dev/prepare_wy_repr_fwd_kernel_safe.py",
+      "cases": 2,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "allocation",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/prepare_wy_repr_fwd_kernel_safe.py:46:30"
+    },
+    {
+      "identity": "7d1939c41f11",
+      "operator": "suite/dev/prepare_wy_repr_fwd_kernel_safe.py",
+      "cases": 2,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "allocation",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/prepare_wy_repr_fwd_kernel_safe.py:46:30"
+    },
+    {
+      "identity": "9744dd17738b",
+      "operator": "suite/dev/qr.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "0c1bce8bb7366e43f87e762f44f441dd50f133287bf83639f7fb26deb68a5053",
+      "sha256": "56816ceca97b771b6c8b151defaa7d6b4ae80b5a4d9f7b3b89d1e2aa0f47d9ad",
+      "compile_ms": 1540.2,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "dd1921f7b79a",
+      "operator": "suite/dev/ranked_distribution_semantic.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "tl.sort",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/ranked_distribution_semantic.py:25:13"
+    },
+    {
+      "identity": "2d956f1ffc12",
+      "operator": "suite/dev/ranked_distribution_semantic.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "tl.sort",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/ranked_distribution_semantic.py:25:13"
+    },
+    {
+      "identity": "0cbe41c4b30f",
+      "operator": "suite/dev/ranked_distribution_semantic.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "tl.sort",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/ranked_distribution_semantic.py:25:13"
+    },
+    {
+      "identity": "cb3125fc52a6",
+      "operator": "suite/dev/ranked_distribution_semantic.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "tl.sort",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/ranked_distribution_semantic.py:25:13"
+    },
+    {
+      "identity": "1a79371539ab",
+      "operator": "suite/dev/ranked_distribution_semantic.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "tl.sort",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/ranked_distribution_semantic.py:25:13"
+    },
+    {
+      "identity": "db3310b7b5fa",
+      "operator": "suite/dev/ranked_distribution_semantic.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "tl.sort",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/ranked_distribution_semantic.py:25:13"
+    },
+    {
+      "identity": "302fb1db7122",
+      "operator": "suite/dev/renorm_projection_update_s_kernel.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "d972223dcb7463d2f2028d2d3c1e5b9c37cce354715a478ee9cb880a50350529",
+      "sha256": "57de10ad099774ad93a2d284497c911693fdbbbee466c26d99855768bc445b84",
+      "compile_ms": 101.7,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "5940813e23c1",
+      "operator": "suite/dev/renorm_projection_update_s_kernel.py",
+      "cases": 2,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "convert",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/renorm_projection_update_s_kernel.py:22:43"
+    },
+    {
+      "identity": "1147be97dbd0",
+      "operator": "suite/dev/renorm_projection_update_s_kernel.py",
+      "cases": 2,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "convert",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/renorm_projection_update_s_kernel.py:22:43"
+    },
+    {
+      "identity": "df99818f0907",
+      "operator": "suite/dev/rms_matmul_rbe.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "971387ea0c35d3badf4e9cb92e5c9d0f0e8cd28edb0e34ea24ef01791d56a586",
+      "sha256": "f3b7c1ca4dc429204880f112306ba780ec6978eafd1415d579d5830d6c477a58",
+      "compile_ms": 1983.7,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "6081f6d13179",
+      "operator": "suite/dev/rms_matmul_rbe.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "f080e730d4b250cdff0fa626b5bb2c58823c1bdf61465ab5f1f46b018115072b",
+      "sha256": "23445ece06ebdca057c0bb23a5bedd0e6a1ff79fd0af4fa87e8a8575f63cdb8a",
+      "compile_ms": 4714.1,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "3fcbf7d2eb99",
+      "operator": "suite/dev/rms_matmul_rbe.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "e57019892c58060e6892c6b40e9f64e72d23eadcc2b7d01cac42f4d49412ed25",
+      "sha256": "315dca2ee207a1b6cb25cdf5d4bfb9cad6805389c8312834eebb5bdf0048d340",
+      "compile_ms": 3804.6,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "11329219654e",
+      "operator": "suite/dev/sgn_real_kernel.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "5b47332dbaebd760c8a21966515f2fdbaac5e730e32a4638ba2887cd944f1a79",
+      "sha256": "83dbe157d2b17cd7abb80721f928c66ae2a8b95c535424abe95f2b1ae5aff331",
+      "compile_ms": 62.8,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "05003189c5d2",
+      "operator": "suite/dev/sgn_real_kernel.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "d70ec73778b93dd3f11f50d3f24db8afba09889ed73736b24dc252216931bf0a",
+      "sha256": "ef2194f38ef52371f7b829c5504bf3b07beedc55a49c5256438d2d0de73dcd5f",
+      "compile_ms": 66.9,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "1652dfc5839b",
+      "operator": "suite/dev/sgn_real_kernel.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "1073881c90ef79484adba3e88a3bbd45721259a7489347ff03d4a863181dbb70",
+      "sha256": "2604275e40e55dc06493b38a1e3db923d4b3ca43c7a52d3b79b807a2286efa91",
+      "compile_ms": 82.2,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "6af523b8c32f",
+      "operator": "suite/dev/softsign_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "9123346437003c11ba295fceb2a604a04299a57ff1465f0939278a928cebc2ea",
+      "sha256": "f7ac944ed7773e8fda3aae8514b5eaf4995894fc8f5022fd58def520a15f899f",
+      "compile_ms": 55.2,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "2d2f2640dd01",
+      "operator": "suite/dev/softsign_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "24061254df879e4879d0918c77da48344f1b29d2ae54811e165fa511030efcaa",
+      "sha256": "9c06109c729a24d882557f7090af2d2a20f0a5947f5311e4373d1095106d4914",
+      "compile_ms": 59.9,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "f16a20af11cb",
+      "operator": "suite/dev/softsign_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "db8555fa82f7f191da980041220f2c5e6e90028a70061e2e984557fe5559c85d",
+      "sha256": "fd33e2673bb6dd09101c869932f8ea7e7eb69a49d279c7d0939c38478ebc0b57",
+      "compile_ms": 70.8,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "4e743d234d64",
+      "operator": "suite/dev/softsign_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "1d95b190efa0d0bf6946514c67686253c8f3acfdbc430d23ab2aeb289c7f65ed",
+      "sha256": "999de9f6de29be735294908039466df450e57c8d341290831c93f0653782f1c1",
+      "compile_ms": 59.2,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "1f40fcdbccc2",
+      "operator": "suite/dev/softsign_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "3b049eb47baebe2c4352a79466412524e3a19987ea2a8bef497b448b0cd30c18",
+      "sha256": "1c9fd10fb47f40db408a2c89235cc54321f30b64d2908e13352a5a0d6240d672",
+      "compile_ms": 59.7,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "16f39d82fa9d",
+      "operator": "suite/dev/softsign_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "864a5940afa91538c0a8326c23116b45a3938e78caec45b91e3ec31f7c9915c5",
+      "sha256": "db712a2ecc9c2b00c901907fa9f1fc3e5f3530ea49883c9a0487400e977650ad",
+      "compile_ms": 70.5,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "ec5ccd8b3d36",
+      "operator": "suite/dev/topk_stage1_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "7cd20e61e6456e183b9ab9dee845e84224f0c0de7357ff6616fabdc425f7612f",
+      "sha256": "d7d992c91f24b3bfa182259df8cdeb29b0ce1e754c2cff13a772d66f8737015f",
+      "compile_ms": 375.8,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "a48068852b01",
+      "operator": "suite/dev/topk_stage1_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "ebba849fa3ab9d48e503628a3c2dccffe3131511ce2a10d3762eb3b3f878c13e",
+      "sha256": "41b4f443cf55e906cade058ed2765d58e3252f916e201b708a6214330bcc9812",
+      "compile_ms": 392.3,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "c709daa4639c",
+      "operator": "suite/dev/topk_stage1_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "74178809ab6d2a1745be936c9451a2faf319b2c07c6e10d242b10b2d6012b098",
+      "sha256": "72b5e00f7589d255defdb70a9b96176b0ab8a97330851af84a226f4d57716307",
+      "compile_ms": 443.8,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "3519e16d8b04",
+      "operator": "suite/dev/topk_stage1_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "8898023627a6deedf34ff267be1180f8a482ae585b6a7536d5c97ba16f732da2",
+      "sha256": "24fdcedfebd40e9748f5becf0f730e733c46b618f8e619ad0efb2eaf50e1ea5e",
+      "compile_ms": 367.8,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "3819c95cb39f",
+      "operator": "suite/dev/topk_stage1_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "cfceaca302c097890d31efe642ef4f7252fd08b4f6fb15a8ea184782be7d7249",
+      "sha256": "c6f3e999d65254f287bc432d9c6e75d86034868dc63fba3af9d95baf3f1eb965",
+      "compile_ms": 418.0,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "cb72515712a6",
+      "operator": "suite/dev/topk_stage1_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "cba62e9da8390ec2f5e14a29d75fa78714697c3747d849098cb8e519ab7b1b51",
+      "sha256": "1d84d8e15a2f709bb30389c4de0029488aa4ea3c025d7a1687ff10c0ea204b31",
+      "compile_ms": 409.0,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "77842cc1a08a",
+      "operator": "suite/dev/transposed_conv3d.py",
+      "cases": 3,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "allocation",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/transposed_conv3d.py:22:1"
+    },
+    {
+      "identity": "0dd28ef6ac63",
+      "operator": "suite/dev/transposed_conv3d.py",
+      "cases": 3,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "allocation",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/transposed_conv3d.py:22:1"
+    },
+    {
+      "identity": "e100f5d7fd0e",
+      "operator": "suite/dev/transposed_conv3d.py",
+      "cases": 3,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "allocation",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/transposed_conv3d.py:22:1"
+    },
+    {
+      "identity": "4bf5c288c32b",
+      "operator": "suite/dev/unique_dim_row_single_chunk_first_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "b66c1abe5196897dfa2d2d3f9c181a649ae72684886e8974230322cf8d2dbeb0",
+      "sha256": "66f0703b9529f814ad519be1c117f0d532ef0a97338735fd982631fbbf7601dc",
+      "compile_ms": 83.5,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "ddba23b9514b",
+      "operator": "suite/dev/unique_dim_row_single_chunk_first_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "972c1564b47e04228395c83b26e42b5602cdcdbd3ffb38e1dfc2e9e28ffb5b03",
+      "sha256": "f28520041bf7804485c5f97b4dd7d97472ebb05c469870248f23f108eebbbc6e",
+      "compile_ms": 79.8,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "6b2dfd9b4393",
+      "operator": "suite/perf/chunk_retention.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "allocation",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/chunk_retention.py:36:5"
+    },
+    {
+      "identity": "43b3abdf4c53",
+      "operator": "suite/perf/chunk_retention.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "allocation",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/chunk_retention.py:36:5"
+    },
+    {
+      "identity": "cc3c8f08cfa4",
+      "operator": "suite/perf/chunk_retention.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "allocation",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/chunk_retention.py:36:5"
+    },
+    {
+      "identity": "fa92b7c8e031",
+      "operator": "suite/perf/chunk_retention.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "allocation",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/chunk_retention.py:36:5"
+    },
+    {
+      "identity": "f153419a6beb",
+      "operator": "suite/perf/chunk_retention.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "allocation",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/chunk_retention.py:36:5"
+    },
+    {
+      "identity": "2073b5d76383",
+      "operator": "suite/perf/chunk_retention.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "allocation",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/chunk_retention.py:36:5"
+    },
+    {
+      "identity": "ed4a43c90e5e",
+      "operator": "suite/perf/chunk_retention.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "d0a07c976a36fadae38a323dcf5ac512265f69c3b3933242d138fc6ebbe758e9",
+      "sha256": "b83a6ecac62b539e97dd8bd9f291c477b25c89e31fd1e82f485b79313648add9",
+      "compile_ms": 2035.2,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "a660dd47f0a7",
+      "operator": "suite/perf/chunk_retention.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "259cb0c90e817a9c71b75f3edcb7238749abd4dbf9c14f010af6e63639892d6b",
+      "sha256": "dd4171b43a2bf21726f0d91371aa733ae4afeedb6beec00360a41919d77a5e5b",
+      "compile_ms": 1476.5,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "19bda88bbf10",
+      "operator": "suite/perf/chunk_retention.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "506ef97fa0f8a68ea0cfab665dbbd54e6aa9502c16f442726fc29db57d4b2f13",
+      "sha256": "be0a51944399bff75ac60b603802dd9d78566d34ccd796d9cf220d23504b359a",
+      "compile_ms": 1708.2,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "d989c50c7b67",
+      "operator": "suite/perf/chunk_retention_ops.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "allocation",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/chunk_retention_ops.py:36:5"
+    },
+    {
+      "identity": "ec503435f1df",
+      "operator": "suite/perf/chunk_retention_ops.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "allocation",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/chunk_retention_ops.py:36:5"
+    },
+    {
+      "identity": "ad291efd42e7",
+      "operator": "suite/perf/chunk_retention_ops.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "allocation",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/chunk_retention_ops.py:36:5"
+    },
+    {
+      "identity": "abb15ac00d27",
+      "operator": "suite/perf/chunk_retention_ops.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "allocation",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/chunk_retention_ops.py:36:5"
+    },
+    {
+      "identity": "81b882d6c02b",
+      "operator": "suite/perf/chunk_retention_ops.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "allocation",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/chunk_retention_ops.py:36:5"
+    },
+    {
+      "identity": "5c4f5d1111d0",
+      "operator": "suite/perf/chunk_retention_ops.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "allocation",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/chunk_retention_ops.py:36:5"
+    },
+    {
+      "identity": "1b804441d531",
+      "operator": "suite/perf/chunk_retention_ops.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "b888d1ccf07841c36f6df0d6a91555807a3d01b3cdd9871915f12c230696dca9",
+      "sha256": "abd0b900baa350231decb22c027a1a3d6f4ad699b78275c59ce02b7a51bf229f",
+      "compile_ms": 2077.0,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "936db08abe55",
+      "operator": "suite/perf/chunk_retention_ops.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "95880c40e74baa2013f06e996ffaa4a0e1e5d3a6a07d456f5183716a6a5a4465",
+      "sha256": "6a73858df14b4fbd3766ade5deb70566acab7063a8745e1e7a52836e7b0700eb",
+      "compile_ms": 1460.3,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "bf2949b37a0d",
+      "operator": "suite/perf/chunk_retention_ops.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "caed4a8f75c1a9a53abd2f56ad4503726932f3ca40e4f84cb72d39a886834411",
+      "sha256": "105b1af3323a2a3a5949affdb666ed6d2ed0b9dd8c7c38740aa587bc0719f1b0",
+      "compile_ms": 1717.2,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "1f882c98fce0",
+      "operator": "suite/perf/fused_recurrent_retention.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "allocation",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/fused_recurrent_retention.py:36:5"
+    },
+    {
+      "identity": "f6bd8e469627",
+      "operator": "suite/perf/fused_recurrent_retention.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "allocation",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/fused_recurrent_retention.py:36:5"
+    },
+    {
+      "identity": "d0b9beb210b0",
+      "operator": "suite/perf/fused_recurrent_retention.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "allocation",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/fused_recurrent_retention.py:36:5"
+    },
+    {
+      "identity": "728d4e1b569d",
+      "operator": "suite/perf/fused_recurrent_retention.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "allocation",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/fused_recurrent_retention.py:36:5"
+    },
+    {
+      "identity": "9de2f32e586c",
+      "operator": "suite/perf/fused_recurrent_retention.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "allocation",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/fused_recurrent_retention.py:36:5"
+    },
+    {
+      "identity": "97e76773a66c",
+      "operator": "suite/perf/fused_recurrent_retention.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "allocation",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/fused_recurrent_retention.py:36:5"
+    },
+    {
+      "identity": "3949c94cd2f1",
+      "operator": "suite/perf/fused_recurrent_retention.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "745a80ebe966ec4409bea1219dda6a3363ddc8f94f027187288c4d6379f96a13",
+      "sha256": "b8a42ae6b72fbd491a01a1008259e79caf83a62e285d83306df4d7d315f7947a",
+      "compile_ms": 2051.3,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "7defe17bbef9",
+      "operator": "suite/perf/fused_recurrent_retention.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "9a870c59d101aa3e8f880efce34d38d53c8f0b67c97e3efa4a986d9f87c4d9b5",
+      "sha256": "01fdb1df67ae48720739d9caf3a3034c4ca0154ac824e2e49ca8878347d0ad51",
+      "compile_ms": 1480.9,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "60804961d65f",
+      "operator": "suite/perf/fused_recurrent_retention.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "5caed02868e7690444a6d0633b71291ef3c68ee018d4cfde5551d024f1ffab5a",
+      "sha256": "56c47a4f169023aa5178c5a7b5552d05bc67c11c21d80ddf4bce7ad701c329af",
+      "compile_ms": 1714.1,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "243a23d20503",
+      "operator": "suite/perf/parallel_retention_attention.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "allocation",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/parallel_retention_attention.py:36:5"
+    },
+    {
+      "identity": "b4a11bf64cb3",
+      "operator": "suite/perf/parallel_retention_attention.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "allocation",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/parallel_retention_attention.py:36:5"
+    },
+    {
+      "identity": "e0d1c8303a0e",
+      "operator": "suite/perf/parallel_retention_attention.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "allocation",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/parallel_retention_attention.py:36:5"
+    },
+    {
+      "identity": "2999c4efa92a",
+      "operator": "suite/perf/parallel_retention_attention.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "allocation",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/parallel_retention_attention.py:36:5"
+    },
+    {
+      "identity": "6d1a2bfc1ab8",
+      "operator": "suite/perf/parallel_retention_attention.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "allocation",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/parallel_retention_attention.py:36:5"
+    },
+    {
+      "identity": "83cd93212957",
+      "operator": "suite/perf/parallel_retention_attention.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "allocation",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/parallel_retention_attention.py:36:5"
+    },
+    {
+      "identity": "7ad9564f3b88",
+      "operator": "suite/perf/parallel_retention_attention.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "699c7f467b2f07e1ddffaf0a9e43574d1f99863a49e2bc938c6a22f9caa7ef48",
+      "sha256": "b944628ea4c2bbaf00539246d96a7eb2c6d569cdbf8da48e2aeae91a11ff1f73",
+      "compile_ms": 2081.8,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "ae1b9dea8b57",
+      "operator": "suite/perf/parallel_retention_attention.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "be6d104de7265c5379e0a31acd5306b1477d155d627326cf0ac5526371d97118",
+      "sha256": "9c788057985f2135c0b999a27d927b8e1b56ce64e74f67661328d6fa55542e37",
+      "compile_ms": 1464.8,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "4afea38b34d6",
+      "operator": "suite/perf/parallel_retention_attention.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "b5a0e6058aede1c74fa34934e279c08be3b1e9e0aba3a4585f7c15f9aa740958",
+      "sha256": "093cc0a559661fb4522214748c5e60f8d4a44231d3aa0ce3d80196af97a93582",
+      "compile_ms": 1726.7,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    }
+  ],
+  "expected_operators": [
+    "suite/dev/adaptive_avg_pool2d_kernel.py",
+    "suite/dev/argmin_kernel_opt_k1.py",
+    "suite/dev/chunk_gated_delta_product_fwd_kernel_h_blockdim64.py",
+    "suite/dev/chunk_generalized_iplr_delta_rule_fwd_kernel_o.py",
+    "suite/dev/chunk_transform_qk_fwd_kernel.py",
+    "suite/dev/conv1x1_pool_fc_kernel.py",
+    "suite/dev/cumprod_dim1_grouped_mixed_kernel.py",
+    "suite/dev/cumprod_dim1_kernel.py",
+    "suite/dev/deconv3d_leaky_pool.py",
+    "suite/dev/forward_pass_chunks.py",
+    "suite/dev/fused_exponential_kernel_f32_unroll8.py",
+    "suite/dev/fused_pool_reduce_kernel.py",
+    "suite/dev/fused_recurrent_fwd_kernel.py",
+    "suite/dev/implicit_conv2d.py",
+    "suite/dev/l1_norm_fused_kernel_2cb0f555.py",
+    "suite/dev/l1_norm_fused_kernel_7f6ce49c.py",
+    "suite/dev/linear_dropout_softmax_kernel.py",
+    "suite/dev/matmul_abt_kernel.py",
+    "suite/dev/matmul_at_b_kernel_043f2a05.py",
+    "suite/dev/matmul_at_b_kernel_db_551a9cda.py",
+    "suite/dev/matmul_k32_splitn2_kernel_af4f712c.py",
+    "suite/dev/matmul_k32_splitn4_paired_kernel_6f1c91c8.py",
+    "suite/dev/matmul_kernel.py",
+    "suite/dev/matmul_kernel_0a4f4889.py",
+    "suite/dev/matmul_kernel_2d_nomask_tc_5d3cdcfe.py",
+    "suite/dev/matmul_kernel_7e8de72a.py",
+    "suite/dev/matmul_kernel_8d68babe.py",
+    "suite/dev/matrix_reduction.py",
+    "suite/dev/max_kernel.py",
+    "suite/dev/median_f16_key_select_kernel.py",
+    "suite/dev/naive_attn_decoding_kernel.py",
+    "suite/dev/nanmedian_ascend_histogram_count_kernel.py",
+    "suite/dev/nansum_kernel_2.py",
+    "suite/dev/parallel_based_fwd_kernel.py",
+    "suite/dev/prepare_wy_repr_fwd_kernel_safe.py",
+    "suite/dev/qr.py",
+    "suite/dev/ranked_distribution_semantic.py",
+    "suite/dev/renorm_projection_update_s_kernel.py",
+    "suite/dev/rms_matmul_rbe.py",
+    "suite/dev/sgn_real_kernel.py",
+    "suite/dev/softsign_kernel.py",
+    "suite/dev/topk_stage1_kernel.py",
+    "suite/dev/transposed_conv3d.py",
+    "suite/dev/unique_dim_row_single_chunk_first_kernel.py",
+    "suite/perf/chunk_retention.py",
+    "suite/perf/chunk_retention_ops.py",
+    "suite/perf/fused_recurrent_retention.py",
+    "suite/perf/parallel_retention_attention.py"
+  ]
+}
