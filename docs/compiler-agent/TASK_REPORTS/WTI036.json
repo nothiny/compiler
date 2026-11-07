@@ -1,0 +1,127 @@
+{
+  "invocation_id": "WTI036",
+  "task_id": "T035",
+  "attempt": 2,
+  "context_sha256": "4f4faba299e967f3ad835461f6dc84d73ee67119febd2a62c3e8f23c23e6d40b",
+  "outcome": "FAILED",
+  "failure_kind": "implementation",
+  "summary": "Round-3 long-tail repair: 69 of the 86 refusing identities repaired through shared paths, each executed-and-compared at 1 and 4 workers; 7 classes (17 identities) remain located refusals inside the declared surface. (1) allocation 66->0 (21 operators): the allocator's victim selection now targets the failing point's SIMULTANEOUSLY LIVE set preferring the MOST-USED candidate (a long range's dissolution relieves every failing point it crosses; the old failed-first policy burned all 64 rounds rematerializing single-use constants while ~20 long-lived descriptor/stride/pointer values carried 26-31 live values everywhere), rematerialized originals are pruned once dead (a dead def still demanded a register -- phantom pressure), vector-spill legality matches the emitter's actual contract (every CONSTANT-avl region restores via vsetivli, not only avl==vlmax -- forward_pass_chunks' partial-vl tails), and vsetvli AVL operands are never split (a reload as AVL would de-constantize the region a spill must restore). (2) convert 2->0: fp16/bf16<->fp64 routes (a subnormal Python float literal types fp64 under the pinned to_tensor rule and promotes tl.maximum's chain; the 16-bit data rides exact 16->32->64 widening and doubly-RTNE narrowing back). (3) mir-verifier 1->0: the bool->fp16 select opens the destination's own region (the unbracketed vsel ran v16m1 values in the pass's e32 region). Three latent EXECUTION defects the first executions exposed, all fixed and executed-and-compared: the fp64 rsqrt's dividend splat passed the raw bit pattern 0x3ff0000000000000 to _splat_const which encodes float VALUES (renorm's whole chain multiplied by ~4.6e18, every dtype); a SCALAR pointer carry whose back edge is p+=s was classified plain-scalar before the recurrence check, so its body-end ptradd bound to the param and the back edge passed it unchanged -- the loop read the FIRST iteration's address forever (forward_pass_chunks); and WTI035's open naive_attn QEMU SIGILL was the allocator placing an indexed load's destination inside its index's IMPLIED EMUL group (an EEW=64 index beside an e32m1 access reads a two-register group; probed on the pinned QEMU: any data register inside the group, load or store, masked or not, is an illegal instruction) -- the allocator now reserves the implied width, aligned, and the data side avoids the group. Filtered sweep over the 48 owned operators at rev b0907986d16aba19: 233 identities, 216 artifacts (baseline 147), 17 located refusals, 0 crashes, all sweep checks PASS. Remaining classes: tl.sort 6, tl.cumsum/cumprod 3, merge 3, tl.histogram 2, tl.dot 1, layout 1, ptradd 1 -- all constructs INSIDE the declared surface (their FRONTEND_COVERAGE rows are 'implemented' for other forms), so they are honest not-yet-implemented refusals, not declared-unsupported classifications; acceptance[0] is therefore not met. naive_attn now executes PASS at 1 worker (all dtypes) but still diverges at 4 workers (a separate pre-existing multi-worker partition defect in its varlen-gather path, same artifact at both thread counts).",
+  "files_changed": [
+    "a100c/backend/allocate.py",
+    "a100c/lower/vectorize.py",
+    "a100c/tests/test_t036_repairs.py",
+    "a100c/tests/test_t035_repairs.py",
+    "docs/compiler-agent/COMPILE_CENSUS.t036-owned-classes.json"
+  ],
+  "artifacts": [
+    "docs/compiler-agent/COMPILE_CENSUS.t036-owned-classes.json",
+    "a100c/tests/test_t036_repairs.py",
+    "a100c/tests/test_t035_repairs.py",
+    "a100c/tests/test_allocate.py"
+  ],
+  "commands": [
+    {
+      "command": "set -a; . ./.env; set +a; timeout 5400 python3 a100c/tests/test_compile_sweep.py --cache-root /tmp/a100-t036-sweep --census-out docs/compiler-agent/COMPILE_CENSUS.t036-owned-classes.json --operator <48 owned operators>",
+      "exit_code": 0,
+      "observed": "all compile-sweep checks PASS; census: 48 operators, 287 cases, 233 identities; partition: 216 artifacts + 17 refused = 233 (0 over-budget, 0 crash, 0 build failures); refusals by construct: tl.sort 6, tl.cumsum/cumprod 3, merge 3, tl.histogram 2, tl.dot 1, layout 1, ptradd 1; 49 repeat-case checks all reused one artifact; compile count 233 <= 2701 bound"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; for f in a100c/tests/test_*.py (excluding test_compile_sweep.py): timeout 2400 python3 $f",
+      "exit_code": 0,
+      "observed": "40 of 40 files PASS (test_allocate, test_atomics, test_build, test_compile_regressions, test_control_flow, test_conversions, test_driver_cache, test_e2e_slice, test_emit, test_frontend_shapes, test_frontend_surface, test_frontend_types, test_grid_model, test_ime_evidence, test_layout_ops, test_legalize, test_lower_matrix, test_lower_scalar, test_lower_vector, test_math_ops, test_matrix_breadth, test_memory_forms, test_mir_verifier, test_partition, test_passes_basic, test_reductions, test_rng, test_runtime_smoke, test_scalar_binding, test_select, test_specialize, test_stage_plan, test_t029/t031/t032/t033/t034/t035/t036_repairs, test_tir_verifier)"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; timeout 2400 python3 a100c/tests/test_t036_repairs.py",
+      "exit_code": 0,
+      "observed": "all T036 repair checks PASS: allocator-live-set-policy-converges (5 splits, verifies), remat-prunes-dead-originals (0 dead sconsts, 17 products), t036-classes-execute-1-4 (10 operators x 1 and 4 workers executed and compared PASS on the harness golden case form), naive-attn-implied-group-sigill-fixed-1w (f16/f32/bf16), remaining-classes-located-refusals (7 constructs pinned)"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; python3 a100c/tests/test_compile_sweep.py --operator suite/dev/adaptive_avg_pool2d_kernel.py (single-identity reproduction, pre-fix)",
+      "exit_code": 1,
+      "observed": "REFUSED allocation: allocation did not converge for 'operator_entry' after 65 spill rounds ... the pressure source is value 'k402' (i32) ... 26 values simultaneously live against 25 allocatable GPRs (round-traced: 60+ rounds spent rematerializing one single-use k-const after another while the 26-live set stayed constant; post-fix the same identity compiles in 1.9s with 15 rounds splitting the long-lived values)"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; cross-assembled probe under the pinned QEMU (timeout 60 $A100_QEMU -L $A100_SYSROOT -cpu max,vlen=1024,elen=64,vext_spec=v1.0): vsetvli e32m1 vl=16; vid.v v4; <index at e64>; vluxei64.v v5,(t2),v4,v0.t",
+      "exit_code": 132,
+      "observed": "SIGILL (illegal instruction) when the data register sits inside the index's implied EMUL group (v4:v5); exit 0 with vd=v6 outside the group, with EEW==SEW (e64 region), and for vluxei32; the same SIGILL for vsuxei64 with data inside the group, masked and unmasked -- the probe that located naive_attn's crash and motivated the implied-group reservation in the allocator"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; timeout 900 python3 <exec_diff harness-case runner> suite/dev/forward_pass_chunks.py [2, 17, 3, 13] float32 1",
+      "exit_code": 0,
+      "observed": "pre-recurrence-fix: ac 155/234 mismatched starting at chunk 1 (exp(sa_chunk0) used for every chunk -- the scalar sa_ptr carry never advanced on the back edge); post-fix: ac 0/234 mismatched at 1 and 4 workers"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; timeout 600 python3 <exec_diff harness-case runner> suite/dev/renorm_projection_update_s_kernel.py [17] float32 1",
+      "exit_code": 0,
+      "observed": "pre-rsqrt-fix: Q 72/96 mismatched with ~1e18-scale values (the fp64 rsqrt dividend splat encoded the bit pattern 0x3ff0000000000000 as the float 2.3e18); post-fix: Q 0/96 and S 0/12 mismatched for float32, float16 and bfloat16"
+    }
+  ],
+  "acceptance": [
+    {
+      "ref": "acceptance[0]",
+      "command": "set -a; . ./.env; set +a; timeout 5400 python3 a100c/tests/test_compile_sweep.py --cache-root /tmp/a100-t036-sweep --census-out docs/compiler-agent/COMPILE_CENSUS.t036-owned-classes.json --operator <48 owned operators>",
+      "exit_code": 0,
+      "observed": "PARTIAL: allocation 0 (was 66), convert 0 (2), mir-verifier 0 (1) -- the three classes this round repaired are at zero and their operators produce artifacts; tl.rand/tl.max/region/arith.add/tir-verifier stayed at 0 from the earlier rounds. NOT at zero: tl.sort 6, tl.cumsum/cumprod 3, merge 3, tl.histogram 2, tl.dot 1, layout 1, ptradd 1 (17 identities, every one a located refusal naming its construct and source position, 0 crashes). These constructs are inside the declared surface (FRONTEND_COVERAGE rows 'implemented' for their tested forms: sort/histogram/scan execute in test_reductions; the refusals are the multi-shape block-materialization lane, the multi-axis scan order, the region-join partial threading, the fp64 dot and the narrow-native-lane indexed read), so they cannot honestly be classified declared-unsupported; they remain implementation work."
+    },
+    {
+      "ref": "acceptance[1]",
+      "command": "set -a; . ./.env; set +a; timeout 2400 python3 a100c/tests/test_t036_repairs.py",
+      "exit_code": 0,
+      "observed": "PASS for the repaired classes: adaptive_avg_pool2d f32, forward_pass_chunks f32, matmul_kernel_8d68babe f32, chunk_retention f32, median_f16_key_select f16, parallel_based_fwd f32, prepare_wy_repr_fwd_kernel_safe f32, renorm_projection_update_s f16+bf16, chunk_transform_qk f16 -- each executed and compared PASS at 1 AND 4 workers on the harness golden case form (the case's own comparison policy, equal_nan honored). naive_attn_decoding executes and compares PASS at 1 worker for f16/f32/bf16 but still FAILS at 4 workers (46/208 mismatched from element 33; the artifact is shared between thread counts, so the defect is the multi-worker partition of its varlen-gather path -- open, see debug_request)."
+    },
+    {
+      "ref": "acceptance[2]",
+      "command": "set -a; . ./.env; set +a; for f in a100c/tests/test_*.py (excluding test_compile_sweep.py): timeout 2400 python3 $f",
+      "exit_code": 0,
+      "observed": "PASS: 40 of 40 pre-existing and new test files pass at the final revision, including test_t035_repairs.py (its median boundary check was advanced from 'refuses at allocation' to 'allocates and executes', a strengthening that the allocator repair forced, and its comparison helpers now honor the case's declared equal_nan flag under array_equal -- median's exact fp16 output legitimately expects NaN)."
+    }
+  ],
+  "tests": [
+    {
+      "ref": "tests[0]",
+      "command": "set -a; . ./.env; set +a; timeout 5400 python3 a100c/tests/test_compile_sweep.py --cache-root /tmp/a100-t036-sweep --census-out docs/compiler-agent/COMPILE_CENSUS.t036-owned-classes.json --operator suite/dev/adaptive_avg_pool2d_kernel.py --operator suite/dev/argmin_kernel_opt_k1.py ... (all 48 owned operators)",
+      "exit_code": 0,
+      "observed": "all compile-sweep checks PASS (census-covers-every-case, census-covers-all-operators, partition-sums-to-identity-census, artifacts-are-riscv64-elf, compile-count-within-economics, repeat-cases-reuse-one-artifact, refusals-located-and-countable, compile-budget-respected, enabled-pipeline-passes-on); 216 artifacts + 17 located refusals = 233 identities, 0 crashes; classes at zero: allocation, convert, mir-verifier (this round) and tl.rand, tl.max, region, arith.add, tir-verifier (earlier rounds); not at zero: tl.sort 6, tl.cumsum/cumprod 3, merge 3, tl.histogram 2, tl.dot 1, layout 1, ptradd 1"
+    },
+    {
+      "ref": "tests[1]",
+      "command": "set -a; . ./.env; set +a; for f in a100c/tests/test_*.py (excluding test_compile_sweep.py): timeout 2400 python3 $f",
+      "exit_code": 0,
+      "observed": "the full a100c test suite: 40 passed, 0 failed"
+    }
+  ],
+  "evidence": "docs/compiler-agent/COMPILE_CENSUS.t036-owned-classes.json (the filtered sweep at compiler revision b0907986d16aba19: 233 identities over the 48 owned operators, 216 artifacts vs 147 at the WTI035 baseline, 17 located refusals vs 86, 0 crashes, all nine sweep checks PASS) plus a100c/tests/test_t036_repairs.py (exit 0: the allocator convergence and remat-pruning units with MIR verification, ten repaired operators executed and compared at 1 and 4 workers under each case's own policy, naive_attn at 1 worker for all three dtypes, and the seven remaining classes pinned to their located refusals) and the 40/40 full-suite run",
+  "design_issue": {},
+  "debug_request": {
+    "reproduction": "set -a; . ./.env; set +a; timeout 900 python3 a100c/tests/test_t036_repairs.py::check_naive_attn_single_worker-adjacent form: compile suite/dev/naive_attn_decoding_kernel.py [2,17,4,8,16,13] float16 (one artifact) and execute with --threads 4 through a100_support/native_device.py",
+    "exit_code": 1,
+    "observed": "naive_attn f16 at 4 workers: o 46/208 mismatched, first bad flat index 33, span 33..203 (zeros and wrong values from row 2 on); the SAME artifact compares PASS (0/208) at 1 worker for f16/f32/bf16, so the emitted program is correct on the single-worker partition and the 4-worker partition of this varlen-gather kernel diverges (per-worker g_cumsum/gather addressing or the items split)",
+    "ruled_out": [
+      {
+        "hypothesis": "the artifact's indexed-access register allocation is still illegal (the implied-EMUL-group class)",
+        "command": "the 1-worker execution of the identical artifact: 0/208 mismatched, exit 0",
+        "observed": "the same binary passes at 1 worker -- an illegal-instruction or allocation defect would fail at every thread count"
+      },
+      {
+        "hypothesis": "the merge-frame passthrough WTI035 reverted (the merged value bound to the identity)",
+        "command": "the 1-worker execution: 0/208; the 4-worker mismatch is a mid-output divergence, not the all-zero signature of the unbound merge",
+        "observed": "rows 0-1 are correct at 4 workers and the wrong values are plausible attention outputs (not identity/default values), consistent with a partition/addressing divergence rather than an unbound accumulator"
+      }
+    ],
+    "suspected_stage": "the worker partition / varlen-gather addressing under multiple workers (plan/partition or the per-worker g_cumsum load path in a100c/lower/vectorize.py), not the register allocator"
+  },
+  "attack": {
+    "cases": []
+  },
+  "remaining_work": [
+    "tl.sort 6 (ranked_distribution_semantic) + tl.histogram 2 (nanmedian_ascend_histogram_count): the whole-block reorder and the [num_bins]-shaped result need the layout lane's block-materialization protocol (multi-shape blocks); the sort's follow-on flip/gather are in-lane vrgather forms but topk's half-extent block is also in the way -- one lane feature covers both classes",
+    "tl.cumsum/cumprod 3 (cumprod_dim1_grouped_mixed): the multi-axis last-axis scan must prove the chunk lane's materialization order restarts the carry at row boundaries (WTI035's acceptance compiled but miscompiled masked_cumsum_vec 15740/16384 -- the flat chunk order vs the row-major reset order); the T035 revert note and a100c/lower/vectorize.py _prescan_scans carry the diagnosis",
+    "merge 3 (nansum_kernel_2) + ptradd 1 (l1_norm_fused_2cb0f555): the same plan-and-lowering disagreement -- a reduce inside a restructured region's arm feeds the region's join, but the plan creates no partial/merge frame for it, so the merged value never exists at the arm close (the join's pure-tree re-materialization refuses on the reduce leaf; WTI035's unconditional passthrough miscompiled and was reverted). The fix needs the region to own merge frames for region-internal reduces consumed by joins, threaded to the close",
+    "tl.dot 1 (chunk_generalized_iplr f32): the case layer's base-dtype path hands the kernel FLOAT64 buffers (rng.normal without conversion; the f16/bf16 identities are converted and compile), so tl.dot sees fp64 operands -- needs a non-IME fp64 dot path (vector e64 fma loops) or a corpus-level decision; the reference executes it",
+    "layout 1 (chunk_transform_qk [6,33,11,13,16] f16): a layout op over a matrix-native staged operand -- the record's narrow native lanes have no safe indexed read",
+    "naive_attn_decoding 4-worker divergence (46/208 from element 33, same artifact passes at 1 worker): the multi-worker partition of the varlen-gather path (see debug_request)",
+    "full-corpus re-sweep at the new revision is still due for the non-owned operators (this round's filtered sweep covered the 48 owned operators; the allocator/lowering changes are shared paths, so a full census should confirm no regressions outside the owned set before G6 closes)"
+  ],
+  "end_revision": "b0907986d16aba19",
+  "at": "2026-11-07T05:46:02.055185+00:00"
+}

@@ -267,6 +267,17 @@ def _interference(fn: mir.MFunction) -> Tuple[Dict[int, Set[int]], Dict[int, Set
                     for r in op.results:
                         if r.is_vector():
                             edge(r.rid, idx.rid)
+            if op.opcode == "vstoreix":
+                # T036: the indexed store reads its index vector AND its
+                # data operand -- the data register inside the index's
+                # implied EMUL group is an illegal form (probed: SIGILL,
+                # masked and unmasked).  The edge plus the index's
+                # implied-group span keeps the data outside the group.
+                idx = op.operands[1] if len(op.operands) >= 2 else None
+                data = op.operands[2] if len(op.operands) > 2 else None
+                if idx is not None and idx.is_vector() \
+                        and data is not None and data.is_vector():
+                    edge(data.rid, idx.rid)
             if op.opcode == "vrgather":
                 # RVV vrgather: the destination must not overlap either
                 # source (the index is read while the destination is
@@ -386,9 +397,17 @@ def _try_color(fn: mir.MFunction, target: TargetModel,
 
     # the full physical span of every already-assigned value (an m2 value
     # at v2 occupies v2 and v3: a span-1 neighbour must not land on v3 --
-    # the interference graph records the base name only)
-    spans: Dict[int, int] = {v.rid: (v.type.lmul if v.is_vector() else 1)
-                             for v in values}
+    # the interference graph records the base name only).  T036: a value
+    # consumed as an EEW>SEW indexed-access index occupies its IMPLIED
+    # EMUL group even when its own type is narrower (the hardware reads
+    # the whole group; the base must be group-aligned) -- the implied
+    # width (from _index_implied_groups) overrides the value's own LMUL
+    # for both the neighbour blocking and the value's own alignment.
+    implied = _index_implied_groups(fn)
+    spans: Dict[int, int] = {
+        v.rid: max(v.type.lmul if v.is_vector() else 1,
+                   implied.get(v.rid, 1))
+        for v in values}
 
     def _group_names(name: str, span: int) -> List[str]:
         if span <= 1 or not name.startswith("v"):
@@ -408,9 +427,19 @@ def _try_color(fn: mir.MFunction, target: TargetModel,
             if name is not None:
                 taken.update(_group_names(name, spans.get(n, 1)))
         blocked = avoid.get(reg.rid, set())
-        span = reg.type.lmul if reg.is_vector() else 1
+        span = spans[reg.rid]
+        if reg.is_scalar():
+            candidates: List[int] = list(ALLOCATABLE_GPRS)
+        elif reg.is_mask() or span == 1:
+            candidates = list(range(1, target.vector_registers))
+        elif span in (2, 4, 8):
+            # naturally aligned groups (RVV): the implied EMUL group
+            # aligns like an explicit LMUL group of the same width
+            candidates = list(range(span, target.vector_registers, span))
+        else:
+            return None, reg        # an unalignable implied width
         chosen = None
-        for idx in _candidates(reg, target):
+        for idx in candidates:
             names = ([_phys_name(reg, idx)] if span == 1
                      else [f"v{idx + k}" for k in range(span)])
             if any(nm in taken or nm in blocked for nm in names):
@@ -438,23 +467,89 @@ def _def_block(fn: mir.MFunction, reg: mir.VReg) -> str:
 # ---------------------------------------------------------------------------
 
 
-def _const_full_regions(fn: mir.MFunction, target: TargetModel) -> Set[Tuple[int, int]]:
-    """(sew, lmul) regions whose vsetvli AVL is a constant equal to vlmax
-    (the only regions where a vector spill is legal in this slice)."""
+def _const_vl_regions(fn: mir.MFunction) -> Set[Tuple[int, int]]:
+    """(sew, lmul) regions whose every establishing vsetvli carries a
+    materialized CONSTANT AVL -- where a vector spill is legal in this
+    slice.
+
+    The spill sequence switches to vlmax to store the whole register
+    group and then restores the displaced region; the emitter restores
+    ANY constant AVL (vsetivli, or the register form past 31) and
+    refuses a runtime AVL.  T014 allowed only AVL == vlmax; T036
+    generalizes to every constant AVL: the tail-chunked lowering runs
+    its regions at constant AVLs below vlmax (forward_pass_chunks'
+    ``vb1`` lives in a vl=2 region of a 32-element file), and those
+    spills restore exactly as well.  A (sew, lmul) established anywhere
+    with a runtime AVL stays unspillable -- one runtime site would leave
+    the restore refusing at emission."""
     consts: Dict[int, int] = {}
     for b in fn.blocks:
         for op in b.ops:
             if op.opcode == "sconst":
                 consts[op.results[0].rid] = op.attrs["value"]
-    full: Set[Tuple[int, int]] = set()
+    avls: Dict[Tuple[int, int], List[Optional[int]]] = {}
     for b in fn.blocks:
         for op in b.ops:
             if op.opcode == "vsetvli":
-                avl = op.operands[0]
-                if avl.rid in consts and consts[avl.rid] == \
-                        target.vlmax(op.attrs["sew"], op.attrs["lmul"]):
-                    full.add((op.attrs["sew"], op.attrs["lmul"]))
-    return full
+                key = (op.attrs["sew"], op.attrs["lmul"])
+                avl = op.operands[0] if op.operands else None
+                avls.setdefault(key, []).append(
+                    consts.get(avl.rid) if avl is not None else None)
+    return {k for k, seen in avls.items()
+            if seen and all(a is not None for a in seen)}
+
+
+def _avl_feeds(fn: mir.MFunction) -> Set[int]:
+    """Rids consumed as a vsetvli AVL operand.  Splitting or
+    rematerializing such a value through the STACK replaces the AVL with
+    a reload -- the emitter's region tracking would lose the constant
+    and a later spill's region restore would refuse at emission (a
+    pressure decision turning into an emission-time crash class).  A
+    constant rematerialization keeps the sconst form, so constants stay
+    eligible; everything else that feeds an AVL is never a victim."""
+    feeds: Set[int] = set()
+    for b in fn.blocks:
+        for op in b.ops:
+            if op.opcode == "vsetvli" and op.operands:
+                feeds.add(op.operands[0].rid)
+    return feeds
+
+
+def _index_implied_groups(fn: mir.MFunction) -> Dict[int, int]:
+    """rid -> the implied register-group width (EMUL) an indexed access
+    reads its index operand at, when wider than the value's own LMUL.
+
+    The RVV indexed-access rule: the index register group has
+    EMUL = (EEW / SEW) * LMUL of the access's vtype.  The address
+    machinery types its indices at that EMUL (``vi64m2`` beside an
+    ``e32m1`` load), but a hand-computed index can arrive as ``vi64m1``
+    (naive_attn's gather): the value needs one register, the HARDWARE
+    reads the implied two-register group.  Probed on the pinned QEMU
+    (T036): a destination -- or an indexed store's data operand --
+    allocated inside the implied group raises an illegal instruction
+    (SIGILL), and the group must be aligned.  The allocator reserves the
+    implied width for the index value (alignment included) and the
+    access's data side avoids the whole group."""
+    implied: Dict[int, int] = {}
+    for b in fn.blocks:
+        for op in b.ops:
+            if op.opcode not in ("vloadix", "vstoreix") or len(op.operands) < 2:
+                continue
+            idx = op.operands[1]
+            if not idx.is_vector():
+                continue
+            data = op.results[0] if op.results else (
+                op.operands[2] if len(op.operands) > 2 else None)
+            if data is None or not data.is_vector():
+                continue
+            eew = op.attrs.get("eew", data.type.sew)
+            sew = data.type.sew
+            if eew <= sew or eew % sew:
+                continue
+            width = (eew // sew) * data.type.lmul
+            if width > implied.get(idx.rid, 1):
+                implied[idx.rid] = width
+    return implied
 
 
 def _spill_attrs(reg: mir.VReg, slot: int) -> dict:
@@ -523,6 +618,50 @@ def _reload_defs(fn: mir.MFunction) -> Set[int]:
     return out
 
 
+#: pure scalar defs whose op may be dropped once no use remains (a dead
+#: def still interferes with everything live after it -- a phantom
+#: register requirement at a point that can already sit at the file
+#: limit, which is exactly what rematerialization is supposed to remove)
+_PURE_SCALAR_DEFS = ("sconst", "sload", "strunc", "swext", "smove")
+
+
+def _prune_dead_defs(fn: mir.MFunction, rids: Set[int]) -> None:
+    """Drop the pure definition ops of ``rids`` that no use remains of
+    (T036's convergence repair, the dead-original half).
+
+    ``_remat_constant`` / ``_remat_argload`` rewrite every use to a fresh
+    per-use product and used to leave the original definition behind
+    ("dead, one op long").  A dead definition still needs a physical
+    register at its own position -- interference is recorded at the def
+    against everything live after it -- so every rematerialized original
+    kept demanding a register at a point where the long-lived values
+    already fill the file, and the round budget burned against phantoms.
+    Only pure single-purpose defs are dropped; a block parameter or a
+    value with any remaining use (operand or branch argument) keeps its
+    definition."""
+    params = {p.rid for b in fn.blocks for p in b.params}
+    used: Set[int] = set()
+    for b in fn.blocks:
+        for op in b.ops:
+            for o in op.operands:
+                used.add(o.rid)
+        for _target, args in b.branch_args().items():
+            for a in args:
+                used.add(a.rid)
+    prunable = {r for r in rids if r not in used and r not in params}
+    if not prunable:
+        return
+    for b in fn.blocks:
+        kept: List[mir.MOp] = []
+        for op in b.ops:
+            results = {r.rid for r in op.results}
+            if op.opcode in _PURE_SCALAR_DEFS and results and \
+                    results <= prunable:
+                continue                      # the dead original dissolves
+            kept.append(op)
+        b.ops = kept
+
+
 def _const_values(fn: mir.MFunction) -> Dict[int, int]:
     """rid -> value for scalar constants: every def is an ``sconst``
     carrying the same value and the value is not a block parameter (a
@@ -553,8 +692,10 @@ def _remat_constant(fn: mir.MFunction, reg: mir.VReg,
     materialized immediately before it -- the classic remat alternative
     to spill/split.  No stack slot, no store: the constant is pure, so
     the whole long live range dissolves into per-use one-op ranges.  The
-    original definition stays (dead, one op long; the vsetvli-AVL
-    constant tracking reads it unchanged).  Returns the fresh rids (the
+    original definition is pruned once no use remains of it (T036: a
+    dead def still demands a register at its position, and the
+    vsetvli-AVL tracking only reads constants through their uses, which
+    the rewrite has moved to the products).  Returns the fresh rids (the
     remat products -- never victims again)."""
     fresh = [0]
     products: Set[int] = set()
@@ -585,6 +726,7 @@ def _remat_constant(fn: mir.MFunction, reg: mir.VReg,
                                 for a in op.attrs[key]]
             new_ops.append(op)
         b.ops = new_ops
+    _prune_dead_defs(fn, {reg.rid})
     return products
 
 
@@ -694,6 +836,7 @@ def _remat_argload(fn: mir.MFunction, reg: mir.VReg,
                                 for a in op.attrs[key]]
             new_ops.append(op)
         b.ops = new_ops
+    _prune_dead_defs(fn, {reg.rid})
     return products
 
 
@@ -703,20 +846,38 @@ def _pick_victim(fn: mir.MFunction, fixed: Dict[int, str],
                  graph: Optional[Dict[int, set]] = None,
                  consts: Optional[Dict[int, int]] = None,
                  rematted: Optional[Set[int]] = None,
-                 argloads: Optional[Dict[int, List[mir.MOp]]] = None
+                 argloads: Optional[Dict[int, List[mir.MOp]]] = None,
+                 live_set: Optional[Set[int]] = None,
+                 avl_feeds: Optional[Set[int]] = None,
                  ) -> Optional[mir.VReg]:
-    """The fallback spill/remat candidate.
+    """The spill/remat candidate, chosen against the failing point.
 
-    When the failing value is known, prefer one of its interference
-    neighbours: a neighbour's range covers the failure point by
-    definition, so rematerializing or spilling it relieves the actual
-    pressure (the globally least-used value may live nowhere near the
-    failure and split uselessly).  Among the neighbours, a
-    rematerializable constant comes first (the whole range dissolves
-    with no stack traffic), then an argument-load chain (T032: the same
-    dissolution, a few pure loads per use), then the least-used
-    spillable one.  Masks, reload values and non-m1/m2/m4/m8 vectors are
-    not spillable in this slice.
+    The primary candidates are the values SIMULTANEOUSLY LIVE at the
+    failing point (``live_set``, plus the failing value itself): only
+    dissolving one of those relieves that point.  Interference
+    neighbours are the secondary pool (a long-lived value interferes
+    with thousands of defs, so the neighbour set is not the pressure --
+    adaptive_avg_pool2d's whole-function live ``gn2`` has 2349
+    neighbours while only 17 values are live at its def), and the whole
+    function is the fallback.
+
+    Within a pool the candidate with the MOST USES wins -- a many-use
+    value has the long range, and dissolving it (remat or split) removes
+    it from every failing point that range crosses, so one round
+    relieves every such point at once.  T029/T032's classes are the
+    equal-use special case: among equally-used candidates a
+    rematerializable constant comes first (dissolution with no stack
+    traffic), then an argument-load chain, then the failing value
+    itself, then any other spillable.  The measured non-convergence this
+    replaces spent the whole round budget dissolving one single-use
+    constant after another -- each relieved only its own tiny window
+    while ~20 long-lived descriptor/stride/pointer values carried 26-31
+    simultaneously-live values at every point (T036).
+
+    Masks, reload values and non-m1/m2/m4/m8 vectors are not spillable
+    in this slice; ``exclude`` carries the consumed set (split, rematted
+    AND the remat products -- re-rematerializing a product is a no-op
+    that relieves nothing).
     """
     use_counts: Dict[int, int] = {}
     regs: Dict[int, mir.VReg] = {}
@@ -746,40 +907,78 @@ def _pick_victim(fn: mir.MFunction, fixed: Dict[int, str],
             and reg.rid not in consts \
             and reg.rid not in exclude \
             and (rematted is None or reg.rid not in rematted) \
-            and reg.rid not in reload_defs
+            and reg.rid not in reload_defs \
+            and reg.rid not in (avl_feeds or ())
 
     def spillable(reg: mir.VReg) -> bool:
         if reg.rid in fixed or reg.rid in exclude or reg.is_mask():
             return False
         if reg.rid in reload_defs:
             return False                  # already a short-range reload
+        if reg.rid in (avl_feeds or ()):
+            return False   # a reload as a vsetvli AVL de-constantizes
+                           # the region the emitter must be able to
+                           # restore around a spill
         if reg.is_vector() and reg.type.lmul not in (1, 2, 4, 8):
             return False
         return True
 
-    if failed is not None and graph is not None:
-        neighbours = [regs[n] for n in graph.get(failed.rid, ())
-                      if n in regs and (spillable(regs[n])
-                                        or rematable(regs[n])
-                                        or argloadable(regs[n]))]
-        for reg in sorted((r for r in neighbours if rematable(r)),
-                          key=lambda r: (use_counts.get(r.rid, 0), r.rid)):
-            return reg
-        for reg in sorted((r for r in neighbours if argloadable(r)),
-                          key=lambda r: (use_counts.get(r.rid, 0), r.rid)):
-            return reg
-        for reg in sorted((r for r in neighbours if spillable(r)),
-                          key=lambda r: (use_counts.get(r.rid, 0), r.rid)):
-            return reg
-    for reg in sorted(regs.values(), key=lambda r: (use_counts.get(r.rid, 0),
-                                                    r.rid)):
+    def eligible(reg: mir.VReg) -> bool:
+        return rematable(reg) or argloadable(reg) or spillable(reg)
+
+    def class_rank(reg: mir.VReg) -> int:
         if rematable(reg):
-            return reg
+            return 0
         if argloadable(reg):
-            return reg
+            return 1
+        if failed is not None and reg.rid == failed.rid:
+            return 2                      # the failed value, T029/T032
         if spillable(reg):
-            return reg
-    return None
+            return 3
+        if reg.is_mask():
+            # only when nothing eligible exists anywhere: picking a mask
+            # reaches the located mask-file exhaustion refusal instead
+            # of silently giving up
+            return 4
+        return 5                          # never a victim (reload/consumed)
+
+    def best_of(pool) -> Optional[mir.VReg]:
+        best: Optional[mir.VReg] = None
+        best_key = None
+        for reg in pool:
+            rank = class_rank(reg)
+            if rank >= 5:
+                continue        # reload products / consumed: never victims
+            key = (-use_counts.get(reg.rid, 0), rank, reg.rid)
+            if best_key is None or key < best_key:
+                best, best_key = reg, key
+        return best
+
+    # primary pool: the failing point's simultaneously-live values
+    pool: List[mir.VReg] = []
+    if failed is not None and failed.rid in regs and eligible(regs[failed.rid]):
+        pool.append(regs[failed.rid])
+    for rid in (live_set or ()):
+        if rid in regs and rid != (failed.rid if failed else None) \
+                and eligible(regs[rid]):
+            pool.append(regs[rid])
+    victim = best_of(pool)
+    if victim is not None:
+        return victim
+    # secondary: interference neighbours (a value live across the whole
+    # function fails at defs far from its own -- the live set there is
+    # what must shrink, and its members are the failed value's neighbours)
+    neighbours: List[mir.VReg] = []
+    if failed is not None and graph is not None:
+        for n in graph.get(failed.rid, ()):
+            if n in regs and n != failed.rid and eligible(regs[n]):
+                neighbours.append(regs[n])
+    victim = best_of(neighbours)
+    if victim is not None:
+        return victim
+    # fallback: every value (masks included at rank 4 so the located
+    # mask-exhaustion refusal still fires when nothing else remains)
+    return best_of(regs.values())
 
 
 def _allocate_function(module: mir.MModule, fn: mir.MFunction,
@@ -810,8 +1009,10 @@ def _allocate_function(module: mir.MModule, fn: mir.MFunction,
         assignment, failed = _try_color(fn, target, fixed)
         if assignment is not None:
             alloc.assignment.update(assignment)
+            implied = _index_implied_groups(fn)
             for v in _all_values(fn):
-                span = v.type.lmul if v.is_vector() else 1
+                span = max(v.type.lmul if v.is_vector() else 1,
+                           implied.get(v.rid, 1))
                 alloc.shapes[v.rid] = ("mask" if v.is_mask() else
                                        "vec" if v.is_vector() else "gpr", span)
             return
@@ -837,28 +1038,25 @@ def _allocate_function(module: mir.MModule, fn: mir.MFunction,
         argloads = _argload_chains(fn)
         reloads = _reload_defs(fn)
         consumed = split_once | rematted | remat_products
-        # T029: a reload value's range is already minimal (its def sits
-        # immediately before its use) -- splitting it again only adds
-        # ops, never relieves pressure; it is never the victim.  The
-        # failing value itself is the victim only on its first
-        # intervention; T032 extends its remat classes with the argument
-        # loads (a failing argument view dissolves exactly like a
-        # failing constant -- adaptive_avg_pool2d's eight narrow views
-        # live across whole restructured loop nests)
-        victim = None
-        if failed is not None and failed.rid not in consumed \
-                and failed.rid not in reloads:
-            victim = failed
-        if victim is None:
-            # the failed value may be a fresh reload or remat product
-            # absent from the round-start graph (a stale graph leaves it
-            # neighbourless and the global fallback split uselessly --
-            # the measured non-convergence): recompute the interference
-            # so the neighbour preference targets the CURRENT pressure
-            graph_now, _ = _interference(fn)
-            victim = _pick_victim(fn, fixed, consumed, failed, graph_now,
-                                  consts=consts, rematted=rematted,
-                                  argloads=argloads)
+        # T029/T032/T036: the victim is chosen against the failing point
+        # -- the failing value and its interference neighbours, most
+        # relief first (a many-use rematerializable dissolves from every
+        # point its range crosses; a many-use spillable splits into
+        # reload windows).  The failed value itself is rung 3, so the
+        # old failed-first policy's outcomes (T029's hoisted constants,
+        # T032's argument views -- the failed value WAS the pressure
+        # source) are preserved, while a failing single-use constant at
+        # a point carried by long-lived values no longer spends the
+        # round budget one tiny range at a time.  The interference is
+        # recomputed each round so the preference targets the CURRENT
+        # pressure (a stale graph leaves fresh reloads/remat products
+        # neighbourless and the global fallback split uselessly).
+        graph_now, _ = _interference(fn)
+        victim = _pick_victim(fn, fixed, consumed, failed, graph_now,
+                              consts=consts, rematted=rematted,
+                              argloads=argloads,
+                              live_set=_failure_live_set(fn, failed),
+                              avl_feeds=_avl_feeds(fn))
         if victim is None:
             raise AllocationError(
                 None, f"register pressure in '{fn.name}' exceeds the "
@@ -885,13 +1083,14 @@ def _allocate_function(module: mir.MModule, fn: mir.MFunction,
                 "file is exhausted and mask spill is not implemented (a "
                 "bounded, located refusal -- see ABSENT_FORMS)")
         if victim.is_vector():
-            full_vl = _const_full_regions(fn, target)
-            if (victim.type.sew, victim.type.lmul) not in full_vl:
+            const_vl = _const_vl_regions(fn)
+            if (victim.type.sew, victim.type.lmul) not in const_vl:
                 raise AllocationError(
                     victim.loc,
                     f"vector value '{victim.name}' must spill outside a "
-                    "full-vl region; vector spill in partial-vl regions is "
-                    "not implemented (located refusal)")
+                    "constant-vl region; vector spill where the displaced "
+                    "region's vl is a runtime value is not implemented "
+                    "(located refusal)")
         slot = len(alloc.slots)
         alloc.slots.append(target.vlenb * victim.type.lmul
                            if victim.is_vector() else 8)

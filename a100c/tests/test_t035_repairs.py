@@ -35,8 +35,9 @@ own policy), with the controls that prove the checks are load-bearing.
     execute and compare at 1 and 4 workers.
   * {0,1}-class candidate width (median_f16_key_select): the candidate
     narrows to the accumulator's lane through the vector lane (the
-    scalar core narrows 64->32 only) -- median now refuses at ALLOCATION
-    (the next class), no longer at merge.
+    scalar core narrows 64->32 only) -- T036's allocator repair then
+    resolved the register-pressure class, so median now compiles and
+    executes (see check_median_next_class).
   * masked-scalar-load scoping (median_f16_key_select): a value lazily
     materialized inside one guard arm (the CSE-merged ``other`` const)
     no longer leaks into a sibling arm.
@@ -138,7 +139,10 @@ def _run_case(compiler, module, threads, **make_kwargs):
         if got.shape != exp.shape and got.size == exp.size:
             got = got.reshape(exp.shape)
         if policy.get("exact") or policy["comparator"] == "array_equal":
-            same = np.array_equal(got, exp)
+            # the case's declared exact comparison, honoring its equal_nan
+            # flag (an exact fp16 output may legitimately expect NaN)
+            same = np.array_equal(
+                got, exp, equal_nan=policy.get("equal_nan", False))
         else:
             same = np.allclose(got, exp, rtol=policy.get("rtol", 0.0),
                                atol=policy.get("atol", 0.0),
@@ -164,7 +168,10 @@ def _run_harness_case(compiler, op_rel, shape, dtype, threads):
         if got.shape != exp.shape and got.size == exp.size:
             got = got.reshape(exp.shape)
         if policy.get("exact") or policy["comparator"] == "array_equal":
-            same = np.array_equal(got, exp)
+            # the case's declared exact comparison, honoring its equal_nan
+            # flag (an exact fp16 output may legitimately expect NaN)
+            same = np.array_equal(
+                got, exp, equal_nan=policy.get("equal_nan", False))
         else:
             same = np.allclose(got, exp, rtol=policy.get("rtol", 0.0),
                                atol=policy.get("atol", 0.0),
@@ -375,17 +382,25 @@ def check_rank0_remat():
 # ---------------------------------------------------------------------------
 
 def check_median_next_class():
+    """T036 advanced this boundary: the allocator's live-set victim policy
+    resolved the register-pressure class, so median now COMPILES -- the
+    check requires the executed comparison (a strengthening of the old
+    located-refusal expectation, which pinned allocation as the next
+    blocker)."""
     c = _compiler("median")
     mm = _load(_dev("median_f16_key_select_kernel.py"))
     try:
         c.compile_case(_payload(mm, dtype="float16"))
-        check("median-f16-refusal-class", False,
-              "expected the located ALLOCATION refusal (the merge class is "
-              "repaired; the register-pressure class is the next blocker)")
     except PipelineError as exc:
-        check("median-f16-refusal-class", exc.construct == "allocation",
-              f"construct={exc.construct} (merge repaired; the "
-              f"{exc.construct} class is the remaining blocker)")
+        check("median-f16-allocates-and-executes", False,
+              f"refused at {exc.construct}: {exc.message[:90]}")
+        return
+    bad = []
+    for threads in (1, 4):
+        ok, detail = _run_case(c, mm, threads, dtype="float16")
+        if not ok:
+            bad.append(f"t={threads}: {detail}")
+    check("median-f16-allocates-and-executes", not bad, "; ".join(bad))
 
 
 def _payload(module, **make_kwargs):

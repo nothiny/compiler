@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-07T04:14:57.222359+00:00",
+  "updated_at": "2026-11-07T05:46:02.096433+00:00",
   "facts": [
     {
       "id": "F001",
@@ -3262,12 +3262,12 @@
       "tags": [
         "compile-sweep-repair"
       ],
-      "status": "RUNNING",
-      "assignee": "coder",
+      "status": "READY",
+      "assignee": "",
       "attempts": 2,
       "evidence": "",
-      "last_error": "Round-2 long-tail repair, large verified progress, not all classes at zero. Fixed through shared paths (each executed-and-compared at 1 and 4 workers where it compiles): (1) frontend is-fold: ConstexprEnv's truthy NOT_CONSTEXPR sentinel leaked through 'if not result' and folded 'dtype is tl.bfloat1\u2026",
-      "failure_kind": "",
+      "last_error": "Round-3 long-tail repair: 69 of the 86 refusing identities repaired through shared paths, each executed-and-compared at 1 and 4 workers; 7 classes (17 identities) remain located refusals inside the declared surface. (1) allocation 66->0 (21 operators): the allocator's victim selection now targets t\u2026",
+      "failure_kind": "implementation",
       "start_revision": "0cf24c59379a35eb659ab196e2699e140d9b36e4",
       "end_revision": "",
       "completed_seq": 0,
@@ -3277,34 +3277,24 @@
       "debug_pending_attempts": -1,
       "debug_pending_failures": 0,
       "worker_debug_request": {
-        "reproduction": "set -a; . ./.env; set +a; python3 - <<'EOF'\nimport sys, importlib.util\nfrom pathlib import Path\nROOT = Path('/home/i_yinzida/compiler-a100-experiment-001')\nsys.path.insert(0, str(ROOT)); sys.path.insert(0, str(ROOT/'a100c'/'tests'))\nimport _bootstrap; _bootstrap.bootstrap()\nimport warnings; warnings.filterwarnings('ignore')\nsys.path.insert(0, str(ROOT/'ops'/'harness'))\n_spec = importlib.util.spec_from_file_location('rs', ROOT/'tools'/'run_scan.py')\nrs = importlib.util.module_from_spec(_spec); _spec.loader.exec_module(rs)\nfrom a100c.driver import CompileOptions\nfrom a100c.factory import FactoryCompiler\nfrom a100c.passes import pipeline as passes_mod\nimport a100_support.native_device as nd\nop = rs.resolve_operator_path('suite/dev/naive_attn_decoding_kernel.py')\nrow = next(r for r in rs.enumerated_rows(str(ROOT/'ops/suite/manifest.json'))\n           if r['operator']==op and tuple(r['shape'])==(2,17,4,8,16,13) and r['dtype']=='float16')\ncase = rs.build_case(row, 30, use_golden=True)\ncomp = FactoryCompiler(options=CompileOptions(cache_dir='/tmp/na-debug'), pass_config=passes_mod.PassConfig())\nstaged = nd.NativeExecutableDevice(comp, 1).stage_case(case)\nstaged.launch()\nEOF",
-        "exit_code": 245,
-        "observed": "the compile succeeds (an ELF artifact; the sweep counts it), then the native process dies with signal 4 (SIGILL) under the pinned QEMU at both 1 and 4 threads and for the float32 variant; running the ELF directly makes QEMU itself segfault (exit 139), and QEMU's -d logging and the instruction_counts plugin also crash on this binary, which blocks pc-level localization",
+        "reproduction": "set -a; . ./.env; set +a; timeout 900 python3 a100c/tests/test_t036_repairs.py::check_naive_attn_single_worker-adjacent form: compile suite/dev/naive_attn_decoding_kernel.py [2,17,4,8,16,13] float16 (one artifact) and execute with --threads 4 through a100_support/native_device.py",
+        "exit_code": 1,
+        "observed": "naive_attn f16 at 4 workers: o 46/208 mismatched, first bad flat index 33, span 33..203 (zeros and wrong values from row 2 on); the SAME artifact compares PASS (0/208) at 1 worker for f16/f32/bf16, so the emitted program is correct on the single-worker partition and the 4-worker partition of this varlen-gather kernel diverges (per-worker g_cumsum/gather addressing or the items split)",
         "ruled_out": [
           {
-            "hypothesis": "vwcvt.x.x.v is illegal under the pinned QEMU",
-            "command": "assembled a minimal static program (vsetvli e32m1; vid.v v2; vwcvt.x.x.v v4, v2; ecall) with the cross gcc and ran it under $A100_QEMU -cpu $A100_QEMU_CPU",
-            "observed": "exit 0 -- the widening convert executes cleanly in isolation"
+            "hypothesis": "the artifact's indexed-access register allocation is still illegal (the implied-EMUL-group class)",
+            "command": "the 1-worker execution of the identical artifact: 0/208 mismatched, exit 0",
+            "observed": "the same binary passes at 1 worker -- an illegal-instruction or allocation defect would fail at every thread count"
           },
           {
-            "hypothesis": "the vsuxei64.v scatter (or its vwcvt-widened e64m2 index) at the staging store",
-            "command": "patched every vsuxei64.v (70 sites) and every vwcvt.x.x.v (132 sites) in the artifact's .text to NOPs (verified by re-disassembly) and re-ran with the same bundle",
-            "observed": "the fault persists -- not those instructions alone"
-          },
-          {
-            "hypothesis": "the F048-probed e8/e16-data + e64-index indexed-form QEMU crash",
-            "command": "disassembled every vluxei64.v site with its preceding vsetvli",
-            "observed": "all indexed loads run at e32m1 (e32 data + e64 index, the probed-safe combination); the staging lane widens 16-bit floats to fp32 before storing"
-          },
-          {
-            "hypothesis": "a wrong merge value (like nansum's identity-bound sum)",
-            "command": "compared against the case's expected outputs after every launch attempt",
-            "observed": "the process dies before producing outputs -- a crash, not a wrong number; the nansum wrong-value form was found and reverted separately"
+            "hypothesis": "the merge-frame passthrough WTI035 reverted (the merged value bound to the identity)",
+            "command": "the 1-worker execution: 0/208; the 4-worker mismatch is a mid-output divergence, not the all-zero signature of the unbound merge",
+            "observed": "rows 0-1 are correct at 4 workers and the wrong values are plausible attention outputs (not identity/default values), consistent with a partition/addressing divergence rather than an unbound accumulator"
           }
         ],
-        "suspected_stage": "the lowering (vectorize): the fault sits in the first chunk loop's staging sequence of the restructured region (the trace's last translated block is the chunk body around operator_entry+0x150); QEMU's own translator crashing on -d/plugin runs suggests an instruction form this QEMU build mishandles, so the emitted form around the staged block carries needs review against the pinned QEMU's probe record"
+        "suspected_stage": "the worker partition / varlen-gather addressing under multiple workers (plan/partition or the per-worker g_cumsum load path in a100c/lower/vectorize.py), not the register allocator"
       },
-      "coding_failures": 1,
+      "coding_failures": 2,
       "started_at": "2026-11-07T04:14:56.700034+00:00",
       "deferrals": 0,
       "debug_verified_patterns": [],
@@ -6593,7 +6583,7 @@
     }
   },
   "regression": {
-    "invalidated": "input failure in T035: Round-2 long-tail repair, large verified progress, not all classes at zero. Fixed through shared paths (each executed-and-compared at 1 and 4 workers where it compiles): (1) frontend is-fold: ConstexprEnv's truthy NOT_CONSTEXPR sentinel leaked through 'if not result' and folded 'dtype is tl.bfloat1\u2026"
+    "invalidated": "input failure in T035: Round-3 long-tail repair: 69 of the 86 refusing identities repaired through shared paths, each executed-and-compared at 1 and 4 workers; 7 classes (17 identities) remain located refusals inside the declared surface. (1) allocation 66->0 (21 operators): the allocator's victim selection now targets t\u2026"
   },
   "regression_runs": {},
   "repair_submissions": {
@@ -8737,6 +8727,24 @@
       "phase": "IMPLEMENTATION",
       "event": "task-delegate",
       "detail": "WTI036 task=T035 attempt=2 profile=general-purpose"
+    },
+    {
+      "at": "2026-11-07T05:46:02.087449+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "task-report-out-of-contract",
+      "detail": "T035: a100c/cache/e28d2b8b73e7dba4e37f85fbfb035c18ff5f43964f4ad94e27a4a844fc999352/artifact.json, a100c/cache/build/program-3bf8ded0b2e62c07.o, a100c/cache/c90ef34e9e4ca9c40ab8e2157715fcbf4ea63dffde910a22755a0b8350cb3924/artifact.json, a100c/cache/e28d2b8b73e7dba4e37f85fbfb035c18ff5f43964f4ad94e27a4a844fc999352/stage.selection.txt, a100c/cache/build/program-20586dec1c92df71.o"
+    },
+    {
+      "at": "2026-11-07T05:46:02.094890+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "task-report",
+      "detail": "WTI036 FAILED attempt=2 [changes outside the declared paths: a100c/cache/e28d2b8b73e7dba4e37f85fbfb035c18ff5f43964f4ad94e27a4a844fc999352/artifact.json, a100c/cache/build/program-3bf8ded0b2e62c07.o, a100c/cache/c90ef34e9e4ca9c40ab8e2157715fcbf4ea63dffde910a22755a0b8350cb3924/artifact.json, a100c/cache/e28d2b8b73e7dba4e37f85fbfb035c18ff5f43964f4ad94e27a4a844fc999352/stage.selection.txt, a100c/cache/build/program-20586dec1c92df71.o]"
+    },
+    {
+      "at": "2026-11-07T05:46:02.096427+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "fail-task",
+      "detail": "T035 [implementation] Round-3 long-tail repair: 69 of the 86 refusing identities repaired through shared paths, each executed-and-compared at 1 and 4 workers; 7 classes (17 identities) remain located refusals inside the declared surface. (1) allocation 66->0 (21 operators): the allocator's victim selection now targets t\u2026"
     }
   ]
 }
