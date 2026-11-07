@@ -525,8 +525,12 @@ def check_t027_repaired_classes():
         ("suite/perf/cosine_compute.py", {}, ("floordiv",)),
         ("suite/perf/index_select_cat.py", {}, ("floordiv",)),
         ("suite/dev/gdn_gate_fwd_kernel.py", {}, ("floordiv",)),
-        # dict literals with ``**`` spreads merge their mappings
-        ("suite/dev/median_bool_count_kernel.py", {}, ("floordiv",)),
+        # dict literals with ``**`` spreads merge their mappings.
+        # T037: the aligned ``counts`` view now carries its extent (the
+        # opaque-reshape rule), so the whole cdiv subtree ties to ONE
+        # direct view read of counts' own extent -- a strictly stronger
+        # tie than the floordiv over folded constants this pinned
+        ("suite/dev/median_bool_count_kernel.py", {}, ("bundle_view",)),
         ("suite/dev/chunk_hgrn_fwd_kernel_h.py", {}, ("floordiv",)),
         # ``for name, value in args.items()`` unrolls; the branch merge
         # keeps the per-key provenance both arms agree on
