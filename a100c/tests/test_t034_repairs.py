@@ -355,9 +355,12 @@ def check_scalar_width():
 def check_located_refusals():
     """The honest boundaries: the grouped_mm / grouped_gemm grids depend
     on data/symbolic values no bundle-visible quantity can tie (a
-    located grid refusal, never a baked launch), and logsumexp's carried
-    maximum has no chunk merge rule (a located refusal, never the
-    silently wrong per-chunk overwrite)."""
+    located grid refusal, never a baked launch).  T036 repaired the
+    chunked carried-value family this record used to pin: logsumexp's
+    ``maximum = tl.maximum(maximum, tl.max(...))`` now carries a
+    recognized extremum merge rule, so the operator COMPILES (and its
+    identities execute and compare PASS at 1 and 4 workers -- the T036
+    repair test) instead of refusing at 'loop'."""
     c = _compiler("refusals")
     bad = []
     for opname in ("grouped_mm_kernel.py", "grouped_gemm_kernel.py"):
@@ -378,11 +381,9 @@ def check_located_refusals():
         c.compile_case(
             {k: v for k, v in lse.make_case().items()
              if k not in ("expected", "oracle_args")})
-        bad.append("logsumexp: compiled (expected a located refusal)")
     except PipelineError as exc:
-        if exc.construct != "loop":
-            bad.append(f"logsumexp: construct {exc.construct!r}, "
-                       f"expected 'loop'")
+        bad.append(f"logsumexp: refused at {exc.construct!r} (T036 "
+                   "repaired the extremum carried-update merge)")
     except Exception as exc:                   # noqa: BLE001
         bad.append(f"logsumexp: wrong error {type(exc).__name__}")
     check("located-refusals-grid-and-chunked-carry", not bad,

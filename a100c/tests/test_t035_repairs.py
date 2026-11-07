@@ -277,14 +277,21 @@ def check_merge_frames():
     """The restructured-region merge class: the chunk keeps the frame
     list it was opened with and a mid-list block statement cannot open a
     chunk under a stale filter -- naive_attn now COMPILES past the old
-    "never initialized" refusal.  Its execution and nansum's merge
-    remain OPEN: naive_attn's artifact faults under the pinned QEMU
-    (host SIGILL/SEGV in the first chunk loop; QEMU's -d/plugin tooling
-    crash on the binary too), and nansum's merged value would bind to
-    the identity at the pre-region close (the unconditional passthrough
-    stored 0.0 for a 0.787 sum -- reverted to the located refusal; the
-    region must thread its candidates to the close).  Both are recorded
-    in the T035 report's debug request."""
+    "never initialized" refusal.  naive_attn's execution remains the
+    recorded T035 open defect (its artifact faults under the pinned
+    QEMU: host SIGILL/SEGV in the first chunk loop; QEMU's -d/plugin
+    tooling crash on the binary too).
+
+    T036 closed the nansum half of this record: the chunk a scalar
+    segment's block statement opens no longer rides the unfiltered
+    kernel-level frame list (its close refused "a partial has no lowered
+    value at the chunk back edge" before the restructured region ever
+    lowered), and the no-pass fallback's vl is the block extent's own
+    chunk plan (the scalar-opened chunk ran 32 lanes over extent-1
+    staged slots -- its stores overflowed them and the executed sum came
+    out 0.0 for a 0.787 input).  nansum now COMPILES and its identities
+    execute and compare PASS at 1 and 4 workers (the T036 repair
+    test)."""
     c = _compiler("merge")
     na = _load(_dev("naive_attn_decoding_kernel.py"))
     case = na.make_case(dtype="float16")
@@ -307,15 +314,13 @@ def check_merge_frames():
                if k not in ("expected", "oracle_args")}
     try:
         c.compile_case(payload)
-        check("merge-frames-nansum-located-refusal", False,
-              "compiled: the passthrough would silently merge the "
-              "identity (0.0 for a 0.787 sum) -- the located refusal is "
-              "the correct boundary until the region threads its "
-              "candidates to the close")
+        check("merge-frames-nansum-located-refusal", True,
+              "compiled (T036 repaired the scalar-opened chunk's frames "
+              "and fallback vl); the executed identities compare PASS at "
+              "1 and 4 workers in the T036 repair test")
     except PipelineError as exc:
-        check("merge-frames-nansum-located-refusal",
-              exc.construct == "merge",
-              f"construct={exc.construct}")
+        check("merge-frames-nansum-located-refusal", False,
+              f"refused at {exc.construct}: {exc.message[:100]}")
 
 
 def check_rand_block_seed():

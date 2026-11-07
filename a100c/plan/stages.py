@@ -338,18 +338,80 @@ _ACCUMULATE_MERGES = {
     "bit.xor": MERGE_XOR,
 }
 
+#: TIR min/max binop -> merge rule for the extremum form
+#: ``acc = min(acc, term)`` / ``acc = max(acc, term)`` (tl.minimum /
+#: tl.maximum; either operand order -- the carried side is the fold's
+#: incoming value).  These merges are IDEMPOTENT: a carried init that is
+#: not the identity still participates exactly once
+#: (``max(init, f_0, f_1) == max(max(init, f_0), f_1)``), so the chunk
+#: and worker splits are value-exact for any init.
+_EXTREMUM_MERGES = {
+    "arith.maxnumf": MERGE_MAX,
+    "arith.minnumf": MERGE_MIN,
+    "arith.maximumf": MERGE_MAX,
+    "arith.minimumf": MERGE_MIN,
+    "arith.maxsi": MERGE_MAX,
+    "arith.minsi": MERGE_MIN,
+    "arith.maxui": MERGE_MAX,
+    "arith.minui": MERGE_MIN,
+}
 
-def classify_carried_update(update_op: "tir.Op") -> Optional[str]:
+#: the strict-order comparisons a guarded select may test (the select's
+#: own operands must be the comparison's operands)
+_ORDER_CMP = {
+    "cmp.lt": "lt", "cmp.le": "lt",
+    "cmp.gt": "gt", "cmp.ge": "gt",
+}
+
+
+def _select_extremum(update_op: "tir.Op",
+                     carried_vids: set) -> Optional[str]:
+    """The guarded-select extremum form: ``acc = where(new < acc, new,
+    acc)`` (or any operand order / comparison direction that makes the
+    TRUE arm pick the smaller -- or larger -- of the two).
+
+    Recognized only when the condition is a direct strict-order compare
+    of the select's own two value operands and the CARRIED value is one
+    of them (the update folds the carried value with the per-iteration
+    term under min/max).  A select under any other condition (the
+    arg-select pair's compound ``take``) is not an extremum form and
+    keeps its own machinery.  The merge is idempotent, so the carried
+    init participates exactly once."""
+    cond = update_op.operands[0]
+    picked, fallback = update_op.operands[1], update_op.operands[2]
+    if cond.producer is None or cond.producer.op not in _ORDER_CMP:
+        return None
+    x, y = cond.producer.operands
+    if {picked.vid, fallback.vid} != {x.vid, y.vid}:
+        return None
+    if not ({picked.vid, fallback.vid} & carried_vids):
+        return None
+    direction = _ORDER_CMP[cond.producer.op]
+    # the TRUE arm picks ``picked`` when the comparison holds: min when
+    # the comparison says picked is the smaller of the two, max when it
+    # says picked is the larger
+    if (picked is x and direction == "lt") or \
+            (picked is y and direction == "gt"):
+        return MERGE_MIN
+    return MERGE_MAX
+
+
+def classify_carried_update(update_op: "tir.Op",
+                            carried_vids: Optional[set] = None) -> Optional[str]:
     """Classify one carried-value update op as a merge rule.
 
-    Two source forms are recognized (the corpus persistent-reduction
-    forms):
+    The source forms recognized (the corpus persistent-reduction forms):
 
     * accumulate: ``acc = acc + term`` / ``acc = acc * term`` /
       ``acc = acc & term`` ... -- the merge rule follows the operator;
+    * extremum: ``acc = tl.maximum(acc, term)`` / ``tl.minimum`` (the
+      min/max binops, either operand order);
+    * guarded extremum select: ``acc = tl.where(term < acc, term, acc)``
+      (and its operand/direction variants);
     * arg-select pair: ``best_val = tl.where(local < best_val, local,
-      best_val)`` with its paired index select -- the merge is the
-      (value, index) pair rule with tie-break-left.
+      best_val)`` under a compound condition with its paired index
+      select -- the merge is the (value, index) pair rule with
+      tie-break-left (recognized by _select_pairs_of, not here).
 
     Anything else returns None: the carried value has no declared
     cross-iteration merge, and a split of its loop is refused (the loop
@@ -359,7 +421,16 @@ def classify_carried_update(update_op: "tir.Op") -> Optional[str]:
         lhs, rhs = update_op.operands
         # acc on either side; the other side is the per-iteration term
         return _ACCUMULATE_MERGES[update_op.op]
+    if update_op.op in _EXTREMUM_MERGES:
+        if carried_vids is not None and \
+                not any(o.vid in carried_vids for o in update_op.operands):
+            return None      # a rebinding, not a fold of the carried value
+        return _EXTREMUM_MERGES[update_op.op]
     if update_op.op == "select.where":
+        guarded = _select_extremum(
+            update_op, carried_vids if carried_vids is not None else set())
+        if guarded is not None:
+            return guarded
         return MERGE_PASS        # the pair rule is decided by the caller
     if update_op.op == "reduce":
         return update_op.attrs.get("merge", MERGE_PASS)
@@ -380,6 +451,7 @@ def carried_merge_kind(loop: "tir.Loop") -> Dict[str, LoopCarriedClass]:
             for r in st.results:
                 for key in r.scope_names():
                     final[key] = st
+    carried_vids = {init.vid for _, init in loop.carried}
     for name, init in loop.carried:
         op = final.get(name)
         if op is None:
@@ -398,7 +470,26 @@ def carried_merge_kind(loop: "tir.Loop") -> Dict[str, LoopCarriedClass]:
             if ty.is_float():
                 ident = float(ident) if rule != "and" else ident
             out[name] = LoopCarriedClass(name, rule, ident)
+        elif op.op in _EXTREMUM_MERGES:
+            # the fold must combine the CARRIED value with the term (the
+            # body references the current value through the init's vid);
+            # a rebinding ``x = min(a, b)`` that drops the carried value
+            # is last-wins, not an extremum fold
+            if not any(o.vid == init.vid for o in op.operands):
+                continue
+            rule = _EXTREMUM_MERGES[op.op]
+            out[name] = LoopCarriedClass(
+                name, rule, identity_for(
+                    "max" if rule == MERGE_MAX else "min", ty))
         elif op.op == "select.where":
+            guarded = _select_extremum(op, carried_vids)
+            if guarded is not None:
+                # the guarded extremum select folds min/max; the carried
+                # init participates once (the merge is idempotent)
+                out[name] = LoopCarriedClass(
+                    name, guarded, identity_for(
+                        "max" if guarded == MERGE_MAX else "min", ty))
+                continue
             # the arg-select pair: the value select's condition decides;
             # treat as the pair rule -- the paired index must exist under
             # a name whose select shares the condition
