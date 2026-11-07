@@ -651,6 +651,35 @@ class _Interpreter:
                             "statement is outside the grid model")
 
     # -- for loops ---------------------------------------------------------------
+    def _iter_items(self, iter_node: ast.expr) -> Optional[List[SymVal]]:
+        """The enumerable items of one iterable expression (a concrete
+        ``range()``, a tracked tuple, a concrete list/tuple); None when
+        the model cannot enumerate it (T034: shared by the statement-loop
+        unrolling and the general comprehension evaluation)."""
+        if isinstance(iter_node, ast.Call) \
+                and isinstance(iter_node.func, ast.Name) \
+                and iter_node.func.id == "range":
+            vals = []
+            for a in iter_node.args:
+                v = self._eval(a)
+                if v.concrete is None or not isinstance(v.concrete, int) \
+                        or isinstance(v.concrete, bool):
+                    return None
+                vals.append(v.concrete)
+            start = vals[0] if len(vals) > 1 else 0
+            stop = vals[1] if len(vals) > 1 else vals[0]
+            step = vals[2] if len(vals) > 2 else 1
+            if not step:
+                return None
+            return [_lit(k) for k in range(start, stop, step)]
+        it = self._eval(iter_node)
+        if isinstance(it, SymTuple):
+            return list(it.items)
+        if it.concrete is not None and isinstance(it.concrete, (list, tuple)) \
+                and not isinstance(it.concrete, str):
+            return [self._from_concrete(v) for v in it.concrete]
+        return None
+
     def _for(self, stmt: ast.For) -> None:
         """A case-layer ``for`` loop.
 
@@ -713,10 +742,16 @@ class _Interpreter:
                 and not isinstance(iterated.concrete, str):
             items = [self._from_concrete(v) for v in iterated.concrete]
         if items is None:
-            raise self._err(stmt, "for",
-                            "loops in the case layer are outside the "
-                            "grid model (only concrete range() loops, "
-                            "tracked tuples and dict views unroll)")
+            # T034: an iterable the model cannot enumerate (enumerate/
+            # zip over opaque lists, an opaque call's result) gets the
+            # same conservative treatment as a symbolic range bound:
+            # every name the body rebinds becomes opaque, so a grid axis
+            # consuming one refuses at the axis tie (unfillable, never a
+            # guess) while a loop the grid does not consume no longer
+            # blocks extraction (grouped_mm/grouped_gemm's allocations
+            # loop -- the grid reads total_tiles, computed before it).
+            self._opaque_loop_effects(stmt)
+            return
         if len(items) > _LOOP_ITERATION_CAP:
             self._opaque_loop_effects(stmt)
             return
@@ -1067,6 +1102,27 @@ class _Interpreter:
                         return SymTuple([
                             self._int_passthrough(item, "int")
                             for item in iterated.items])
+                if isinstance(node, ast.ListComp):
+                    # T034: a general element expression over an
+                    # enumerable iterable (a concrete range(), a tracked
+                    # tuple) evaluates per item -- the corpus's
+                    # dimension-list idiom
+                    # (``[(base_m + 2*g, ...) for g in range(groups)]``)
+                    # feeds grouped_gemm's tile-count sum.  The bound
+                    # iteration cap keeps the evaluation bounded; a
+                    # non-enumerable iterable stays opaque (the grid
+                    # consuming it refuses, located).
+                    items = self._iter_items(node.generators[0].iter)
+                    if items is not None \
+                            and len(items) <= _LOOP_ITERATION_CAP:
+                        out = []
+                        for item in items:
+                            self._bind_loop_target(target, item)
+                            try:
+                                out.append(self._eval(node.elt))
+                            finally:
+                                self._restore_loop_target(target)
+                        return SymTuple(out)
             return _opaque("comprehension")
         if isinstance(node, (ast.SetComp, ast.DictComp, ast.Starred,
                              ast.NamedExpr, ast.Slice)):
@@ -1612,6 +1668,53 @@ class _Interpreter:
                         self._int_passthrough(item, node.args[0].id)
                         for item in seq.items])
             return _opaque("map")
+        if name == "sum" and len(node.args) == 1 and not node.keywords:
+            # T034: builtin sum over an enumerable sequence or generator
+            # (the tile-count idiom ``sum(ceil_div(m, BM) * ceil_div(n, BN)
+            # for (m, n, k) in dimensions)`` -- grouped_gemm).  Concrete
+            # items fold; symbolic items add-chain their grid expressions
+            # (the native routine realizes each Bin node); any item the
+            # model cannot see stays opaque (the axis check refuses).
+            arg = node.args[0]
+            items: Optional[List[SymVal]] = None
+            if isinstance(arg, ast.GeneratorExp) \
+                    and len(arg.generators) == 1 \
+                    and not arg.generators[0].ifs \
+                    and not arg.generators[0].is_async:
+                enum = self._iter_items(arg.generators[0].iter)
+                if enum is not None:
+                    target = arg.generators[0].target
+                    items = []
+                    for item in enum:
+                        self._bind_loop_target(target, item)
+                        try:
+                            items.append(self._eval(arg.elt))
+                        finally:
+                            self._restore_loop_target(target)
+            else:
+                v = self._eval(arg)
+                if isinstance(v, SymTuple):
+                    items = list(v.items)
+            if items is not None and len(items) <= _LOOP_ITERATION_CAP:
+                acc = None
+                concrete = 0
+                symbolic = False
+                for it in items:
+                    if it.concrete is not None \
+                            and isinstance(it.concrete, int) \
+                            and not isinstance(it.concrete, bool):
+                        concrete += int(it.concrete)
+                        continue
+                    tree = self._scalar_gexpr_of(it)
+                    if tree is None:
+                        return _opaque(f"sum({self._why(it)})")
+                    acc = tree if acc is None else Bin("add", acc, tree)
+                    symbolic = True
+                if not symbolic:
+                    return _lit(concrete)
+                return SymVal(gexpr=Bin("add", acc, Lit(concrete))
+                              if concrete else acc)
+            return _opaque("sum")
         # a module-level helper function of the operator file (``_case``,
         # ``_aligned``, ``_dims``, ...): interpreted in the same provenance
         # domain under the step budget -- the payload dict it returns and

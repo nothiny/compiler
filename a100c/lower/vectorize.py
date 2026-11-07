@@ -939,6 +939,46 @@ class SliceLowering:
         self.plan.block_extent = max_extent
         self._default_pass = first
 
+        # T034: a chunked region (block extent beyond one chunk's lanes)
+        # whose escaping loop-exit join has NO merge rule re-derives and
+        # OVERWRITES that value once per chunk iteration -- the final
+        # value is the LAST chunk's, never the region's (logsumexp's
+        # ``maximum = tl.maximum(maximum, tl.max(...))`` over a 1024-lane
+        # block: every pass after the first is fully masked, so the stored
+        # maximum came out -inf).  The staging analysis already names the
+        # value; refuse located instead of miscompiling (MECH-
+        # DIAGNOSTIC-REFUSAL).  A single-chunk region is exact (the one
+        # iteration's value IS the region's).
+        if self.stage_plan is not None and not self.stage_plan.eligible \
+                and "escapes without a merge rule" \
+                in (self.stage_plan.reason or "") \
+                and max_extent is not None and max_extent > self._vl:
+            bad = fn.loc
+
+            def _find_loop(block: tir.Block):
+                for stmt in block.statements:
+                    if isinstance(stmt, tir.Loop):
+                        if stmt.loc is not None:
+                            return stmt.loc
+                        inner = _find_loop(stmt.body)
+                        if inner is not None:
+                            return inner
+                    elif isinstance(stmt, tir.If):
+                        for arm in (stmt.then, stmt.els):
+                            inner = _find_loop(arm)
+                            if inner is not None:
+                                return inner
+                return None
+
+            bad = _find_loop(fn.body) or bad
+            raise VectorizeError(
+                bad, "loop",
+                f"{self.stage_plan.reason}; the region's block extent "
+                f"({max_extent} lanes) spans {self._vl}-lane chunk "
+                "iterations, and each iteration would re-derive and "
+                "overwrite the value -- a located refusal, never a "
+                "silently wrong result")
+
         # the workspace requirements: scans materialize the block through
         # the worker-private region; the two-phase partials live in the
         # shared region (stride fixed at the maximum worker count)
@@ -5370,8 +5410,17 @@ class SliceLowering:
         # back edge -- a use-before-definition the MIR verifier rejected)
         saved_values = dict(self.values)
         arm_values = []
-        for block, arm in ((frame.then_block, stmt.then),
-                           (frame.else_block, stmt.els)):
+        # T034: the authoritative per-arm join sides the frontend
+        # resolved -- the names environment is alias-driven, and a name
+        # bound in ONE arm (pdist's ``hi = mid``) aliases the value
+        # everywhere it lowers, so names.get() in the OTHER arm could
+        # resolve the sibling's side (the binary search collapsed to a
+        # one-iteration loop and the last output row never stored)
+        sides = {name: (t, e) for name, t, e in
+                 (stmt.join_sides or ())}
+        for arm_index, (block, arm) in enumerate(
+                ((frame.then_block, stmt.then),
+                 (frame.else_block, stmt.els))):
             self.values = dict(saved_values)
             ctx.switch(block)
             names.push()
@@ -5380,7 +5429,8 @@ class SliceLowering:
             self._region_depth -= 1
             values = []
             for name in stmt.join_names:
-                v = names.get(name)
+                pair = sides.get(name)
+                v = pair[arm_index] if pair is not None else names.get(name)
                 if v is None:
                     raise self._err(
                         loc, "if",
@@ -5773,6 +5823,10 @@ class SliceLowering:
         if prod.op in tir.BIN_ARITH or prod.op in tir.BIN_BITWISE:
             lreg = self._materialize_scalar_tree(ctx, prod.operands[0], loc)
             rreg = self._materialize_scalar_tree(ctx, prod.operands[1], loc)
+            if lreg.type.float or rreg.type.float:
+                # T034: the same splat-compute-extract form the main
+                # dispatch uses (the scalar core has no float arithmetic)
+                return self._scalar_float_binop(ctx, prod, lreg, rreg, loc)
             if lreg.type.width != rreg.type.width:
                 if lreg.type.width < rreg.type.width:
                     lreg = scalar_mod.widen_to(ctx, lreg, rreg.type.width,
@@ -5784,6 +5838,13 @@ class SliceLowering:
         if prod.op in tir.CMP_PREDS:
             lreg = self._materialize_scalar_tree(ctx, prod.operands[0], loc)
             rreg = self._materialize_scalar_tree(ctx, prod.operands[1], loc)
+            if lreg.type.float or rreg.type.float:
+                # T034: a re-materialized FLOAT comparison (pdist's
+                # ``if p_val == 0.0`` guard feeding a region condition)
+                # rides the same splat-compare-extract form the main
+                # dispatch uses; the scalar core holds floats as raw bits
+                # and has no direct compare
+                return self._scalar_float_cmp(ctx, prod, lreg, rreg, loc)
             if lreg.type.width != rreg.type.width:
                 if lreg.type.width < rreg.type.width:
                     lreg = scalar_mod.widen_to(ctx, lreg, rreg.type.width,
@@ -6484,6 +6545,8 @@ class SliceLowering:
                         [ctx.vreg(mir.MaskType(), hint="sand", loc=loc)],
                         loc=loc))
                 else:
+                    lreg, rreg = self._widen_scalar_pair(
+                        ctx, op, lreg, rreg, loc)
                     reg = scalar_mod.lower_binop(ctx, op, lreg, rreg, loc)
             else:
                 reg = self._vbin(ctx, op, lreg, rreg, loc)
@@ -6496,6 +6559,8 @@ class SliceLowering:
                 if lreg.type.float or rreg.type.float:
                     reg = self._scalar_float_cmp(ctx, op, lreg, rreg, loc)
                 else:
+                    lreg, rreg = self._widen_scalar_pair(
+                        ctx, op, lreg, rreg, loc, floor=32)
                     reg = scalar_mod.lower_cmp(ctx, op, lreg, rreg, loc)
             else:
                 # the declared numeric decision (T012): 16-bit float
@@ -7687,18 +7752,30 @@ class SliceLowering:
             # contract; narrower destinations take their own width.
             if dst.is_bool():
                 return sreg
-            v0 = sreg if sreg.is_mask() else self._mask_of_bool(ctx, sreg,
-                                                                loc)
-            v0 = ctx.emit(mir.MOp(
-                "vmovmask", [v0],
-                [ctx.vreg(mir.MaskType(), hint="cv0", loc=loc,
-                          fixed_phys="v0")], loc=loc))
+            mask_src = sreg if sreg.is_mask() else self._mask_of_bool(
+                ctx, sreg, loc)
+
+            def _pin_v0() -> mir.VReg:
+                # T034: the working-mask pin is emitted immediately
+                # before its consumer.  The early form pinned BEFORE the
+                # arms' 16-bit float conversions -- each conversion
+                # sequence pins v0 internally (the bf16 RTNE NaN-quieting
+                # select), so the early pin's live range spanned them and
+                # the allocator refused with two fixed v0 masks
+                # simultaneously live (sgn_real's ``pos.to(bf16) -
+                # neg.to(bf16)``).
+                return ctx.emit(mir.MOp(
+                    "vmovmask", [mask_src],
+                    [ctx.vreg(mir.MaskType(), hint="cv0", loc=loc,
+                              fixed_phys="v0")], loc=loc))
+
             if dst.is_int() and dw > self._sew:
                 kind = "uint" if dst.is_int_unsigned() else "int"
                 vtype = mir.VectorType(self._sew, 1, kind)
                 self._vregion(ctx, vtype, loc)
                 one = self._splat_const(ctx, 1, vtype, loc)
                 zero = self._splat_const(ctx, 0, vtype, loc)
+                v0 = _pin_v0()
                 out = ctx.emit(mir.MOp(
                     "vsel", [v0, one, zero],
                     [ctx.vreg(vtype, hint="cvb", loc=loc)], loc=loc))
@@ -7713,10 +7790,7 @@ class SliceLowering:
                 zero32 = self._splat_const(ctx, 0.0, v32, loc)
                 one = self._f32_to_ff(ctx, one32, dst, loc)
                 zero = self._f32_to_ff(ctx, zero32, dst, loc)
-                v0m = ctx.emit(mir.MOp(
-                    "vmovmask", [v0],
-                    [ctx.vreg(mir.MaskType(), hint="cv0", loc=loc,
-                              fixed_phys="v0")], loc=loc))
+                v0m = _pin_v0()
                 return ctx.emit(mir.MOp(
                     "vsel", [v0m, one, zero],
                     [ctx.vreg(one.type, hint="cvb", loc=loc)], loc=loc))
@@ -7726,6 +7800,7 @@ class SliceLowering:
                                     vtype, loc)
             zero = self._splat_const(ctx, 0.0 if dst.is_float() else 0,
                                      vtype, loc)
+            v0 = _pin_v0()
             out = ctx.emit(mir.MOp(
                 "vsel", [v0, one, zero],
                 [ctx.vreg(vtype, hint="cvb", loc=loc)], loc=loc))
@@ -7921,7 +7996,13 @@ class SliceLowering:
             # scalar-bool GPR convention (the i64 0/1 the comparisons,
             # the scalar bool loads and the branch conditions speak);
             # a mask-held rank-0 bool would crash the scalar consumers
-            # (the any_kernel store class: 'MaskType' has no width)
+            # (the any_kernel store class: 'MaskType' has no width).
+            # T034: a scalar INT result widens to the DECLARED width --
+            # the {0,1} class kept at the pass's data SEW (the T009
+            # contract, correct for the merge consumers) left the scalar
+            # register narrower than the TIR type, and the scalar core's
+            # exact-width rule refused at the consumer (logsumexp's
+            # ``has_nan |= ... > 0`` in the bf16 pass)
             reg = self._convert_vector(ctx, sreg, src.type, dst.type, loc,
                                        rounding=rounding)
             if op.results[0].rank > 0:
@@ -7929,8 +8010,13 @@ class SliceLowering:
             else:
                 if reg.is_vector():
                     self._vregion(ctx, reg.type, loc)
-                self._bind_result(
-                    op, self._scalar_bool_gpr(ctx, reg, loc))
+                scalar = self._scalar_bool_gpr(ctx, reg, loc)
+                if dst.type.is_int() and not scalar.type.float \
+                        and scalar.type.width < dst.type.bitwidth():
+                    scalar = scalar_mod.widen_to(
+                        ctx, scalar, dst.type.bitwidth(), loc,
+                        unsigned=dst.type.is_int_unsigned())
+                self._bind_result(op, scalar)
             return
         if src.type.is_int() and dst.type.is_int():
             # the scalar core's own widen (and the 64->32 narrow; the
@@ -8319,6 +8405,49 @@ class SliceLowering:
         out = self._scalarize(ctx, res, loc)
         self._restore_region(ctx, loc)
         return out
+
+    def _widen_scalar_pair(self, ctx: _Ctx, op: tir.Op, lreg: mir.VReg,
+                           rreg: mir.VReg, loc, floor: int = 0
+                           ) -> Tuple[mir.VReg, mir.VReg]:
+        """Mixed-width scalar integer operands widened to the op's declared
+        computation width (T034).
+
+        The frontend inserts explicit converts, so the TIR operands already
+        carry one type -- but a value whose {0,1} class was kept at the
+        pass's data SEW (the T009 bool->int contract: an int destination
+        wider than the pass SEW keeps the class at the SEW) arrives at the
+        scalar consumer NARROWER than the declared type, and the scalar
+        core's exact-width rule refused (logsumexp's ``has_nan |= tl.sum(
+        (mask).to(tl.int32)) > 0`` in the bf16 pass: an i16-class value
+        against the i32 accumulator).  The declared width is the authority:
+        both sides widen to it -- the same treatment the re-materialization
+        path (``_materialize_scalar_tree``) already applies.
+
+        ``floor`` (the comparison dispatch passes 32): every operand widens
+        to at least this width -- a comparison is extension-exact (the
+        two's-complement extension is monotone and injective), while the
+        scalar core has no sub-32 arithmetic rows at all (the *w/*b forms
+        do not exist), so a same-width sub-32 pair would otherwise refuse
+        at selection (weighted_scatter's ``is_valid == 0`` over the i16
+        convert).  A float pair passes through unchanged."""
+        if lreg.type.float or rreg.type.float:
+            return lreg, rreg
+        if lreg.type.width == rreg.type.width and \
+                lreg.type.width >= floor:
+            return lreg, rreg
+        if op.results and op.results[0].type.is_int():
+            target = op.results[0].type.bitwidth()
+        else:
+            target = max(lreg.type.width, rreg.type.width)
+        target = max(target, floor)
+        for side, reg in (("l", lreg), ("r", rreg)):
+            if reg.type.width < target:
+                widened = scalar_mod.widen_to(ctx, reg, target, loc)
+                if side == "l":
+                    lreg = widened
+                else:
+                    rreg = widened
+        return lreg, rreg
 
     def _scalar_float_cmp(self, ctx: _Ctx, op: tir.Op, lreg: mir.VReg,
                           rreg: mir.VReg, loc) -> mir.VReg:

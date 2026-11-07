@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-06T22:09:26.609642+00:00",
+  "updated_at": "2026-11-07T01:22:28.244184+00:00",
   "facts": [
     {
       "id": "F001",
@@ -3191,14 +3191,14 @@
       "tags": [
         "compile-sweep-repair"
       ],
-      "status": "RUNNING",
+      "status": "DONE",
       "assignee": "coder",
       "attempts": 1,
-      "evidence": "",
+      "evidence": "worker report WTI034: Round-2 backend/scalar repair; every owned census class is at zero and the lowered forms execute and compare. (1) Batched/two-axis tl.dot: the block-pointer desugar now produces the source's DECLARED rank-2 block shape (the old rank-1 flattening was shape-agnostic and a (slow,fast)-ordered tile transposed every block whose order places the minor axis first -- matmul_abt's A tile, order=(1,0)); the shared arange is region-scoped (a closed region's arange no longer leaks across loop bodies); tl.advance folds zero deltas so untouched axes stay at their channel (the loop's channel-drop then does not carry them); the loop body's block-pointer descriptor is rebuilt over the carried channel terms (previously every iteration re-read the pre-header offsets -- the accumulated dot saw the first K block once per iteration), and derived_terms now include compile-time terms so a constant-offset advance axis rides the loop too; c_ptrs.dtype.element_ty resolves through the lowering symbols. matmul_kernel_1334dd27 (fp16 IME, fp32, bf16) and matmul_abt (fp32, bf16) execute and compare PASS at 1 and 4 workers; grouped_mm/grouped_gemm now refuse located at the GRID (tile-count sums over symbolic-bound ranges the expression language cannot carry) -- the dot no longer refuses. (2) fp16/16-bit atomics: a sub-word synthesis (aligned 32-bit word lr/sc retry loop, the neighbouring half preserved, the declared RVWMO aq/rl suffixes on the pair) for fp16/bf16/int16 pointees, fp arithmetic in fp32 with one RTNE back; the atomic loop's extracts/slides/mask state are region-managed; the emitted parallel move for m1 vector params is the whole-register vmv1r.v (vmv.v.v copied only avl elements at the ambient region -- a mixed-SEW pass's e16 ambient copied 64 of an i32 vector's 128 bytes and the fp16 atomic's offset/mask params arrived half-swapped, firing lanes 16+ out of range). scatter_atomic fp16 executes and compares at 1/2/4/8 workers (cross-program accumulation), weighted",
       "last_error": "",
       "failure_kind": "",
       "start_revision": "534f34e5b9fe2dbe654ff4692dc5e25b253f5909",
-      "end_revision": "",
+      "end_revision": "b6efdadacbd0d5fb8745c175d7c1a617e026e895",
       "completed_seq": 0,
       "debug_required": false,
       "debug_request_id": "",
@@ -3262,7 +3262,7 @@
       "tags": [
         "compile-sweep-repair"
       ],
-      "status": "BLOCKED",
+      "status": "READY",
       "assignee": "",
       "attempts": 0,
       "evidence": "",
@@ -8644,6 +8644,30 @@
       "phase": "IMPLEMENTATION",
       "event": "task-delegate",
       "detail": "WTI034 task=T034 attempt=1 profile=general-purpose"
+    },
+    {
+      "at": "2026-11-07T01:22:28.176811+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "task-report-out-of-contract",
+      "detail": "T034: a100c/cache/c12b86f9f0245c6022654579598f6322cb5f836a0c3a6f50c2b8ed50f0793c19/stage.mir.lowered.txt, a100c/cache/build/program-8da79b57f481d94d.o, a100c/cache/82f1706171a911eaac1a3c2610f3ec91a9c853564c3725e7e77c746276c9447b/stage.mir.allocated.txt, a100c/cache/38f9744f8afdef373ee8fb047a77904019cc5bd28ee41ed97b186981d32dc20f/stage.mir.legalized.txt, a100c/cache/271df1282bd54570fd5403ed6f0cb864af188cfc732fd9d2fcec02eaa7d75c0c/stage.mir.allocated.txt"
+    },
+    {
+      "at": "2026-11-07T01:22:28.184178+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "task-report",
+      "detail": "WTI034 COMPLETED attempt=1 [declared outputs do not exist: Extended backend/scalar forms with regression tests; no new diff in declared outputs; existing implementation may already satisfy the task; changes outside the declared paths: a100c/cache/c12b86f9f0245c6022654579598f6322cb5f836a0c3a6f50c2b8ed50f0793c19/stage.mir.lowered.txt, a100c/cache/build/program-8da79b57f481d94d.o, a100c/cache/82f1706171a911eaac1a3c2610f3ec91a9c853564c3725e7e77c746276c9447b/stage.mir.allocated.txt, a100c/cache/38f9744f8afdef373ee8fb047a77904019cc5bd28ee41ed97b186981d32dc20f/stage.mir.legalized.txt, a100c/cache/271df1282bd54570fd5403ed6f0cb864af188cfc732fd9d2fcec02eaa7d75c0c/stage.mir.allocated.txt]"
+    },
+    {
+      "at": "2026-11-07T01:22:28.214746+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "complete-task",
+      "detail": "T034 worker report WTI034: Round-2 backend/scalar repair; every owned census class is at zero and the lowered forms execute and compare. (1) Batched/two-axis tl.dot: the block-pointer desugar now produces the source's DECLARED rank-2 block shape (the old rank-1 flattening was shape-agnostic and a (slow,fast)-ordered tile transposed every block whose order places the minor axis first -- matmul_abt's A tile, order=(1,0)); the shared arange is region-scoped (a closed region's arange no longer leaks across loop bodies); tl.advance folds zero deltas so untouched axes stay at their channel (the loop's channel-drop then does not carry them); the loop body's block-pointer descriptor is rebuilt over the carried channel terms (previously every iteration re-read the pre-header offsets -- the accumulated dot saw the first K block once per iteration), and derived_terms now include compile-time terms so a constant-offset advance axis rides the loop too; c_ptrs.dtype.element_ty resolves through the lowering symbols. matmul_kernel_1334dd27 (fp16 IME, fp32, bf16) and matmul_abt (fp32, bf16) execute and compare PASS at 1 and 4 workers; grouped_mm/grouped_gemm now refuse located at the GRID (tile-count sums over symbolic-bound ranges the expression language cannot carry) -- the dot no longer refuses. (2) fp16/16-bit atomics: a sub-word synthesis (aligned 32-bit word lr/sc retry loop, the neighbouring half preserved, the declared RVWMO aq/rl suffixes on the pair) for fp16/bf16/int16 pointees, fp arithmetic in fp32 with one RTNE back; the atomic loop's extracts/slides/mask state are region-managed; the emitted parallel move for m1 vector params is the whole-register vmv1r.v (vmv.v.v copied only avl elements at the ambient region -- a mixed-SEW pass's e16 ambient copied 64 of an i32 vector's 128 bytes and the fp16 atomic's offset/mask params arrived half-swapped, firing lanes 16+ out of range). scatter_atomic fp16 executes and compares at 1/2/4/8 workers (cross-program accumulation), weighted"
+    },
+    {
+      "at": "2026-11-07T01:22:28.244145+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "unattributed-complete",
+      "detail": "T034: none of ['Extended backend/scalar forms with regression tests'] changed since 534f34e5b9fe2dbe654ff4692dc5e25b253f5909"
     }
   ]
 }

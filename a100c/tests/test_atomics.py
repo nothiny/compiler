@@ -214,10 +214,17 @@ def check_scalar_fp_min(workdir, compiler):
 
 
 def check_grouped_gemm_boundary(compiler):
-    """grouped_gemm_kernel refuses located on its out-of-slice parts (the
-    dot families are T014's; bf16 element widths are T012's) -- never a
-    silent miscompile; its pointer-table pattern is test_memory_forms'
-    executed check."""
+    """grouped_gemm_kernel refuses located on its out-of-slice parts --
+    never a silent miscompile; its pointer-table pattern is
+    test_memory_forms' executed check.
+
+    T034: the two-axis block-pointer tile now lowers through the dot
+    lane (the rank-1 flattening repair), so the located refusal the
+    boundary test pins moved past the dot/bf16 parts to the GRID model:
+    the tile-count sum runs over a symbolic-bound range the expression
+    language cannot carry (``sum(ceil_div(m, BM) * ceil_div(n, BN) for
+    (m, n, k) in dimensions)`` over ``range(groups)`` with groups a
+    symbolic shape extent) -- still located, still never a guess."""
     gg = _load(ROOT / "ops" / "suite" / "dev" / "grouped_gemm_kernel.py")
     try:
         compiler.compile_case(gg.make_case())
@@ -225,7 +232,9 @@ def check_grouped_gemm_boundary(compiler):
               "compiled (expected a located refusal)")
     except PipelineError as exc:
         needles = ("dot", "width", "SEW", "matrix", "bf16", "bfloat16",
-                   "and/or", "not supported")
+                   "and/or", "not supported",
+                   # T034: the moved boundary (the grid tie)
+                   "grid")
         check("grouped-gemm-refuses-located-out-of-slice",
               any(n in str(exc) for n in needles), str(exc)[:110])
     except Exception as exc:               # noqa: BLE001

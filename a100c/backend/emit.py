@@ -331,7 +331,14 @@ class _Emitter:
         elif dstv.is_mask():
             self.emit(f"vmv1r.v {dst}, {src}", op)
         elif dstv.type.lmul == 1:
-            self.emit(f"vmv.v.v {dst}, {src}", op)
+            # T034: the whole-register move, never the vtype-governed
+            # vmv.v.v -- a param move must copy the value's FULL m1
+            # register, and vmv.v.v copies only avl elements at the
+            # ACTIVE region (a mixed-SEW pass's e16 ambient copied 64 of
+            # an i32 vector's 128 bytes: the fp16 atomic loop's offset
+            # and mask params arrived half-swapped, and lanes 16+ fired
+            # at out-of-range addresses)
+            self.emit(f"vmv1r.v {dst}, {src}", op)
         elif dstv.type.lmul in (2, 4, 8):
             # whole-register-group moves (T029: the allocator's m4/m8
             # groups -- the fp32 dot's 128-lane chunk class)

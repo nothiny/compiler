@@ -1,0 +1,1201 @@
+{
+  "schema": "a100-compile-census/v1",
+  "generator": "a100c/tests/test_compile_sweep.py",
+  "command": "a100c/tests/test_compile_sweep.py --operator suite/dev/grouped_gemm_kernel.py --operator suite/dev/grouped_mm_kernel.py --operator suite/dev/matmul_abt_kernel.py --operator suite/dev/matmul_kernel_1334dd27.py --operator suite/dev/conv1x1_pool_fc_kernel.py --operator suite/dev/f_init_recurrence_kernel.py --operator suite/dev/scatter_atomic_kernel.py --operator suite/dev/splitk_gemv.py --operator suite/dev/weighted_scatter_add_kernel.py --operator suite/perf/logsumexp.py --operator suite/dev/pdist__pdist_forward_general_kernel.py --operator suite/dev/sym_constrain_range_kernel.py --operator suite/dev/sgn_real_kernel.py --census-out /tmp/t034-owned-census.json",
+  "seed": 30,
+  "manifest": "ops/suite/manifest.json",
+  "compiler_revision": "71b29440f0587a01",
+  "pass_config": "passes=default",
+  "restricted": true,
+  "cache": {
+    "root": "/tmp/a100-compile-sweep-b076xjq0",
+    "isolated_temporary": true
+  },
+  "budget_s_per_identity": 600.0,
+  "census": {
+    "operators": 13,
+    "cases": 80,
+    "cases_classified": 80,
+    "identities": 64,
+    "cases_per_identity": 1.25,
+    "declared_full_corpus": {
+      "cases": 2734,
+      "identities": 2161
+    },
+    "identities_with_multiple_cases": 12
+  },
+  "partition": {
+    "artifacts": 47,
+    "refused": 17,
+    "over_budget": 0,
+    "crash": 0,
+    "case_build_failures": 0,
+    "sums_to_identity_census": true
+  },
+  "compile": {
+    "count": 64,
+    "cache_hits": 10,
+    "attempts_one_per_identity": 64,
+    "cold_ms": [
+      53.1,
+      63.4,
+      64.1,
+      75.3,
+      82.5,
+      98.2,
+      99.7,
+      101.7,
+      115.0,
+      118.5,
+      147.4,
+      152.9,
+      153.5,
+      167.2,
+      171.5,
+      178.0,
+      188.5,
+      189.7,
+      194.7,
+      206.0,
+      214.8,
+      217.2,
+      281.1,
+      310.0,
+      339.9,
+      451.0,
+      544.2,
+      678.8,
+      858.6,
+      916.3,
+      921.3,
+      977.9,
+      1498.9,
+      2735.1,
+      2739.7,
+      2777.7,
+      2794.2,
+      5953.9,
+      6402.7,
+      7464.6,
+      7466.0,
+      35992.9,
+      36251.9,
+      67869.1,
+      68223.8,
+      95485.9,
+      95960.8
+    ],
+    "cold_ms_median": 310.0,
+    "cold_ms_max": 95960.8,
+    "declared_identity_bound_1_25x": 2701,
+    "within_declared_economics": true
+  },
+  "artifact_reuse": {
+    "repeat_case_checks": 10,
+    "all_reused_one_artifact": true,
+    "violations": []
+  },
+  "passes": {
+    "totals_fired": {
+      "constprop": 209,
+      "copyprop": 0,
+      "strength_reduction": 137,
+      "cse": 2625,
+      "licm": 343,
+      "dce": 179
+    },
+    "markers_read": 47,
+    "markers_with_enabled_config": 47
+  },
+  "refusals": {
+    "count": 17,
+    "by_construct": {
+      "grid": 7,
+      "loop": 6,
+      "allocation": 4
+    },
+    "by_operator": {
+      "suite/dev/grouped_mm_kernel.py": 6,
+      "suite/perf/logsumexp.py": 6,
+      "suite/dev/conv1x1_pool_fc_kernel.py": 2,
+      "suite/dev/matmul_abt_kernel.py": 2,
+      "suite/dev/grouped_gemm_kernel.py": 1
+    },
+    "rows": [
+      {
+        "identity": "25781c2b9a71",
+        "operator": "suite/dev/conv1x1_pool_fc_kernel.py",
+        "cases": 2,
+        "first_case": {
+          "shape": [
+            2,
+            128,
+            128,
+            128,
+            10
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "allocation",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/conv1x1_pool_fc_kernel.py:65:9",
+        "detail": "allocation: allocation did not converge for 'operator_entry' after 65 spill rounds (each round rematerializes or splits one value); the pressure source is value 'k1744' (i32) at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/conv1x1_pool_fc_kernel.py:65:9 with 30 values simultaneously live against 25 allocatable GPRs and 31 vector registers -- a register-pressure pattern the splitter c"
+      },
+      {
+        "identity": "be981bf7a09a",
+        "operator": "suite/dev/conv1x1_pool_fc_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            1,
+            128,
+            128,
+            128,
+            10
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "allocation",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/conv1x1_pool_fc_kernel.py:65:9",
+        "detail": "allocation: allocation did not converge for 'operator_entry' after 65 spill rounds (each round rematerializes or splits one value); the pressure source is value 'k1744' (i32) at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/conv1x1_pool_fc_kernel.py:65:9 with 30 values simultaneously live against 25 allocatable GPRs and 31 vector registers -- a register-pressure pattern the splitter c"
+      },
+      {
+        "identity": "c2247b7892b2",
+        "operator": "suite/dev/grouped_gemm_kernel.py",
+        "cases": 6,
+        "first_case": {
+          "shape": [
+            3,
+            17,
+            19,
+            13
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "grid",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_gemm_kernel.py:139:1",
+        "detail": "grid: a grid axis is not provenance-tracked (it depends on values the model cannot see: sum)"
+      },
+      {
+        "identity": "018f4354e301",
+        "operator": "suite/dev/grouped_mm_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            3,
+            23,
+            19,
+            17
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "grid",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_mm_kernel.py:126:1",
+        "detail": "grid: a grid axis is not provenance-tracked (it depends on values the model cannot see: loop-dependent value (total_tiles))"
+      },
+      {
+        "identity": "e72f414a7f98",
+        "operator": "suite/dev/grouped_mm_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            3,
+            23,
+            19,
+            17
+          ],
+          "dtype": "float32"
+        },
+        "construct": "grid",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_mm_kernel.py:126:1",
+        "detail": "grid: a grid axis is not provenance-tracked (it depends on values the model cannot see: loop-dependent value (total_tiles))"
+      },
+      {
+        "identity": "8d36c2c9d6f3",
+        "operator": "suite/dev/grouped_mm_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            3,
+            23,
+            19,
+            17
+          ],
+          "dtype": "float16"
+        },
+        "construct": "grid",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_mm_kernel.py:126:1",
+        "detail": "grid: a grid axis is not provenance-tracked (it depends on values the model cannot see: loop-dependent value (total_tiles))"
+      },
+      {
+        "identity": "3cd3668dc78a",
+        "operator": "suite/dev/grouped_mm_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            4,
+            67,
+            35,
+            29
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "grid",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_mm_kernel.py:126:1",
+        "detail": "grid: a grid axis is not provenance-tracked (it depends on values the model cannot see: loop-dependent value (total_tiles))"
+      },
+      {
+        "identity": "425ae3455497",
+        "operator": "suite/dev/grouped_mm_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            4,
+            67,
+            35,
+            29
+          ],
+          "dtype": "float32"
+        },
+        "construct": "grid",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_mm_kernel.py:126:1",
+        "detail": "grid: a grid axis is not provenance-tracked (it depends on values the model cannot see: loop-dependent value (total_tiles))"
+      },
+      {
+        "identity": "e3c7bd283425",
+        "operator": "suite/dev/grouped_mm_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            4,
+            67,
+            35,
+            29
+          ],
+          "dtype": "float16"
+        },
+        "construct": "grid",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_mm_kernel.py:126:1",
+        "detail": "grid: a grid axis is not provenance-tracked (it depends on values the model cannot see: loop-dependent value (total_tiles))"
+      },
+      {
+        "identity": "9e0ea8030cb9",
+        "operator": "suite/dev/matmul_abt_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            128,
+            96,
+            100
+          ],
+          "dtype": "float16"
+        },
+        "construct": "allocation",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:25:1",
+        "detail": "allocation: allocation did not converge for 'operator_entry' after 65 spill rounds (each round rematerializes or splits one value); the pressure source is value 'items.xreg' (i64) at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:25:1 with 10 values simultaneously live against 25 allocatable GPRs and 31 vector registers -- a register-pressure pattern the splitter c"
+      },
+      {
+        "identity": "0b810aac96d3",
+        "operator": "suite/dev/matmul_abt_kernel.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            40,
+            24,
+            100
+          ],
+          "dtype": "float16"
+        },
+        "construct": "allocation",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15",
+        "detail": "allocation: allocation did not converge for 'operator_entry' after 65 spill rounds (each round rematerializes or splits one value); the pressure source is value 'mnd10' (i64) at /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15 with 31 values simultaneously live against 25 allocatable GPRs and 31 vector registers -- a register-pressure pattern the splitter canno"
+      },
+      {
+        "identity": "62bdfc9af450",
+        "operator": "suite/perf/logsumexp.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            4,
+            16
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "loop",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/logsumexp.py:26:5",
+        "detail": "loop: region value 'maximum' escapes without a merge rule (its loop update is not a recognized reduction form); the region's block extent (1024 lanes) spans 32-lane chunk iterations, and each iteration would re-derive and overwrite the value -- a located refusal, never a silently wrong result"
+      },
+      {
+        "identity": "35e9142592f4",
+        "operator": "suite/perf/logsumexp.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            4,
+            16
+          ],
+          "dtype": "float32"
+        },
+        "construct": "loop",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/logsumexp.py:26:5",
+        "detail": "loop: region value 'maximum' escapes without a merge rule (its loop update is not a recognized reduction form); the region's block extent (1024 lanes) spans 32-lane chunk iterations, and each iteration would re-derive and overwrite the value -- a located refusal, never a silently wrong result"
+      },
+      {
+        "identity": "a8d9576ca9ee",
+        "operator": "suite/perf/logsumexp.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            4,
+            16
+          ],
+          "dtype": "float16"
+        },
+        "construct": "loop",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/logsumexp.py:26:5",
+        "detail": "loop: region value 'maximum' escapes without a merge rule (its loop update is not a recognized reduction form); the region's block extent (1024 lanes) spans 32-lane chunk iterations, and each iteration would re-derive and overwrite the value -- a located refusal, never a silently wrong result"
+      },
+      {
+        "identity": "76935c980ac9",
+        "operator": "suite/perf/logsumexp.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            4,
+            97
+          ],
+          "dtype": "bfloat16"
+        },
+        "construct": "loop",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/logsumexp.py:26:5",
+        "detail": "loop: region value 'maximum' escapes without a merge rule (its loop update is not a recognized reduction form); the region's block extent (1024 lanes) spans 32-lane chunk iterations, and each iteration would re-derive and overwrite the value -- a located refusal, never a silently wrong result"
+      },
+      {
+        "identity": "20a9c29ecaf3",
+        "operator": "suite/perf/logsumexp.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            4,
+            97
+          ],
+          "dtype": "float32"
+        },
+        "construct": "loop",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/logsumexp.py:26:5",
+        "detail": "loop: region value 'maximum' escapes without a merge rule (its loop update is not a recognized reduction form); the region's block extent (1024 lanes) spans 32-lane chunk iterations, and each iteration would re-derive and overwrite the value -- a located refusal, never a silently wrong result"
+      },
+      {
+        "identity": "eafc938416da",
+        "operator": "suite/perf/logsumexp.py",
+        "cases": 1,
+        "first_case": {
+          "shape": [
+            4,
+            97
+          ],
+          "dtype": "float16"
+        },
+        "construct": "loop",
+        "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/logsumexp.py:26:5",
+        "detail": "loop: region value 'maximum' escapes without a merge rule (its loop update is not a recognized reduction form); the region's block extent (1024 lanes) spans 32-lane chunk iterations, and each iteration would re-derive and overwrite the value -- a located refusal, never a silently wrong result"
+      }
+    ]
+  },
+  "over_budget_rows": [],
+  "crash_rows": [],
+  "crashes": {
+    "count": 0,
+    "by_exception_class": {}
+  },
+  "case_build_failures": [],
+  "wall": {
+    "total_s": 497.6,
+    "build_s": 0.1,
+    "compile_s": 497.5
+  },
+  "identities": [
+    {
+      "identity": "3dec21ad2138",
+      "operator": "suite/dev/conv1x1_pool_fc_kernel.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "b9c8d67553f9c23e0868a3402cd5755567ab07dcfedb40f32f87bb379230b578",
+      "sha256": "5ca232fe018a5dbcac5bb3337aa88d629ed87ba558b0884a238271ceace00322",
+      "compile_ms": 6402.7,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "19c0b1b6074c",
+      "operator": "suite/dev/conv1x1_pool_fc_kernel.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "8f26bac286616fd901656b37cf258a24edbcc75f95281d239728dad7eb76b01b",
+      "sha256": "3310537f9180d6579b4ce156e92f77769076978b76703036fce088a7dd107b90",
+      "compile_ms": 7464.6,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "25781c2b9a71",
+      "operator": "suite/dev/conv1x1_pool_fc_kernel.py",
+      "cases": 2,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "allocation",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/conv1x1_pool_fc_kernel.py:65:9"
+    },
+    {
+      "identity": "9bbe74822d5d",
+      "operator": "suite/dev/conv1x1_pool_fc_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "5539ce7d0d2cf3183b09e5ad4d18f106fb3e2444bbe28240ecafc82a06165dc4",
+      "sha256": "e7d645a6ea526d0dc0e719c4df11a4c72e0ce685161197d37da91fa5a92a56cc",
+      "compile_ms": 5953.9,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "280a50654e0f",
+      "operator": "suite/dev/conv1x1_pool_fc_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "24d8a2b5f324b86c6d3504fd86bd03bf4a49bdf237fb568ac4da67d48cee6fff",
+      "sha256": "8d79f2951afb1df7bee080b1a779472094a83c5c9ed0562b600e58281ddfa6f2",
+      "compile_ms": 7466.0,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "be981bf7a09a",
+      "operator": "suite/dev/conv1x1_pool_fc_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "allocation",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/conv1x1_pool_fc_kernel.py:65:9"
+    },
+    {
+      "identity": "ad115b4c6a00",
+      "operator": "suite/dev/f_init_recurrence_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "df6d1c008a123d6e1c8741228d42d50fe7869d041810498b0256d689daa60475",
+      "sha256": "64899dcc72d49d438007654425893cee5d98090451ccb5f547063618a20d8112",
+      "compile_ms": 35992.9,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "942f35ebd81c",
+      "operator": "suite/dev/f_init_recurrence_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "86c4ae6297b8ce781bbac9a1304ed2fe0e3cee1ef098b0f5a0bb53f1175fd816",
+      "sha256": "ad9376b1d090bde2e7d7667b2b531bfc4039e44a4e14d494a92b615a7c5ff8b4",
+      "compile_ms": 68223.8,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "02aa424f0d30",
+      "operator": "suite/dev/f_init_recurrence_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "20000e8bfe7d28132eecce1cd2f34b92843082d4712fda1aeb6d59bdb0863715",
+      "sha256": "707950bf5eb85596d18ab6a18adafd8b8707a5133d4115b974acea10aac68a74",
+      "compile_ms": 95485.9,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "e5401ee83052",
+      "operator": "suite/dev/f_init_recurrence_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "65a98fbe68305a0d7d14f24cfc5a5adfb2d8e688c0707b35f1f034ea22047d19",
+      "sha256": "d039707c06aa2765151ad8158927e1d94cb901ac24e921e7079dbaa83389945a",
+      "compile_ms": 36251.9,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "c4cc35450e5a",
+      "operator": "suite/dev/f_init_recurrence_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "40e2bec6fa4ae9c3a15b5fb8262b4e245c306695652e82c2a023c340d4b91783",
+      "sha256": "0f46794825871e618fbcaaafd22c7c67acf35ff5508b50bef89ddcd6ae5883c7",
+      "compile_ms": 67869.1,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "945cb42e4ad1",
+      "operator": "suite/dev/f_init_recurrence_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "a9145d284ace711fa6817520dab489825902b6b8169ae8753aaf2ce746857749",
+      "sha256": "389c9e0c2db0826424143d12e6fab972ee8fc1927aed3e8c2d321ebb63f820c5",
+      "compile_ms": 95960.8,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "c2247b7892b2",
+      "operator": "suite/dev/grouped_gemm_kernel.py",
+      "cases": 6,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "grid",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_gemm_kernel.py:139:1"
+    },
+    {
+      "identity": "018f4354e301",
+      "operator": "suite/dev/grouped_mm_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "grid",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_mm_kernel.py:126:1"
+    },
+    {
+      "identity": "e72f414a7f98",
+      "operator": "suite/dev/grouped_mm_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "grid",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_mm_kernel.py:126:1"
+    },
+    {
+      "identity": "8d36c2c9d6f3",
+      "operator": "suite/dev/grouped_mm_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "grid",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_mm_kernel.py:126:1"
+    },
+    {
+      "identity": "3cd3668dc78a",
+      "operator": "suite/dev/grouped_mm_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "grid",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_mm_kernel.py:126:1"
+    },
+    {
+      "identity": "425ae3455497",
+      "operator": "suite/dev/grouped_mm_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "grid",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_mm_kernel.py:126:1"
+    },
+    {
+      "identity": "e3c7bd283425",
+      "operator": "suite/dev/grouped_mm_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "grid",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_mm_kernel.py:126:1"
+    },
+    {
+      "identity": "9e0ea8030cb9",
+      "operator": "suite/dev/matmul_abt_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "allocation",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:25:1"
+    },
+    {
+      "identity": "ba35bdd1f35e",
+      "operator": "suite/dev/matmul_abt_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "6ee2141bb59555a4bacd203cab0290b55d69e76e69e97846bf7f8bd5b5ce31b5",
+      "sha256": "4f02c41fcb1b7b25de1320821cfeef72e23586f0ad7e306d5c23856e2946f9e2",
+      "compile_ms": 977.9,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "9d811705fb64",
+      "operator": "suite/dev/matmul_abt_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "d2986c73d89174780b42173936fabf2ee92f57259903df76bd145a3031374a82",
+      "sha256": "4c8ee500212276ab0bcf36ceb2e9bfa465f4ad99d2390b7f8487c9e49c828d3b",
+      "compile_ms": 544.2,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "0b810aac96d3",
+      "operator": "suite/dev/matmul_abt_kernel.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "allocation",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15"
+    },
+    {
+      "identity": "a8569bee70cb",
+      "operator": "suite/dev/matmul_abt_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "10e061e9bee54c8c28e0c4850bda39948abe59dfe593a8a2269422de1b6a03f5",
+      "sha256": "1ad26ec71c8c1edabbafddf57c9c6f74cf6c478d9cf973204a9e8179de87fd15",
+      "compile_ms": 1498.9,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "9f5799ca18a1",
+      "operator": "suite/dev/matmul_abt_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "1913007cb3c16c977420fc4a2176617bd4cee130faba9531ba913f88b82bea45",
+      "sha256": "25b637e830245ae807bd0d2e2f493e0dcf4981c1823285c23f1654e5a7d36c90",
+      "compile_ms": 678.8,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "65b96bf4b00a",
+      "operator": "suite/dev/matmul_kernel_1334dd27.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "b37426455b677dec01ca88683f324c514f71a94f9d58d4ad6bd0c94f1e886ad6",
+      "sha256": "9c75513cfbf89dafb597b3956faef9002bc12f4bb04fb380c74a0ebb8d19ec97",
+      "compile_ms": 916.3,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "37519072d748",
+      "operator": "suite/dev/matmul_kernel_1334dd27.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "432c78d6d69018a09d4e0d5574591d9f8ca523051f628ab95d2c18b411ff3d0f",
+      "sha256": "8ce53a6c0f7e2f4b27218e5b10be65a17cec1183fbc2c79acd1fa6f2ad1c5954",
+      "compile_ms": 2777.7,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "9035a645cf6d",
+      "operator": "suite/dev/matmul_kernel_1334dd27.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "c8183fd88e6dcb25bf5a902257da2c3fff142b3ab2e2b7c40472a23e11836235",
+      "sha256": "2cdb285c7f1618ff70697984f70e4a09293dd6d9c64237840da16407dd797b8c",
+      "compile_ms": 2735.1,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "0c23474e439b",
+      "operator": "suite/dev/matmul_kernel_1334dd27.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "6b2dd15c17730b56591768d27d401a1bfba253b002812fbc49b72925713ad746",
+      "sha256": "d1656fe1791a34be6a66b94c357781db70fe6b2a76b44a84fe3b0203164a0b1d",
+      "compile_ms": 921.3,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "dcb50d740507",
+      "operator": "suite/dev/matmul_kernel_1334dd27.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "c9113308dbbb17c30496f403be39018fbef6459f956062444f3cb209e1c933f1",
+      "sha256": "6849e94a3b87415ab405fdffa0c2ba6096e3cabf5e41ced45f45f92cc4b995fd",
+      "compile_ms": 2794.2,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "420f2a5650fb",
+      "operator": "suite/dev/matmul_kernel_1334dd27.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "d5dfd072986abc9d449cd19b8bf522f04f1aad0b9966092e79abaabb5b779efe",
+      "sha256": "11e060f1f6fdd4e6ffe70213941f1a74daf2e252f2bb3a4fd0ac69ae2f286f99",
+      "compile_ms": 2739.7,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "fadd99cbdc47",
+      "operator": "suite/dev/pdist__pdist_forward_general_kernel.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "64c1bbcb36502c85a74ea0b07f26448abf4337032111db6f909d95c22397621f",
+      "sha256": "96a46b8a913db16c79269c1d43af4f5bcf831d5298de09cdc85d4194dccd8eed",
+      "compile_ms": 281.1,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "9b1869336210",
+      "operator": "suite/dev/pdist__pdist_forward_general_kernel.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "ccd1fe78fac8b2e09f2b89e6361907925da7546c7af1e8637ff72b9c55db587c",
+      "sha256": "70443299e335f76d2684e9a6be3547749e43873c07f73361e78c1181dc402b4c",
+      "compile_ms": 310.0,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "20098a7c8fdd",
+      "operator": "suite/dev/pdist__pdist_forward_general_kernel.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "d2b6e3b5e191d39da06a3d7dbae7d95cbd395ac91c8529c2663ce5c3866a1dca",
+      "sha256": "204516cf3cc95d58c1ec6b02b0467ecdad06ca3ef5a97d80058fb1a6dc4ea48e",
+      "compile_ms": 339.9,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "9929b228bf82",
+      "operator": "suite/dev/scatter_atomic_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "15f6afc1f717c51bd634a245f706fddf63850674d9e855486f04b4727277268a",
+      "sha256": "ff126390e968936ce3557ee93a9520bdd9101bbbc6735816d02738dce4db7a40",
+      "compile_ms": 98.2,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "f080fc14e921",
+      "operator": "suite/dev/scatter_atomic_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "7a9de75b8256ea4b1808ffe97a1733d26bdc6df09eeb95302f6d70f66c5b7028",
+      "sha256": "1cdc52b4db0864352321a513d7552e652ff38ef2fed7c1059f53d7971c79d8f8",
+      "compile_ms": 153.5,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "b2aedd5d778b",
+      "operator": "suite/dev/scatter_atomic_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "1cbee53bab4a4f4b2f9a3ec9370d20686f94dcdb5236f11c50c5a92d4bdd71b1",
+      "sha256": "8fe5c25da49792669dffc85eb8e2730679e1461c06ec8e9a9858b83340d1d860",
+      "compile_ms": 188.5,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "61c8fdc983f6",
+      "operator": "suite/dev/scatter_atomic_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "8caf621064555f50755a3ce29ee2789d35819ebc7e27634f1763717827cde2a0",
+      "sha256": "4092512c6f3040a0eccd835f32dcc67a8a49b43e230614d18ce916ab9325c902",
+      "compile_ms": 118.5,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "9d23e6df15e2",
+      "operator": "suite/dev/scatter_atomic_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "ff6266eefba363bb6d02cb99988685134b60df0877c87d454f777fecb029a230",
+      "sha256": "e215ffc1d3d6520efc267a400ca05728759b07675cee2d773140da1e9b9abf06",
+      "compile_ms": 152.9,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "25f3fece2d27",
+      "operator": "suite/dev/scatter_atomic_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "8390b62d18b5be8e7c0026d73d94f77820e051bcadc61b2743a2a32369f2f459",
+      "sha256": "03828834cd252fe14295d67da36fbbe3613821fd543253d3f573f5c1e074b77f",
+      "compile_ms": 189.7,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "b9bd972cce27",
+      "operator": "suite/dev/scatter_atomic_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "a8449884d7688d2e0f6688130a8e3a8f63b3d5932cb8993b2acb7b5efc3f4f94",
+      "sha256": "c1d0d3147d4526dafb06cf04b29888dcfeca5c40a3392cedbd1ceb8266c5763e",
+      "compile_ms": 75.3,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "24a2ab6043c4",
+      "operator": "suite/dev/scatter_atomic_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "56d1ff95125a4e917e0b6304ff13649f6bf98cd764f20d7c482b0126e1a27bce",
+      "sha256": "2d208ab9c3a17906817bbfd29214b34c10d949942b6793e3c230a9c93f4145ce",
+      "compile_ms": 147.4,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "99acf4cc9e72",
+      "operator": "suite/dev/scatter_atomic_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "baa1bb977fb800452c74954cdf444c07b879a7a87b7d6ff90cb9a8fffde600da",
+      "sha256": "10abe4c2b062063037201e8ba115cedcd55230de39db180109d3d1f6c9c46eb1",
+      "compile_ms": 178.0,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "11329219654e",
+      "operator": "suite/dev/sgn_real_kernel.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "5076866e397b2c82aeef76e13f2322b7127213a616d93ce501217963cdf3fa1f",
+      "sha256": "e0ea56a8441f9df470c8a99a470465e0765108ac5acf687ceaae4c1c156dca39",
+      "compile_ms": 63.4,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "05003189c5d2",
+      "operator": "suite/dev/sgn_real_kernel.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "d8aced747b79ce04f94f81363c9feff98f4b8515067bb1f0dc027d8ec773230e",
+      "sha256": "69c3c5c9d9dd087fbfd0e66bed6c9331d06485ef1c10a360cbf70674dee2741c",
+      "compile_ms": 64.1,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "1652dfc5839b",
+      "operator": "suite/dev/sgn_real_kernel.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "be08303ca12f57f952d706e7df68f93847533346d7c49b766da9cf7a2818120e",
+      "sha256": "9afb8e9da9a9ac302f69fe246d31f6abebfac3793ffe891a2b760890884d4145",
+      "compile_ms": 82.5,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "db58282d14da",
+      "operator": "suite/dev/splitk_gemv.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "e3e2a33b0983420631a855aff6ec29e5d163f9f3105eb16ab9200ccb51bf3f79",
+      "sha256": "d55b6f53db37bca7fb29396ea3ad36d02b8bc84fb8f8cc421b48b13ee513a9de",
+      "compile_ms": 451.0,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "933eedf0eebc",
+      "operator": "suite/dev/splitk_gemv.py",
+      "cases": 2,
+      "status": "artifact",
+      "artifact_key": "1cdf1bb76c431b46ce2a438f9e51ef882f8a9a3fc616704dbf1ea93982505281",
+      "sha256": "b51d1ea10b700271f52150518851e26b8c18ac6765c579197ee0da86f9f92022",
+      "compile_ms": 858.6,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "ba97bf21ce5e",
+      "operator": "suite/dev/sym_constrain_range_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "b1d0aad545c45a0309081507210d3deac540bcfead7396bd9e7543c91dac23fb",
+      "sha256": "2a70ce01e8ed7a215db73cf94f27f4f3ae70793e98d6989d4584cbd7f31171d8",
+      "compile_ms": 53.1,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "eac652e59eaa",
+      "operator": "suite/dev/weighted_scatter_add_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "239d679051f050b3e34b6a948638d392b900d755cc7e0b7747df58e10c2f9a93",
+      "sha256": "cd572c484460527c28e13aba5932e0cea111b8b0eba0dec24c48edc58f23f04d",
+      "compile_ms": 101.7,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "e5a4f11582d1",
+      "operator": "suite/dev/weighted_scatter_add_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "9c830d44ad5c92234ec2ae94dbaeccddd5f1146554f0c39a543327226d50b67d",
+      "sha256": "aeee459bb24bf3b9415fc940768a9a4ff9c9656a4d0f88450d2ceb99772093b8",
+      "compile_ms": 194.7,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "1d8515a30044",
+      "operator": "suite/dev/weighted_scatter_add_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "ccb3668446890e22afb9b780437f72427da214f790130e361fcd1cdd5e148a32",
+      "sha256": "1536635e967b2d29ff1298b7d20fe6d5168465741b01fee1b285640e19143ccb",
+      "compile_ms": 217.2,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "5eea211f3b3a",
+      "operator": "suite/dev/weighted_scatter_add_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "c5eee99bf53641abf936440a9ef9b2393949c532fed7f64883bc1f3bd9cfc6c2",
+      "sha256": "ae2e76782d25f926aaf3dc3160c14597e2c0d9b262f1537c0d2905c107cc9769",
+      "compile_ms": 99.7,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "63d613eabb57",
+      "operator": "suite/dev/weighted_scatter_add_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "dde340c130c4ce03b5026064e30c90b215d7ab4163f6dbab2a5a1ffc566b2fc4",
+      "sha256": "a9e90248281ff214350e92f198b9f76e5a6e23490dc4363e520ac4ad4e465cf3",
+      "compile_ms": 171.5,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "674f95dd0184",
+      "operator": "suite/dev/weighted_scatter_add_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "7996b5ccc97a7f868ba5b0fb90d48f79ea03cdeeba85a8f8c3c3c7130e1f0af5",
+      "sha256": "743d6d5462142b55511f2676c52ef467c9589cc39f3d27f7c86128d34362d54f",
+      "compile_ms": 214.8,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "e30aa5907c97",
+      "operator": "suite/dev/weighted_scatter_add_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "865186c6c1ca3a2068021c8601944d40640d1e20df7bf51fd213476ef3bd65ef",
+      "sha256": "27581aefcd144c44f895202bd9f80be3555a750c4b09bcfad014e2ffec3cd376",
+      "compile_ms": 115.0,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "c67b0fc2d9dd",
+      "operator": "suite/dev/weighted_scatter_add_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "15d25033032995da20f2612111abc64cd7a0917f220145a5df7c7472d5a52568",
+      "sha256": "0a86d4715201d46f775e9739a5739a7c6488720a88bbec6f327a895dfd65f4f7",
+      "compile_ms": 167.2,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "af8d9c958b24",
+      "operator": "suite/dev/weighted_scatter_add_kernel.py",
+      "cases": 1,
+      "status": "artifact",
+      "artifact_key": "0efc964ad8de9563d72f5a9c65e2c6ea46f5a45bde3567f48978a1a8d64bf46c",
+      "sha256": "1036747ff194f326757c9d37093806557725c11b3ed0eb8d992a2ba842c9e526",
+      "compile_ms": 206.0,
+      "cache_hit_first": false,
+      "construct": null,
+      "location": null
+    },
+    {
+      "identity": "62bdfc9af450",
+      "operator": "suite/perf/logsumexp.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "loop",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/logsumexp.py:26:5"
+    },
+    {
+      "identity": "35e9142592f4",
+      "operator": "suite/perf/logsumexp.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "loop",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/logsumexp.py:26:5"
+    },
+    {
+      "identity": "a8d9576ca9ee",
+      "operator": "suite/perf/logsumexp.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "loop",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/logsumexp.py:26:5"
+    },
+    {
+      "identity": "76935c980ac9",
+      "operator": "suite/perf/logsumexp.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "loop",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/logsumexp.py:26:5"
+    },
+    {
+      "identity": "20a9c29ecaf3",
+      "operator": "suite/perf/logsumexp.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "loop",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/logsumexp.py:26:5"
+    },
+    {
+      "identity": "eafc938416da",
+      "operator": "suite/perf/logsumexp.py",
+      "cases": 1,
+      "status": "refused",
+      "artifact_key": null,
+      "sha256": null,
+      "compile_ms": null,
+      "cache_hit_first": null,
+      "construct": "loop",
+      "location": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/logsumexp.py:26:5"
+    }
+  ],
+  "expected_operators": [
+    "suite/dev/conv1x1_pool_fc_kernel.py",
+    "suite/dev/f_init_recurrence_kernel.py",
+    "suite/dev/grouped_gemm_kernel.py",
+    "suite/dev/grouped_mm_kernel.py",
+    "suite/dev/matmul_abt_kernel.py",
+    "suite/dev/matmul_kernel_1334dd27.py",
+    "suite/dev/pdist__pdist_forward_general_kernel.py",
+    "suite/dev/scatter_atomic_kernel.py",
+    "suite/dev/sgn_real_kernel.py",
+    "suite/dev/splitk_gemv.py",
+    "suite/dev/sym_constrain_range_kernel.py",
+    "suite/dev/weighted_scatter_add_kernel.py",
+    "suite/perf/logsumexp.py"
+  ]
+}
