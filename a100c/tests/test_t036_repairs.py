@@ -348,13 +348,17 @@ REMAINING_BOUNDARIES = [
     # (the vsel v0-mask re-materialization) and chunk_transform_qk (the
     # native-source layout mirror) -- all five now compile and their
     # declared cases execute and compare PASS at 1 and 4 workers (the
-    # T038 execution probe, test_t038_repairs.py).  The fp64 tl.dot
-    # refusal STAYS (the corpus's declared dtype surface excludes fp64:
-    # the case layer hands numpy-default float64 buffers under a
-    # float32 label -- FRONTEND_COVERAGE.json's tl.dot row records the
-    # justification).
-    ("suite/dev/chunk_generalized_iplr_delta_rule_fwd_kernel_o.py", (17,),
-     "float32", "tl.dot"),
+    # T038 execution probe, test_t038_repairs.py).
+    # T040 (the dtype-introspection fold round) repaired the last entry:
+    # chunk_generalized_iplr_delta_rule_fwd_kernel_o's fp64 tl.dot
+    # refusal was dead code behind a specialization-folded condition
+    # (``b_Aqk.to(b_v.dtype).shape[1] < 16`` folds True for every
+    # declared identity) -- the operator's three identities now compile
+    # and their declared cases execute and compare PASS at 1 and 4
+    # workers (test_t040_repairs.py).  The fp64 tl.dot boundary itself
+    # STAYS for a genuinely-fp64 form (the corpus's declared dtype
+    # surface excludes fp64 -- FRONTEND_COVERAGE.json's tl.dot row
+    # records the justification and the T040 update).
 ]
 
 
@@ -381,7 +385,11 @@ def check_remaining_boundaries():
                            f"{exc.construct}, expected {construct}")
         except Exception as exc:                     # noqa: BLE001
             bad.append(f"{op_rel.split('/')[-1]}: {type(exc).__name__}")
-    check("remaining-classes-located-refusals", not bad, "; ".join(bad[:3]))
+    check("remaining-classes-located-refusals", not bad,
+          "; ".join(bad[:3]) if bad else
+          f"{len(REMAINING_BOUNDARIES)} remaining located-refusal classes "
+          "(every earlier entry repaired by a later round; the fp64 tl.dot "
+          "boundary witness now lives in test_t038/test_t040)")
 
 
 def main() -> int:

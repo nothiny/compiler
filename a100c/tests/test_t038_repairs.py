@@ -53,10 +53,13 @@ that prove the checks are load-bearing.
   * the fp64 dot row resolves against the corpus's declared dtype
     surface: CORPUS_LOCK.json declares chunk_generalized_iplr's dtypes
     float32/float16/bfloat16 and the global declared set has no fp64
-    (F037), so the located refusal stands for the float32-labeled cases
-    whose case layer hands numpy-default float64 buffers (the fp16/bf16
-    cases re-express the buffers and PASS); the justification is recorded
-    on FRONTEND_COVERAGE.json's tl.dot row.
+    (F037).  T040 later repaired the round-3 refusal itself (the fp64
+    dot was dead code behind a specialization-folded condition), so the
+    float32-labeled case now compiles; the boundary witness is the
+    GENUINELY-fp64 form (a live fp64 dot, no folded condition in front
+    of it), which keeps the located declared-surface refusal; the
+    justification and its T040 update are recorded on
+    FRONTEND_COVERAGE.json's tl.dot row.
 
 Controls (MECH-WITNESS-TEST):
   * a NON-last-axis scan of a multi-axis block keeps its located refusal
@@ -441,12 +444,74 @@ def check_scan_never_two_phase():
           f"strided chunk blocks: {strided[:3]}")
 
 
+#: the genuinely-fp64 dot boundary witness (T040): a LIVE fp64 dot -- no
+#: folded dispatch condition in front of it -- keeps the located
+#: declared-surface refusal after the value-level dtype-introspection fold
+#: repaired the round-3 refusal (chunk_generalized's fp64 dot was dead
+#: code behind a condition that folds True at specialization)
+_FP64_DOT_WITNESS_TEXT = '''\
+"""t038/fp64-dot-witness: the genuinely-fp64 dot boundary."""
+OPERATOR = {"name": "t038/fp64-dot-witness", "group": "probe",
+            "channel": "local", "execution": "triton_kernel",
+            "verification": "correctness", "tags": ["linalg.dot"]}
+import numpy as np
+import triton
+import triton.language as tl
+
+
+@triton.jit
+def fp64_dot_witness(a_ptr, b_ptr, c_ptr,
+                     M: tl.constexpr, N: tl.constexpr, K: tl.constexpr):
+    a = tl.load(a_ptr + tl.arange(0, M)[:, None] * K
+                + tl.arange(0, K)[None, :])
+    b = tl.load(b_ptr + tl.arange(0, K)[:, None] * N
+                + tl.arange(0, N)[None, :])
+    c = tl.dot(a, b)
+    tl.store(c_ptr + tl.arange(0, M)[:, None] * N
+             + tl.arange(0, N)[None, :], c)
+
+
+def ref(args, meta):
+    a = np.asarray(args["a_ptr"])
+    b = np.asarray(args["b_ptr"])
+    return {"c_ptr": a @ b}
+
+
+def make_case(shape=None, dtype=None, seed=None):
+    # numpy-default float64 buffers: the pointers ARE fp64 and the dot is
+    # live code
+    args = {"a_ptr": np.ones((4, 4)), "b_ptr": np.ones((4, 4)),
+            "c_ptr": np.zeros((4, 4))}
+    return {"kernel": fp64_dot_witness, "grid": (1,), "args": args,
+            "meta": {"M": 4, "N": 4, "K": 4}, "outputs": ("c_ptr",),
+            "shape": (4,), "dtype": "float32", "expected": ref(args, {}),
+            "comparison": {"c_ptr": {"comparator": "array_equal",
+                                     "exact": True}}}
+'''
+
+
+def _fp64_dot_witness():
+    """The genuinely-fp64 dot witness case payload (a LIVE fp64 dot)."""
+    path = WORK / "fp64_dot_witness.py"
+    if not path.is_file():
+        path.write_text(_FP64_DOT_WITNESS_TEXT)
+    module = _load(path)
+    case = module.make_case()
+    payload = {k: v for k, v in case.items()
+               if k not in ("expected", "oracle_args")}
+    return {"payload": payload}
+
+
 def check_fp64_dot_refusal_witness():
-    """The fp64 dot row resolves against the corpus's declared dtype
-    surface: the operator's float32-labeled case (numpy-default float64
-    buffers) keeps the located declared-surface refusal, and the
-    recorded justification lives on FRONTEND_COVERAGE.json's tl.dot
-    row."""
+    """The fp64 dot boundary resolves against the corpus's declared dtype
+    surface.  T040 repaired the round-3 refusal itself (the operator's
+    fp64 dot was dead code behind a specialization-folded condition --
+    the value-level dtype-introspection fold, test_t040_repairs.py), so
+    the float32-labeled case now COMPILES; the boundary witness is the
+    genuinely-fp64 form (an explicit fp64 dot, no folded condition in
+    front of it), which keeps the located declared-surface refusal, and
+    the recorded justification (with its T040 update) lives on
+    FRONTEND_COVERAGE.json's tl.dot row."""
     module = _load(_dev(
         "chunk_generalized_iplr_delta_rule_fwd_kernel_o.py"))
     case = module.make_case(shape=(17,), dtype="float32")
@@ -455,16 +520,25 @@ def check_fp64_dot_refusal_witness():
     f64 = any(str(getattr(v, "dtype", "")).endswith("float64")
               for v in payload["args"].values()
               if hasattr(v, "dtype"))
+    # T040: the float32-labeled case compiles (the dead fp64 arm is never
+    # lowered -- the dispatch condition folds at specialization)
     c = _compiler("fp64")
-    refused = False
-    text = ""
+    repaired = False
     try:
-        c.compile_case(payload)
+        artifact = c.compile_case(payload)
+        repaired = artifact.executable is not None
+    except PipelineError:
+        repaired = False
+    # the boundary witness: a GENUINELY-fp64 dot (live code) keeps the
+    # located declared-surface refusal
+    witness = _fp64_dot_witness()
+    located = False
+    try:
+        witness_compiler = _compiler("fp64w")
+        witness_compiler.compile_case(witness["payload"])
     except PipelineError as exc:
-        refused = True
-        text = str(exc)
-    located = refused and "fp64 tl.dot is outside the corpus dtype surface" \
-        in text
+        located = ("fp64 tl.dot is outside the corpus dtype surface"
+                   in str(exc) and exc.construct == "tl.dot")
     row = None
     fc = __import__("json").loads(
         (ROOT / "FRONTEND_COVERAGE.json").read_text())
@@ -472,7 +546,8 @@ def check_fp64_dot_refusal_witness():
         if r["item"] == "tl.dot":
             row = r
     recorded = row is not None and \
-        "T038 dtype-surface boundary" in (row.get("note") or "")
+        "T038 dtype-surface boundary" in (row.get("note") or "") and \
+        "T040" in (row.get("note") or "")
     # the corpus's own declaration has no fp64 anywhere
     lock = __import__("json").loads(
         (ROOT / "docs" / "compiler-agent" / "CORPUS_LOCK.json").read_text())
@@ -480,8 +555,10 @@ def check_fp64_dot_refusal_witness():
     for op in lock["operators"]:
         global_dtypes.update(op["dtypes"])
     check("fp64-dot-resolves-against-declared-surface",
-          f64 and located and recorded and "float64" not in global_dtypes,
-          f"case-buffers-f64={f64} located={located} "
+          f64 and repaired and located and recorded
+          and "float64" not in global_dtypes,
+          f"case-buffers-f64={f64} case-compiles={repaired} "
+          f"genuinely-fp64-refuses={located} "
           f"justification-recorded={recorded}")
 
 

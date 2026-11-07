@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-07T18:55:25.044027+00:00",
+  "updated_at": "2026-11-07T21:44:56.156477+00:00",
   "facts": [
     {
       "id": "F001",
@@ -3601,14 +3601,14 @@
       "tags": [
         "compile-sweep-repair"
       ],
-      "status": "RUNNING",
+      "status": "DONE",
       "assignee": "coder",
       "attempts": 1,
-      "evidence": "",
+      "evidence": "worker report WTI043: Fixed the last unjustified compile refusal. Root cause (reproduced at ops/suite/dev/chunk_generalized_iplr_delta_rule_fwd_kernel_o.py:76:394): the kernel's dispatch idiom reads b_Aqk.to(b_v.dtype).shape[1], which is constexpr in the pinned source language (the inline cast result's TYPE and SHAPE are trace-time tensor metadata), but ConstexprEnv could not fold the inline value-method call, so the IfExp condition stayed runtime, BOTH arms were lowered, and the dead else arm's fp64 dot (fp64 pointers: the float32-labeled case layer hands numpy-default float64 buffers) refused. Fix in a100c/frontend/specialize.py: _fold_cast_method folds X.to(D)/X.cast(D) over a runtime symbol to the cast RESULT's RuntimeValue (target type, receiver's shape) -- metadata only, never a value; .shape/.dtype and every dtype predicate on the cast result then fold, dead dispatch arms are never lowered, and statement-level if and IfExp both consume the fold. The operator's 3 identities now compile (2 shapes of one identity share one artifact, cache hit); all 6 declared cases execute and compare PASS under their declared policies at 1 and 4 workers. The fp64-dot refusal justification was updated on FRONTEND_COVERAGE.json's tl.dot row: no genuinely-fp64 form remains (a live fp64-dot probe keeps the located boundary refusal; the corpus declares no float64). New regression test a100c/tests/test_t040_repairs.py covers .to(x.dtype) and x.dtype-dependent constexpr arithmetic for a block whose dtype comes from each of the 8 corpus dtypes, with no-baking (two dtype identities -> two artifacts; two runtime shapes -> one), a genuinely-fp64 boundary witness, and a fold-disabled control that reproduces the pre-fix refusal. t036/t038 boundary expectations updated to the repaired reality. The affected class (the 9 corpus operators using the inline .to(...).shape dispatch idiom) was rerun end to end: 53/57 cases PASS; the 4 non-PASS rows are two PRE-EXISTING defects, proven fold-independ",
       "last_error": "",
       "failure_kind": "",
       "start_revision": "4d72d44b6a475725dc1100ab9c1ce38b25caa40d",
-      "end_revision": "",
+      "end_revision": "caec6be0bb6df36c9dfc341f4c71c2cf9118fbf1",
       "completed_seq": 0,
       "debug_required": false,
       "debug_request_id": "",
@@ -9348,6 +9348,24 @@
       "phase": "IMPLEMENTATION",
       "event": "task-delegate",
       "detail": "WTI043 task=T040 attempt=1 profile=general-purpose"
+    },
+    {
+      "at": "2026-11-07T21:44:56.117470+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "task-report-out-of-contract",
+      "detail": "T040: a100c/cache/b015edade176468524816459383ca84946adc117f21890ba561f9f1d95e5bcb6/artifact.json, a100c/cache/f789dae8bd5a82c8d7635f35e2dc4ac63020e6c506deca4423f37cb41550564d/program.S, a100c/cache/b015edade176468524816459383ca84946adc117f21890ba561f9f1d95e5bcb6/stage.mir.allocated.txt, a100c/cache/dc61f7cf6f00167bdc8b684b5797c3ad9ec7047e34afb92006b8e1e09f456726/stage.passes.txt, a100c/cache/f5252b27e79d088523dc67c35bc1641d3b5a6836b3645593ad87dd7c69b54e9f/operator_exec"
+    },
+    {
+      "at": "2026-11-07T21:44:56.124091+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "task-report",
+      "detail": "WTI043 COMPLETED attempt=1 [nonzero command reported; verify input results before optimization, without treating record checks as coding failures; changes outside the declared paths: a100c/cache/b015edade176468524816459383ca84946adc117f21890ba561f9f1d95e5bcb6/artifact.json, a100c/cache/f789dae8bd5a82c8d7635f35e2dc4ac63020e6c506deca4423f37cb41550564d/program.S, a100c/cache/b015edade176468524816459383ca84946adc117f21890ba561f9f1d95e5bcb6/stage.mir.allocated.txt, a100c/cache/dc61f7cf6f00167bdc8b684b5797c3ad9ec7047e34afb92006b8e1e09f456726/stage.passes.txt, a100c/cache/f5252b27e79d088523dc67c35bc1641d3b5a6836b3645593ad87dd7c69b54e9f/operator_exec]"
+    },
+    {
+      "at": "2026-11-07T21:44:56.156464+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "complete-task",
+      "detail": "T040 worker report WTI043: Fixed the last unjustified compile refusal. Root cause (reproduced at ops/suite/dev/chunk_generalized_iplr_delta_rule_fwd_kernel_o.py:76:394): the kernel's dispatch idiom reads b_Aqk.to(b_v.dtype).shape[1], which is constexpr in the pinned source language (the inline cast result's TYPE and SHAPE are trace-time tensor metadata), but ConstexprEnv could not fold the inline value-method call, so the IfExp condition stayed runtime, BOTH arms were lowered, and the dead else arm's fp64 dot (fp64 pointers: the float32-labeled case layer hands numpy-default float64 buffers) refused. Fix in a100c/frontend/specialize.py: _fold_cast_method folds X.to(D)/X.cast(D) over a runtime symbol to the cast RESULT's RuntimeValue (target type, receiver's shape) -- metadata only, never a value; .shape/.dtype and every dtype predicate on the cast result then fold, dead dispatch arms are never lowered, and statement-level if and IfExp both consume the fold. The operator's 3 identities now compile (2 shapes of one identity share one artifact, cache hit); all 6 declared cases execute and compare PASS under their declared policies at 1 and 4 workers. The fp64-dot refusal justification was updated on FRONTEND_COVERAGE.json's tl.dot row: no genuinely-fp64 form remains (a live fp64-dot probe keeps the located boundary refusal; the corpus declares no float64). New regression test a100c/tests/test_t040_repairs.py covers .to(x.dtype) and x.dtype-dependent constexpr arithmetic for a block whose dtype comes from each of the 8 corpus dtypes, with no-baking (two dtype identities -> two artifacts; two runtime shapes -> one), a genuinely-fp64 boundary witness, and a fold-disabled control that reproduces the pre-fix refusal. t036/t038 boundary expectations updated to the repaired reality. The affected class (the 9 corpus operators using the inline .to(...).shape dispatch idiom) was rerun end to end: 53/57 cases PASS; the 4 non-PASS rows are two PRE-EXISTING defects, proven fold-independ"
     }
   ]
 }
