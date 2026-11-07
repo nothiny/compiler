@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-07T21:44:56.156477+00:00",
+  "updated_at": "2026-11-07T21:47:20.002370+00:00",
   "facts": [
     {
       "id": "F001",
@@ -3632,6 +3632,78 @@
       "profile_sha256": "",
       "profile_revision": "",
       "bundle_evidence": []
+    },
+    {
+      "id": "T041",
+      "goal": "Fix the two pre-scan defects recorded by T040 (both proven fold-independent with byte-identical artifacts under the fold switch): (1) GRID-MODEL BAKING DEFECT (correctness-critical): chunk_gdn2_fwd_kernel_inter_solve_fused bakes a case-tier launch geometry into a shape-independent cache key \u2014 the [17] float32 case folds the grid axis to the constant 4 (case-layer literals B=2, H=2 of that shape's builder) while the same identity's [3,17,2,7,6] case correctly ties the axis to bundle view extents; both compiles share cache key 020c5b09... but produce different executables, and the [17]-compiled artifact leaves (b,h)-blocks >= 4 uncomputed at the larger shape (Akk output 0.0 vs reference 1.0). General fix in the grid model / specialization: a grid axis may fold to a compile-time constant only when the constant is identity-stable \u2014 derived exclusively from identity-keyed values (constexprs/meta, pointer dtypes), never from case-tier locals whose values vary across the SHAPES table of one identity; when stability cannot be proven, the axis must tie to a bundle-visible quantity or the operator refuses with a located diagnostic (never a silent fold). Add the regression: compile both shapes of the gdn2 identity in separate processes and assert either one shared correct artifact or two distinct keys, and the [3,17,2,7] execution compares PASS against the reference under both compile orders. (2) HARNESS DEFECT: tools/run_scan.py resource-evidence capture passes a counts.json path containing the case id (shape lists with commas) through QEMU's '-plugin file,out=PATH', which QEMU splits on commas (a truncated file 'suite__dev__op.py#[2' is created) so resource-flagged multi-dim-shape cases record LAUNCH_FAIL; fix with a comma-free evidence path (or escaping) and verify chunk_abc [2,2,17,9,8,4]#float16 records its resource evidence and passes. Then re-take the full cold compile census at the new revision (chunked or cache-warm as needed to survive the environment's background-task limit) and record it to docs/compiler-agent/COMPILE_CENSUS.json: every one of the 2116 identities an ELF artifact or a justified located refusal, zero unjustified refusals, zero crashes.",
+      "kind": "general",
+      "gate": "G6",
+      "capability": "coding",
+      "purpose": "input",
+      "attempt_limit": 0,
+      "inputs": [
+        "docs/compiler-agent/TASK_REPORTS/WTI043.json (the recorded reproductions)",
+        "a100c/frontend/gridmodel.py",
+        "a100c/frontend/specialize.py",
+        "a100c/driver.py",
+        "tools/run_scan.py",
+        "a100c/tests/test_compile_sweep.py"
+      ],
+      "outputs": [
+        "Identity-stable grid folding and fixed resource-evidence paths with regression tests; refreshed full compile census"
+      ],
+      "dependencies": [],
+      "interfaces": [],
+      "acceptance": [
+        "The gdn2 baking defect is fixed generically: grid-axis constants fold only from identity-stable values; the regression test compiles both shapes of the identity in separate fresh processes and asserts no wrong-artifact reuse (one correct shared artifact, or distinct keys), and the [3,17,2,7] case compares PASS under both compile orders; a non-identity-stable literal axis that cannot tie to the bundle produces a located refusal in the control test, never a silent fold.",
+        "The resource-evidence capture path is comma-safe: the chunk_abc [2,2,17,9,8,4]#float16 resource-flagged case records its evidence and executes/compares PASS (no LAUNCH_FAIL), and a comma-containing case id round-trips through the QEMU plugin argument.",
+        "A fresh full compile census at the new revision is recorded to docs/compiler-agent/COMPILE_CENSUS.json covering all 2116 identities: artifacts + justified located refusals sum to the census, zero unjustified refusals, zero crashes, compile count within the identity economics.",
+        "All pre-existing test files still pass."
+      ],
+      "tests": [
+        "set -a; . ./.env; set +a; python3 a100c/tests/test_compile_sweep.py (or its chunked equivalent) at the new revision: full census clean",
+        "the full a100c test suite plus the new baking and comma-path regression tests"
+      ],
+      "conflicts": [
+        "a100c-ir-frontend",
+        "a100c-tools-driver"
+      ],
+      "provides": [],
+      "consumes": [],
+      "tags": [
+        "compile-sweep-repair"
+      ],
+      "status": "RUNNING",
+      "assignee": "coder",
+      "attempts": 1,
+      "evidence": "",
+      "last_error": "",
+      "failure_kind": "",
+      "start_revision": "c25b3218494d7098adcc9daa31e29f3c6c4ec702",
+      "end_revision": "",
+      "completed_seq": 0,
+      "debug_required": false,
+      "debug_request_id": "",
+      "debug_pending_revision": "",
+      "debug_pending_attempts": -1,
+      "debug_pending_failures": 0,
+      "worker_debug_request": {},
+      "coding_failures": 0,
+      "started_at": "2026-11-07T21:47:19.999483+00:00",
+      "deferrals": 0,
+      "debug_verified_patterns": [],
+      "replan_baseline": {},
+      "origin": "manager",
+      "parent_task": "T018",
+      "optimization_stage": "",
+      "bundle_passes": [],
+      "shared_analysis": [],
+      "rollback_boundary": "",
+      "fastpath_fallback": "",
+      "profile_artifact": "",
+      "profile_sha256": "",
+      "profile_revision": "",
+      "bundle_evidence": []
     }
   ],
   "design_issues": [],
@@ -7145,6 +7217,17 @@
         }
       ],
       "optimization": false
+    },
+    "e6aaf0a79cf7d401b17a9c53221d5b9ec7c39f0e2c03a142b2807d44b156fe3c": {
+      "run_id": "",
+      "digest": "a9f73a9913aa4edf2ed4c411f319e978030cb68ff5cd5fafc4c201e6eb8f26ab",
+      "assignments": [
+        {
+          "task_id": "T041",
+          "cases": []
+        }
+      ],
+      "optimization": false
     }
   },
   "validation": {},
@@ -9366,6 +9449,24 @@
       "phase": "IMPLEMENTATION",
       "event": "complete-task",
       "detail": "T040 worker report WTI043: Fixed the last unjustified compile refusal. Root cause (reproduced at ops/suite/dev/chunk_generalized_iplr_delta_rule_fwd_kernel_o.py:76:394): the kernel's dispatch idiom reads b_Aqk.to(b_v.dtype).shape[1], which is constexpr in the pinned source language (the inline cast result's TYPE and SHAPE are trace-time tensor metadata), but ConstexprEnv could not fold the inline value-method call, so the IfExp condition stayed runtime, BOTH arms were lowered, and the dead else arm's fp64 dot (fp64 pointers: the float32-labeled case layer hands numpy-default float64 buffers) refused. Fix in a100c/frontend/specialize.py: _fold_cast_method folds X.to(D)/X.cast(D) over a runtime symbol to the cast RESULT's RuntimeValue (target type, receiver's shape) -- metadata only, never a value; .shape/.dtype and every dtype predicate on the cast result then fold, dead dispatch arms are never lowered, and statement-level if and IfExp both consume the fold. The operator's 3 identities now compile (2 shapes of one identity share one artifact, cache hit); all 6 declared cases execute and compare PASS under their declared policies at 1 and 4 workers. The fp64-dot refusal justification was updated on FRONTEND_COVERAGE.json's tl.dot row: no genuinely-fp64 form remains (a live fp64-dot probe keeps the located boundary refusal; the corpus declares no float64). New regression test a100c/tests/test_t040_repairs.py covers .to(x.dtype) and x.dtype-dependent constexpr arithmetic for a block whose dtype comes from each of the 8 corpus dtypes, with no-baking (two dtype identities -> two artifacts; two runtime shapes -> one), a genuinely-fp64 boundary witness, and a fold-disabled control that reproduces the pre-fix refusal. t036/t038 boundary expectations updated to the repaired reality. The affected class (the 9 corpus operators using the inline .to(...).shape dispatch idiom) was rerun end to end: 53/57 cases PASS; the 4 non-PASS rows are two PRE-EXISTING defects, proven fold-independ"
+    },
+    {
+      "at": "2026-11-07T21:47:14.681422+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "task",
+      "detail": "T041 Fix the two pre-scan defects recorded by T040 (both proven fold-independent with byte-identical artifacts under the fold switch): (1) GRID-MODEL BAKING DEFECT (correctness-critical): chunk_gdn2_fwd_kernel_inter_solve_fused bakes a case-tier launch geometry into a shape-independent cache key \u2014 the [17] float32 case folds the grid axis to the constant 4 (case-layer literals B=2, H=2 of that shape's builder) while the same identity's [3,17,2,7,6] case correctly ties the axis to bundle view extents; both compiles share cache key 020c5b09... but produce different executables, and the [17]-compiled artifact leaves (b,h)-blocks >= 4 uncomputed at the larger shape (Akk output 0.0 vs reference 1.0). General fix in the grid model / specialization: a grid axis may fold to a compile-time constant only when the constant is identity-stable \u2014 derived exclusively from identity-keyed values (constexprs/meta, pointer dtypes), never from case-tier locals whose values vary across the SHAPES table of one identity; when stability cannot be proven, the axis must tie to a bundle-visible quantity or the operator refuses with a located diagnostic (never a silent fold). Add the regression: compile both shapes of the gdn2 identity in separate processes and assert either one shared correct artifact or two distinct keys, and the [3,17,2,7] execution compares PASS against the reference under both compile orders. (2) HARNESS DEFECT: tools/run_scan.py resource-evidence capture passes a counts.json path containing the case id (shape lists with commas) through QEMU's '-plugin file,out=PATH', which QEMU splits on commas (a truncated file 'suite__dev__op.py#[2' is created) so resource-flagged multi-dim-shape cases record LAUNCH_FAIL; fix with a comma-free evidence path (or escaping) and verify chunk_abc [2,2,17,9,8,4]#float16 records its resource evidence and passes. Then re-take the full cold compile census at the new revision (chunked or cache-warm as needed to survive the environment's background-task limit) and record it to docs/compiler-agent/COMPILE_CENSUS.json: every one of the 2116 identities an ELF artifact or a justified located refusal, zero unjustified refusals, zero crashes."
+    },
+    {
+      "at": "2026-11-07T21:47:14.681473+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "task-submission",
+      "detail": "011-baking-and-harness-defects"
+    },
+    {
+      "at": "2026-11-07T21:47:20.002360+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "start-task",
+      "detail": "T041 agent=coder"
     }
   ]
 }
