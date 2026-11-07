@@ -1,0 +1,537 @@
+{
+  "schema": "a100-t041-evidence/v1",
+  "note": "raw execution logs of the T041 verification commands (see TASK_REPORTS/WTI045.json commands for the exact invocations)",
+  "t041_regression_test_log": "PASS t041-gdn2-model-identity-stable | axes=(((($bundle_scalar('T',) add 16) sub 1) floordiv 16), ($bundle_view('Akkd', 0) mul $bundle_view('Akkd', 2))) ties={('T',): ('scalar', 'T'), ('Akkd', 0): ('view_extent', 'Akkd', 0), ('Akkd', 2): ('view_extent', 'Akkd', 2)} shared-identity=True all-runtime-reads=True\nPASS t041-gdn2-separate-processes | [17]: key=25378fd62178 sha=677b12c39d5e cache_hit=False; [3,17,2,7]: key=25378fd62178 sha=677b12c39d5e cache_hit=False; shared-key=True byte-identical=True\nPASS t041-gdn2-both-compile-orders | order-A [3,17,2,7]: PASS cache_hit=True max_err={'Akk': 2.7939677238464355e-09, 'Aqk': 3.166496753692627e-08}; order-B [3,17,2,7]: PASS cache_hit=False; order-B [17]: PASS cache_hit=True\nPASS t041-control-refusal | both shapes refuse located ([17]: grid: a grid axis is not provenance-tracked (it depends on values the model cannot see: ?(symbolic conditional expressio); stability-rule-disabled control folds axis 2: (2,)\nPASS t041-comma-unit | dir=suite__dev__chunk_abc_fwd_kernel_intra_K.py#[2_ 2_ 17_ 9_ 8_ 4]#float16 plugin-arg-out=/tmp/a100c-t041-lntvch_k/comma-unit/suite__dev__chunk_abc_fwd_kernel_intra_K.py#[2_ 2_ 17_ 9_ 8_ 4]#float16/counts.json injective=True grammar=True\nPASS t041-comma-qemu-roundtrip | qemu exit 0, counts at the sanitized path: True (parsed=True); unsanitized comma path created: False (the pre-fix split)\nPASS t041-chunk-abc-resource-evidence | status=EVIDENCE_FAIL executed=True compared-pass=True evidence-files=True active-workers=4 distinct-units=4 comma-free-dir=True detail=instruction witness missing: smt.vmadot; instruction witness missing: smt.vfwmadot\n\nall t041 checks PASS\nEXIT=0\n",
+  "full_suite_results": "0 test_allocate 0s\n0 test_build 0s\n0 test_frontend_shapes 0s\n0 test_frontend_surface 1s\n0 test_frontend_types 0s\n0 test_emit 1s\n0 test_ime_evidence 2s\n0 test_e2e_slice 3s\n0 test_legalize 1s\n0 test_lower_matrix 0s\n0 test_control_flow 5s\n0 test_lower_vector 1s\n0 test_lower_scalar 2s\n0 test_math_ops 5s\n0 test_driver_cache 12s\n0 test_mir_verifier 1s\n0 test_partition 0s\n0 test_atomics 13s\n0 test_compile_regressions 14s\n0 test_memory_forms 5s\n0 test_layout_ops 13s\n0 test_runtime_smoke 1s\n0 test_select 0s\n0 test_conversions 19s\n0 test_stage_plan 1s\n0 test_rng 7s\n0 test_scalar_binding 5s\n0 test_specialize 7s\n0 test_t029_repairs 4s\n0 test_t031_repairs 4s\n0 test_passes_basic 12s\n0 test_t032_repairs 6s\n0 test_grid_model 26s\n0 test_reductions 17s\n0 test_t033_repairs 9s\n0 test_t035_repairs 30s\n0 test_t040_repairs 26s\n0 test_t036_repairs 58s\n0 test_tir_verifier 0s\n0 test_t038_repairs 65s\n0 test_matrix_breadth 119s\n0 test_t036_loop_merge_ordering 101s\n0 test_t034_repairs 112s\n0 test_t037_repairs 366s\n0 test_t041_repairs 389s\n0 test_t039_repairs 1361s\n",
+  "census_first_wave_launcher": "chunk 00 pid 4193114 ops 31\nchunk 01 pid 4193116 ops 32\nchunk 02 pid 4193118 ops 31\nchunk 03 pid 4193120 ops 32\nchunk 04 pid 4193122 ops 31\nchunk 05 pid 4193124 ops 31\nchunk 06 pid 4193127 ops 31\nchunk 07 pid 4193128 ops 31\nchunk 08 pid 4193132 ops 32\nchunk 09 pid 4193135 ops 31\nchunk 10 pid 4193136 ops 31\nchunk 11 pid 4193139 ops 31\nchunk 12 pid 4193142 ops 31\nchunk 13 pid 4193144 ops 32\nchunk 14 pid 4193145 ops 31\nchunk 15 pid 4193149 ops 31\nchunk 00 done exit -15 after 1082s\nchunk 01 done exit 1 after 1082s\nchunk 02 done exit 0 after 1082s\nchunk 03 done exit 0 after 1082s\nchunk 04 done exit 0 after 1082s\nchunk 05 done exit 1 after 1082s\nchunk 06 done exit 0 after 1082s\nchunk 07 done exit 0 after 1082s\nchunk 08 done exit 0 after 1082s\nchunk 09 done exit 0 after 1082s\nchunk 10 done exit 0 after 1082s\nchunk 11 done exit 0 after 1082s\nchunk 12 done exit 0 after 1082s\nchunk 13 done exit 0 after 1082s\nchunk 14 done exit 0 after 1082s\nchunk 15 done exit 0 after 1082s\nALL DONE bad=[(0, -15), (1, 1), (5, 1)] elapsed=1082s\nLAUNCHER_EXIT=1\n",
+  "census_rerun_launcher": "chunk 00a pid 327871 ops 7\nchunk 00b pid 327872 ops 8\nchunk 00c pid 327875 ops 8\nchunk 00d pid 327876 ops 8\nchunk 01 pid 327879 ops 32\nchunk 05 pid 327882 ops 31\nchunk 00a done exit 0 after 1349s\nchunk 00b done exit 0 after 1349s\nchunk 00c done exit 0 after 1349s\nchunk 00d done exit 0 after 1349s\nchunk 01 done exit 0 after 1349s\nchunk 05 done exit 0 after 1349s\nRERUN DONE bad=[] elapsed=1349s\nRERUN_LAUNCHER_EXIT=0\n",
+  "census_chunk_checks": {
+    "chunk_00": {
+      "checks": [],
+      "final_line": ""
+    },
+    "chunk_00a": {
+      "checks": [
+        "PASS census-covers-every-case | 48/48 cases classified, 0 build failures",
+        "PASS census-covers-all-operators | 7/7 operators; ",
+        "PASS partition-sums-to-identity-census | 44 artifacts + 0 refusals = 44 identities (over-budget 0, crash 0)",
+        "PASS artifacts-are-riscv64-elf | 44 artifacts checked",
+        "PASS compile-count-within-economics | 44 compiles = 44 compilation units (44 distinct artifact keys over 44 artifact identities; 0 corpus identities share a key -- the specialization is coarser than the corpus meta tier, the shared artifact reads the runtime values from the bundle: no baking) <= 1.25 x 2161 = 2701 (run census 44 identities, 4 cache hits; the artifact key carries the argument layout beside the identity)",
+        "PASS repeat-cases-reuse-one-artifact | 4 repeat cases recompiled, 0 violations",
+        "PASS refusals-located-and-countable | 0 refusals, 0 constructs (top: [])",
+        "PASS compile-budget-respected | budget 600s/identity, 44 attempts for 44 identities (one per identity, no retries), slowest completed cold compile 506455ms, 0 over-budget (recorded, not retried)",
+        "PASS enabled-pipeline-passes-on | config passes=default: 44/44 markers, rewrites fired {'constprop': 1658, 'copyprop': 0, 'strength_reduction': 1046, 'cse': 15063, 'licm': 2408, 'dce': 940}"
+      ],
+      "final_line": "all compile-sweep checks PASS"
+    },
+    "chunk_00b": {
+      "checks": [
+        "PASS census-covers-every-case | 43/43 cases classified, 0 build failures",
+        "PASS census-covers-all-operators | 8/8 operators; ",
+        "PASS partition-sums-to-identity-census | 37 artifacts + 0 refusals = 37 identities (over-budget 0, crash 0)",
+        "PASS artifacts-are-riscv64-elf | 37 artifacts checked",
+        "PASS compile-count-within-economics | 37 compiles = 37 compilation units (37 distinct artifact keys over 37 artifact identities; 0 corpus identities share a key -- the specialization is coarser than the corpus meta tier, the shared artifact reads the runtime values from the bundle: no baking) <= 1.25 x 2161 = 2701 (run census 37 identities, 6 cache hits; the artifact key carries the argument layout beside the identity)",
+        "PASS repeat-cases-reuse-one-artifact | 6 repeat cases recompiled, 0 violations",
+        "PASS refusals-located-and-countable | 0 refusals, 0 constructs (top: [])",
+        "PASS compile-budget-respected | budget 600s/identity, 37 attempts for 37 identities (one per identity, no retries), slowest completed cold compile 492ms, 0 over-budget (recorded, not retried)",
+        "PASS enabled-pipeline-passes-on | config passes=default: 37/37 markers, rewrites fired {'constprop': 93, 'copyprop': 0, 'strength_reduction': 42, 'cse': 349, 'licm': 116, 'dce': 69}"
+      ],
+      "final_line": "all compile-sweep checks PASS"
+    },
+    "chunk_00c": {
+      "checks": [
+        "PASS census-covers-every-case | 42/42 cases classified, 0 build failures",
+        "PASS census-covers-all-operators | 8/8 operators; ",
+        "PASS partition-sums-to-identity-census | 36 artifacts + 0 refusals = 36 identities (over-budget 0, crash 0)",
+        "PASS artifacts-are-riscv64-elf | 36 artifacts checked",
+        "PASS compile-count-within-economics | 36 compiles = 36 compilation units (36 distinct artifact keys over 36 artifact identities; 0 corpus identities share a key -- the specialization is coarser than the corpus meta tier, the shared artifact reads the runtime values from the bundle: no baking) <= 1.25 x 2161 = 2701 (run census 36 identities, 6 cache hits; the artifact key carries the argument layout beside the identity)",
+        "PASS repeat-cases-reuse-one-artifact | 6 repeat cases recompiled, 0 violations",
+        "PASS refusals-located-and-countable | 0 refusals, 0 constructs (top: [])",
+        "PASS compile-budget-respected | budget 600s/identity, 36 attempts for 36 identities (one per identity, no retries), slowest completed cold compile 74744ms, 0 over-budget (recorded, not retried)",
+        "PASS enabled-pipeline-passes-on | config passes=default: 36/36 markers, rewrites fired {'constprop': 70, 'copyprop': 0, 'strength_reduction': 130, 'cse': 2334, 'licm': 376, 'dce': 86}"
+      ],
+      "final_line": "all compile-sweep checks PASS"
+    },
+    "chunk_00d": {
+      "checks": [
+        "PASS census-covers-every-case | 41/41 cases classified, 0 build failures",
+        "PASS census-covers-all-operators | 8/8 operators; ",
+        "PASS partition-sums-to-identity-census | 29 artifacts + 0 refusals = 29 identities (over-budget 0, crash 0)",
+        "PASS artifacts-are-riscv64-elf | 29 artifacts checked",
+        "PASS compile-count-within-economics | 29 compiles = 29 compilation units (29 distinct artifact keys over 29 artifact identities; 0 corpus identities share a key -- the specialization is coarser than the corpus meta tier, the shared artifact reads the runtime values from the bundle: no baking) <= 1.25 x 2161 = 2701 (run census 29 identities, 12 cache hits; the artifact key carries the argument layout beside the identity)",
+        "PASS repeat-cases-reuse-one-artifact | 12 repeat cases recompiled, 0 violations",
+        "PASS refusals-located-and-countable | 0 refusals, 0 constructs (top: [])",
+        "PASS compile-budget-respected | budget 600s/identity, 29 attempts for 29 identities (one per identity, no retries), slowest completed cold compile 1845ms, 0 over-budget (recorded, not retried)",
+        "PASS enabled-pipeline-passes-on | config passes=default: 29/29 markers, rewrites fired {'constprop': 45, 'copyprop': 0, 'strength_reduction': 55, 'cse': 347, 'licm': 195, 'dce': 47}"
+      ],
+      "final_line": "all compile-sweep checks PASS"
+    },
+    "chunk_01": {
+      "checks": [
+        "PASS census-covers-every-case | 173/173 cases classified, 0 build failures",
+        "PASS census-covers-all-operators | 32/32 operators; ",
+        "PASS partition-sums-to-identity-census | 139 artifacts + 0 refusals = 139 identities (over-budget 0, crash 0)",
+        "PASS artifacts-are-riscv64-elf | 139 artifacts checked",
+        "PASS compile-count-within-economics | 139 compiles = 139 compilation units (139 distinct artifact keys over 139 artifact identities; 0 corpus identities share a key -- the specialization is coarser than the corpus meta tier, the shared artifact reads the runtime values from the bundle: no baking) <= 1.25 x 2161 = 2701 (run census 139 identities, 34 cache hits; the artifact key carries the argument layout beside the identity)",
+        "PASS repeat-cases-reuse-one-artifact | 34 repeat cases recompiled, 0 violations",
+        "PASS refusals-located-and-countable | 0 refusals, 0 constructs (top: [])",
+        "PASS compile-budget-respected | budget 600s/identity, 139 attempts for 139 identities (one per identity, no retries), slowest completed cold compile 22072ms, 0 over-budget (recorded, not retried)",
+        "PASS enabled-pipeline-passes-on | config passes=default: 139/139 markers, rewrites fired {'constprop': 338, 'copyprop': 15, 'strength_reduction': 356, 'cse': 3890, 'licm': 782, 'dce': 687}"
+      ],
+      "final_line": "all compile-sweep checks PASS"
+    },
+    "chunk_02": {
+      "checks": [
+        "PASS census-covers-every-case | 169/169 cases classified, 0 build failures",
+        "PASS census-covers-all-operators | 31/31 operators; ",
+        "PASS partition-sums-to-identity-census | 132 artifacts + 0 refusals = 132 identities (over-budget 0, crash 0)",
+        "PASS artifacts-are-riscv64-elf | 132 artifacts checked",
+        "PASS compile-count-within-economics | 132 compiles = 132 compilation units <= 1.25 x 2161 = 2701 (run census 132 identities, 37 cache hits; the artifact key carries the argument layout beside the identity)",
+        "PASS repeat-cases-reuse-one-artifact | 37 repeat cases recompiled, 0 violations",
+        "PASS refusals-located-and-countable | 0 refusals, 0 constructs (top: [])",
+        "PASS compile-budget-respected | budget 600s/identity, 132 attempts for 132 identities (one per identity, no retries), slowest completed cold compile 31791ms, 0 over-budget (recorded, not retried)",
+        "PASS enabled-pipeline-passes-on | config passes=default: 132/132 markers, rewrites fired {'constprop': 378, 'copyprop': 12, 'strength_reduction': 303, 'cse': 5751, 'licm': 1319, 'dce': 489}"
+      ],
+      "final_line": "all compile-sweep checks PASS"
+    },
+    "chunk_03": {
+      "checks": [
+        "PASS census-covers-every-case | 177/177 cases classified, 0 build failures",
+        "PASS census-covers-all-operators | 32/32 operators; ",
+        "PASS partition-sums-to-identity-census | 140 artifacts + 0 refusals = 140 identities (over-budget 0, crash 0)",
+        "PASS artifacts-are-riscv64-elf | 140 artifacts checked",
+        "PASS compile-count-within-economics | 140 compiles = 140 compilation units <= 1.25 x 2161 = 2701 (run census 140 identities, 37 cache hits; the artifact key carries the argument layout beside the identity)",
+        "PASS repeat-cases-reuse-one-artifact | 37 repeat cases recompiled, 0 violations",
+        "PASS refusals-located-and-countable | 0 refusals, 0 constructs (top: [])",
+        "PASS compile-budget-respected | budget 600s/identity, 140 attempts for 140 identities (one per identity, no retries), slowest completed cold compile 228260ms, 0 over-budget (recorded, not retried)",
+        "PASS enabled-pipeline-passes-on | config passes=default: 140/140 markers, rewrites fired {'constprop': 403, 'copyprop': 0, 'strength_reduction': 345, 'cse': 11912, 'licm': 908, 'dce': 393}"
+      ],
+      "final_line": "all compile-sweep checks PASS"
+    },
+    "chunk_04": {
+      "checks": [
+        "PASS census-covers-every-case | 173/173 cases classified, 0 build failures",
+        "PASS census-covers-all-operators | 31/31 operators; ",
+        "PASS partition-sums-to-identity-census | 137 artifacts + 0 refusals = 137 identities (over-budget 0, crash 0)",
+        "PASS artifacts-are-riscv64-elf | 137 artifacts checked",
+        "PASS compile-count-within-economics | 137 compiles = 137 compilation units <= 1.25 x 2161 = 2701 (run census 137 identities, 36 cache hits; the artifact key carries the argument layout beside the identity)",
+        "PASS repeat-cases-reuse-one-artifact | 36 repeat cases recompiled, 0 violations",
+        "PASS refusals-located-and-countable | 0 refusals, 0 constructs (top: [])",
+        "PASS compile-budget-respected | budget 600s/identity, 137 attempts for 137 identities (one per identity, no retries), slowest completed cold compile 3070ms, 0 over-budget (recorded, not retried)",
+        "PASS enabled-pipeline-passes-on | config passes=default: 137/137 markers, rewrites fired {'constprop': 283, 'copyprop': 34, 'strength_reduction': 276, 'cse': 2144, 'licm': 612, 'dce': 302}"
+      ],
+      "final_line": "all compile-sweep checks PASS"
+    },
+    "chunk_05": {
+      "checks": [
+        "PASS census-covers-every-case | 174/174 cases classified, 0 build failures",
+        "PASS census-covers-all-operators | 31/31 operators; ",
+        "PASS partition-sums-to-identity-census | 123 artifacts + 0 refusals = 123 identities (over-budget 0, crash 0)",
+        "PASS artifacts-are-riscv64-elf | 123 artifacts checked",
+        "PASS compile-count-within-economics | 120 compiles = 120 compilation units (120 distinct artifact keys over 123 artifact identities; 3 corpus identities share a key -- the specialization is coarser than the corpus meta tier, the shared artifact reads the runtime values from the bundle: no baking) <= 1.25 x 2161 = 2701 (run census 123 identities, 54 cache hits; the artifact key carries the argument layout beside the identity)",
+        "PASS repeat-cases-reuse-one-artifact | 51 repeat cases recompiled, 0 violations",
+        "PASS refusals-located-and-countable | 0 refusals, 0 constructs (top: [])",
+        "PASS compile-budget-respected | budget 600s/identity, 123 attempts for 123 identities (one per identity, no retries), slowest completed cold compile 6622ms, 0 over-budget (recorded, not retried)",
+        "PASS enabled-pipeline-passes-on | config passes=default: 120/120 markers, rewrites fired {'constprop': 395, 'copyprop': 15, 'strength_reduction': 427, 'cse': 2544, 'licm': 744, 'dce': 363}"
+      ],
+      "final_line": "all compile-sweep checks PASS"
+    },
+    "chunk_06": {
+      "checks": [
+        "PASS census-covers-every-case | 169/169 cases classified, 0 build failures",
+        "PASS census-covers-all-operators | 31/31 operators; ",
+        "PASS partition-sums-to-identity-census | 131 artifacts + 0 refusals = 131 identities (over-budget 0, crash 0)",
+        "PASS artifacts-are-riscv64-elf | 131 artifacts checked",
+        "PASS compile-count-within-economics | 131 compiles = 131 compilation units <= 1.25 x 2161 = 2701 (run census 131 identities, 38 cache hits; the artifact key carries the argument layout beside the identity)",
+        "PASS repeat-cases-reuse-one-artifact | 38 repeat cases recompiled, 0 violations",
+        "PASS refusals-located-and-countable | 0 refusals, 0 constructs (top: [])",
+        "PASS compile-budget-respected | budget 600s/identity, 131 attempts for 131 identities (one per identity, no retries), slowest completed cold compile 69429ms, 0 over-budget (recorded, not retried)",
+        "PASS enabled-pipeline-passes-on | config passes=default: 131/131 markers, rewrites fired {'constprop': 642, 'copyprop': 81, 'strength_reduction': 206, 'cse': 2152, 'licm': 948, 'dce': 358}"
+      ],
+      "final_line": "all compile-sweep checks PASS"
+    },
+    "chunk_07": {
+      "checks": [
+        "PASS census-covers-every-case | 174/174 cases classified, 0 build failures",
+        "PASS census-covers-all-operators | 31/31 operators; ",
+        "PASS partition-sums-to-identity-census | 143 artifacts + 0 refusals = 143 identities (over-budget 0, crash 0)",
+        "PASS artifacts-are-riscv64-elf | 143 artifacts checked",
+        "PASS compile-count-within-economics | 143 compiles = 143 compilation units <= 1.25 x 2161 = 2701 (run census 143 identities, 31 cache hits; the artifact key carries the argument layout beside the identity)",
+        "PASS repeat-cases-reuse-one-artifact | 31 repeat cases recompiled, 0 violations",
+        "PASS refusals-located-and-countable | 0 refusals, 0 constructs (top: [])",
+        "PASS compile-budget-respected | budget 600s/identity, 143 attempts for 143 identities (one per identity, no retries), slowest completed cold compile 97306ms, 0 over-budget (recorded, not retried)",
+        "PASS enabled-pipeline-passes-on | config passes=default: 143/143 markers, rewrites fired {'constprop': 318, 'copyprop': 26, 'strength_reduction': 290, 'cse': 3243, 'licm': 1029, 'dce': 374}"
+      ],
+      "final_line": "all compile-sweep checks PASS"
+    },
+    "chunk_08": {
+      "checks": [
+        "PASS census-covers-every-case | 169/169 cases classified, 0 build failures",
+        "PASS census-covers-all-operators | 32/32 operators; ",
+        "PASS partition-sums-to-identity-census | 135 artifacts + 0 refusals = 135 identities (over-budget 0, crash 0)",
+        "PASS artifacts-are-riscv64-elf | 135 artifacts checked",
+        "PASS compile-count-within-economics | 135 compiles = 135 compilation units <= 1.25 x 2161 = 2701 (run census 135 identities, 34 cache hits; the artifact key carries the argument layout beside the identity)",
+        "PASS repeat-cases-reuse-one-artifact | 34 repeat cases recompiled, 0 violations",
+        "PASS refusals-located-and-countable | 0 refusals, 0 constructs (top: [])",
+        "PASS compile-budget-respected | budget 600s/identity, 135 attempts for 135 identities (one per identity, no retries), slowest completed cold compile 4618ms, 0 over-budget (recorded, not retried)",
+        "PASS enabled-pipeline-passes-on | config passes=default: 135/135 markers, rewrites fired {'constprop': 222, 'copyprop': 0, 'strength_reduction': 202, 'cse': 1102, 'licm': 829, 'dce': 294}"
+      ],
+      "final_line": "all compile-sweep checks PASS"
+    },
+    "chunk_09": {
+      "checks": [
+        "PASS census-covers-every-case | 178/178 cases classified, 0 build failures",
+        "PASS census-covers-all-operators | 31/31 operators; ",
+        "PASS partition-sums-to-identity-census | 139 artifacts + 0 refusals = 139 identities (over-budget 0, crash 0)",
+        "PASS artifacts-are-riscv64-elf | 139 artifacts checked",
+        "PASS compile-count-within-economics | 139 compiles = 139 compilation units <= 1.25 x 2161 = 2701 (run census 139 identities, 39 cache hits; the artifact key carries the argument layout beside the identity)",
+        "PASS repeat-cases-reuse-one-artifact | 39 repeat cases recompiled, 0 violations",
+        "PASS refusals-located-and-countable | 0 refusals, 0 constructs (top: [])",
+        "PASS compile-budget-respected | budget 600s/identity, 139 attempts for 139 identities (one per identity, no retries), slowest completed cold compile 17830ms, 0 over-budget (recorded, not retried)",
+        "PASS enabled-pipeline-passes-on | config passes=default: 139/139 markers, rewrites fired {'constprop': 356, 'copyprop': 0, 'strength_reduction': 240, 'cse': 2068, 'licm': 882, 'dce': 418}"
+      ],
+      "final_line": "all compile-sweep checks PASS"
+    },
+    "chunk_10": {
+      "checks": [
+        "PASS census-covers-every-case | 171/171 cases classified, 0 build failures",
+        "PASS census-covers-all-operators | 31/31 operators; ",
+        "PASS partition-sums-to-identity-census | 131 artifacts + 0 refusals = 131 identities (over-budget 0, crash 0)",
+        "PASS artifacts-are-riscv64-elf | 131 artifacts checked",
+        "PASS compile-count-within-economics | 131 compiles = 131 compilation units <= 1.25 x 2161 = 2701 (run census 131 identities, 40 cache hits; the artifact key carries the argument layout beside the identity)",
+        "PASS repeat-cases-reuse-one-artifact | 40 repeat cases recompiled, 0 violations",
+        "PASS refusals-located-and-countable | 0 refusals, 0 constructs (top: [])",
+        "PASS compile-budget-respected | budget 600s/identity, 131 attempts for 131 identities (one per identity, no retries), slowest completed cold compile 28216ms, 0 over-budget (recorded, not retried)",
+        "PASS enabled-pipeline-passes-on | config passes=default: 131/131 markers, rewrites fired {'constprop': 377, 'copyprop': 14, 'strength_reduction': 506, 'cse': 3406, 'licm': 1898, 'dce': 448}"
+      ],
+      "final_line": "all compile-sweep checks PASS"
+    },
+    "chunk_11": {
+      "checks": [
+        "PASS census-covers-every-case | 172/172 cases classified, 0 build failures",
+        "PASS census-covers-all-operators | 31/31 operators; ",
+        "PASS partition-sums-to-identity-census | 122 artifacts + 0 refusals = 122 identities (over-budget 0, crash 0)",
+        "PASS artifacts-are-riscv64-elf | 122 artifacts checked",
+        "PASS compile-count-within-economics | 122 compiles = 122 compilation units <= 1.25 x 2161 = 2701 (run census 122 identities, 50 cache hits; the artifact key carries the argument layout beside the identity)",
+        "PASS repeat-cases-reuse-one-artifact | 50 repeat cases recompiled, 0 violations",
+        "PASS refusals-located-and-countable | 0 refusals, 0 constructs (top: [])",
+        "PASS compile-budget-respected | budget 600s/identity, 122 attempts for 122 identities (one per identity, no retries), slowest completed cold compile 26476ms, 0 over-budget (recorded, not retried)",
+        "PASS enabled-pipeline-passes-on | config passes=default: 122/122 markers, rewrites fired {'constprop': 343, 'copyprop': 18, 'strength_reduction': 370, 'cse': 2965, 'licm': 905, 'dce': 601}"
+      ],
+      "final_line": "all compile-sweep checks PASS"
+    },
+    "chunk_12": {
+      "checks": [
+        "PASS census-covers-every-case | 164/164 cases classified, 0 build failures",
+        "PASS census-covers-all-operators | 31/31 operators; ",
+        "PASS partition-sums-to-identity-census | 132 artifacts + 0 refusals = 132 identities (over-budget 0, crash 0)",
+        "PASS artifacts-are-riscv64-elf | 132 artifacts checked",
+        "PASS compile-count-within-economics | 132 compiles = 132 compilation units <= 1.25 x 2161 = 2701 (run census 132 identities, 32 cache hits; the artifact key carries the argument layout beside the identity)",
+        "PASS repeat-cases-reuse-one-artifact | 32 repeat cases recompiled, 0 violations",
+        "PASS refusals-located-and-countable | 0 refusals, 0 constructs (top: [])",
+        "PASS compile-budget-respected | budget 600s/identity, 132 attempts for 132 identities (one per identity, no retries), slowest completed cold compile 19368ms, 0 over-budget (recorded, not retried)",
+        "PASS enabled-pipeline-passes-on | config passes=default: 132/132 markers, rewrites fired {'constprop': 362, 'copyprop': 12, 'strength_reduction': 306, 'cse': 1706, 'licm': 405, 'dce': 313}"
+      ],
+      "final_line": "all compile-sweep checks PASS"
+    },
+    "chunk_13": {
+      "checks": [
+        "PASS census-covers-every-case | 163/163 cases classified, 0 build failures",
+        "PASS census-covers-all-operators | 32/32 operators; ",
+        "PASS partition-sums-to-identity-census | 116 artifacts + 0 refusals = 116 identities (over-budget 0, crash 0)",
+        "PASS artifacts-are-riscv64-elf | 116 artifacts checked",
+        "PASS compile-count-within-economics | 117 compiles = 117 compilation units <= 1.25 x 2161 = 2701 (run census 116 identities, 46 cache hits; the artifact key carries the argument layout beside the identity)",
+        "PASS repeat-cases-reuse-one-artifact | 47 repeat cases recompiled, 0 violations",
+        "PASS refusals-located-and-countable | 0 refusals, 0 constructs (top: [])",
+        "PASS compile-budget-respected | budget 600s/identity, 116 attempts for 116 identities (one per identity, no retries), slowest completed cold compile 9240ms, 0 over-budget (recorded, not retried)",
+        "PASS enabled-pipeline-passes-on | config passes=default: 116/116 markers, rewrites fired {'constprop': 158, 'copyprop': 4, 'strength_reduction': 528, 'cse': 2510, 'licm': 757, 'dce': 276}"
+      ],
+      "final_line": "all compile-sweep checks PASS"
+    },
+    "chunk_14": {
+      "checks": [
+        "PASS census-covers-every-case | 167/167 cases classified, 0 build failures",
+        "PASS census-covers-all-operators | 31/31 operators; ",
+        "PASS partition-sums-to-identity-census | 135 artifacts + 0 refusals = 135 identities (over-budget 0, crash 0)",
+        "PASS artifacts-are-riscv64-elf | 135 artifacts checked",
+        "PASS compile-count-within-economics | 135 compiles = 135 compilation units <= 1.25 x 2161 = 2701 (run census 135 identities, 32 cache hits; the artifact key carries the argument layout beside the identity)",
+        "PASS repeat-cases-reuse-one-artifact | 32 repeat cases recompiled, 0 violations",
+        "PASS refusals-located-and-countable | 0 refusals, 0 constructs (top: [])",
+        "PASS compile-budget-respected | budget 600s/identity, 135 attempts for 135 identities (one per identity, no retries), slowest completed cold compile 121969ms, 0 over-budget (recorded, not retried)",
+        "PASS enabled-pipeline-passes-on | config passes=default: 135/135 markers, rewrites fired {'constprop': 524, 'copyprop': 18, 'strength_reduction': 469, 'cse': 8495, 'licm': 1647, 'dce': 487}"
+      ],
+      "final_line": "all compile-sweep checks PASS"
+    },
+    "chunk_15": {
+      "checks": [
+        "PASS census-covers-every-case | 167/167 cases classified, 0 build failures",
+        "PASS census-covers-all-operators | 31/31 operators; ",
+        "PASS partition-sums-to-identity-census | 115 artifacts + 0 refusals = 115 identities (over-budget 0, crash 0)",
+        "PASS artifacts-are-riscv64-elf | 115 artifacts checked",
+        "PASS compile-count-within-economics | 115 compiles = 115 compilation units <= 1.25 x 2161 = 2701 (run census 115 identities, 52 cache hits; the artifact key carries the argument layout beside the identity)",
+        "PASS repeat-cases-reuse-one-artifact | 52 repeat cases recompiled, 0 violations",
+        "PASS refusals-located-and-countable | 0 refusals, 0 constructs (top: [])",
+        "PASS compile-budget-respected | budget 600s/identity, 115 attempts for 115 identities (one per identity, no retries), slowest completed cold compile 13564ms, 0 over-budget (recorded, not retried)",
+        "PASS enabled-pipeline-passes-on | config passes=default: 115/115 markers, rewrites fired {'constprop': 479, 'copyprop': 12, 'strength_reduction': 679, 'cse': 4907, 'licm': 842, 'dce': 382}"
+      ],
+      "final_line": "all compile-sweep checks PASS"
+    }
+  },
+  "merged_census_summary": {
+    "census": {
+      "operators": 500,
+      "cases": 2734,
+      "cases_classified": 2734,
+      "identities": 2116,
+      "cases_per_identity": 1.292,
+      "declared_full_corpus": {
+        "cases": 2734,
+        "identities": 2161
+      },
+      "identities_with_multiple_cases": 585
+    },
+    "partition": {
+      "artifacts": 2116,
+      "refused": 0,
+      "over_budget": 0,
+      "crash": 0,
+      "case_build_failures": 0,
+      "sums_to_identity_census": true
+    },
+    "compile": {
+      "count": 2114,
+      "cache_hits": 620,
+      "attempts_one_per_identity": 2116,
+      "cold_ms_median": 200.6,
+      "cold_ms_max": 506455.1,
+      "declared_identity_bound_1_25x": 2701,
+      "within_declared_economics": true
+    },
+    "artifact_reuse": {
+      "repeat_case_checks": 618,
+      "all_reused_one_artifact": true,
+      "violations": []
+    },
+    "artifact_key_sharing": {
+      "artifact_identities": 2116,
+      "distinct_artifact_keys": 2113,
+      "identities_sharing_a_key": 3
+    },
+    "crashes": {
+      "count": 0,
+      "by_exception_class": {}
+    },
+    "compiler_revision": "bb81f4c49150cef9",
+    "chunks": [
+      {
+        "census": "/tmp/t041-census/chunk_00a.json",
+        "command": "a100c/tests/test_compile_sweep.py --operator suite/dev/deconv3d_fwd_kernel.py --operator suite/perf/gather_1d.py --operator suite/dev/unbind_copy_kernel.py --operator suite/dev/mul_scalar_kernel.py --operator suite/dev/matmul_kernel_08d476be.py --operator suite/dev/matmul_kernel_5766d29c.py --operator suite/dev/cholesky_kernel.py --cache-root /tmp/t041-census/root00a --census-out /tmp/t041-census/chunk_00a.json",
+        "operators": 7,
+        "cases": 48,
+        "identities": 44,
+        "artifacts": 44,
+        "refused": 0,
+        "compile_count": 44,
+        "cache_hits": 4
+      },
+      {
+        "census": "/tmp/t041-census/chunk_00b.json",
+        "command": "a100c/tests/test_compile_sweep.py --operator suite/dev/diag_scale_kernel.py --operator suite/dev/rank2_svals_tiny_kernel.py --operator suite/perf/kldiv_ops.py --operator suite/dev/softsign_kernel.py --operator suite/dev/add_base_max_kernel.py --operator suite/dev/rowwise_quantization_triton.py --operator suite/perf/exp_mean.py --operator suite/perf/sigmoid_argmax.py --cache-root /tmp/t041-census/root00b --census-out /tmp/t041-census/chunk_00b.json",
+        "operators": 8,
+        "cases": 43,
+        "identities": 37,
+        "artifacts": 37,
+        "refused": 0,
+        "compile_count": 37,
+        "cache_hits": 6
+      },
+      {
+        "census": "/tmp/t041-census/chunk_00c.json",
+        "command": "a100c/tests/test_compile_sweep.py --operator suite/dev/reversed_cumsum.py --operator suite/dev/sum_kernel_2.py --operator suite/dev/naive_attn_decoding_kernel.py --operator suite/dev/layer_norm_forward_row.py --operator suite/dev/kldiv_kernel_forward.py --operator suite/perf/matmul.py --operator suite/perf/sin_computation.py --operator suite/dev/small4_square_svd_kernel_cc0a90a31fcf1df1.py --cache-root /tmp/t041-census/root00c --census-out /tmp/t041-census/chunk_00c.json",
+        "operators": 8,
+        "cases": 42,
+        "identities": 36,
+        "artifacts": 36,
+        "refused": 0,
+        "compile_count": 36,
+        "cache_hits": 6
+      },
+      {
+        "census": "/tmp/t041-census/chunk_00d.json",
+        "command": "a100c/tests/test_compile_sweep.py --operator suite/dev/lu_factor_swap_right_and_solve_kernel.py --operator suite/dev/nansum_dim_kernel_non_inner.py --operator suite/dev/vector_norm__max_norm_kernel_2.py --operator suite/dev/index_select_kernel.py --operator suite/perf/add_gelu.py --operator suite/dev/nansum_kernel_2.py --operator suite/dev/loop_sum.py --operator suite/dev/fused_activation.py --cache-root /tmp/t041-census/root00d --census-out /tmp/t041-census/chunk_00d.json",
+        "operators": 8,
+        "cases": 41,
+        "identities": 29,
+        "artifacts": 29,
+        "refused": 0,
+        "compile_count": 29,
+        "cache_hits": 12
+      },
+      {
+        "census": "/tmp/t041-census/chunk_01.json",
+        "command": "a100c/tests/test_compile_sweep.py --operator suite/dev/chunk_transform_qk_fwd_kernel.py --operator suite/dev/gelu_kernel_nomask.py --operator suite/dev/hypot_inplace_kernel.py --operator suite/dev/matrix_transpose.py --operator suite/dev/normalize_projection_kernel.py --operator suite/dev/smooth_l1_loss_kernel.py --operator suite/dev/triton_conv2d_fwd.py --operator suite/perf/fused_cross_entropy_log_softmax.py --operator suite/perf/mul_relu.py --operator suite/dev/fused_recurrent_fwd_kernel.py --operator suite/dev/position_quantize.py --operator suite/dev/fused_grouped_gate_kernel.py --operator suite/dev/fused_exponential_kernel_f32_unroll8.py --operator suite/perf/rsqrt.py --operator suite/dev/layer_norm_forward_tiled.py --operator suite/dev/int8_quantization.py --operator suite/dev/fused_l1_normalize_kernel_765f90f7.py --operator suite/dev/fliplr_contiguous_kernel.py --operator suite/dev/amp_update_scale_kernel.py --operator suite/dev/softmax_multi_block_forward_kernel_16feef5d77276b9f.py --operator suite/dev/vector_norm__l1_norm_kernel_2.py --operator suite/dev/chunk_hgrn_fwd_kernel_h.py --operator suite/dev/grpo_loss__selective_log_softmax_kernel.py --operator suite/dev/matmul_atb_optimized_kernel_2044087e.py --operator suite/dev/matmul_ts_kernel_218043ea.py --operator suite/dev/relu_squared_forward_kernel.py --operator suite/perf/argmax.py --operator suite/dev/blocked_jacobi_pair_svals_kernel.py --operator suite/dev/avg_pool1d_kernel_optimized.py --operator suite/dev/local_ne_flat_impl.py --operator suite/dev/bincount_kernel.py --operator suite/perf/std.py --cache-root /tmp/t041-census/root01 --census-out /tmp/t041-census/chunk_01.json",
+        "operators": 32,
+        "cases": 173,
+        "identities": 139,
+        "artifacts": 139,
+        "refused": 0,
+        "compile_count": 139,
+        "cache_hits": 34
+      },
+      {
+        "census": "/tmp/t041-census/chunk_02.json",
+        "command": "a100c/tests/test_compile_sweep.py --operator suite/dev/conv1x1_pool_fc_kernel.py --operator suite/dev/fused_recurrent_gsa_inference_kernel.py --operator suite/dev/group_norm_forward_stats_kernel.py --operator suite/dev/matmul_kernel_82de0ce7.py --operator suite/dev/norm__max_norm_kernel_1.py --operator suite/dev/scatter_diag_kernel.py --operator suite/dev/tril_matmul_kernel_6d320d58.py --operator suite/perf/det.py --operator suite/perf/matrix_multiply_and_row_dot.py --operator suite/dev/linalg_cross_real_kernel.py --operator suite/dev/argmin_split_K_kernel_merged.py --operator suite/perf/index_select_cat.py --operator suite/dev/softmax_kernel_inner.py --operator suite/perf/silu_batch_norm.py --operator suite/perf/chebyshev_polynomial_t.py --operator suite/dev/geglu_forward_kernel_flat.py --operator suite/dev/finalize_stats_kernel.py --operator suite/dev/cholesky_upper_kernel.py --operator suite/perf/add_value.py --operator suite/dev/flat_radix_store_result_kernel.py --operator suite/dev/blackman_window_kernel.py --operator suite/dev/cross_entropy_kernel.py --operator suite/dev/kda_gate_fwd_kernel.py --operator suite/dev/matmul_k64_kernel_0ab65594.py --operator suite/dev/nanmedian_select_kernel.py --operator suite/dev/renorm_kernel_scale.py --operator suite/perf/logsumexp.py --operator suite/dev/ldl_init_info_kernel.py --operator suite/dev/complex_svd_pick_factor_kernel.py --operator suite/dev/unique_dim_row_chunk_diff_hash_kernel.py --operator suite/dev/nanmedian_ascend_histogram_count_kernel.py --cache-root /tmp/t041-census/cache --census-out /tmp/t041-census/chunk_02.json",
+        "operators": 31,
+        "cases": 169,
+        "identities": 132,
+        "artifacts": 132,
+        "refused": 0,
+        "compile_count": 132,
+        "cache_hits": 37
+      },
+      {
+        "census": "/tmp/t041-census/chunk_03.json",
+        "command": "a100c/tests/test_compile_sweep.py --operator suite/dev/fused_pool_hardtanh_mean_flat.py --operator suite/perf/fused_recurrent_hgrn.py --operator suite/dev/matmul_k32_persistent_n_2stage_kernel_c11d9a2d.py --operator suite/dev/nansum_kernel_1.py --operator suite/dev/reduce_sum_kernel.py --operator suite/dev/svd__rank2_svals_kernel.py --operator suite/dev/vector_norm__v_norm_kernel.py --operator suite/perf/kldiv_triton.py --operator suite/dev/masked_cumsum_vec_kernel.py --operator suite/dev/hidden__prepare_wy_repr_fwd_kernel_chunk32.py --operator suite/dev/scatter_atomic_kernel.py --operator suite/dev/implicit_conv2d.py --operator suite/dev/unique_dim_inverse_kernel.py --operator suite/perf/selu.py --operator suite/dev/split_copy_kernel.py --operator suite/perf/swiglu_fwd.py --operator suite/dev/pdist_forward__pdist_forward_inf_kernel.py --operator suite/dev/pow_scalar_tensor.py --operator suite/dev/amax_kernel_2.py --operator suite/dev/final_mean_kernel.py --operator suite/dev/logit_kernel.py --operator suite/dev/chunk_gla_fwd_A_kernel_intra_sub_intra_merge.py --operator suite/dev/grouped_mm_kernel.py --operator suite/dev/matmul_at_kernel_optimized_8461cac3.py --operator suite/dev/matmul_kernel_dafb9e0e.py --operator suite/dev/ranked_distribution_semantic.py --operator suite/dev/vocab_parallel_ce_forward_kernel.py --operator suite/dev/fused_gemm_gn_min_kernel.py --operator suite/dev/complex_svd_pick_orthonormal_v_kernel.py --operator suite/dev/dist_reduce_kernel.py --operator suite/dev/fused_bn_relu_kernel.py --operator suite/dev/cyclic_jacobi_norm_kernel.py --cache-root /tmp/t041-census/cache --census-out /tmp/t041-census/chunk_03.json",
+        "operators": 32,
+        "cases": 177,
+        "identities": 140,
+        "artifacts": 140,
+        "refused": 0,
+        "compile_count": 140,
+        "cache_hits": 37
+      },
+      {
+        "census": "/tmp/t041-census/chunk_04.json",
+        "command": "a100c/tests/test_compile_sweep.py --operator suite/dev/gn_finalize_kernel_2.py --operator suite/dev/matmul_k64_fused_kernel_3d82b86f.py --operator suite/dev/logsumexp__logsumexp_kernel_non_inner.py --operator suite/dev/nansum_dim_kernel_inner.py --operator suite/dev/rank1_svd_kernel.py --operator suite/dev/stochastic_ensemble.py --operator suite/dev/vector_norm__max_norm_kernel.py --operator suite/perf/kldiv_compute.py --operator suite/perf/tanh_linear.py --operator suite/perf/chunk_retention.py --operator suite/dev/log_normal_kernel_impl.py --operator suite/dev/masked_cumsum_kernel_db.py --operator suite/perf/erf.py --operator suite/perf/sigmoid.py --operator suite/dev/fliplr_strided_kernel.py --operator suite/dev/complex_to_real_embedding_kernel.py --operator suite/dev/embedding_kernel.py --operator suite/dev/diff_kernel_1d.py --operator suite/perf/add_mean.py --operator suite/dev/vector_norm__l1_norm_kernel_1.py --operator suite/dev/huber_loss_element_kernel.py --operator suite/dev/cross_entropy_forward_kernel_plain.py --operator suite/dev/hidden__rms_norm_loop_kernel.py --operator suite/dev/matmul_k32_splitn8_kernel_7756e27e.py --operator suite/dev/median_f16_key_select_kernel.py --operator suite/dev/renorm_kernel_norms.py --operator suite/perf/dequantize_matmul.py --operator suite/dev/frobenius_norm_persistent_two_phase_kernel.py --operator suite/dev/atomic_bitmap.py --operator suite/dev/flat_radix_init_kernel.py --operator suite/dev/nanmedian_ascend_byte_histogram_init_kernel.py --cache-root /tmp/t041-census/cache --census-out /tmp/t041-census/chunk_04.json",
+        "operators": 31,
+        "cases": 173,
+        "identities": 137,
+        "artifacts": 137,
+        "refused": 0,
+        "compile_count": 137,
+        "cache_hits": 36
+      },
+      {
+        "census": "/tmp/t041-census/chunk_05.json",
+        "command": "a100c/tests/test_compile_sweep.py --operator suite/dev/grouped_strided_sum.py --operator suite/dev/matmul_k64_swizzled_kernel_7eb7ffe7.py --operator suite/dev/ldl_factor_kernel.py --operator suite/dev/mul_exponent_compensator.py --operator suite/dev/randint_like__randint_kernel.py --operator suite/dev/std_reduce_kernel.py --operator suite/dev/vector_norm__l2_norm_kernel.py --operator suite/perf/ifftshift.py --operator suite/perf/square_matrix.py --operator suite/perf/fused_recurrent_retention.py --operator suite/dev/complex_svd_project_u_kernel.py --operator suite/dev/fused_conv3d_kernel_2.py --operator suite/dev/median_bool_reduce_counts_kernel.py --operator suite/perf/gammaln.py --operator suite/dev/var_mean_welford_kernel.py --operator suite/perf/fast_ce_loss.py --operator suite/dev/amax_kernel_1.py --operator suite/dev/fused_l1_normalize_kernel_823e70aa.py --operator suite/dev/blocked_jacobi_rank_kernel.py --operator suite/perf/fused_add_mul_groupnorm.py --operator suite/dev/huber_loss_reduce_kernel.py --operator suite/dev/chunk_gdn2_fwd_kernel_intra_sub_chunk.py --operator suite/dev/gemm_smallk_kernel_5ee47e3f.py --operator suite/dev/logspace_kernel.py --operator suite/dev/matmul_kernel_78ec979e.py --operator suite/dev/pdist__pdist_forward_general_kernel.py --operator suite/dev/tril_tile_kernel.py --operator suite/dev/nanmedian_float_clean_count_kernel.py --operator suite/dev/min_reduce_lastdim_partials_kernel.py --operator suite/dev/count_nonzero_combin_kernel_1.py --operator suite/dev/median_bool_count_kernel.py --cache-root /tmp/t041-census/root05 --census-out /tmp/t041-census/chunk_05.json",
+        "operators": 31,
+        "cases": 174,
+        "identities": 123,
+        "artifacts": 123,
+        "refused": 0,
+        "compile_count": 120,
+        "cache_hits": 54
+      },
+      {
+        "census": "/tmp/t041-census/chunk_06.json",
+        "command": "a100c/tests/test_compile_sweep.py --operator suite/dev/kv_cache_write.py --operator suite/dev/matmul_k32_fast_kernel_f2eeb00c.py --operator suite/dev/l1_norm_fused_kernel_a430b801.py --operator suite/dev/min_kernel_2.py --operator suite/dev/prelu_kernel.py --operator suite/dev/std_map_kernel.py --operator suite/dev/vecdot_kernel.py --operator suite/perf/gelu_conv2d.py --operator suite/perf/softplus_linear.py --operator suite/perf/chunk_retention_ops.py --operator suite/perf/block_sparse_attn.py --operator suite/dev/fused_conv3d_kernel.py --operator suite/dev/gemm_rowstats_group_tc_kernel.py --operator suite/perf/fused_tile_exp.py --operator suite/dev/bucketize_kernel.py --operator suite/dev/fht_kernel_1d_native.py --operator suite/dev/slice_scatter_kernel.py --operator suite/dev/dist_l2_single_kernel.py --operator suite/dev/rmsnorm_fwd_loop_kernel.py --operator suite/perf/scaled_add_dot.py --operator suite/dev/lu_factor_info_kernel.py --operator suite/dev/argmax_kernel_non_inner.py --operator suite/dev/forward_pass_chunks.py --operator suite/dev/l1_fused_opt_kernel_770afbaa.py --operator suite/dev/matmul_kernel_2d_8e70c631.py --operator suite/dev/pairwise_distance_general_kernel_1.py --operator suite/dev/tril_exact_diag0_tile_kernel.py --operator suite/perf/min.py --operator suite/dev/median_bool_dim_finish_kernel.py --operator suite/dev/fused_max_bincount_kernel.py --operator suite/dev/unique_dim_row_single_chunk_first_kernel.py --cache-root /tmp/t041-census/cache --census-out /tmp/t041-census/chunk_06.json",
+        "operators": 31,
+        "cases": 169,
+        "identities": 131,
+        "artifacts": 131,
+        "refused": 0,
+        "compile_count": 131,
+        "cache_hits": 38
+      },
+      {
+        "census": "/tmp/t041-census/chunk_07.json",
+        "command": "a100c/tests/test_compile_sweep.py --operator suite/dev/medium__hardsigmoid_kernel.py --operator suite/dev/hardsigmoid_kernel_2.py --operator suite/dev/l1_norm_fused_blockrows_kernel_d070b0d9.py --operator suite/dev/mean_reduction.py --operator suite/dev/pairwise_distance_p2_kernel.py --operator suite/dev/softmax_single_block_forward_kernel.py --operator suite/dev/vdot_kernel_complex.py --operator suite/perf/geglu_tanh_triton.py --operator suite/perf/softmax_mul.py --operator suite/perf/parallel_retention_attention.py --operator suite/dev/gqa.py --operator suite/dev/matmul_k32_splitn2_kernel_af4f712c.py --operator suite/dev/weighted_scatter_add_kernel.py --operator suite/perf/softmax_log.py --operator suite/dev/alpha_dropout_inplace_kernel.py --operator suite/perf/tanh.py --operator suite/perf/cosine_compute.py --operator suite/dev/binary_cross_entropy_elementwise_kernel.py --operator suite/dev/fused_reduction_kernel_stage2.py --operator suite/dev/nonzero_static_fill_tail_kernel.py --operator suite/dev/any_kernel_dim.py --operator suite/dev/f_init_recurrence_kernel.py --operator suite/dev/l1_fused_kernel_3079c682.py --operator suite/dev/matmul_kernel_0fdeffcb.py --operator suite/dev/norm__min_norm_kernel.py --operator suite/dev/topk_stage1_kernel.py --operator suite/perf/matmul_triton_autotune.py --operator suite/dev/thin_reorthogonalize_kernel.py --operator suite/dev/deconv3d_leaky_pool.py --operator suite/dev/median_bool_dim_reduce_chunks_kernel.py --operator suite/dev/ldl_init_pivots_kernel.py --cache-root /tmp/t041-census/cache --census-out /tmp/t041-census/chunk_07.json",
+        "operators": 31,
+        "cases": 174,
+        "identities": 143,
+        "artifacts": 143,
+        "refused": 0,
+        "compile_count": 143,
+        "cache_hits": 31
+      },
+      {
+        "census": "/tmp/t041-census/chunk_08.json",
+        "command": "a100c/tests/test_compile_sweep.py --operator suite/dev/pipelined_gemv.py --operator suite/dev/matmul_kernel_283adb7c.py --operator suite/dev/l1_norm_block_fused_kernel_c12b32af.py --operator suite/dev/mean_kernel_1.py --operator suite/dev/pairwise_distance_p0_kernel_2.py --operator suite/dev/softmax_multi_block_forward_kernel.py --operator suite/dev/vdot__dot_kernel.py --operator suite/perf/fused_repeat_interleave_log_softmax.py --operator suite/perf/softmax.py --operator suite/dev/rms_matmul_rbe.py --operator suite/dev/matmul_at_b_kernel_opt_84f19043.py --operator suite/dev/sgn_complex_kernel.py --operator suite/dev/argmin_kernel_opt_k1.py --operator suite/perf/sigmoid_batch_norm.py --operator suite/dev/complex_pack.py --operator suite/perf/fused_index_select_eq.py --operator suite/dev/fused_l1_norm_kernel_e5b6ba01.py --operator suite/dev/mean_dim_kernel_non_inner_vec.py --operator suite/dev/count_valid_kernel.py --operator suite/dev/gdn_gate_fwd_kernel.py --operator suite/dev/logit_kernel_2.py --operator suite/dev/chunk_hgrn_fwd_kernel_o.py --operator suite/dev/hidden__argmax_kernel_2.py --operator suite/dev/matmul_k32_persistent_adaptive_kernel_cf4bd5c4.py --operator suite/dev/max_kernel.py --operator suite/dev/renorm_kernel.py --operator suite/perf/batched_vecmat_mult.py --operator suite/dev/blocked_jacobi_apply_v_kernel.py --operator suite/dev/control_flow.py --operator suite/dev/median_bool_from_counts_kernel.py --operator suite/dev/floor_kernel.py --operator suite/dev/sym_constrain_range_kernel.py --cache-root /tmp/t041-census/cache --census-out /tmp/t041-census/chunk_08.json",
+        "operators": 32,
+        "cases": 169,
+        "identities": 135,
+        "artifacts": 135,
+        "refused": 0,
+        "compile_count": 135,
+        "cache_hits": 34
+      },
+      {
+        "census": "/tmp/t041-census/chunk_09.json",
+        "command": "a100c/tests/test_compile_sweep.py --operator suite/dev/row_reduce_min_kernel.py --operator suite/dev/argmin_tiled_kernel.py --operator suite/dev/kernel_1.py --operator suite/dev/mean_dim_kernel_non_inner.py --operator suite/dev/pairwise_distance_min_kernel.py --operator suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py --operator suite/dev/var_len_copy.py --operator suite/perf/fused_pairwise_distance_adaptive_avg_pool2d.py --operator suite/perf/sigmoid_adaptive_avg_pool2d.py --operator suite/dev/leaky_relu_kernel_strided.py --operator suite/dev/fused_recurrent_rwkv6.py --operator suite/dev/argmin_kernel_contiguous.py --operator suite/dev/transposed_conv3d.py --operator suite/perf/sin_kernel.py --operator suite/dev/multinomial_with_replacement.py --operator suite/dev/matrix_reduction.py --operator suite/dev/l1_fused_row_kernel_c376727a.py --operator suite/dev/cyclic_jacobi_init_a_kernel.py --operator suite/dev/l1_norm_fused_kernel_16977248.py --operator suite/perf/fast_rms_layernorm.py --operator suite/dev/amax_kernel.py --operator suite/dev/dropout_softmax_fwd_kernel.py --operator suite/dev/l1_fused_aligned_unroll2_kernel_9da16ab1.py --operator suite/dev/matmul_kernel_0a4f4889.py --operator suite/dev/norm__l2_norm_kernel_d8a78ccfd6d73a54.py --operator suite/dev/tiled_argmin.py --operator suite/perf/matmul_triton2.py --operator suite/dev/softplus_kernel.py --operator suite/dev/cumprod_dim1_kernel_log2exp2_early.py --operator suite/dev/local_ne_consecutive_kernel.py --operator suite/dev/l1_norm_fused_kernel_2cb0f555.py --cache-root /tmp/t041-census/cache --census-out /tmp/t041-census/chunk_09.json",
+        "operators": 31,
+        "cases": 178,
+        "identities": 139,
+        "artifacts": 139,
+        "refused": 0,
+        "compile_count": 139,
+        "cache_hits": 39
+      },
+      {
+        "census": "/tmp/t041-census/chunk_10.json",
+        "command": "a100c/tests/test_compile_sweep.py --operator suite/perf/attention_forward_triton.py --operator suite/dev/matmul_k64_swizzle_fast_v2_bbf654b4.py --operator suite/dev/init_minmax.py --operator suite/dev/mean_dim_kernel_inner.py --operator suite/dev/pairwise_distance_max_kernel_2.py --operator suite/dev/soft_margin_loss_partial_sum_kernel.py --operator suite/dev/var_kernel_1.py --operator suite/perf/fused_lu_solve.py --operator suite/perf/relu_strided_buffer.py --operator suite/dev/matmul_k32_splitn4_paired_kernel_6f1c91c8.py --operator suite/dev/matmul_kernel_2d_nomask_tc_5d3cdcfe.py --operator suite/dev/finalize_mean_tanh.py --operator suite/dev/jagged_to_padded_dense_forward_kernel.py --operator suite/perf/fused_hardsigmoid_batch_norm.py --operator suite/dev/unfold_copy_kernel_3d_dim1.py --operator suite/dev/diff_kernel_2d.py --operator suite/dev/std_dim_kernel_inner.py --operator suite/dev/fused_fill_dropout_kernel.py --operator suite/dev/amp_foreach_non_finite_check_and_unscale_kernel.py --operator suite/dev/l1_norm_fused_kernel_7f6ce49c.py --operator suite/perf/l2_norm_triton1.py --operator suite/dev/chunk_abc_fwd_kernel_intra_K.py --operator suite/dev/fused_recurrent_hgrn_fwd_kernel.py --operator suite/dev/linear_dropout_softmax_kernel.py --operator suite/dev/matmul_kernel_50ce05b6.py --operator suite/dev/parallel_attn_fwd_kernel.py --operator suite/dev/tril_matmul_kernel_fccb62cc.py --operator suite/dev/splitk_gemv.py --operator suite/dev/nanmedian_ascend_byte_histogram_find_index_kernel.py --operator suite/dev/csr_value_index_kernel.py --operator suite/dev/nonzero_kernel.py --cache-root /tmp/t041-census/cache --census-out /tmp/t041-census/chunk_10.json",
+        "operators": 31,
+        "cases": 171,
+        "identities": 131,
+        "artifacts": 131,
+        "refused": 0,
+        "compile_count": 131,
+        "cache_hits": 40
+      },
+      {
+        "census": "/tmp/t041-census/chunk_11.json",
+        "command": "a100c/tests/test_compile_sweep.py --operator suite/perf/attention_kernel.py --operator suite/dev/matmul_k64_specialized_kernel_2e9d07eb.py --operator suite/dev/igamma_kernel.py --operator suite/dev/maxpool1d.py --operator suite/dev/ones_kernel.py --operator suite/dev/smooth_l1_loss_partial_sum_kernel.py --operator suite/dev/tv_distance_kernel.py --operator suite/perf/fused_layer_norm_relu_linear.py --operator suite/perf/relu_conv2d.py --operator suite/dev/matmul_k64_2d_unmasked_kernel_fc2c17b0.py --operator suite/dev/copy_last_chunk_kernel.py --operator suite/dev/chunk_gated_delta_product_fwd_kernel_h_blockdim64.py --operator suite/dev/dot__dot_kernel.py --operator suite/perf/fused_embedding_add_tanh.py --operator suite/perf/sqrt_exp.py --operator suite/dev/conv_transpose2d_scatter_init_kernel.py --operator suite/dev/count_nonzero_combin_kernel.py --operator suite/dev/destindex_copy.py --operator suite/dev/reduce_kernel.py --operator suite/perf/scaled_add_norm.py --operator suite/dev/huber_loss_fused_kernel.py --operator suite/dev/arange_func.py --operator suite/dev/flash_varlen_fwd_kernel.py --operator suite/dev/l1_fused_kernel_64a2cf40.py --operator suite/dev/matmul_kernel_10d5c480.py --operator suite/dev/norm__v_norm_kernel.py --operator suite/dev/triangular_inverse_kernel.py --operator suite/perf/max.py --operator suite/dev/median_bool_dim_count_chunks_kernel.py --operator suite/dev/any_kernel_2.py --operator suite/perf/gelu_std.py --cache-root /tmp/t041-census/cache --census-out /tmp/t041-census/chunk_11.json",
+        "operators": 31,
+        "cases": 172,
+        "identities": 122,
+        "artifacts": 122,
+        "refused": 0,
+        "compile_count": 122,
+        "cache_hits": 50
+      },
+      {
+        "census": "/tmp/t041-census/chunk_12.json",
+        "command": "a100c/tests/test_compile_sweep.py --operator suite/perf/attn_fwd_causal.py --operator suite/dev/matmul_k32_no_loop_kernel_fd37acc3.py --operator suite/dev/hardsigmoid_kernel.py --operator suite/dev/matmul_kernel_a7a69c6d.py --operator suite/dev/norm__max_norm_kernel_2.py --operator suite/dev/small_n_log_softmax_kernel.py --operator suite/dev/triton_argmax.py --operator suite/perf/elu_linear.py --operator suite/perf/mean.py --operator suite/dev/matmul_kernel.py --operator suite/dev/linalg_cross_real_dim1_3d_kernel.py --operator suite/dev/cumprod_dim1_kernel.py --operator suite/dev/gelu_min.py --operator suite/perf/exp_sqrt.py --operator suite/perf/sqrt.py --operator suite/dev/absolute_kernel.py --operator suite/perf/fused_hstack_div.py --operator suite/dev/epilogue_kernel.py --operator suite/dev/round_kernel.py --operator suite/dev/fused_gemm_gn_min_kernel_2.py --operator suite/perf/l2_norm_triton2.py --operator suite/dev/backends__ascend__ops__grpo_loss__selective_log_softmax_kernel.py --operator suite/dev/fused_layernorm_triton.py --operator suite/dev/linalg_cross_complex_contiguous_kernel.py --operator suite/dev/matmul_kernel_357aea12.py --operator suite/dev/pairwise_distance_min_kernel_1.py --operator suite/dev/tril_inplace_zero_tile_kernel.py --operator suite/perf/triton_linear_activation.py --operator suite/perf/signbit_bitwise_and.py --operator suite/dev/calculate_batch_indices_kernel.py --operator suite/dev/unique_dim_row_diff_reduce_kernel.py --cache-root /tmp/t041-census/cache --census-out /tmp/t041-census/chunk_12.json",
+        "operators": 31,
+        "cases": 164,
+        "identities": 132,
+        "artifacts": 132,
+        "refused": 0,
+        "compile_count": 132,
+        "cache_hits": 32
+      },
+      {
+        "census": "/tmp/t041-census/chunk_13.json",
+        "command": "a100c/tests/test_compile_sweep.py --operator suite/perf/chunk_delta_rule.py --operator suite/dev/fused_pool_reduce_kernel.py --operator suite/dev/group_norm_forward_single_task_kernel.py --operator suite/dev/matmul_kernel_689cb6a4.py --operator suite/dev/norm__l2_norm_kernel_2.py --operator suite/dev/rope_embedding.py --operator suite/dev/transpose_2d_kernel_opt.py --operator suite/perf/conv2d_add.py --operator suite/perf/logit.py --operator suite/dev/fht_kernel_256_4row_native.py --operator suite/dev/median_int_lastdim_select_kernel.py --operator suite/dev/gn_finalize_kernel.py --operator suite/dev/selu_kernel_supreme.py --operator suite/perf/pow.py --operator suite/dev/mode_kernel.py --operator suite/dev/argmax_kernel_inner.py --operator suite/perf/leaky_relu.py --operator suite/dev/complete_zero_projection_kernel.py --operator suite/dev/asinh_kernel.py --operator suite/perf/dequantize_rowwise.py --operator suite/dev/renorm_projection_update_s_kernel.py --operator suite/dev/chunk_generalized_iplr_delta_rule_fwd_kernel_o.py --operator suite/dev/grouped_gemm_kernel.py --operator suite/dev/matmul_at_b_kernel_043f2a05.py --operator suite/dev/matmul_kernel_8d68babe.py --operator suite/dev/quant_transpose_kernel.py --operator suite/dev/triu_kernel.py --operator suite/dev/fused_lstm_layer_kernel.py --operator suite/dev/qr.py --operator suite/perf/cos_signbit.py --operator suite/dev/flat_radix_init_rank_kernel.py --operator suite/dev/bitcast.py --cache-root /tmp/t041-census/cache --census-out /tmp/t041-census/chunk_13.json",
+        "operators": 32,
+        "cases": 163,
+        "identities": 116,
+        "artifacts": 116,
+        "refused": 0,
+        "compile_count": 117,
+        "cache_hits": 46
+      },
+      {
+        "census": "/tmp/t041-census/chunk_14.json",
+        "command": "a100c/tests/test_compile_sweep.py --operator suite/perf/context_attn_fwd.py --operator suite/dev/matmul_k32_grouped_nomask_kernel_72a8a8b9.py --operator suite/dev/group_norm_forward_affine_kernel.py --operator suite/dev/matmul_k64_grouped_nomask_kernel_e5ed3959.py --operator suite/dev/norm__l2_norm_kernel.py --operator suite/dev/rng_dual_kernel.py --operator suite/dev/topk.py --operator suite/perf/combined_activation.py --operator suite/perf/log_softmax_linear.py --operator suite/dev/linalg_cross_real_lastdim_broadcast_kernel.py --operator suite/dev/adaptive_avg_pool2d_kernel.py --operator suite/dev/fused_stage1_kernel.py --operator suite/dev/randint__randint_kernel.py --operator suite/perf/normalized_cosine_similarity.py --operator suite/dev/fused_l1_norm_and_divide_kernel_2d6d4854.py --operator suite/dev/pdist_forward__pdist_forward_p2_kernel.py --operator suite/dev/count_nonzero_kernel_1.py --operator suite/dev/bn_inc_and_write_momentum_kernel.py --operator suite/dev/atanh_kernel.py --operator suite/perf/matrix_vector_multip.py --operator suite/dev/norm__l1_norm_kernel_2.py --operator suite/dev/chunk_gdn2_fwd_kernel_inter_solve_fused.py --operator suite/dev/geglu_tanh_forward_kernel.py --operator suite/dev/linspace_kernel.py --operator suite/dev/matmul_kernel_551a94f2.py --operator suite/dev/parallel_based_fwd_kernel.py --operator suite/dev/tril_rows_kernel.py --operator suite/dev/fht_kernel_256_1d_native.py --operator suite/dev/synthesis_kernel.py --operator suite/dev/output_counts_flat_kernel.py --operator suite/dev/repeat_interleave_tensor_kernel.py --cache-root /tmp/t041-census/cache --census-out /tmp/t041-census/chunk_14.json",
+        "operators": 31,
+        "cases": 167,
+        "identities": 135,
+        "artifacts": 135,
+        "refused": 0,
+        "compile_count": 135,
+        "cache_hits": 32
+      },
+      {
+        "census": "/tmp/t041-census/chunk_15.json",
+        "command": "a100c/tests/test_compile_sweep.py --operator suite/perf/flash_decode.py --operator suite/dev/parallel_path_fwd_kernel_prepare_k_cache.py --operator suite/dev/gram_jacobi_sym_kernel.py --operator suite/dev/matmul_k32_persistent_n_kernel_107194fe.py --operator suite/dev/nonzero_static_count_kernel.py --operator suite/dev/resolve_conj_kernel_1d.py --operator suite/dev/swish_kernel.py --operator suite/perf/cholesky_solve.py --operator suite/perf/leaky_relu_conv2d.py --operator suite/dev/matmul_kernel_1334dd27.py --operator suite/dev/matmul_at_b_kernel_db_551a9cda.py --operator suite/dev/fused_recurrent_gdn2_fwd_kernel.py --operator suite/dev/median_fp32_strided_key_select_kernel.py --operator suite/perf/gelu.py --operator suite/perf/swiglu_triton.py --operator suite/perf/mul_sub.py --operator suite/dev/eye_kernel.py --operator suite/dev/fused_l1_norm_kernel_76761630.py --operator suite/dev/sgn_real_kernel.py --operator suite/dev/max_reduction.py --operator suite/dev/var_kernel_2.py --operator suite/dev/chunk_gdn2_fwd_kernel_intra_token_parallel.py --operator suite/dev/generalized_delta_rule__dplr__wy_fast_fwd__wu_fwd_kernel.py --operator suite/dev/matmul_abt_kernel.py --operator suite/dev/matmul_kernel_7e8de72a.py --operator suite/dev/prepare_wy_repr_fwd_kernel_safe.py --operator suite/dev/triu_batch_kernel.py --operator suite/dev/cyclic_jacobi_pair_kernel.py --operator suite/dev/cumprod_dim1_grouped_mixed_kernel.py --operator suite/dev/any_kernel_1.py --operator suite/dev/l1_norm_fused_hyper_kernel_c1fb1344.py --cache-root /tmp/t041-census/cache --census-out /tmp/t041-census/chunk_15.json",
+        "operators": 31,
+        "cases": 167,
+        "identities": 115,
+        "artifacts": 115,
+        "refused": 0,
+        "compile_count": 115,
+        "cache_hits": 52
+      }
+    ]
+  }
+}

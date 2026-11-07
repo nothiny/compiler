@@ -478,6 +478,22 @@ class CompileSweep:
                 "all_reused_one_artifact": not repeat_bad,
                 "violations": repeat_bad[:20],
             },
+            # T041: corpus identities whose artifact key another corpus
+            # identity of the same operator already produced (the compiler's
+            # specialization is coarser than the corpus meta tier; the shared
+            # artifact reads the differing runtime values from the bundle --
+            # no baking).  Visible in the census, never silent.
+            "artifact_key_sharing": {
+                "artifact_identities": sum(
+                    1 for e in identities if e["status"] == STATUS_ARTIFACT),
+                "distinct_artifact_keys": len({
+                    e["artifact_key"] for e in identities
+                    if e["status"] == STATUS_ARTIFACT}),
+                "identities_sharing_a_key": sum(
+                    1 for e in identities if e["status"] == STATUS_ARTIFACT) -
+                len({e["artifact_key"] for e in identities
+                     if e["status"] == STATUS_ARTIFACT}),
+            },
             "passes": {"totals_fired": pass_totals,
                        "markers_read": markers_read,
                        "markers_with_enabled_config": markers_all_default},
@@ -568,12 +584,31 @@ def validate(census: dict, expected_operators: set) -> None:
           f"{part['artifacts']} artifacts checked"
           + (f"; non-ELF: {bad_elf[:3]}" if bad_elf else ""))
 
-    unit_total = sum(1 + e.get("unit_splits", 0)
-                     for e in census["identities"])
+    # T041: the compilation unit is the ARTIFACT KEY, not the corpus
+    # identity.  One corpus identity may span several keys (a legitimate
+    # argument-layout split, T039), and SEVERAL corpus identities may share
+    # ONE key: the corpus's meta tier (compiler_api.identity) classifies
+    # scalar arguments more finely than the compiler's specialization does
+    # (var_mean_welford's [17] and [97] shapes are two corpus identities
+    # whose N is a plain runtime scalar -- the shared artifact reads it from
+    # the bundle, which is exactly the no-baking contract; the T029 census
+    # already recorded this pairing).  Counting units as corpus identities
+    # would demand a cold recompile of an artifact the cache already holds.
+    artifact_rows = [e for e in census["identities"]
+                     if e["status"] == STATUS_ARTIFACT]
+    distinct_keys = {e["artifact_key"] for e in artifact_rows}
+    shared_key_identities = len(artifact_rows) - len(distinct_keys)
+    unit_total = len(distinct_keys) + sum(e.get("unit_splits", 0)
+                                          for e in census["identities"])
     check("compile-count-within-economics",
           comp["count"] <= comp["declared_identity_bound_1_25x"]
           and comp["count"] == unit_total,
           f"{comp['count']} compiles = {unit_total} compilation units "
+          f"({len(distinct_keys)} distinct artifact keys over "
+          f"{len(artifact_rows)} artifact identities; "
+          f"{shared_key_identities} corpus identities share a key -- the "
+          f"specialization is coarser than the corpus meta tier, the shared "
+          f"artifact reads the runtime values from the bundle: no baking) "
           f"<= 1.25 x {DECLARED_CENSUS['identities']} = "
           f"{comp['declared_identity_bound_1_25x']} "
           f"(run census {cnt['identities']} identities, "
@@ -807,6 +842,17 @@ def merge_census(args) -> int:
             "repeat_case_checks": repeat_total,
             "all_reused_one_artifact": not repeat_bad,
             "violations": repeat_bad[:20],
+        },
+        # T041: same recorded accounting as a single-sweep census (see
+        # census_document): corpus identities sharing one artifact key.
+        "artifact_key_sharing": {
+            "artifact_identities": by_status.get(STATUS_ARTIFACT, 0),
+            "distinct_artifact_keys": len({
+                e["artifact_key"] for e in identities
+                if e["status"] == STATUS_ARTIFACT}),
+            "identities_sharing_a_key": by_status.get(STATUS_ARTIFACT, 0) -
+            len({e["artifact_key"] for e in identities
+                 if e["status"] == STATUS_ARTIFACT}),
         },
         "passes": {"totals_fired": pass_totals,
                    "markers_read": markers_read,
