@@ -214,29 +214,25 @@ def check_scalar_fp_min(workdir, compiler):
 
 
 def check_grouped_gemm_boundary(compiler):
-    """grouped_gemm_kernel refuses located on its out-of-slice parts --
-    never a silent miscompile; its pointer-table pattern is
-    test_memory_forms' executed check.
+    """grouped_gemm_kernel's compile boundary.
 
-    T034: the two-axis block-pointer tile now lowers through the dot
-    lane (the rank-1 flattening repair), so the located refusal the
-    boundary test pins moved past the dot/bf16 parts to the GRID model:
-    the tile-count sum runs over a symbolic-bound range the expression
-    language cannot carry (``sum(ceil_div(m, BM) * ceil_div(n, BN) for
-    (m, n, k) in dimensions)`` over ``range(groups)`` with groups a
-    symbolic shape extent) -- still located, still never a guess."""
+    T034: the two-axis block-pointer tile lowered through the dot lane
+    (the rank-1 flattening repair) and the located refusal moved to the
+    GRID model (the tile-count sum over a symbolic-bound range).  T039
+    repaired that final boundary INSIDE the declared launch contract:
+    the sum lowers as a runtime SumLoop over the bundle-visible
+    ``group_size`` scalar, so the operator now COMPILES (its executed
+    comparison is test_t039_repairs'/test_memory_forms' check; a silent
+    miscompile would surface there).  The boundary check therefore pins
+    the compile succeeding -- anything else is a regression."""
     gg = _load(ROOT / "ops" / "suite" / "dev" / "grouped_gemm_kernel.py")
     try:
         compiler.compile_case(gg.make_case())
-        check("grouped-gemm-refuses-located-out-of-slice", False,
-              "compiled (expected a located refusal)")
+        check("grouped-gemm-refuses-located-out-of-slice", True,
+              "compiles through the T039 runtime SumLoop grid")
     except PipelineError as exc:
-        needles = ("dot", "width", "SEW", "matrix", "bf16", "bfloat16",
-                   "and/or", "not supported",
-                   # T034: the moved boundary (the grid tie)
-                   "grid")
-        check("grouped-gemm-refuses-located-out-of-slice",
-              any(n in str(exc) for n in needles), str(exc)[:110])
+        check("grouped-gemm-refuses-located-out-of-slice", False,
+              f"refused at {exc.construct!r}: {str(exc)[:90]}")
     except Exception as exc:               # noqa: BLE001
         check("grouped-gemm-refuses-located-out-of-slice", False,
               f"wrong error type {type(exc).__name__}: {str(exc)[:80]}")

@@ -536,10 +536,15 @@ def scalar_load(ctx, base_reg: mir.VReg, offset_reg: mir.VReg,
                f"scalar load width {width} is not in the scalar core")
     addr = _scalar_address(ctx, base_reg, offset_reg, pointee, loc)
     mtype = mir.ScalarType(width, signed=True, float=pointee.is_float())
+    # T039 (grouped_gemm's uint64 pointer tables): a 64-bit load's
+    # extension is vacuous -- the full register IS the value -- and the
+    # repertoire has no zext row at width 64 (ld loads all 64 bits).
+    # Narrow unsigned pointees keep their zext form.
     return ctx.emit(mir.MOp(
         "sload", [addr], [ctx.vreg(mtype, hint="sl", loc=loc)],
         attrs={"width": width, "offset": 0,
-               "ext": "sext" if pointee.is_int_signed() or pointee.is_float()
+               "ext": "sext" if pointee.is_int_signed()
+               or pointee.is_float() or width == 64
                else "zext"},
         loc=loc))
 

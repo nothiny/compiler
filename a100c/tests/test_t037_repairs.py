@@ -26,17 +26,20 @@ that prove the checks are load-bearing.
     structure while the accumulated expression reads the M scalar and
     the offs[0] view extent at run time.  Both declared shapes execute
     and compare PASS at 1 and 4 workers.
-  * the genuinely untraceable keep located refusals that NAME the
-    untraceable input: gn_finalize's (n, g) axes (only their product is
-    view-visible -- the refusal names the axis and the product), and
-    grouped_gemm's runtime-length tile-count sum (its single identity
-    spans groups=3 and groups=4 cases, so the trip count is per-case
-    data; the refusal names the unsigned case-shape axis).
-  * the recorded NEW defect: deconv3d's typical case compiles through
-    the repaired grid and its execution mismatch (per-lane ox == 3 mod
-    4, worker-count-dependent) is pinned with the control that
-    attributes it away from the grid (the tile tail intact, the
-    degenerate shape PASS) -- the input of the next repair round.
+  * T039 superseded the two remaining untraceable classes with
+    reductions INSIDE the declared launch contract: gn_finalize's
+    (n, g) axes flatten to the view product (the kernel's whole pid
+    surface is the C-order linear index; the driver passes the TIR and
+    rewrites the expression to program_id(0)), and grouped_gemm's
+    runtime-length tile-count sum lowers as a runtime SumLoop over the
+    bundle-visible ``group_size`` scalar (see test_t039_repairs.py; the
+    bare extract_grid call without the TIR still refuses gn_finalize
+    located -- the flattening needs the pid-surface proof).
+  * the recorded NEW defect (deconv3d's typical case: per-lane ox == 3
+    mod 4 mismatches, worker-count-dependent) was repaired by T039
+    (extent-1 staged records read/wrote the raw (elem+lane) index past
+    their one-element allocation); this pin now requires the full
+    comparison PASS with the tile-tail control intact.
 
 Controls (MECH-WITNESS-TEST):
   * the signed-count gate: a probe operator whose loop bound is an
@@ -254,12 +257,18 @@ def check_t037_grid_ties():
 # ---------------------------------------------------------------------------
 
 def check_t037_located_refusals():
+    """T039 superseded both pinned refusals with in-contract reductions;
+    this check pins the CURRENT boundary: gn_finalize's bare model call
+    (no TIR -> no pid-surface proof) keeps the located refusal naming
+    the product-only axes, grouped_gemm extracts through the runtime
+    SumLoop, and both compile and execute through the real pipeline
+    (test_t039_repairs.py carries the executed comparisons)."""
     bad = []
     module = _load(OPS / "suite" / "dev" / "gn_finalize_kernel.py")
     try:
         extract_grid(_load_source("suite/dev/gn_finalize_kernel.py"),
                      module.make_case())
-        bad.append("gn_finalize accepted")
+        bad.append("gn_finalize accepted without the pid-surface proof")
     except GridError as exc:
         if "cannot be proven equal" not in str(exc) \
                 or "shape_extent" not in str(exc) \
@@ -268,30 +277,25 @@ def check_t037_located_refusals():
             bad.append(f"gn_finalize: {str(exc)[:110]}")
     module = _load(OPS / "suite" / "dev" / "grouped_gemm_kernel.py")
     try:
-        extract_grid(_load_source("suite/dev/grouped_gemm_kernel.py"),
-                     module.make_case())
-        bad.append("grouped_gemm accepted")
+        model = extract_grid(
+            _load_source("suite/dev/grouped_gemm_kernel.py"),
+            module.make_case())
+        from a100c.frontend.gridmodel import SumLoop  # noqa: F401
+        if not isinstance(model.axes[0], SumLoop):
+            bad.append(f"grouped_gemm: axis {model.axes[0]!r}")
     except GridError as exc:
-        if "not provenance-tracked" not in str(exc) \
-                or "no identity-signed count" not in str(exc) \
-                or "shape_extent" not in str(exc) or not exc.line:
-            bad.append(f"grouped_gemm: {str(exc)[:110]}")
-    # the pipeline surfaces the same refusals located (the compile-time
-    # boundary)
+        bad.append(f"grouped_gemm refused: {str(exc)[:110]}")
+    # both compile through the real pipeline now
     c = _compiler("refusals")
-    for opname, needle in (("gn_finalize_kernel.py",
-                            "only as a factor of a view extent"),
-                           ("grouped_gemm_kernel.py",
-                            "no identity-signed count")):
+    for opname in ("gn_finalize_kernel.py", "grouped_gemm_kernel.py"):
         module = _load(OPS / "suite" / "dev" / opname)
         try:
             c.compile_case(
                 {k: v for k, v in module.make_case().items()
                  if k not in ("expected", "oracle_args")})
-            bad.append(f"{opname}: compiled (expected a located refusal)")
         except PipelineError as exc:
-            if exc.construct != "grid" or needle not in str(exc):
-                bad.append(f"{opname}: {str(exc)[:110]}")
+            bad.append(f"{opname}: refused at {exc.construct!r}: "
+                       f"{str(exc)[:80]}")
         except Exception as exc:               # noqa: BLE001
             bad.append(f"{opname}: wrong error {type(exc).__name__}")
     check("t037-untraceable-refuse-located-naming-input", not bad,
@@ -379,15 +383,16 @@ def check_t037_deconv3d_new_defect_recorded():
         if (tail > 0).all():
             bad.append(f"t={threads}: the tail tile is fully mismatched "
                        "(a grid-tile miss -- the grid model is implicated)")
-        if counts[threads] == 0:
-            bad.append(f"t={threads}: comparison PASS -- the recorded "
-                       "compute defect is gone; update this pin to a full "
-                       "comparison PASS")
+        if counts[threads] != 0:
+            bad.append(f"t={threads}: {counts[threads]} mismatches -- the "
+                       "T039 repair (extent-1 staged records) must leave "
+                       "the typical case a full comparison PASS")
     check("t037-deconv3d-typical-case-new-defect-recorded",
-          not bad and all(v > 0 for v in counts.values()),
+          not bad and all(v == 0 for v in counts.values()),
           f"artifact {Path(art.executable).name}; mismatches "
           f"t=1: {counts.get(1)}, t=4: {counts.get(4)} of 11520 "
-          "(per-lane ox==3 mod 4; the grid tile tail is intact)")
+          "(the T039 extent-1 staging repair flipped this pin to a full "
+          "comparison PASS; the grid tile tail control stays intact)")
 
 
 # ---------------------------------------------------------------------------
@@ -547,8 +552,13 @@ def check_t037_no_baking():
             bad.append("unsigned control: accepted (the unroll must be "
                        "gated on the identity-signed count)")
         except GridError as exc:
-            if "no identity-signed count" not in str(exc) \
-                    or "shape_extent" not in str(exc):
+            # T039 note: the SumLoop machinery carries the sequence
+            # further before refusing (the sequential ``start``
+            # accumulation is not a plain sum), so the located refusal
+            # names the value the loop depends on instead of the range
+            # bound -- the control's assertion is the refusal itself:
+            # the unsigned axis is never unrolled, nothing is baked
+            if "not provenance-tracked" not in str(exc) or not exc.line:
                 bad.append(f"unsigned control: {str(exc)[:110]}")
 
         # the self-check control: a tampered declared grid refuses loudly

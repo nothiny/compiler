@@ -8,8 +8,10 @@ general multi-axis model.
 from __future__ import annotations
 
 from a100c.frontend.gridmodel import (  # noqa: F401
-    Bin, GridError, GridExpr, GridModel, Lit, Ref, census, evaluate_expr,
-    extract_grid, grid_of_case)
+    Bin, GridError, GridExpr, GridModel, Ind, Lit, Ref, SumLoop, census,
+    evaluate_expr, extract_grid, grid_of_case, linear_pid_root,
+    apply_linear_flattening)
 
 __all__ = ["GridError", "GridExpr", "Lit", "Ref", "Bin", "GridModel",
-           "extract_grid", "evaluate_expr", "census", "grid_of_case"]
+           "Ind", "SumLoop", "extract_grid", "evaluate_expr", "census",
+           "grid_of_case", "linear_pid_root", "apply_linear_flattening"]

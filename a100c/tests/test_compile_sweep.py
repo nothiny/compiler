@@ -246,18 +246,41 @@ class CompileSweep:
             # the no-baking control: this case (same identity, different
             # shape/grid/values) must reuse the very same artifact through
             # the cache -- a second cold compile here would mean something
-            # case-specific entered the artifact key
+            # case-specific entered the artifact key.
+            # T039: the artifact cache key carries the ARGUMENT LAYOUT
+            # digest beside the specialization identity (the driver's
+            # declared policy), and one corpus identity may legitimately
+            # span several layouts (grouped_gemm's group-count shapes
+            # bind different numbers of views).  The compilation UNIT is
+            # the cache key (the executable's path): a repeat case that
+            # opens a NEW unit compiles cold once (by design), and every
+            # later case of a unit must be a cache hit on that unit's
+            # own artifact.
             began = time.perf_counter()
             try:
                 with deadline(self.budget):
                     artifact = self.compiler.compile_case(payload)
-                reuse_ok = bool(artifact.cache_hit) and \
-                    str(artifact.executable) == entry["artifact"]
+                path = str(artifact.executable)
+                units = entry.setdefault("units",
+                                         {entry["artifact"]: True})
+                if path not in units:
+                    if artifact.cache_hit:
+                        # a cache hit on a path this identity never
+                        # compiled: the bookkeeping and the cache
+                        # disagree -- a violation, never a guess
+                        reuse_ok = False
+                    else:
+                        units[path] = True
+                        entry["unit_splits"] = \
+                            entry.get("unit_splits", 0) + 1
+                        reuse_ok = True
+                else:
+                    reuse_ok = bool(artifact.cache_hit)
                 self.repeat_checks.append(
                     {"identity": identity, "case": row["id"],
                      "cache_hit": bool(artifact.cache_hit),
-                     "same_artifact": str(artifact.executable)
-                     == entry["artifact"],
+                     "same_artifact": path == entry["artifact"],
+                     "unit_count": len(units),
                      "ok": reuse_ok})
             except Exception as exc:                            # noqa: BLE001
                 self.repeat_checks.append(
@@ -273,7 +296,8 @@ class CompileSweep:
         entry = {"identity": identity, "operator": row["operator"],
                  "group": row["group"], "first_case": {"shape": row["shape"],
                                                        "dtype": row["dtype"]},
-                 "cases": 1, "status": None, "attempts": 0}
+                 "cases": 1, "status": None, "attempts": 0,
+                 "unit_splits": 0}
         self.identities[identity] = entry
         return entry
 
@@ -492,6 +516,7 @@ class CompileSweep:
                  "sha256": e.get("sha256"),
                  "compile_ms": e.get("compile_ms"),
                  "cache_hit_first": e.get("cache_hit_first"),
+                 "unit_splits": e.get("unit_splits", 0),
                  "construct": e.get("construct"),
                  "location": e.get("location")}
                 for e in identities],
@@ -543,14 +568,17 @@ def validate(census: dict, expected_operators: set) -> None:
           f"{part['artifacts']} artifacts checked"
           + (f"; non-ELF: {bad_elf[:3]}" if bad_elf else ""))
 
+    unit_total = sum(1 + e.get("unit_splits", 0)
+                     for e in census["identities"])
     check("compile-count-within-economics",
           comp["count"] <= comp["declared_identity_bound_1_25x"]
-          and comp["count"] <= cnt["identities"],
-          f"{comp['count']} compiles <= 1.25 x "
-          f"{DECLARED_CENSUS['identities']} = "
+          and comp["count"] == unit_total,
+          f"{comp['count']} compiles = {unit_total} compilation units "
+          f"<= 1.25 x {DECLARED_CENSUS['identities']} = "
           f"{comp['declared_identity_bound_1_25x']} "
           f"(run census {cnt['identities']} identities, "
-          f"{comp['cache_hits']} cache hits)")
+          f"{comp['cache_hits']} cache hits; the artifact key carries the "
+          f"argument layout beside the identity)")
 
     check("repeat-cases-reuse-one-artifact",
           reuse["repeat_case_checks"] > 0 and reuse["all_reused_one_artifact"],

@@ -1,0 +1,113 @@
+{
+  "invocation_id": "WTI042",
+  "task_id": "T039",
+  "attempt": 1,
+  "context_sha256": "7bc0d75dbd31664584ce2512017a304c737ddda550e51135ae1147d86dc169e3",
+  "outcome": "COMPLETED",
+  "failure_kind": "implementation",
+  "summary": "All four pinned pre-scan blockers resolved through the real compilation path, plus the two next blockers their repair exposed. (1) The 4 untraceable grid refusals are REPAIRED inside the declared launch contract (no protocol change, so no DESIGN_ISSUE): gn_finalize's (n,g) axes -- visible only as the view product n*g -- flatten to ONE axis over the product because the kernel's whole program-id surface is the C-order linear index pid_n*num_programs(1)+pid_g (gridmodel.linear_pid_root proves it from the TIR; apply_linear_flattening rewrites the expression to program_id(0); the (pid_n,pid_g)->linear bijection is the re-partition proof, F018); grouped_gemm's tile-count sum over the unsigned groups axis (one identity spans groups=3/4) lowers as a runtime SumLoop over the bundle-visible group_size scalar (neither count unrolled; the native grid routine loops the actual read). Repairing grouped_gemm exposed the next blocker on its path: a 64-bit unsigned scalar load emitted a zext sload with no repertoire row (extension is vacuous at 64 bits) -- fixed to sext like the entry binding. All 4 operators' cases execute and compare PASS at 1 and 4 workers (gn_finalize 3 shapes, grouped_gemm 2 shapes; one artifact per identity, runtime grid follows the bundle). (2) The deconv3d typical-case defect is fixed at the lowering stage (first incorrect stage: the MIR staging, not the emitter): [1]-element staged records (tl.full([1],...) products like Oy_i64*Ox_i64) were stored/read with the raw (elem+lane) index, writing vl lanes per pass far past the one-element allocation and smashing neighbouring staged regions -- the div/mod recomposition oz*(Oy*Ox) then read the smashed product back as Ox (every corpus shape has Oy==Ox, so the wrong factor coincided with a legal-looking value; the minimized reproduction uses Oy=10/Ox=14 to distinguish). Extent-1 records now stage element 0 (the register is the value's splat). All 6 deconv3d case rows (2 shapes x 3 dtypes) execute and compare PASS at 1 and 4 workers; the T037 pin flipped to a full comparison PASS. (3) The gqa 1-worker CSE segfault: the CSE rewrites are value-legal; the defect was the mis-shaped read -- the ptradd lowering materialized a staged BASE block via _need(base) with no consumer shape, so a staged [32,1] base consumed by a [32,32] ptradd was read with the raw identity index while the consumer pass's element counter ran past the base's extent (T029 had fixed only the offset side). The staged base read now maps through the result's shape. gqa executes and compares PASS at 1,2,4,8 workers with passes ON and OFF. (4) The fp64 tl.dot refusal's justification verified recorded: FRONTEND_COVERAGE.json's tl.dot row carries the T038 dtype-surface boundary note naming CORPUS_LOCK.json (per-operator dtypes float32/float16/bfloat16; global declared set has no float64), so the refusal reads as declared-unsupported with evidence. Stale pins that encoded the old refusal states were updated (test_t037/t034/atomics); the compile sweep's compilation unit was aligned with the driver's declared artifact key (identity + argument layout: grouped_gemm's group-count shapes legitimately split one identity into two layouts).",
+  "files_changed": [
+    "a100c/frontend/gridmodel.py",
+    "a100c/lower/vectorize.py",
+    "a100c/lower/scalar.py",
+    "a100c/plan/grid.py",
+    "a100c/driver.py",
+    "a100c/factory.py",
+    "a100c/tests/test_t039_repairs.py",
+    "a100c/tests/test_t037_repairs.py",
+    "a100c/tests/test_t034_repairs.py",
+    "a100c/tests/test_atomics.py",
+    "a100c/tests/test_compile_sweep.py"
+  ],
+  "artifacts": [
+    "/tmp/t039_owned_census2.json",
+    "/tmp/t039_test2.log",
+    "/tmp/t039_sweep_owned2.log",
+    "/tmp/t039_deconv_all.log",
+    "/tmp/t039_suite.log"
+  ],
+  "commands": [
+    {
+      "command": "python3 a100c/tests/test_compile_sweep.py --operator suite/dev/gn_finalize_kernel.py --operator suite/dev/grouped_gemm_kernel.py --operator suite/dev/deconv3d_fwd_kernel.py --operator suite/dev/gqa.py --census-out /tmp/t039_owned_census2.json",
+      "exit_code": 0,
+      "observed": "all compile-sweep checks PASS: 24/24 cases classified, 11 identities, 12 compiles = 12 compilation units (grouped_gemm's identity spans 2 argument layouts), 13 repeat cases 0 violations, 0 refusals, 0 over-budget, passes=default with rewrites fired (cse 14942, constprop 1618, licm 2311, strength_reduction 995, dce 857)"
+    },
+    {
+      "command": "python3 a100c/tests/test_t039_repairs.py",
+      "exit_code": 0,
+      "observed": "all 10 checks PASS: gn-finalize-linear-flattening (3 shapes PASS 1/4 workers), flattening-gate (pid use outside the linear expression refuses located; pure-linear flattens), grouped-gemm-runtime-sumloop (both shapes PASS 1/4 workers), sumloop-gate (opaque bound refuses located), flat-grid-no-baking (one artifact for (128,8)/(7,3)), deconv-repro-extent1-staging (y_spatial==ow, passes on/off 1/4 workers), deconv3d-typical-case-passes (6 rows PASS 1/4 workers), gqa-passes-enabled-all-workers (1/2/4/8 on+off), ptradd-staged-base-consumer-shape, fp64-dot-refusal-justification-recorded"
+    },
+    {
+      "command": "python3 a100c/tests/test_passes_basic.py",
+      "exit_code": 0,
+      "observed": "all checks PASS (suite batch run)"
+    },
+    {
+      "command": "for t in a100c/tests/test_*.py: timeout 2400 python3 $t",
+      "exit_code": 0,
+      "observed": "39/44 files PASS in the batch; the 5 exceptions: test_atomics/test_t034/test_t037 carried stale pins encoding the pre-T039 refusal states (each updated and re-run to PASS: 'test_atomics: all checks PASS', 'test_t034_repairs: all checks PASS', 'test_t037_repairs: all checks PASS' incl. the deconv3d pin flipped to mismatches t=1:0 t=4:0); test_t039_repairs was mid-edit in that batch (final run exit 0); test_compile_sweep's full 2734-case census was killed at the batch's 2400s per-file bound mid-run (replaced by the task-specified operator-filtered sweep, exit 0 above; the project census file was NOT overwritten)"
+    },
+    {
+      "command": "python3 a100c/tests/test_t038_repairs.py",
+      "exit_code": 0,
+      "observed": "all T038 checks PASS incl. fp64-dot-resolves-against-declared-surface (case-buffers-f64=True located=True justification-recorded=True)"
+    }
+  ],
+  "acceptance": [
+    {
+      "ref": "acceptance[0]",
+      "command": "python3 a100c/tests/test_t039_repairs.py (check_gn_finalize_flattening / check_grouped_gemm_sumloop / gates / no-baking) + the operator-filtered compile sweep",
+      "exit_code": 0,
+      "observed": "all 4 refusals repaired, none carried to a DESIGN_ISSUE: gn_finalize's 3 identities flatten to the view product (self-check 1024=128*8, 21=7*3, 1=1*1; TIR rewritten to program_id(0) and re-verified; all 3 shapes execute and compare PASS at 1 and 4 workers); grouped_gemm's identity extracts as sum(cdiv(M+2g,16)*cdiv(N+3g,16) for g<group_size) over bundle scalars M/N/group_size (self-check 12 and 36) and both shapes execute and compare PASS at 1 and 4 workers. Controls: a pid use outside the linear expression keeps the located refusal; a sum over an unreadable bound keeps the located refusal; one artifact serves both gn_finalize shapes with the runtime grid reading the view extent. The launch contract is unchanged (the bundle still carries only views and scalars), so no DESIGN_ISSUE was needed"
+    },
+    {
+      "ref": "acceptance[1]",
+      "command": "python3 a100c/tests/test_t039_repairs.py (check_deconv_repro / check_deconv3d_cases) and python3 a100c/tests/test_t037_repairs.py",
+      "exit_code": 0,
+      "observed": "the typical case (1,4,8,8,8) fp32/fp16/bf16 and the degenerate (1,1,1,1,1) fp32/fp16/bf16 all execute and compare PASS at 1 and 4 workers (T037's pinned 435-of-11520 ox==3 mod 4 mismatches are 0 at both worker counts; the tile-tail control stays intact). Stage attribution recorded: the first incorrect stage is the MIR staging of extent-1 records in a100c/lower/vectorize.py (_store_staged/_load_staged used the raw (elem+lane) index past the one-element allocation); the minimized reproduction (div/mod decomposition + [16,1]+[1,128] broadcast store with Oy!=Ox) is embedded in the test and PASSES with the fix at passes on and off"
+    },
+    {
+      "ref": "acceptance[2]",
+      "command": "python3 a100c/tests/test_t039_repairs.py (check_gqa_all_workers / check_ptradd_base_probe)",
+      "exit_code": 0,
+      "observed": "gqa executes and compares PASS at 1, 2, 4 and 8 workers with the passes enabled AND with them off; the segfault (native exit -11, isolated to CSE-only builds, t=1 only) is gone. The defect was the mis-shaped value read, not an illegal CSE rewrite: the ptradd lowering's staged [N,1] base read now maps through the [N,M] result's broadcast axes (T029's offset-side fix extended to the base side); the regression test reproduces the illegal-read shape (a staged [N,1] ptradd base consumed by an [N,N] store with CSE-merged masked-load defaults) and PASSES"
+    },
+    {
+      "ref": "acceptance[3]",
+      "command": "python3 a100c/tests/test_t039_repairs.py (check_fp64_records) and python3 a100c/tests/test_t038_repairs.py (check_fp64_dot_refusal_witness)",
+      "exit_code": 0,
+      "observed": "FRONTEND_COVERAGE.json's tl.dot row carries the 'T038 dtype-surface boundary' note naming CORPUS_LOCK.json (the refusing operator declares float32/float16/bfloat16; the global declared set is bfloat16/bool/float16/float32/int16/int32/int64/int8 -- no float64), and the located refusal 'fp64 tl.dot is outside the corpus dtype surface' fires for the float32-labeled case whose numpy-default float64 buffers are not a declared dtype: declared-unsupported with evidence, not an open refusal"
+    },
+    {
+      "ref": "acceptance[4]",
+      "command": "batch run of every a100c/tests/test_*.py with per-file bounds, then re-runs of the updated files",
+      "exit_code": 0,
+      "observed": "every test file passes at the final code state: 39 passed unchanged in the batch (incl. test_grid_model, test_e2e_slice, test_driver_cache, test_matrix_breadth which executes gqa, test_memory_forms which executes grouped_gemm's pointer tables, test_passes_basic, test_ime_evidence); test_atomics, test_t034_repairs and test_t037_repairs carried stale refusal pins that T039's repairs superseded -- each pin was updated to the repaired state and re-run to PASS; test_t039_repairs (new) passes; the full 2734-case census mode of test_compile_sweep was bounded out mid-run in the batch (the task-specified operator-filtered mode passes, exit 0)"
+    }
+  ],
+  "tests": [
+    {
+      "ref": "tests[0]",
+      "command": "set -a; . ./.env; set +a; python3 a100c/tests/test_compile_sweep.py --operator suite/dev/gn_finalize_kernel.py --operator suite/dev/grouped_gemm_kernel.py --operator suite/dev/deconv3d_fwd_kernel.py --operator suite/dev/gqa.py --census-out /tmp/t039_owned_census2.json",
+      "exit_code": 0,
+      "observed": "all compile-sweep checks PASS (blockers resolved; no DESIGN_ISSUE needed): 24/24 cases, 11 identities, 11 artifacts + 0 refusals, 12 compiles = 12 compilation units within the declared economics, 13 repeat cases recompiled with 0 violations, per-identity budget respected (slowest cold compile 496487ms, 0 over-budget), every artifact built with passes=default and rewrites fired"
+    },
+    {
+      "ref": "tests[1]",
+      "command": "python3 a100c/tests/test_passes_basic.py; batch run of the full a100c test suite (every a100c/tests/test_*.py)",
+      "exit_code": 0,
+      "observed": "test_passes_basic PASS; the full suite passes at the final code state (39 files unchanged-green in the batch; test_atomics/test_t034/test_t037 pins updated to the repaired states and re-run to PASS; test_t039_repairs new and PASS; the full-census sweep mode bounded out mid-batch and superseded by the operator-filtered run)"
+    }
+  ],
+  "evidence": "Executed native comparisons under each case's own policy, bound to the repaired paths: gn_finalize (128,8)/(7,3)/(1,1) PASS at 1 and 4 workers through the linear flattening (one artifact for all shapes of an identity; the runtime grid reads the view extent 1024/21/1); grouped_gemm (3,17,19,13)/(4,33,35,21) PASS at 1 and 4 workers through the runtime SumLoop over group_size (self-checked 12/36 against the declared grids); deconv3d all 6 rows PASS at 1 and 4 workers (the T037-pinned 435 mismatches are 0; the tile-tail control intact); gqa PASS at 1/2/4/8 workers with passes on and off (the -11 segfault reproduced pre-fix, gone post-fix); the operator-filtered compile sweep passes all checks over the four owned operators. Root causes located at the first incorrect stage with minimized reproductions embedded in a100c/tests/test_t039_repairs.py, each with a negative control (the flattening gate, the SumLoop gate) that keeps the located refusal when the proof does not hold.",
+  "design_issue": {},
+  "debug_request": {},
+  "attack": {},
+  "remaining_work": [
+    "Regenerate the full-corpus COMPILE_CENSUS.json at the new revision before the executed scan (the on-disk census still reflects the pre-T039 revision with the 4 grid refusals; the owned-operator census for this task was deliberately written to a scratch path)",
+    "A latent DCE defect found while minimizing the deconv3d reproduction (not triggered by any corpus case): DCE keeps arith.sdiv/srem ops (conservative may-trap treatment) but removes their operand defs, leaving use-before-definition that the TIR verifier rejects -- a legal TIR with a dead div/mod chain crashes the pass pipeline with ValueError",
+    "The full 2734-case census run needs a longer per-file bound than the 2400s batch bound used here (the corpus's cold compiles now include the repaired heavy operators)"
+  ],
+  "end_revision": "",
+  "at": "2026-11-07T18:53:42.782834+00:00"
+}
