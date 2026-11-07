@@ -1,0 +1,100 @@
+{
+  "invocation_id": "WTI034",
+  "task_id": "T034",
+  "attempt": 1,
+  "context_sha256": "c6d8cf9aa76f51addcd7affcb5ddacda8927508272fb29ff575cdfbf52dfec4b",
+  "outcome": "COMPLETED",
+  "failure_kind": "implementation",
+  "summary": "Round-2 backend/scalar repair; every owned census class is at zero and the lowered forms execute and compare. (1) Batched/two-axis tl.dot: the block-pointer desugar now produces the source's DECLARED rank-2 block shape (the old rank-1 flattening was shape-agnostic and a (slow,fast)-ordered tile transposed every block whose order places the minor axis first -- matmul_abt's A tile, order=(1,0)); the shared arange is region-scoped (a closed region's arange no longer leaks across loop bodies); tl.advance folds zero deltas so untouched axes stay at their channel (the loop's channel-drop then does not carry them); the loop body's block-pointer descriptor is rebuilt over the carried channel terms (previously every iteration re-read the pre-header offsets -- the accumulated dot saw the first K block once per iteration), and derived_terms now include compile-time terms so a constant-offset advance axis rides the loop too; c_ptrs.dtype.element_ty resolves through the lowering symbols. matmul_kernel_1334dd27 (fp16 IME, fp32, bf16) and matmul_abt (fp32, bf16) execute and compare PASS at 1 and 4 workers; grouped_mm/grouped_gemm now refuse located at the GRID (tile-count sums over symbolic-bound ranges the expression language cannot carry) -- the dot no longer refuses. (2) fp16/16-bit atomics: a sub-word synthesis (aligned 32-bit word lr/sc retry loop, the neighbouring half preserved, the declared RVWMO aq/rl suffixes on the pair) for fp16/bf16/int16 pointees, fp arithmetic in fp32 with one RTNE back; the atomic loop's extracts/slides/mask state are region-managed; the emitted parallel move for m1 vector params is the whole-register vmv1r.v (vmv.v.v copied only avl elements at the ambient region -- a mixed-SEW pass's e16 ambient copied 64 of an i32 vector's 128 bytes and the fp16 atomic's offset/mask params arrived half-swapped, firing lanes 16+ out of range). scatter_atomic fp16 executes and compares at 1/2/4/8 workers (cross-program accumulation), weighted_scatter/splitk/f_init/conv1x1 fp16 at 1 and 4; the fp16 guard-region witness: real build intact, degraded build corrupts. (3) Scalar widths: sub-32 scalar widening rides the vector lane (splat/vwiden/extract); mixed-width scalar pairs widen to the declared computation width at the binop/compare dispatch (compares floor at 32 -- the scalar core has no sub-32 rows); a re-materialized floating comparison rides the splat-compare-extract form (pdist's if p_val == 0.0); the frontend records the if's per-arm join SIDES on the node and the MIR arm close reads them (the alias-driven name environment resolved one arm's join side to the sibling's value -- pdist's hi = mid in the else arm aliased mid as hi everywhere, the then arm closed with mid as its hi side and the binary search collapsed to one iteration); a chunked region whose escaping loop-exit join has no merge rule now refuses located (logsumexp's maximum over a 1024-lane block was silently overwritten per chunk -- stored -inf). (4) The two T018-named defects: sym_constrain_range int64 compiles and executes+compares (the scalar_store VectorType crash is gone; regression test) and sgn_real bf16 builds an artifact and executes+compares (the bool->16-bit-float convert pins v0 immediately before its select -- the early pin's live range spanned the arms' internal v0 pins and the allocator refused with two fixed v0 masks live). The full a100c test suite passes (37 pre-existing files, test_atomics' grouped_gemm boundary updated to the moved located refusal) plus the new test_t034_repairs.py with 10 executed checks; the filtered sweep over the 12 owned operators: 47 artifacts + 17 located refusals of OTHER constructs (grid/allocation/loop) + 0 crashes, all checks PASS; a wide 600-case sweep over the corpus: 373 artifacts + 64 located refusals + 0 crashes, all checks PASS.",
+  "files_changed": [
+    "a100c/frontend/lower_tir.py",
+    "a100c/frontend/gridmodel.py",
+    "a100c/ir/tir.py",
+    "a100c/lower/scalar.py",
+    "a100c/lower/vectorize.py",
+    "a100c/backend/emit.py",
+    "a100c/tests/test_atomics.py",
+    "a100c/tests/test_t034_repairs.py",
+    "docs/compiler-agent/COMPILE_CENSUS.t034-owned-classes.json",
+    "docs/compiler-agent/COMPILE_CENSUS_T034.json"
+  ],
+  "artifacts": [
+    "docs/compiler-agent/COMPILE_CENSUS.t034-owned-classes.json",
+    "docs/compiler-agent/COMPILE_CENSUS_T034.json",
+    "a100c/tests/test_t034_repairs.py"
+  ],
+  "commands": [
+    {
+      "command": "set -a; . ./.env; set +a; timeout 2400 python3 a100c/tests/test_compile_sweep.py --operator suite/dev/grouped_gemm_kernel.py --operator suite/dev/grouped_mm_kernel.py --operator suite/dev/matmul_abt_kernel.py --operator suite/dev/matmul_kernel_1334dd27.py --operator suite/dev/conv1x1_pool_fc_kernel.py --operator suite/dev/f_init_recurrence_kernel.py --operator suite/dev/scatter_atomic_kernel.py --operator suite/dev/splitk_gemv.py --operator suite/dev/weighted_scatter_add_kernel.py --operator suite/perf/logsumexp.py --operator suite/dev/pdist__pdist_forward_general_kernel.py --operator suite/dev/sym_constrain_range_kernel.py --operator suite/dev/sgn_real_kernel.py --census-out docs/compiler-agent/COMPILE_CENSUS.t034-owned-classes.json",
+      "exit_code": 0,
+      "observed": "all compile-sweep checks PASS; partition 47 artifacts + 17 refused + 0 over-budget + 0 crashes, sums to the identity census; the 17 refusals are located refusals of OTHER constructs: grid 7 (grouped_mm x6, grouped_gemm x1 -- tile-count sums over symbolic-bound ranges), allocation 4 (matmul_abt fp16 x2, conv1x1_pool_fc bf16 x2 -- IME staging register pressure, names the pressure source), loop 6 (logsumexp -- the chunked carried 'maximum' has no merge rule); ZERO rows for the owned classes 'tl.dot operand must be rank-2', 'atomic pointee width 16', 'scalar widening 8 -> 16', 'cmp.gt i16/i32 operand types differ', 'cmp.eq on f32'"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; timeout 2400 python3 a100c/tests/test_t034_repairs.py",
+      "exit_code": 0,
+      "observed": "10/10 checks PASS: rank2-blockptr-tile-executes-1-4-workers (1334dd27 fp16/fp32/bf16 + matmul_abt fp32/bf16, executed+compared at 1 and 4 workers); fp16-atomic-subword-executes-1-2-4-8 (scatter fp16 at 1/2/4/8 + tail shape, weighted_scatter/splitk/f_init/conv1x1 fp16 at 1 and 4); fp16-subword-ordered-forms-in-listing (lr.w.aqrl/sc.w.aqrl present in the acq_rel default build); fp16-guard-region-real-build-intact (compare PASS, guard intact); fp16-guard-witness-degraded-build-corrupts (625a625a... != 5a5a5a5a... as required); scalar-width-i8-to-i16-executes; float-scalar-cmp-and-if-join-sides-execute (pdist at 1 and 4); located-refusals-grid-and-chunked-carry; sym-constrain-range-int64-regression (compiles+executes+compares at 1 and 4); sgn-real-bf16-v0-masks-serialized (compiles+executes+compares at 1 and 4)"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; for t in a100c/tests/test_*.py; do [ $(basename $t) = test_compile_sweep.py ] && continue; timeout 600 python3 $t 2>&1 | tail -1; done",
+      "exit_code": 0,
+      "observed": "all 37 pre-existing test files PASS (test_allocate, test_atomics, test_build, test_compile_regressions, test_control_flow, test_conversions, test_driver_cache, test_e2e_slice, test_emit, test_frontend_shapes, test_frontend_surface, test_frontend_types, test_grid_model, test_ime_evidence, test_layout_ops, test_legalize, test_lower_matrix, test_lower_scalar, test_lower_vector, test_math_ops, test_matrix_breadth, test_memory_forms, test_mir_verifier, test_partition, test_passes_basic, test_reductions, test_rng, test_runtime_smoke, test_scalar_binding, test_select, test_specialize, test_stage_plan, test_t029_repairs, test_t031_repairs, test_t032_repairs, test_t033_repairs, test_tir_verifier)"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; timeout 3000 python3 a100c/tests/test_compile_sweep.py --limit 600 --budget 240 --census-out docs/compiler-agent/COMPILE_CENSUS_T034.json",
+      "exit_code": 0,
+      "observed": "all compile-sweep checks PASS over the first 600 corpus cases: 373 artifacts + 64 located refusals (allocation 17, mir-verifier 13, grid 12, scan 6, ptradd 6, tl.cumsum/cumprod 3, tl.cast 3, tir-verifier 2 (argmin carried-type), tl.dot 1 (the declared fp64 dtype-surface refusal), layout 1) + 0 over-budget + 0 crashes; the owned classes stay at zero corpus-wide in this slice"
+    }
+  ],
+  "acceptance": [
+    {
+      "ref": "acceptance[0]",
+      "command": "set -a; . ./.env; set +a; timeout 2400 python3 a100c/tests/test_compile_sweep.py --operator <the 12 owned operators> --census-out docs/compiler-agent/COMPILE_CENSUS.t034-owned-classes.json",
+      "exit_code": 0,
+      "observed": "the filtered sweep over every census operator carrying rank-3 dot, fp16-atomic, scalar-width and the two named defects: the owned classes at ZERO -- no 'tl.dot operand must be rank-2' row, no 'atomic pointee width 16' row, no 'scalar widening 8 -> 16' row, no 'operand types differ: i32 vs i16' row, no 'cmp.eq on f32' row, and neither named defect (sym_constrain_range compiles an artifact, sgn_real bf16 compiles an artifact); each non-artifact identity is a located refusal of a DIFFERENT construct: grid 7 (grouped_mm/grouped_gemm), allocation 4 (matmul_abt fp16, conv1x1_pool_fc bf16 -- names value and line), loop 6 (logsumexp -- names the escaping value and the chunking)"
+    },
+    {
+      "ref": "acceptance[1]",
+      "command": "set -a; . ./.env; set +a; timeout 2400 python3 a100c/tests/test_t034_repairs.py",
+      "exit_code": 0,
+      "observed": "batched rank-3 dot operators execute and compare PASS at 1 and 4 workers (matmul_kernel_1334dd27 in fp16 -- the IME path -- fp32 and bf16; matmul_abt in fp32 and bf16); fp16 atomics execute with the declared ordering: scatter_atomic fp16 at 1/2/4/8 workers (every cross-program contribution lands exactly once) plus the tail shape, weighted_scatter_add/splitk_gemv/f_init_recurrence/conv1x1_pool_fc fp16 at 1 and 4 workers, and the emitted listing carries the lr.w.aqrl/sc.w.aqrl ordered forms of the default acq_rel/gpu mapping; the fp16 masked-atomic guard witness: real build leaves the poisoned guard intact and compares PASS, the degraded witness_drop_atomic_masks build corrupts it (the no-access property is load-bearing)"
+    },
+    {
+      "ref": "acceptance[2]",
+      "command": "set -a; . ./.env; set +a; timeout 2400 python3 a100c/tests/test_t034_repairs.py",
+      "exit_code": 0,
+      "observed": "sym-constrain-range-int64-regression: the [17] torch.int64 identity compiles (no AttributeError) and executes+compares at 1 and 4 workers; sgn-real-bf16-v0-masks-serialized: the bf16 identity produces an artifact (the deferred v0 pin) and executes+compares at 1 and 4 workers -- no refusal at all, so the 'located refusal or fixed allocation' criterion is met by the fixed allocation"
+    },
+    {
+      "ref": "acceptance[3]",
+      "command": "set -a; . ./.env; set +a; for t in a100c/tests/test_*.py; do [ $(basename $t) = test_compile_sweep.py ] && continue; timeout 600 python3 $t 2>&1 | tail -1; done",
+      "exit_code": 0,
+      "observed": "all 37 pre-existing test files PASS unchanged in behavior; test_atomics' grouped_gemm boundary check was updated to the moved located refusal (the dot lane now lowers grouped_gemm past the old dot/bf16 refusals; the honest boundary is the grid tie -- still located, still never a silent miscompile)"
+    }
+  ],
+  "tests": [
+    {
+      "ref": "tests[0]",
+      "command": "set -a; . ./.env; set +a; timeout 2400 python3 a100c/tests/test_compile_sweep.py --operator suite/dev/grouped_gemm_kernel.py --operator suite/dev/grouped_mm_kernel.py --operator suite/dev/matmul_abt_kernel.py --operator suite/dev/matmul_kernel_1334dd27.py --operator suite/dev/conv1x1_pool_fc_kernel.py --operator suite/dev/f_init_recurrence_kernel.py --operator suite/dev/scatter_atomic_kernel.py --operator suite/dev/splitk_gemv.py --operator suite/dev/weighted_scatter_add_kernel.py --operator suite/perf/logsumexp.py --operator suite/dev/pdist__pdist_forward_general_kernel.py --operator suite/dev/sym_constrain_range_kernel.py --operator suite/dev/sgn_real_kernel.py --census-out docs/compiler-agent/COMPILE_CENSUS.t034-owned-classes.json",
+      "exit_code": 0,
+      "observed": "all compile-sweep checks PASS; 47 artifacts + 17 located refusals of other constructs + 0 crashes; the owned classes at zero"
+    },
+    {
+      "ref": "tests[1]",
+      "command": "set -a; . ./.env; set +a; timeout 600 python3 a100c/tests/test_lower_matrix.py; timeout 900 python3 a100c/tests/test_atomics.py; timeout 600 python3 a100c/tests/test_lower_scalar.py; then the full a100c test suite",
+      "exit_code": 0,
+      "observed": "test_lower_matrix: all checks PASS; test_atomics: all checks PASS; test_lower_scalar: all checks PASS; and all 37 pre-existing test files plus the new test_t034_repairs.py (10 checks) PASS"
+    }
+  ],
+  "evidence": "docs/compiler-agent/COMPILE_CENSUS.t034-owned-classes.json (the filtered sweep over the 12 owned operators: 47 artifacts, 17 located refusals of other constructs -- grid/allocation/loop -- 0 crashes, the owned classes at zero) and docs/compiler-agent/COMPILE_CENSUS_T034.json (a wide 600-case corpus slice: 373 artifacts, 64 located refusals, 0 crashes, all sweep checks PASS), plus a100c/tests/test_t034_repairs.py whose 10 executed checks bind the outcomes: the batched-dot operators and the fp16-atomic operators execute and compare PASS at 1/2/4/8 workers under their own case policies, the fp16 guard-region witness corrupts only in the degraded build, the ordered lr.w/sc.w forms appear in the emitted listing, and the two T018-named defects (sym_constrain_range int64, sgn_real bf16) execute and compare PASS",
+  "design_issue": {},
+  "debug_request": {},
+  "attack": {},
+  "remaining_work": [
+    "The allocation non-convergence class (matmul_abt fp16 static_range unroll, conv1x1_pool_fc bf16, and the ~81-row residual family): a register-pressure round in the IME staging / splitter",
+    "The grid residuals for grouped_mm/grouped_gemm: tile-count sums over symbolic-bound ranges need either a bounded-sum grid-expression form or a native grid routine reading the offs contents",
+    "logsumexp's chunked carried maximum: recognize max-of-max (and min-of-min) loop-update forms as merge rules in plan/stages.py so the region becomes eligible instead of refusing",
+    "The wide-slice residuals outside this task's classes: mir-verifier/scan/ptradd rows and the argmin carried-type tir-verifier rows"
+  ],
+  "end_revision": "",
+  "at": "2026-11-07T01:22:28.116791+00:00"
+}

@@ -992,6 +992,16 @@ class If:
         self.els = Block()
         self.join_names: Tuple[str, ...] = ()
         self.join_results: Tuple[Value, ...] = ()
+        #: T034: the per-arm join SIDES the frontend resolved --
+        #: ``(name, then_value, else_value)`` per join name.  The name
+        #: environment the MIR lowering maintains is alias-driven, and a
+        #: value bound under a name in ONE arm carries that alias
+        #: everywhere it is lowered (pdist's ``hi = mid`` in the else arm
+        #: aliased ``mid`` as ``hi``; the mid's lowering then defined
+        #: ``names['hi']`` in the enclosing scope, and the THEN arm's
+        #: close passed ``mid`` as its ``hi`` side -- the binary search
+        #: collapsed).  The recorded sides are authoritative.
+        self.join_sides: Tuple[Tuple[str, Value, Value], ...] = ()
 
 
 class Loop:

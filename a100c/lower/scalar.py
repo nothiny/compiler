@@ -392,8 +392,20 @@ def lower_not(ctx, operand: mir.VReg, loc) -> mir.VReg:
 
 def widen_to(ctx, reg: mir.VReg, width: int, loc,
              unsigned: Optional[bool] = None) -> mir.VReg:
-    """Widen an i32 scalar to i64 (the register already holds the extended
-    value; ``smove`` realizes the view).  Other widths are refused.
+    """Widen one integer scalar to a wider width.
+
+    * 32 -> 64: the register already holds the sign-extended value;
+      ``smove`` realizes the view (the i32 live-extended invariant).
+    * sub-32 sources (T034): the scalar core has no sub-32 arithmetic
+      (no *h/*b forms, no sub-32 SBIN repertoire rows), so the widening
+      rides the VECTOR lane -- the same splat-widen-extract form the
+      scalar float core uses by design: splat at the source SEW, the
+      ``vwiden`` chain (sext/zext by the SOURCE's signedness -- the
+      pinned extension semantics), the register view re-typed to the
+      destination's kind, extract lane 0.  The result's low bits are
+      the exactly-widened value (``vmv.x.s`` sign-extends its SEW-width
+      element; for either extension state the low bits, the unsigned
+      compare order and the stores are exact).
 
     ``unsigned`` (T013): the widened view's signedness -- the philox key
     path widens an i32 seed to the UINT64 view, and the scalar binop
@@ -406,6 +418,51 @@ def widen_to(ctx, reg: mir.VReg, width: int, loc,
         return ctx.emit(mir.MOp(
             "smove", [reg],
             [ctx.vreg(sty, hint="w", loc=loc)], loc=loc))
+    if reg.type.width < 32 and not reg.type.float \
+            and width in (16, 32, 64) and width > reg.type.width \
+            and reg.type.width in (8, 16):
+        sw = reg.type.width
+        src_signed = reg.type.signed
+        dst_signed = True if unsigned is None else (not unsigned)
+        kind = "int" if src_signed else "uint"
+        # the ambient region (when one is active) is restored exactly:
+        # the widening chain runs at its own avl-1 regions
+        prev_region = getattr(ctx, "active_region", None)
+        _vsetvli1(ctx, sw, 1, loc)
+        vec = ctx.emit(mir.MOp(
+            "s2v", [reg],
+            [ctx.vreg(mir.VectorType(sw, 1, kind), hint="ww", loc=loc)],
+            loc=loc))
+        w = sw
+        while w < width:
+            wide = ctx.emit(mir.MOp(
+                "vwiden", [vec],
+                [ctx.vreg(mir.VectorType(w * 2, 2, kind), hint="wv",
+                          loc=loc)],
+                attrs={"mode": "sext" if src_signed else "zext"}, loc=loc))
+            w *= 2
+            _vsetvli1(ctx, w, 1, loc)
+            vec = ctx.emit(mir.MOp(
+                "vmovv", [wide],
+                [ctx.vreg(mir.VectorType(w, 1, kind), hint="wb", loc=loc)],
+                loc=loc))
+        out = ctx.emit(mir.MOp(
+            "vextract", [vec],
+            [ctx.vreg(mir.ScalarType(width, signed=dst_signed),
+                      hint="wx", loc=loc)], loc=loc))
+        if prev_region is not None and prev_region[2] is not None:
+            # restore the tracked ambient exactly (sew, lmul, avl) -- the
+            # chain's raw vsetvlis bypassed the tracking.  An untracked
+            # avl cannot be reconstructed here: the region stays at the
+            # chain's setting and the consumers open their own (every
+            # vector consumer of the widened scalar manages its region)
+            avl = ctx.const(prev_region[2], mir.I32, loc)
+            ctx.emit(mir.MOp(
+                "vsetvli", [avl],
+                [ctx.vreg(mir.I32, hint="wrr", loc=loc)],
+                attrs={"sew": prev_region[0], "lmul": prev_region[1],
+                       "policy": "ta,ma"}, loc=loc))
+        return out
     refuse(loc, "width",
            f"scalar widening {reg.type.width} -> {width} is not in the "
            "scalar core (32 -> 64 only)")
@@ -1154,6 +1211,227 @@ def _scalar_atomic_cas(ctx, addr: mir.VReg, cmp_reg: mir.VReg,
     return old
 
 
+def _fp16_bits_to_f32(sl, ctx, bits: mir.VReg, ty16, loc) -> mir.VReg:
+    """One 16-bit float's bits (a GPR) to its exact fp32 scalar: splat at
+    the 16-bit float lanes, the widening convert, extract lane 0.  The
+    splat's region is set EXPLICITLY (never assumed: the atomic loop's
+    ambient region is the pass's data region, e16 in the fp16 kernels)."""
+    v16t = mir.VectorType(16, 1, "float")
+    sl._vregion(ctx, v16t, loc)
+    v16 = sl._splat_reg(ctx, bits, v16t, loc)
+    f32v = sl._f16_to_f32(ctx, v16, ty16, loc)
+    return sl._scalarize(ctx, f32v, loc)
+
+
+def _f32_to_fp16_bits(sl, ctx, f32: mir.VReg, ty16, loc) -> mir.VReg:
+    """One fp32 scalar to its 16-bit float bits (a GPR), one RTNE
+    rounding: splat at the fp32 lane, the narrowing convert, view the
+    lanes unsigned, extract lane 0 (the splat's region set explicitly;
+    the view move goes through _vmovv so it opens its own region -- the
+    ambient may sit at a wider pass's e32 setting)."""
+    v32t = mir.VectorType(32, 1, "float")
+    sl._vregion(ctx, v32t, loc)
+    v32 = sl._splat_reg(ctx, f32, v32t, loc)
+    f16v = sl._f32_to_ff(ctx, v32, ty16, loc)
+    u16v = sl._vmovv(ctx, f16v, mir.VectorType(16, 1, "uint"), loc)
+    return sl._scalarize(ctx, u16v, loc)
+
+
+def _subword_new_half(sl, ctx, old_h: mir.VReg, val: mir.VReg,
+                      cmp_reg: Optional[mir.VReg], op_kind: str,
+                      pointee: tir.Type, loc) -> mir.VReg:
+    """The new 16-bit half for the sub-word atomic (i64 arithmetic domain).
+
+    Floating pointees compute in fp32 and round once back to the 16-bit
+    format (fp16 additions of two fp16 values are exact in fp32, so the
+    single RTNE back is the correctly-rounded fp16 result; the same
+    one-rounding policy the vector conversion matrix declares for the
+    int->fp16 route).  Integer pointees compute on the zero/sign-extended
+    halves and mask to 16 bits (two's-complement wrapping semantics)."""
+    if pointee.is_float():
+        old_f = _fp16_bits_to_f32(sl, ctx, old_h, pointee, loc)
+        val_f = _fp16_bits_to_f32(sl, ctx, val, pointee, loc)
+        if op_kind == "cas":
+            # the comparison is on the raw bits (exact for every pointee
+            # kind); the write value is the candidate's bits
+            bits = _f32_to_fp16_bits(sl, ctx, val_f, pointee, loc)
+        else:
+            # the fp32 compute: the splat-compute-extract form runs in
+            # its own region (the ambient region here is the pass's e16
+            # data region in the fp16 kernels, not the compute's e32)
+            f32t = mir.VectorType(32, 1, "float")
+            sl._vregion(ctx, f32t, loc)
+            new_f = _scalar_fp_compute(sl, ctx, old_f, val_f, op_kind, 32,
+                                       loc)
+            sl._restore_region(ctx, loc)
+            bits = _f32_to_fp16_bits(sl, ctx, new_f, pointee, loc)
+        # the u16 bits, zero-extended into the i64 arithmetic domain
+        return widen_to(ctx, bits, 64, loc)
+    # integer: extend by each side's own signedness, compute, keep 16 bits
+    old64 = widen_to(ctx, old_h, 64, loc)
+    val64 = widen_to(ctx, val, 64, loc)
+    if op_kind == "cas":
+        # the write candidate is the value's own bits (the compare lives
+        # in the caller's swap select)
+        res = val64
+    elif op_kind == "add":
+        res = ctx.emit(mir.MOp(
+            "sadd", [old64, val64],
+            [ctx.vreg(mir.I64, hint="swa", loc=loc)], loc=loc))
+    elif op_kind == "xchg":
+        res = val64
+    elif op_kind in ("and", "or", "xor"):
+        res = ctx.emit(mir.MOp(
+            {"and": "sand", "or": "sor", "xor": "sxor"}[op_kind],
+            [old64, val64],
+            [ctx.vreg(mir.I64, hint="swb", loc=loc)], loc=loc))
+    elif op_kind in ("max", "min"):
+        cmp_v = val64 if op_kind == "max" else old64
+        cmp_a = old64 if op_kind == "max" else val64
+        # max: candidate wins when old < val; min: when val < old
+        take = ctx.emit(mir.MOp(
+            "slt" if pointee.is_int_signed() else "sltu",
+            [cmp_a, cmp_v],
+            [ctx.vreg(mir.I64, hint="swc", loc=loc)], loc=loc))
+        # select: take ? val : old  (0/-1 mask AND form)
+        diff = ctx.emit(mir.MOp(
+            "ssub", [val64, old64],
+            [ctx.vreg(mir.I64, hint="swd", loc=loc)], loc=loc))
+        sel = ctx.emit(mir.MOp(
+            "sand", [diff, take],
+            [ctx.vreg(mir.I64, hint="sws", loc=loc)], loc=loc))
+        res = ctx.emit(mir.MOp(
+            "sadd", [old64, sel],
+            [ctx.vreg(mir.I64, hint="swm", loc=loc)], loc=loc))
+    else:
+        refuse(loc, "tl.atomic",
+               f"integer sub-word atomic op {op_kind!r} is not in the "
+               "synthesis set (add/max/min/xchg/and/or/xor/cas)")
+    return ctx.emit(mir.MOp(
+        "sand", [res, ctx.const(0xFFFF, mir.I64, loc)],
+        [ctx.vreg(mir.I64, hint="swk", loc=loc)], loc=loc))
+
+
+def _scalar_atomic_subword(sl, ctx, addr: mir.VReg, val: mir.VReg,
+                           cmp_reg: Optional[mir.VReg], op_kind: str,
+                           pointee: tir.Type, ordering: AtomicOrdering,
+                           loc, tag: str = "sw") -> mir.VReg:
+    """The 16-bit atomic synthesis (T034): a read-modify-write of the
+    ALIGNED 32-BIT WORD containing the 16-bit element, one lr/sc retry
+    loop, the neighbouring half preserved bit-exactly.
+
+    The RV64 AMO and lr/sc families are .w/.d only, so a narrower atomic
+    is software: ``word = addr & ~3``, ``half = (addr >> 1) & 1``; the
+    loop reads the word with the declared ordering's aq/rl bits, extracts
+    its half, computes the new half (the pointee's own arithmetic), and
+    writes the word back with the other half unchanged -- the reservation
+    guarantees the pair is atomic w.r.t. every other store to the word
+    (including the other half's atomics: a lost race retries).  The
+    containing word never leaves the element's own buffer padding: the
+    transport packs every buffer 64-byte aligned, so the up-to-2 bytes
+    past an odd-extent buffer's last element fall inside that buffer's
+    own alignment slack.
+
+    Returns the OLD 16-bit value, typed at the pointee width."""
+    # word address and half selector
+    word = ctx.emit(mir.MOp(
+        "sand", [addr, ctx.const(-4, mir.I64, loc)],
+        [ctx.vreg(mir.I64, hint="sww", loc=loc)], loc=loc))
+    shr = ctx.emit(mir.MOp(
+        "srl", [addr, ctx.const(1, mir.I64, loc)],
+        [ctx.vreg(mir.I64, hint="swh", loc=loc)], loc=loc))
+    half = ctx.emit(mir.MOp(
+        "sand", [shr, ctx.const(1, mir.I64, loc)],
+        [ctx.vreg(mir.I64, hint="swf", loc=loc)], loc=loc))
+    shift = ctx.emit(mir.MOp(
+        "sshl", [half, ctx.const(4, mir.I64, loc)],
+        [ctx.vreg(mir.I64, hint="sws", loc=loc)], loc=loc))
+    head = ctx.add_block(f"{tag}_head", [], loc)
+    ctx.emit0(mir.MOp("br", [], [], attrs={"target": head.name,
+                                           "args": []}, loc=loc))
+    ctx.switch(head)
+    old_w32 = ctx.emit(mir.MOp(
+        "slr", [word], [ctx.vreg(mir.I32, hint="swl", loc=loc)],
+        attrs={"width": 32, "aq": ordering.aq, "rl": ordering.rl},
+        loc=loc))
+    old_w = widen_to(ctx, old_w32, 64, loc)
+    old_shifted = ctx.emit(mir.MOp(
+        "srl", [old_w, shift],
+        [ctx.vreg(mir.I64, hint="swo", loc=loc)], loc=loc))
+    old_h = ctx.emit(mir.MOp(
+        "sand", [old_shifted, ctx.const(0xFFFF, mir.I64, loc)],
+        [ctx.vreg(mir.I64, hint="swn", loc=loc)], loc=loc))
+    # the CAS compare: equal halves write the candidate, else the half
+    # keeps its old bits (the word still rounds through the lr/sc pair)
+    if op_kind == "cas":
+        cmp64 = widen_to(ctx, cmp_reg, 64, loc)
+        diff = ctx.emit(mir.MOp(
+            "sxor", [old_h, cmp64],
+            [ctx.vreg(mir.I64, hint="swx", loc=loc)], loc=loc))
+        one = ctx.const(1, mir.I64, loc)
+        eq = ctx.emit(mir.MOp(
+            "sltu", [diff, one], [ctx.vreg(mir.I64, hint="swe", loc=loc)],
+            loc=loc))
+        # eq is 0/1; take is 0 or -1 (the select mask)
+        take = ctx.emit(mir.MOp(
+            "ssub", [ctx.const(0, mir.I64, loc), eq],
+            [ctx.vreg(mir.I64, hint="swt", loc=loc)], loc=loc))
+        new_h = _subword_new_half(sl, ctx, old_h, val, cmp_reg, op_kind,
+                                  pointee, loc)
+        delta = ctx.emit(mir.MOp(
+            "ssub", [new_h, old_h],
+            [ctx.vreg(mir.I64, hint="swd", loc=loc)], loc=loc))
+        swap = ctx.emit(mir.MOp(
+            "sadd", [old_h, ctx.emit(mir.MOp(
+                "sand", [delta, take],
+                [ctx.vreg(mir.I64, hint="swq", loc=loc)], loc=loc))],
+            [ctx.vreg(mir.I64, hint="swz", loc=loc)], loc=loc))
+    else:
+        swap = _subword_new_half(sl, ctx, old_h, val, None, op_kind,
+                                 pointee, loc)
+    swap_shifted = ctx.emit(mir.MOp(
+        "sshl", [swap, shift],
+        [ctx.vreg(mir.I64, hint="swp", loc=loc)], loc=loc))
+    halfmask = ctx.emit(mir.MOp(
+        "sshl", [ctx.const(0xFFFF, mir.I64, loc), shift],
+        [ctx.vreg(mir.I64, hint="swm", loc=loc)], loc=loc))
+    # the half replacement without a NOT constant (the register-pressure
+    # form): (old_w | M) - (M - S) -- the all-ones half absorbs the
+    # subtraction, so no borrow reaches the neighbouring bits
+    set_all = ctx.emit(mir.MOp(
+        "sor", [old_w, halfmask],
+        [ctx.vreg(mir.I64, hint="swo", loc=loc)], loc=loc))
+    sub = ctx.emit(mir.MOp(
+        "ssub", [halfmask, swap_shifted],
+        [ctx.vreg(mir.I64, hint="swd", loc=loc)], loc=loc))
+    new_w64 = ctx.emit(mir.MOp(
+        "ssub", [set_all, sub],
+        [ctx.vreg(mir.I64, hint="swr", loc=loc)], loc=loc))
+    new_w = narrow_to(ctx, new_w64, 32, loc)
+    ok = ctx.emit(mir.MOp(
+        "ssc", [word, new_w],
+        [ctx.vreg(mir.I64, hint="swc", loc=loc)],
+        attrs={"width": 32, "aq": ordering.aq, "rl": ordering.rl},
+        loc=loc))
+    done = ctx.add_block(f"{tag}_done", [], loc)
+    # sc writes 0 on success: nonzero means the reservation was lost and
+    # the pair retries
+    ctx.emit0(mir.MOp(
+        "brc", [ok], [],
+        attrs={"true_target": head.name, "true_args": [],
+               "false_target": done.name, "false_args": []}, loc=loc))
+    ctx.switch(done)
+    # the old value, typed at the pointee width: the low 16 bits viewed
+    # at the pointee's own kind (the float formats keep their f16 GPR
+    # form -- raw bits, the scalar float core's convention)
+    kind = "float" if pointee.is_float() \
+        else ("uint" if not pointee.is_int_signed() else "int")
+    v16t = mir.VectorType(16, 1, kind)
+    sl._vregion(ctx, v16t, loc)
+    old16 = sl._splat_reg(ctx, old_h, v16t, loc)
+    return sl._scalarize(ctx, old16, loc)
+
+
 def _splat_i32_const(sl, ctx, value: int, loc) -> mir.VReg:
     k = ctx.const(value, mir.I32, loc)
     return sl._splat_reg(ctx, k, mir.VectorType(32, 1, "int"), loc)
@@ -1161,9 +1439,15 @@ def _splat_i32_const(sl, ctx, value: int, loc) -> mir.VReg:
 
 def _mask_to_01(sl, ctx, mask_reg: Optional[mir.VReg], loc) -> mir.VReg:
     """The mask as an i32 0/1 block vector (the branchless lane test);
-    None (unmasked) becomes the all-ones splat."""
+    None (unmasked) becomes the all-ones splat.  The e32 region is set
+    EXPLICITLY (T034: a 16-bit pass's ambient region is e16 -- the
+    splats and the select would otherwise run at the stale setting)."""
     if mask_reg is None:
-        return _splat_i32_const(sl, ctx, 1, loc)
+        vtype = mir.VectorType(32, 1, "int")
+        sl._vregion(ctx, vtype, loc)
+        out = _splat_i32_const(sl, ctx, 1, loc)
+        sl._restore_region(ctx, loc)
+        return out
     if not mask_reg.is_mask():
         # a bool block arrives as a mask value already; a scalar bool is
         # splatted then converted
@@ -1172,12 +1456,16 @@ def _mask_to_01(sl, ctx, mask_reg: Optional[mir.VReg], loc) -> mir.VReg:
         "vmovmask", [mask_reg],
         [ctx.vreg(mir.MaskType(), hint="v0a", loc=loc, fixed_phys="v0")],
         loc=loc))
+    vtype = mir.VectorType(32, 1, "int")
+    sl._vregion(ctx, vtype, loc)
     ones = _splat_i32_const(sl, ctx, 1, loc)
     zeros = _splat_i32_const(sl, ctx, 0, loc)
-    return ctx.emit(mir.MOp(
+    out = ctx.emit(mir.MOp(
         "vsel", [v0, ones, zeros],
-        [ctx.vreg(mir.VectorType(32, 1, "int"), hint="m01", loc=loc)],
+        [ctx.vreg(vtype, hint="m01", loc=loc)],
         loc=loc))
+    sl._restore_region(ctx, loc)
+    return out
 
 
 def _lower_atomic(sl, ctx, op: tir.Op, loc, is_cas: bool) -> None:
@@ -1206,15 +1494,16 @@ def _lower_atomic(sl, ctx, op: tir.Op, loc, is_cas: bool) -> None:
     ordering = atomic_ordering(sem, scope)
     pointee = ptr.type.pointee
     width = pointee.bitwidth()
-    if pointee.is_bool() or width not in (32, 64):
+    if pointee.is_bool() or width not in (16, 32, 64):
         refuse(loc, "tl.atomic",
                f"atomic pointee width {width} is not in the slice (the "
-               "AMO families are 32/64-bit; narrower pointees are a "
-               "located refusal, never a wider silent access)")
-    if pointee.is_float() and width != 32:
+               "AMO families are 32/64-bit and the sub-word synthesis "
+               "16; other widths are a located refusal, never a wider "
+               "silent access)")
+    if pointee.is_float() and width not in (16, 32):
         refuse(loc, "tl.atomic",
-               "floating atomics are synthesized at 32 bits (fp32 only in "
-               "this slice)")
+               "floating atomics are synthesized at 32 bits (fp32) or "
+               "through the 16-bit sub-word synthesis (fp16/bf16)")
     base_reg, offset_reg, _pt = sl._address_of(ctx, ptr, loc)
     drop_mask = getattr(sl.options, "witness_drop_atomic_masks", False)
 
@@ -1229,7 +1518,16 @@ def _lower_atomic(sl, ctx, op: tir.Op, loc, is_cas: bool) -> None:
         stag = getattr(sl, "_tag", None)
         stag = stag("scas" if is_cas else "sfp") if callable(stag) \
             else ("scas" if is_cas else "sfp")
-        if is_cas:
+        if width == 16:
+            # the sub-word synthesis (fp16/bf16 and int16 pointees)
+            val_reg = _atomic_value_reg(sl, ctx, val, pointee, width, loc)
+            cmp_reg = _atomic_value_reg(sl, ctx, cmp_v, pointee, width,
+                                        loc) if is_cas else None
+            old = _scalar_atomic_subword(
+                sl, ctx, addr, val_reg, cmp_reg,
+                "cas" if is_cas else op_kind, pointee, ordering, loc,
+                tag=stag + "w")
+        elif is_cas:
             cmp_reg = _atomic_value_reg(sl, ctx, cmp_v, pointee, width, loc)
             val_reg = _atomic_value_reg(sl, ctx, val, pointee, width, loc)
             old = _scalar_atomic_cas(ctx, addr, cmp_reg, val_reg, pointee,
@@ -1262,21 +1560,30 @@ def _lower_atomic(sl, ctx, op: tir.Op, loc, is_cas: bool) -> None:
                             "float" if pointee.is_float() else
                             ("uint" if not pointee.is_int_signed()
                              else "int"))
+        sl._vregion(ctx, vt, loc)
         val_reg = sl._splat_reg(ctx, val_reg, vt, loc)
-    if val_reg.type.sew != sl._sew:
+        sl._restore_region(ctx, loc)
+    if val_reg.type.sew != width:
+        # T034: the value rides at the POINTEE's width (the frontend
+        # converted it); the pass's data SEW may be wider (splitk_gemv's
+        # fp32 accumulation feeding an fp16 output atomic).  The
+        # per-lane loop's extracts and slides open each value's own
+        # region, so a width different from the pass SEW is legal here.
         raise sl._err(loc, "tl.atomic",
                       f"atomic value SEW {val_reg.type.sew} is not the "
-                      f"data SEW {sl._sew}")
+                      f"pointee width {width}")
     m01 = _mask_to_01(sl, ctx, sl._need(mask, loc), loc) \
         if (mask is not None and not drop_mask) else None
     cmp_reg = None
     if is_cas:
         cmp_reg = sl._need(cmp_v, loc)
         if not cmp_reg.is_vector():
-            cmp_reg = sl._splat_reg(
-                ctx, cmp_reg,
-                mir.VectorType(sl._sew, 1, "int" if not pointee.is_float()
-                               else "float"), loc)
+            ct = mir.VectorType(width, 1,
+                                "int" if not pointee.is_float()
+                                else "float")
+            sl._vregion(ctx, ct, loc)
+            cmp_reg = sl._splat_reg(ctx, cmp_reg, ct, loc)
+            sl._restore_region(ctx, loc)
     # the loop-carried sliding state: each iteration extracts lane 0 and
     # slides the whole vector down by one, so the carried values ARE the
     # not-yet-processed lanes.  Values provably uniform across the lanes
@@ -1343,22 +1650,33 @@ def _lower_atomic(sl, ctx, op: tir.Op, loc, is_cas: bool) -> None:
         cmp_vec = loop.params[pi]; pi += 1
 
     def slide(reg: mir.VReg) -> mir.VReg:
-        return ctx.emit(mir.MOp(
+        # T034: the slide runs in the value's own region (a 16-bit pass
+        # slides f16 state vectors while the ambient region may sit at a
+        # helper's leftover e32 setting)
+        sl._vregion(ctx, reg.type, loc)
+        out = ctx.emit(mir.MOp(
             "vslidedn", [reg],
             [ctx.vreg(reg.type, hint="sl", loc=loc)], loc=loc))
+        sl._restore_region(ctx, loc)
+        return out
 
     def extract(reg_or_scalar, hint: str):
         """Lane 0 of the per-lane state: the extract for a vector, the
-        scalar itself for a uniform value."""
+        scalar itself for a uniform value.  The extract runs in the
+        value's own region (T034: the i32 mask state meets a 16-bit
+        pass's e16 ambient)."""
         if not isinstance(reg_or_scalar, mir.VReg):
             return reg_or_scalar
         if not reg_or_scalar.is_vector():
             return reg_or_scalar
         sty = mir.ScalarType(reg_or_scalar.type.sew, signed=True,
                              float=reg_or_scalar.type.kind == "float")
-        return ctx.emit(mir.MOp(
+        sl._vregion(ctx, reg_or_scalar.type, loc)
+        out = ctx.emit(mir.MOp(
             "vextract", [reg_or_scalar],
             [ctx.vreg(sty, hint=hint, loc=loc)], loc=loc))
+        sl._restore_region(ctx, loc)
+        return out
 
     redir = ctx.emit(mir.MOp(
         "sadd", [ws_base, ctx.const(redir_off, mir.I64, loc)],
@@ -1393,7 +1711,19 @@ def _lower_atomic(sl, ctx, op: tir.Op, loc, is_cas: bool) -> None:
         "sadd", [redir, sel],
         [ctx.vreg(mir.I64, hint="af", loc=loc)], loc=loc))
     v = extract(val_vec if val_vec is not None else val_scalar, "av")
-    if pointee.is_float():
+    if width == 16:
+        # the sub-word synthesis (fp16/bf16 and int16 pointees): the
+        # value lane stays at its own 16-bit width; the compare lane of
+        # a CAS rides alongside (T030's unique-tag rule applies -- the
+        # retry loop derives its blocks from this atomic's own tag)
+        c16 = None
+        if is_cas:
+            c16 = extract(cmp_vec if cmp_vec is not None else cmp_scalar,
+                          "ac")
+        old_b = _scalar_atomic_subword(
+            sl, ctx, safe, v, c16, "cas" if is_cas else op_kind, pointee,
+            ordering, loc, tag=atag + "w")
+    elif pointee.is_float():
         # the value lane is float bits; the synthesis consumes float views
         if is_cas:
             c = extract(cmp_vec if cmp_vec is not None else cmp_scalar,
@@ -1428,11 +1758,23 @@ def _lower_atomic(sl, ctx, op: tir.Op, loc, is_cas: bool) -> None:
     # ones.  The mask's 0/-1 must arrive at the VALUE's own type (an
     # unsigned pointee's old value is u32; a signed-kind AND against it
     # is a verifier mismatch, and the bits are the same either way).
+    # T034: a sub-word old value (16-bit) widens UP to the mask's width
+    # -- the {0,1}/old-value bits survive the widening exactly and the
+    # sstore takes the low 16 bits regardless.
+    if old_b.type.float:
+        # the AND runs on the bits (the 16-bit float old value is raw
+        # bits in a GPR -- the scalar float core's convention)
+        old_b = _bit_view(ctx, old_b,
+                          mir.ScalarType(old_b.type.width, signed=True),
+                          loc)
     if old_b.type.width == 64 and width == 32:
         old_b = narrow_to(ctx, old_b, 32, loc)
     if old_b.type != dmask.type:
-        if old_b.type.width != dmask.type.width:
+        if old_b.type.width > dmask.type.width:
             dmask_w = widen_to(ctx, dmask, old_b.type.width, loc)
+        elif old_b.type.width < dmask.type.width:
+            old_b = widen_to(ctx, old_b, dmask.type.width, loc)
+            dmask_w = dmask
         else:
             dmask_w = ctx.emit(mir.MOp(
                 "smove", [dmask],
@@ -1484,20 +1826,21 @@ def _lower_atomic(sl, ctx, op: tir.Op, loc, is_cas: bool) -> None:
                      [ctx.vreg(mir.I32, hint="avl", loc=loc)],
                      attrs={"sew": sl._sew, "lmul": 1, "policy": "ta,ma"},
                      loc=loc))
-    # the block result: the per-lane old values, reloaded unit-stride
+    # the block result: the per-lane old values, reloaded unit-stride.
+    # T034: the result rides at the POINTEE's own SEW (a 16-bit pointee
+    # in a wider pass keeps its 16-bit result -- the TIR result type is
+    # the pointee); the load opens its own region and the ambient pass
+    # region is re-asserted after it.
     rtype = mir.VectorType(width, 1,
                            "float" if pointee.is_float() else
                            ("uint" if not pointee.is_int_signed()
                             else "int"))
-    if rtype.sew != sl._sew:
-        raise sl._err(loc, "tl.atomic",
-                      f"atomic result SEW {rtype.sew} is not the data SEW "
-                      f"{sl._sew} (narrower pointees are a located "
-                      "refusal)")
+    sl._vregion(ctx, rtype, loc)
     result = ctx.emit(mir.MOp(
         "vunit_load", [res_base],
         [ctx.vreg(rtype, hint="aold", loc=loc)],
         attrs={"sew": rtype.sew}, loc=loc))
+    sl._restore_region(ctx, loc)
     _emit_fence(ctx, ordering.trail, loc)
     sl._bind_result(op, result)
 

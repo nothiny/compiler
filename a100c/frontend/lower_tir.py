@@ -181,13 +181,17 @@ class BlockPtrVal:
     loc: object = None
 
     def derived_terms(self, name: str):
-        """(derived-name, tir.Value) for every runtime term: the carried
-        state of a block pointer reassigned inside a loop."""
+        """(derived-name, term) for EVERY term: the carried state of a
+        block pointer reassigned inside a loop.  T034: compile-time terms
+        are included -- ``tl.advance`` folds a constant offset into a new
+        constant, and a loop that advances along a constant-offset axis
+        must carry that term too (the fold made the K axis revert to its
+        pre-loop constant every iteration)."""
         out = []
         for kind, terms in (("shape", self.shape), ("stride", self.strides),
                             ("off", self.offsets)):
             for i, t in enumerate(terms):
-                if isinstance(t, tir.Value):
+                if isinstance(t, (tir.Value, ConstVal)):
                     out.append((f"{name}#{kind}{i}", t))
         return out
 
@@ -836,15 +840,63 @@ class Lowering:
                                        joins) -> None:
         """After a region's joins bind, rebuild every block-pointer symbol
         from the joined terms (uses of the descriptor after the region
-        denote the joined state)."""
-        by_vid = {}
-        for (cname, init), jv in zip(carried, joins):
-            if isinstance(init, tir.Value):
-                by_vid[init.vid] = jv
+        denote the joined state).  T034: the rebuild is per derived NAME
+        -- the body's final descriptor holds the stepped terms (channel +
+        delta), whose vids never match the carried inits, so a vid-keyed
+        substitution left the body-scoped values in place."""
+        by_name = {cname: jv for (cname, _init), jv in zip(carried, joins)}
         for cname in bp_names:
             final = body_syms.get(cname)
-            if isinstance(final, BlockPtrVal):
-                self._bind(cname, final.substitute(by_vid))
+            if not isinstance(final, BlockPtrVal):
+                continue
+
+            def term(t, dname):
+                jv = by_name.get(dname)
+                return jv if jv is not None else t
+
+            self._bind(cname, self._descriptor_with_terms(final, cname,
+                                                          term))
+
+    @staticmethod
+    def _descriptor_with_terms(desc: "BlockPtrVal", cname: str, term):
+        """A copy of ``desc`` with each term replaced by ``term(t,
+        derived-name)``."""
+        return BlockPtrVal(
+            base=desc.base,
+            shape=[term(t, f"{cname}#shape{i}")
+                   for i, t in enumerate(desc.shape)],
+            strides=[term(t, f"{cname}#stride{i}")
+                     for i, t in enumerate(desc.strides)],
+            offsets=[term(t, f"{cname}#off{i}")
+                     for i, t in enumerate(desc.offsets)],
+            block_shape=desc.block_shape, order=desc.order, loc=desc.loc)
+
+    def _rebind_blockptrs_for_body(self, bp_names,
+                                   preheader_inits: Dict[str, tir.Value]
+                                   ) -> None:
+        """Rebuild each carried block-pointer symbol over the CHANNEL
+        terms at loop-body entry (T034).
+
+        The loop machinery carries a block pointer through its derived
+        term names (``name#off<i>``), which are bound to the per-iteration
+        head-parameter channels.  But the DESCRIPTOR symbol itself still
+        held the pre-header terms, so every iteration's loads and advances
+        read the INITIAL offsets -- the loop re-loaded the same tile every
+        iteration (matmul_kernel_1334dd27's accumulated dot saw the first
+        K block once per iteration; 4x the first block's product).  The
+        body scope's descriptor now sees the channel terms: iteration i's
+        load reads the carried offsets, the advance steps from them, and
+        the back edge carries the stepped terms."""
+        for cname in bp_names:
+            desc = self.symbols.get(cname)
+            if not isinstance(desc, BlockPtrVal):
+                continue
+
+            def term(t, dname, _inits=preheader_inits):
+                return _inits.get(dname, t)
+
+            self._bind(cname, self._descriptor_with_terms(desc, cname,
+                                                          term))
 
     def _assigned_names(self, stmts) -> set:
         """Every name a statement list assigns, regions included -- the
@@ -1058,6 +1110,14 @@ class Lowering:
                     f"({list(t_v.shape)} vs {list(e_v.shape)})")
             join_names.append(name)
         node.join_names = tuple(join_names)
+        # T034: record the authoritative per-arm sides (the MIR lowering
+        # reads these at the arm closes -- the alias-driven name
+        # environment resolves a name bound in one arm to that arm's
+        # value in EVERY scope the value lowers in, which corrupted the
+        # OTHER arm's side)
+        node.join_sides = tuple(
+            (name, then_state.symbols[name], else_state.symbols[name])
+            for name in join_names)
         joins = []
         for name in join_names:
             side = self._materialize_join_side(node.then,
@@ -1312,6 +1372,7 @@ class Lowering:
         self._bind(name, lower_i)
         for cname, init in preheader_inits.items():
             self._bind(cname, init)
+        self._rebind_blockptrs_for_body(bp_names, preheader_inits)
         self._mark_region_runtime(assigned - {name})
         self._lower_stmts(st.body)
         if self.symbols.get(name) is not lower_i:
@@ -1455,6 +1516,7 @@ class Lowering:
             self._bind(induction[0], induction[1])
         for cname, init in preheader_inits.items():
             self._bind(cname, init)
+        self._rebind_blockptrs_for_body(bp_names, preheader_inits)
         self._mark_region_runtime(assigned)
         self._loop_depth += 1
         self._loop_stop_stack.append(stop_name)
@@ -2979,6 +3041,16 @@ class Lowering:
             if isinstance(old, ConstVal) and isinstance(delta, ConstVal):
                 new_offsets.append(ConstVal(old.value + delta.value))
                 continue
+            # a zero delta is the identity: the term's binding stays the
+            # carried channel, so the loop's channel-drop sees the axis
+            # as never stepped and does not carry it (the register
+            # pressure the IME staging could not afford)
+            if isinstance(delta, ConstVal) and _py_scalar(delta.value) == 0:
+                new_offsets.append(old)
+                continue
+            if isinstance(old, ConstVal) and _py_scalar(old.value) == 0:
+                new_offsets.append(delta)
+                continue
             l, r, _t = self._binary_operands(old, delta, loc)
             new_offsets.append(self._emit(
                 tir.Op.binop("arith.add", l, r, loc), "adv"))
@@ -2992,13 +3064,24 @@ class Lowering:
     def _bp_arange(self, extent: int, loc):
         """The (shared) arange of one block extent: every block-pointer
         access of the same extent reuses ONE arange op (the kernel keeps
-        a single index space -- the one-arange form the slice lowers)."""
+        a single index space -- the one-arange form the slice lowers).
+
+        The share is region-scoped (T034): an arange emitted inside a
+        region body (a loop iteration or an if arm) is visible only
+        while that region is open -- a later access outside the closed
+        region re-emits its own.  Reusing a closed region's arange
+        produced a use the TIR verifier rejects (carried-value-without-
+        join) the moment the dot lane stopped refusing the two-axis
+        tile first (grouped_mm's c-block store outside the k-loop)."""
         cache = getattr(self, "_bp_aranges", None)
         if cache is None:
             cache = self._bp_aranges = {}
-        if extent not in cache:
-            cache[extent] = self._emit(tir.Op.arange(0, extent, loc), "bpr")
-        return cache[extent]
+        entry = cache.get(extent)
+        if entry is not None and entry[0] in self._block_stack:
+            return entry[1]
+        value = self._emit(tir.Op.arange(0, extent, loc), "bpr")
+        cache[extent] = (self._block, value)
+        return value
 
     def _bp_scalar(self, term, loc):
         """Materialize one descriptor term as a scalar TIR value."""
@@ -3018,6 +3101,14 @@ class Lowering:
     def _bp_term_add(self, a, b, loc):
         if isinstance(a, ConstVal) and isinstance(b, ConstVal):
             return ConstVal(_py_scalar(a.value) + _py_scalar(b.value))
+        # a zero delta is the identity (the advance's axis-0 step of
+        # ``tl.advance(p, (0, BLOCK_K))``): folding it keeps the term's
+        # binding unchanged, so the loop machinery sees the axis as
+        # un-rebound and does not carry it
+        if isinstance(b, ConstVal) and _py_scalar(b.value) == 0:
+            return a
+        if isinstance(a, ConstVal) and _py_scalar(a.value) == 0:
+            return b
         l, r, _t = self._binary_operands(a, b, loc)
         return self._emit(tir.Op.binop("arith.add", l, r, loc), "bpa")
 
@@ -3055,11 +3146,18 @@ class Lowering:
         disabled-position default; padding 'zero' supplies ``other`` at
         the load).  Axes with block extent 1 fold into scalar offset
         terms; one remaining axis is the plain 1-D arange form; two
-        remaining axes flatten row-major (fast axis last, per ``order``)
-        with the row index recovered as ``flat >> log2(extent_fast)``
-        and the column as ``flat & (extent_fast - 1)`` -- exact for the
+        remaining axes produce the RANK-2 tile ``(extent_slow,
+        extent_fast)`` (fast axis last, per ``order``): the shared flat
+        arange re-partitioned row-major by the identity reshape, with
+        the row index recovered as ``flat >> log2(extent_fast)`` and the
+        column as ``flat & (extent_fast - 1)`` -- exact for the
         non-negative arange (the power-of-2 block extents the arange
-        construct itself requires).
+        construct itself requires).  T034: the tile keeps the source's
+        two-axis block shape (the earlier rank-1 flattening hid the
+        geometry from every rank-2 consumer -- ``tl.dot``'s operands
+        arrived rank-1 and the matrix lane refused them; the reshape is
+        the identity re-partition, so the lanes and the addresses are
+        unchanged).
         """
         rank = len(bp.block_shape)
         for ax in boundary:
@@ -3107,21 +3205,39 @@ class Lowering:
                     bp.shape[ax], loc)
                 masks = self._bp_term_and(masks, cond, loc)
         elif len(big) == 2:
-            fast = bp.order[-1]
-            slow = bp.order[-2]
-            if {fast, slow} != set(big):
+            # the tile keeps the source's DECLARED block shape (the
+            # logical tensor tl.load hands back), never the memory
+            # order's (slow, fast) permutation: the rank-1 flattening
+            # was shape-agnostic, but a rank-2 tile built as (slow,
+            # fast) TRANSPOSES every block whose order places the minor
+            # axis first (matmul_abt's A tile, order=(1, 0): the dot
+            # consumed (K, M) as (M, K)).  ``order`` remains what it
+            # declares -- a memory-layout hint -- and no longer
+            # constrains the tile.
+            ax0, ax1 = big[0], big[1]
+            d0 = int(bp.block_shape[ax0])
+            d1 = int(bp.block_shape[ax1])
+            minor = 1
+            for e in bp.block_shape[ax0 + 1:]:
+                minor *= int(e)
+            if d0 & (d0 - 1) or minor & (minor - 1):
                 raise self._err(node, "tl.load/tl.store",
-                                f"the memory order {bp.order} does not "
-                                "place the two non-unit axes last")
-            bf, bs = bp.block_shape[fast], bp.block_shape[slow]
-            if bf & (bf - 1) or (bf * bs) & (bf * bs - 1):
-                raise self._err(node, "tl.load/tl.store",
-                                f"block extents ({bs}, {bf}) must be "
-                                "powers of two (the flattened arange and "
+                                f"block extents ({d0}, {d1}) must be "
+                                "powers of two (the shared arange and "
                                 "the shift/mask index recovery require "
                                 "them)")
-            flat = self._bp_arange(bf * bs, loc)
-            k = bf.bit_length() - 1
+            flat = self._bp_arange(d0 * d1, loc)
+            # the identity re-partition of the shared flat index space
+            # into the source's declared tile: same lanes, row-major in
+            # the LOGICAL axis order (lane = a0*minor + rest)
+            try:
+                shape2 = _reshape_flags(flat.shape,
+                                        tuple(int(v)
+                                              for v in bp.block_shape))
+            except ValueError as exc:                       # pragma: no cover
+                raise self._err(node, "tl.load/tl.store", str(exc))
+            flat = self._emit(tir.Op.reshape(flat, shape2, loc), "bp2")
+            k = minor.bit_length() - 1
             row = self._emit(tir.Op.binop(
                 "bit.lshr", flat,
                 self._broadcast_to(
@@ -3130,19 +3246,20 @@ class Lowering:
             col = self._emit(tir.Op.binop(
                 "bit.and", flat,
                 self._broadcast_to(
-                    self._emit(tir.Op.const(bf - 1, tir.INT32, loc), "bpm"),
+                    self._emit(tir.Op.const(minor - 1, tir.INT32, loc),
+                               "bpm"),
                     flat.shape, loc), loc), "bpc")
-            row_idx = self._bp_term_add(bp.offsets[slow], row, loc)
-            col_idx = self._bp_term_add(bp.offsets[fast], col, loc)
+            row_idx = self._bp_term_add(bp.offsets[ax0], row, loc)
+            col_idx = self._bp_term_add(bp.offsets[ax1], col, loc)
             offset = self._bp_term_add(
-                self._bp_term_mul(row_idx, bp.strides[slow], loc),
-                self._bp_term_mul(col_idx, bp.strides[fast], loc), loc)
+                self._bp_term_mul(row_idx, bp.strides[ax0], loc),
+                self._bp_term_mul(col_idx, bp.strides[ax1], loc), loc)
             offset = self._bp_term_add(offset, folded, loc)
-            if slow in boundary:
-                cond = self._bp_term_cmp_lt(row_idx, bp.shape[slow], loc)
+            if ax0 in boundary:
+                cond = self._bp_term_cmp_lt(row_idx, bp.shape[ax0], loc)
                 masks = self._bp_term_and(masks, cond, loc)
-            if fast in boundary:
-                cond = self._bp_term_cmp_lt(col_idx, bp.shape[fast], loc)
+            if ax1 in boundary:
+                cond = self._bp_term_cmp_lt(col_idx, bp.shape[ax1], loc)
                 masks = self._bp_term_and(masks, cond, loc)
         else:
             raise self._err(node, "tl.load/tl.store",
@@ -4444,10 +4561,43 @@ class Lowering:
             except ftypes.TypeRuleError:
                 ty = None
         if ty is None:
+            # T034: ``x.dtype.element_ty`` / ``x.type.element_ty`` where
+            # ``x`` is a name the LOWERING environment holds as a pointer
+            # or block pointer -- the pointee is compile-time even though
+            # the value is runtime (grouped_gemm's
+            # ``accumulator.to(c_ptrs.dtype.element_ty)``: a
+            # make_block_ptr result the constexpr env never sees; the
+            # argument form already folds through its RuntimeValue)
+            ty = self._pointee_of_dtype_expr(node)
+        if ty is None:
             raise self._err(
                 call, construct,
                 f"dtype must be a compile-time dtype, got {value!r}")
         return ty
+
+    def _pointee_of_dtype_expr(self, node: ast.expr) -> Optional[tir.Type]:
+        """The pointee of ``NAME.dtype.element_ty`` / ``NAME.type.
+        element_ty`` when NAME is a pointer or block pointer in the
+        lowering symbols (None when the node is not that form)."""
+        if not isinstance(node, ast.Attribute) or node.attr != "element_ty":
+            return None
+        inner = node.value
+        if not isinstance(inner, ast.Attribute) \
+                or inner.attr not in ("dtype", "type") \
+                or not isinstance(inner.value, ast.Name):
+            return None
+        sym = self.symbols.get(inner.value.id)
+        if isinstance(sym, BlockPtrVal):
+            base = sym.base
+        elif isinstance(sym, PointerTypeVal):
+            return sym.pointee
+        elif isinstance(sym, tir.Value) and sym.type.is_pointer():
+            base = sym
+        else:
+            return None
+        if isinstance(base, tir.Value) and base.type.is_pointer():
+            return base.type.pointee
+        return None
 
     def _broadcast_value_to(self, value: tir.Value, target: tir.Shape, loc,
                             node) -> tir.Value:
