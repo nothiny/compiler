@@ -252,23 +252,21 @@ def check_scans():
             ok, detail = _run_case(c, mm, threads, dtype=dtype)
             if not ok:
                 bad.append(f"cumprod_dim1 {dtype} t={threads}: {detail}")
-    # cumprod_dim1_grouped_mixed keeps its located refusal: the
-    # last-axis acceptance compiled it but MISCOMPILED real multi-axis
-    # blocks (masked_cumsum_vec: 15740/16384 mismatched; the 1x1 case
-    # that compared PASS was vacuous -- one row, one element).  The
-    # layout lane owns multi-axis scans until the chunk lane order is
-    # proven; the rank-1 repairs above stay executed-and-compared.
+    # cumprod_dim1_grouped_mixed left the refusal list in T038: the
+    # last-axis multi-axis scan now lowers through the row-boundary
+    # carry restart with the reset select at the carry's fp32 class on
+    # hardware v0, and the scan's workspace slice is sized by the
+    # OPERAND's own flat extent (the T035 revert's miscompile -- the
+    # undersized slice overrunning into the staging records -- was a
+    # workspace sizing bug, not a lane-order one).  Every declared dtype
+    # executes and compares PASS at 1 and 4 workers; a NON-last-axis
+    # scan keeps its located refusal (test_t038_repairs' probe control).
     gm = _load(_dev("cumprod_dim1_grouped_mixed_kernel.py"))
-    case = gm.make_case(dtype="float32")
-    payload = {k: v for k, v in case.items()
-               if k not in ("expected", "oracle_args")}
-    try:
-        c.compile_case(payload)
-        bad.append("grouped_mixed compiled (expected the located "
-                   "multi-axis refusal)")
-    except PipelineError as exc:
-        if exc.construct != "tl.cumsum/cumprod":
-            bad.append(f"grouped_mixed refused at {exc.construct}")
+    for dtype in ("float32", "float16", "bfloat16"):
+        for threads in (1, 4):
+            ok, detail = _run_case(c, gm, threads, dtype=dtype)
+            if not ok:
+                bad.append(f"cumprod_grouped {dtype} t={threads}: {detail}")
     check("scan-own-sew-carry-and-row-boundary-execute-1-4", not bad,
           "; ".join(bad[:3]))
 

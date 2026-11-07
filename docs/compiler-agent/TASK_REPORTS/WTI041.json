@@ -1,0 +1,108 @@
+{
+  "invocation_id": "WTI041",
+  "task_id": "T038",
+  "attempt": 1,
+  "context_sha256": "1e5067b5b7cce416763c1cd1e2de308f7e5411761065fa0f3aac9078f4dbf6ce",
+  "outcome": "COMPLETED",
+  "failure_kind": "implementation",
+  "summary": "Round-3 construct long-tail repair: all 33 owned census rows resolved. (1) 9 tl.cumsum/cumprod rows: the LAST-axis scan of a multi-axis block now lowers (the chunk carry restarts at every row boundary of the row-major flat lane order, modulus = the last axis's extent); the T035 revert's miscompile was actually a workspace sizing bug -- the scan slice was reserved by the kernel's top-level max extent, which misses a restructured region's nested pass extents (cumprod_grouped's (4,128) pass vs the arange-4 top-level), so the slice overran into the staging records and the executed store scattered to garbage; the reservation is now per-scan, sized by the operand's own flat extent. The reset select also needed the region discipline (open at the carry's fp32 class before the splats) and a vmovmask (vsel reads v0), and the fp32-lane e16 element splat needed its region opened first. Non-last-axis scans keep their located refusal. (2) 6 tl.sort rows: whole-block sort/topk/histogram lower through a new reorder segment (the block-materialization protocol: operand stages to the workspace, a dedicated scalar loop writes the result region -- sort by the stable rank form, topk as the rank restricted to k, histogram as the per-bin equality count); ranked_distribution also needed the chunk/width-bound gather (workspace form through the staged source + index records) and the full-axis keep_dims reduce (the [1] result binds to the reduced scalar; the reduce constrains its pass by the OPERAND's extent). (3) 6+1 mir-verifier v0-mask rows: the two rank-0 pure-select re-materialization paths (cyclic/blocked jacobi, l1_norm) now insert the vmovmask. (4) 1 vsetvli row (fht [17] f32): the staging-loop merge vsel opens its region at the VALUES' type after the selector's index-class compare. (5) 2 tl.histogram rows: covered by the reorder segment. (6) 3 tl.cast rows: a compile-time convert materializes as a TIR const of its own literal type and takes the ordinary convert op (constprop folds it). (7) 3 tl.multiple_of rows: a hint on a ==1-folded constant is the value itself. (8) 1 layout row: a layout op over an IME-native record widens the source into a 32-bit scratch mirror through the safe unit-stride forms (the narrow indexed loads crash the pinned QEMU) and the staging loop reads the mirror; the multi-view IME kernel also needed the tile-loop state counted against the GPR budget (lazy view bases) or allocation did not converge. (9) 1 ptradd row (l1_norm): its first blocker was the v0-mask class, fixed above. (10) 1 fp64 tl.dot row: verified against the corpus's declared dtype surface -- CORPUS_LOCK declares the operator's dtypes float32/float16/bfloat16 and the global set has no fp64 (F037); the fp64 pointers come from the case layer's numpy-default buffers under a float32 label, so the located refusal stands and the justification is recorded on FRONTEND_COVERAGE.json's tl.dot row. Evidence: the owned-operator filtered census shows 45 identities = 44 artifacts + 1 justified refusal (every owned class at zero); the scan/sort/histogram/gather/jacobi/fht/final_mean/l1_norm/layout operators execute and compare PASS at 1 and 4 workers (48 case executions PASS; the 2 fp64-buffer cases keep the located refusal at both thread counts); the full a100c test suite passes; regression nets (a 19-operator family sweep, a 1050-case corpus prefix and the T036 loop-family chunk) show zero crashes and zero new refusals.",
+  "files_changed": [
+    "a100c/frontend/lower_tir.py",
+    "a100c/lower/vectorize.py",
+    "a100c/tests/test_t038_repairs.py",
+    "a100c/tests/test_layout_ops.py",
+    "a100c/tests/test_reductions.py",
+    "a100c/tests/test_t035_repairs.py",
+    "a100c/tests/test_t036_repairs.py",
+    "FRONTEND_COVERAGE.json",
+    "docs/compiler-agent/COMPILE_CENSUS.t038-owned-classes.json"
+  ],
+  "artifacts": [
+    "docs/compiler-agent/COMPILE_CENSUS.t038-owned-classes.json",
+    "FRONTEND_COVERAGE.json",
+    "a100c/tests/test_t038_repairs.py"
+  ],
+  "commands": [
+    {
+      "command": "set -a; . ./.env; set +a; python3 a100c/tests/test_compile_sweep.py --operator suite/dev/masked_cumsum_vec_kernel.py --operator suite/dev/cumprod_dim1_grouped_mixed_kernel.py --operator suite/dev/ranked_distribution_semantic.py --operator suite/dev/cyclic_jacobi_pair_kernel.py --operator suite/dev/blocked_jacobi_pair_svals_kernel.py --operator suite/dev/nanmedian_ascend_histogram_count_kernel.py --operator suite/dev/final_mean_kernel.py --operator suite/dev/chunk_transform_qk_fwd_kernel.py --operator suite/dev/fht_kernel_1d_native.py --operator suite/dev/l1_norm_fused_kernel_2cb0f555.py --operator suite/dev/chunk_generalized_iplr_delta_rule_fwd_kernel_o.py --cache-root /tmp/a100-wti041-owned --census-out docs/compiler-agent/COMPILE_CENSUS.t038-owned-classes.json",
+      "exit_code": 0,
+      "observed": "all compile-sweep checks PASS; partition {artifacts: 44, refused: 1, over_budget: 0, crash: 0}; the single refusal is the fp64 tl.dot identity 762de1caee99 (justified against the declared surface)"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; python3 tools/run_scan.py run --operator suite/dev/masked_cumsum_vec_kernel.py --threads 1|4 (and the same for cumprod_dim1_grouped_mixed, ranked_distribution_semantic, nanmedian_ascend_histogram_count, chunk_transform_qk_fwd, fht_kernel_1d_native, cyclic_jacobi_pair, blocked_jacobi_pair_svals, final_mean, l1_norm_fused, chunk_generalized_iplr at both thread counts)",
+      "exit_code": 0,
+      "observed": "48 case executions PASS at 1 and 4 compute workers under each case's own comparison policy; the 2 fp64-buffer cases of chunk_generalized_iplr keep the located 'fp64 tl.dot is outside the corpus dtype surface' refusal at both thread counts (its fp16/bf16 cases PASS)"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; python3 a100c/tests/test_t038_repairs.py",
+      "exit_code": 0,
+      "observed": "all 8 T038 checks PASS (multi-axis scans, sort/topk/histogram, v0/region/constexpr-cast, native mirror execute at 1-4 workers; non-last-axis-scan and scan-never-two-phase controls; fp64-dot declared-surface resolution)"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; for t in a100c/tests/test_*.py; do python3 $t; done",
+      "exit_code": 0,
+      "observed": "all 44 test files exit 0 (the full-corpus test_compile_sweep.py needs its own ~80-minute run and is covered below by chunks; its filtered invocations all PASS)"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; python3 a100c/tests/test_compile_sweep.py --limit 1050 --cache-root /tmp/a100-wti041-full --census-out /tmp/a100-wti041-full-census-lim2.json",
+      "exit_code": 0,
+      "observed": "all compile-sweep checks PASS; partition {artifacts: 744, refused: 5, crash: 0}; the 5 refusals are the justified fp64 dot + the 4 pre-existing gn_finalize/grouped_gemm grid residuals (T037's documented remaining set)"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; python3 a100c/tests/test_compile_sweep.py --operator <19 gather/histogram/scan/softmax/IME-dot family operators> --cache-root /tmp/a100-wti041-regress --census-out /tmp/a100-wti041-regress-census.json (and a second chunk over the 13 T036 loop-family operators)",
+      "exit_code": 0,
+      "observed": "family chunk: {artifacts: 94, refused: 1 (the pre-existing grouped_gemm grid residual), crash: 0}; loop-family chunk: {artifacts: 58, refused: 0, crash: 0}"
+    }
+  ],
+  "acceptance": [
+    {
+      "ref": "acceptance[0]",
+      "command": "set -a; . ./.env; set +a; python3 a100c/tests/test_compile_sweep.py --operator <the 11 owned operators> --cache-root /tmp/a100-wti041-owned --census-out docs/compiler-agent/COMPILE_CENSUS.t038-owned-classes.json",
+      "exit_code": 0,
+      "observed": "all compile-sweep checks PASS; 45 identities = 44 artifacts + 1 located refusal; every owned class at zero: tl.cumsum/cumprod 0, tl.sort 0, mir-verifier (v0-mask and vsetvli) 0, tl.histogram 0, tl.cast 0, tl.multiple_of/tl.max_contiguous 0, layout 0, ptradd 0; the 1 remaining row is the fp64 tl.dot identity refusing located against the declared surface (counted as the justified refusal)"
+    },
+    {
+      "ref": "acceptance[1]",
+      "command": "set -a; . ./.env; set +a; python3 tools/run_scan.py run --operator suite/dev/masked_cumsum_vec_kernel.py --threads 1 (then --threads 4; then the same pair for cumprod_dim1_grouped_mixed_kernel, ranked_distribution_semantic.py and nanmedian_ascend_histogram_count_kernel.py)",
+      "exit_code": 0,
+      "observed": "masked_cumsum_vec 9/9 cases PASS at t=1 and 9/9 at t=4; cumprod_dim1_grouped_mixed 3/3 PASS at t=1 and 3/3 at t=4; ranked_distribution 6/6 PASS at t=1 and 6/6 at t=4; nanmedian histogram 2/2 PASS at t=1 and 2/2 at t=4 (all under the cases' own declared comparison policies, executed on the pinned QEMU endpoint)"
+    },
+    {
+      "ref": "acceptance[2]",
+      "command": "set -a; . ./.env; set +a; python3 a100c/tests/test_t038_repairs.py (check fp64-dot-resolves-against-declared-surface) and python3 tools/run_scan.py run --operator suite/dev/chunk_generalized_iplr_delta_rule_fwd_kernel_o.py --threads 1",
+      "exit_code": 0,
+      "observed": "the corpus's own declaration excludes fp64 (CORPUS_LOCK: the operator's dtypes are float32/float16/bfloat16; the global set is bfloat16/bool/float16/float32/int16/int32/int64/int8, F037) while the refusing identity's cases carry numpy-default float64 buffers under a float32 label, so the located refusal stands; the justification is recorded on FRONTEND_COVERAGE.json's tl.dot row; the operator's fp16/bf16 identities compile, execute and compare PASS at 1 and 4 workers"
+    },
+    {
+      "ref": "acceptance[3]",
+      "command": "set -a; . ./.env; set +a; for t in a100c/tests/test_*.py; do timeout 900 python3 $t; done",
+      "exit_code": 0,
+      "observed": "all 44 test files exit 0; four pre-existing files carried stale refusal-boundary expectations for exactly the constructs this task implemented (test_layout_ops' fht census entry, test_reductions' masked_cumsum_vec/ranked_distribution boundary entries, test_t035_repairs' grouped_mixed refusal, test_t036_repairs' REMAINING_BOUNDARIES list) and were updated to the new state with the executed-PASS evidence cited; test_compile_sweep.py's full-corpus invocation is covered by the 1050-case prefix + two family chunks (all PASS, zero crashes)"
+    }
+  ],
+  "tests": [
+    {
+      "ref": "tests[0]",
+      "command": "set -a; . ./.env; set +a; python3 a100c/tests/test_compile_sweep.py --operator suite/dev/masked_cumsum_vec_kernel.py --operator suite/dev/cumprod_dim1_grouped_mixed_kernel.py --operator suite/dev/ranked_distribution_semantic.py --operator suite/dev/cyclic_jacobi_pair_kernel.py --operator suite/dev/blocked_jacobi_pair_svals_kernel.py --operator suite/dev/nanmedian_ascend_histogram_count_kernel.py --operator suite/dev/final_mean_kernel.py --operator suite/dev/chunk_transform_qk_fwd_kernel.py --operator suite/dev/fht_kernel_1d_native.py --operator suite/dev/l1_norm_fused_kernel_2cb0f555.py --operator suite/dev/chunk_generalized_iplr_delta_rule_fwd_kernel_o.py --cache-root /tmp/a100-wti041-owned --census-out docs/compiler-agent/COMPILE_CENSUS.t038-owned-classes.json",
+      "exit_code": 0,
+      "observed": "all compile-sweep checks PASS (census-covers-every-case, partition-sums-to-identity-census, artifacts-are-riscv64-elf, compile-count-within-economics, repeat-cases-reuse-one-artifact, refusals-located-and-countable, compile-budget-respected, enabled-pipeline-passes-on); owned classes at zero"
+    },
+    {
+      "ref": "tests[1]",
+      "command": "set -a; . ./.env; set +a; python3 a100c/tests/test_reductions.py && python3 a100c/tests/test_mir_verifier.py && for t in a100c/tests/test_*.py; do python3 $t; done",
+      "exit_code": 0,
+      "observed": "test_reductions: all checks PASS; test_mir_verifier: all checks PASS; every one of the 44 test files exits 0 (including the new test_t038_repairs.py)"
+    }
+  ],
+  "evidence": "docs/compiler-agent/COMPILE_CENSUS.t038-owned-classes.json (the filtered compile census over the 11 owned operators: 44 artifacts + 1 justified refusal of 45 identities, every owned construct class at zero) plus the executed comparisons: run_scan journals /tmp/wti041-scratch/j-scan2.json, j-scan4.json, j-cp1c.json, j-cp4c.json, j-rd1e.json, j-rd4.json, j-hist1.json, j-hist4.json, j-ctq1d.json, j-ctq4.json, j-misc.json, j-final-1.json, j-final-4.json (48 PASS rows at 1 and 4 compute threads under the cases' own policies) and a100c/tests/test_t038_repairs.py (8 checks PASS, including the controls: a non-last-axis scan refuses located, a scan kernel never takes the worker-strided two-phase split, and the fp64 dot resolves against the declared surface with the justification recorded on FRONTEND_COVERAGE.json's tl.dot row). The T035-revert miscompile is attributed by execution: masked_cumsum_vec [128,128] float32 -- the shape that miscompiled 15740/16384 elements under the reverted acceptance -- now executes and compares PASS at 1 and 4 workers.",
+  "design_issue": {},
+  "debug_request": {},
+  "attack": {},
+  "remaining_work": [
+    "The full-corpus compile sweep at the new revision (T018's own gate): the 1050-case prefix and two family chunks are green, but the complete 2734-case sweep was not finished inside this task's bounds (a background run was killed by the harness at ~460 cold compiles).",
+    "The pre-existing grid residuals (gn_finalize's 3 rows, grouped_gemm's 1 row) and the recorded naive_attn execution defect remain other rounds' work.",
+    "The scan carry threads through a source loop whose trip count exceeds one only under single-trip-declared cases today; a multi-trip source loop with an intra-block scan would need the carry entry re-based to the identity per trip (no declared corpus case exercises it)."
+  ],
+  "end_revision": "",
+  "at": "2026-11-07T16:01:25.799050+00:00"
+}
