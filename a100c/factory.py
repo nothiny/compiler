@@ -123,12 +123,22 @@ class FactoryCompiler(Compiler):
             (entry / "stage.passes.txt").write_text(
                 json.dumps(pass_report.describe(), indent=2, sort_keys=True)
                 + "\n")
-        # 4. grid model (provenance-checked, self-checked)
+        # 4. grid model (provenance-checked, self-checked).  T039: a grid
+        #    whose axes are individually untraceable but whose product is
+        #    bundle-visible flattens to one product axis when the kernel's
+        #    whole pid surface is the C-order linear index -- the TIR is
+        #    then rewritten to program_id(0) before the MIR lowering
         try:
-            grid = grid_mod.extract_grid(src, case)
+            grid = grid_mod.extract_grid(src, case, tir_module=tir_module)
         except GridError as exc:
             raise PipelineError(f"{exc.path}:{exc.line}:{exc.col}",
                                 exc.construct, exc.message) from None
+        if grid.linear_ndim:
+            grid_mod.apply_linear_flattening(tir_module, grid.linear_ndim)
+            errors = tir.verify_module(tir_module)
+            if errors:
+                raise PipelineError(
+                    None, "tir-verifier-post-flatten", str(errors[0]))
         # 5. execution plan (work partition)
         plan = part_mod.ExecutionPlan()
         # 6. argument layout

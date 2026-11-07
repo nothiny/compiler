@@ -115,8 +115,9 @@ from typing import Dict, Iterable, List, Optional, Tuple
 from a100c.frontend.source import OperatorSource
 
 __all__ = ["GridError", "GridExpr", "Lit", "Ref", "Bin", "MinMax", "Hole",
-           "GridModel", "extract_grid", "evaluate_expr", "census",
-           "grid_of_case"]
+           "Ind", "SumLoop", "GridModel", "extract_grid", "evaluate_expr",
+           "census", "grid_of_case", "linear_pid_root",
+           "apply_linear_flattening"]
 
 
 class GridError(Exception):
@@ -196,6 +197,38 @@ class ModNonzero:
         return f"mod_nonzero({self.left!r}, {self.right!r})"
 
 
+@dataclass(frozen=True)
+class Ind:
+    """One runtime sum-loop's induction variable (T039): the symbolic
+    iteration position inside a :class:`SumLoop` body.  Keyed by the
+    loop's serial index; never a bundle-visible leaf (the loop itself
+    binds it, exactly like a case-layer ``for`` variable)."""
+
+    loop: int
+
+    def __repr__(self):
+        return f"i{self.loop}"
+
+
+@dataclass(frozen=True)
+class SumLoop:
+    """``sum(<body> for i in range(<count>))`` -- a runtime-length
+    accumulation (T039): grouped_gemm's tile-count sum iterates an
+    UNSIGNED case-shape axis (one identity spans groups=3 and groups=4,
+    so neither count may be unrolled into the routine's structure), but
+    the count itself IS a bundle-visible scalar (``group_size``), so the
+    native grid routine loops the actual runtime read and accumulates
+    the body expression -- the launch contract is unchanged (the bundle
+    already carries every input the sum needs)."""
+
+    count: object
+    body: object
+    loop: int
+
+    def __repr__(self):
+        return f"sum({self.body!r} for {Ind(self.loop)!r} < {self.count!r})"
+
+
 class Hole:
     """An untracked subexpression, kept by the *identity* of the interpreted
     value that produced it (T027).
@@ -259,6 +292,18 @@ def evaluate_expr(expr, values: Dict):
         raise ValueError(f"unfilled grid hole: {expr!r}")
     if isinstance(expr, ModNonzero):
         raise ValueError(f"an uncombined mod-nonzero indicator: {expr!r}")
+    if isinstance(expr, Ind):
+        key = ("ind", expr.loop)
+        if key not in values:
+            raise KeyError(f"no concrete induction value for {expr!r}")
+        return values[key]
+    if isinstance(expr, SumLoop):
+        count = evaluate_expr(expr.count, values)
+        total = 0
+        for i in range(count):
+            total += evaluate_expr(expr.body,
+                                   {**values, ("ind", expr.loop): i})
+        return total
     raise ValueError(f"not a grid expression: {expr!r}")
 
 
@@ -365,6 +410,23 @@ class SymIter(SymVal):
         self.mode = mode
 
 
+class SymSeq(SymVal):
+    """A comprehension over a RUNTIME-LENGTH ``range(<tracked scalar>)``
+    (T039): the sequence stays symbolic -- its ``length`` is the runtime
+    count's grid expression and ``items`` is the per-item value evaluated
+    once under one induction leaf (:class:`Ind`).  A ``sum()`` over the
+    sequence becomes a :class:`SumLoop`; anything else consuming it stays
+    untracked (a grid axis depending on it refuses, located)."""
+
+    __slots__ = ("length", "items", "loop")
+
+    def __init__(self, length, items: SymVal, loop: int):
+        super().__init__(opaque="symbolic sequence")
+        self.length = length
+        self.items = items
+        self.loop = loop
+
+
 def _lit(value) -> SymVal:
     # integer literals carry a grid expression so arithmetic can mix them
     # with symbolic leaves (n + 128 - 1) // 128
@@ -389,7 +451,7 @@ def _scalar_shaped(value: SymVal) -> bool:
     np.transpose(q)``: the transposed side is opaque), so an
     extent-preserving rule must not fire on it."""
     if isinstance(value, (SymArray, SymTuple, SymDict, SymIter, SymFunc,
-                          SymLambda)):
+                          SymLambda, SymSeq)):
         return False
     return value.opaque is None or value.concrete is not None \
         or value.gexpr is not None
@@ -531,6 +593,8 @@ class _Interpreter:
         self._steps = 0
         self._depth = 0
         self._pure_memo: Dict[tuple, SymVal] = {}
+        #: T039: the serial index of the next symbolic-sequence induction
+        self._ind_count = 0
         #: T037: opaque-base subscript reads memoized per (base, key); the
         #: memo keeps the base alive so its id is never reused
         self._sub_memo: Dict[int, Tuple[SymVal, Dict[object, SymVal]]] = {}
@@ -755,6 +819,34 @@ class _Interpreter:
                 and not isinstance(it.concrete, str):
             return [self._from_concrete(v) for v in it.concrete]
         return None
+
+    def _symbolic_seq(self, gen, elt) -> Optional["SymSeq"]:
+        """T039: one comprehension generator over ``range(<tracked runtime
+        scalar>)`` -- the sequence stays symbolic.  The length is the
+        bound's grid expression (a runtime read, never an unrolled
+        count), and the element evaluates ONCE with the target bound to
+        one induction leaf, so every per-item expression keeps its tree
+        over that leaf.  None when the iterable is anything else (the
+        comprehension stays opaque; a grid axis consuming it refuses,
+        located, exactly as before)."""
+        it = gen.iter
+        if not (isinstance(it, ast.Call) and isinstance(it.func, ast.Name)
+                and it.func.id == "range" and len(it.args) == 1
+                and not gen.ifs and not gen.is_async):
+            return None
+        bound = self._eval(it.args[0])
+        if bound.concrete is not None or bound.gexpr is None \
+                or isinstance(bound, (SymArray, SymTuple, SymDict, SymIter,
+                                      SymFunc, SymLambda, SymSeq)):
+            return None
+        self._ind_count += 1
+        loop = self._ind_count
+        self._bind_loop_target(gen.target, SymVal(gexpr=Ind(loop)))
+        try:
+            items = self._eval(elt)
+        finally:
+            self._restore_loop_target(gen.target)
+        return SymSeq(bound.gexpr, items, loop)
 
     def _for(self, stmt: ast.For) -> None:
         """A case-layer ``for`` loop.
@@ -1216,6 +1308,16 @@ class _Interpreter:
                             finally:
                                 self._restore_loop_target(target)
                         return SymTuple(out)
+                    # T039: a comprehension over a RUNTIME-LENGTH range
+                    # (a tracked scalar count the identity does not sign)
+                    # stays a symbolic sequence -- the per-item expressions
+                    # evaluate once under one induction leaf, and a sum()
+                    # over the sequence becomes a runtime SumLoop
+                    # (grouped_gemm's dimensions over ``range(groups)``,
+                    # whose single identity spans groups=3 and groups=4)
+                    seq = self._symbolic_seq(node.generators[0], node.elt)
+                    if seq is not None:
+                        return seq
             # T037: name the iterable the model cannot enumerate, so the
             # located refusal names the untraceable input (grouped_gemm's
             # ``sum(... for ... in dimensions)`` over ``range(groups)``)
@@ -1298,7 +1400,7 @@ class _Interpreter:
         cannot see it.  None when the value is not scalar-shaped at all
         (an array, a tuple, a dict -- those never enter grid arithmetic)."""
         if isinstance(v, (SymArray, SymTuple, SymDict, SymIter, SymFunc,
-                          SymLambda)):
+                          SymLambda, SymSeq)):
             return None
         if v.gexpr is not None:
             return v.gexpr
@@ -1730,7 +1832,7 @@ class _Interpreter:
                 if isinstance(arg, SymTuple):
                     return arg
                 if not isinstance(arg, (SymDict, SymIter, SymFunc,
-                                        SymLambda)):
+                                        SymLambda, SymSeq)):
                     return arg        # a scalar-shaped value passes
                 return _opaque(f"np.{tail}")
             if tail in _NP_ELEMENTWISE and node.args:
@@ -1805,7 +1907,7 @@ class _Interpreter:
                 if target.concrete is not None:
                     return _lit(hasattr(target.concrete, "shape"))
                 if isinstance(target, (SymTuple, SymDict, SymIter, SymFunc,
-                                       SymLambda)):
+                                       SymLambda, SymSeq)):
                     return _lit(False)
                 if target.opaque is None:
                     # a scalar-shaped value (a tracked leaf): not an array
@@ -1887,6 +1989,25 @@ class _Interpreter:
                             items.append(self._eval(arg.elt))
                         finally:
                             self._restore_loop_target(target)
+                else:
+                    # T039: a generator over a symbolic sequence
+                    # accumulates as ONE runtime SumLoop -- the count is
+                    # the sequence's runtime read and the body is the
+                    # element expression over the induction leaf
+                    # (grouped_gemm's tile-count sum)
+                    it = self._eval(arg.generators[0].iter)
+                    if isinstance(it, SymSeq):
+                        target = arg.generators[0].target
+                        self._bind_loop_target(target, it.items)
+                        try:
+                            elt = self._eval(arg.elt)
+                        finally:
+                            self._restore_loop_target(target)
+                        tree = self._scalar_gexpr_of(elt)
+                        if tree is not None:
+                            return SymVal(gexpr=SumLoop(it.length, tree,
+                                                        it.loop))
+                        return _opaque(f"sum({self._why(elt)})")
             else:
                 v = self._eval(arg)
                 if isinstance(v, SymTuple):
@@ -2041,6 +2162,12 @@ class GridModel:
     path: str = ""
     #: the self-check record (compile-time equality with the case's grid)
     self_check: Dict[str, object] = field(default_factory=dict)
+    #: T039: the source grid's axis count when this model is the C-order
+    # linear flattening of a grid whose axes are individually untraceable
+    # but whose product is bundle-visible (0 = the normal per-axis model).
+    # The driver rewrites the kernel's linear pid expression to
+    # program_id(0) before the MIR lowering (apply_linear_flattening).
+    linear_ndim: int = 0
 
     @property
     def expr(self) -> GridExpr:
@@ -2057,7 +2184,8 @@ class GridModel:
         return {"ndim": self.ndim,
                 "axes": [repr(a) for a in self.axes],
                 "ties": {f"{k}": list(v) for k, v in self.ties.items()},
-                "self_check": dict(self.self_check)}
+                "self_check": dict(self.self_check),
+                "linear_ndim": self.linear_ndim}
 
 
 def _module_constants(source: OperatorSource) -> Dict[str, object]:
@@ -2182,6 +2310,9 @@ def _grid_leafs(expr) -> Iterable[Ref]:
     elif isinstance(expr, MinMax):
         yield from _grid_leafs(expr.left)
         yield from _grid_leafs(expr.right)
+    elif isinstance(expr, SumLoop):
+        yield from _grid_leafs(expr.count)
+        yield from _grid_leafs(expr.body)
 
 
 def _grid_holes(expr) -> Iterable["Hole"]:
@@ -2202,6 +2333,9 @@ def _iter_holes(expr) -> Iterable["Hole"]:
     elif isinstance(expr, MinMax):
         yield from _iter_holes(expr.left)
         yield from _iter_holes(expr.right)
+    elif isinstance(expr, SumLoop):
+        yield from _iter_holes(expr.count)
+        yield from _iter_holes(expr.body)
 
 
 def _iter_modnonzero(expr) -> Iterable["ModNonzero"]:
@@ -2216,6 +2350,9 @@ def _iter_modnonzero(expr) -> Iterable["ModNonzero"]:
     elif isinstance(expr, MinMax):
         yield from _iter_modnonzero(expr.left)
         yield from _iter_modnonzero(expr.right)
+    elif isinstance(expr, SumLoop):
+        yield from _iter_modnonzero(expr.count)
+        yield from _iter_modnonzero(expr.body)
 
 
 def _shape_arity(source: OperatorSource, case: dict) -> Tuple[Tuple, Tuple]:
@@ -2329,7 +2466,8 @@ def _signed_shape_counts(interp: _Interpreter, case: dict) -> Dict[int, int]:
     return counts
 
 
-def extract_grid(source: OperatorSource, case: dict) -> GridModel:
+def extract_grid(source: OperatorSource, case: dict,
+                  tir_module=None) -> GridModel:
     """Extract the grid form (every axis) from the case layer, with
     provenance.
 
@@ -2337,6 +2475,25 @@ def extract_grid(source: OperatorSource, case: dict) -> GridModel:
     assignment, a grid axis is not provenance-tracked, a grid input cannot
     be tied to a bundle-visible quantity, or the compile-time self-check
     disagrees with the case's declared grid.
+
+    T039 reductions inside the declared launch contract (the bundle keeps
+    carrying views and scalars; the grid routine keeps evaluating natively
+    from them -- no launch-protocol change):
+
+    * a grid whose axes are individually untraceable but whose PRODUCT is
+      bundle-visible flattens to ONE axis over the product when the
+      kernel's whole program-id surface is the C-order linear index over
+      the axes (``pid0 * num_programs(1) + pid1`` -- gn_finalize's (n, g)
+      axes appear only as the view extent n*g); the work re-partition is
+      the recorded execution-model policy (F018: work may be repartitioned
+      from the source grid when semantics permit -- the bijection is the
+      proof).  Requires ``tir_module`` (the pid-surface check reads the
+      lowered kernel); the driver then rewrites the linear expression to
+      ``program_id(0)`` (:func:`apply_linear_flattening`).
+    * a runtime-length ``sum(<expr> for i in range(<bundle-visible
+      count>))`` lowers as a :class:`SumLoop` (grouped_gemm's tile count
+      over the unsigned ``groups`` axis -- one identity spans groups=3
+      and groups=4, so no count may be unrolled).
     """
     if source.kernel_ast is None:  # pragma: no cover - loader guarantees it
         raise GridError(source.path, 1, 0, "case layer", "kernel AST missing")
@@ -2585,6 +2742,11 @@ def extract_grid(source: OperatorSource, case: dict) -> GridModel:
             if isinstance(expr, Bin):
                 return Bin(expr.op, left, right)
             return MinMax(expr.op, left, right)
+        if isinstance(expr, SumLoop):
+            # T039: the loop's count and body rewrite like any subtree
+            # (the induction leaf passes through -- the loop binds it)
+            return SumLoop(_rewrite(expr.count), _rewrite(expr.body),
+                           expr.loop)
         if isinstance(expr, Ref):
             # a bare leaf: prefer a runtime read (a tied scalar argument,
             # a tied view extent), then the identity-tier constant
@@ -2654,11 +2816,15 @@ def extract_grid(source: OperatorSource, case: dict) -> GridModel:
     def _readable(e) -> bool:
         if isinstance(e, Lit):
             return True
+        if isinstance(e, Ind):
+            return True          # the sum-loop's own induction (T039)
         if isinstance(e, Ref):
             return e.kind in ("bundle_view", "bundle_scalar") or \
                 (e.kind == "shape_extent" and _leaf_tied(e))
         if isinstance(e, (Bin, MinMax)):
             return _readable(e.left) and _readable(e.right)
+        if isinstance(e, SumLoop):
+            return _readable(e.count) and _readable(e.body)
         return False
 
     view_extent_trees: List[Tuple[str, int, object]] = []
@@ -2784,23 +2950,116 @@ def extract_grid(source: OperatorSource, case: dict) -> GridModel:
                 f"grid input {ref!r} is a case parameter (dtype/seed) and "
                 "is not bundle-visible; refusing to bake a launch geometry")
 
-    for axis_expr in axis_exprs:
-        for ref in _grid_leafs(axis_expr):
-            tie_leaf(ref)
+    def _try_linear_flatten():
+        """The C-order linear flattening (T039): one axis over the axes'
+        product when the product is bundle-visible and the kernel's whole
+        pid surface is the linear index.  None keeps the located refusal
+        (never a guess)."""
+        if tir_module is None or len(axis_exprs) not in (2, 3):
+            return None
+        root = linear_pid_root(tir_module, len(axis_exprs))
+        if root is None:
+            return None
+        prod = axis_exprs[0]
+        for a in axis_exprs[1:]:
+            prod = Bin("mul", prod, a)
+        rprod = _rewrite(prod)
+        if not _readable(rprod):
+            return None
+        if list(_grid_holes(rprod)) or list(_iter_modnonzero(rprod)):
+            return None
+        flat_ties: Dict[Tuple, Tuple[str, object]] = {}
+        for ref in _grid_leafs(rprod):
+            if ref.kind == "shape_extent":
+                if ref.key in scalar_ties:
+                    flat_ties[ref.key] = ("scalar", scalar_ties[ref.key])
+                elif ref.key in view_ties:
+                    view, axis = view_ties[ref.key]
+                    flat_ties[ref.key] = ("view_extent", view, axis)
+                elif ref.key in value_view_ties:
+                    view, axis = value_view_ties[ref.key]
+                    flat_ties[ref.key] = ("view_extent", view, axis)
+                else:
+                    return None
+            elif ref.kind in ("view_extent", "bundle_view"):
+                flat_ties[ref.key] = ("view_extent", ref.key[0], ref.key[1])
+            elif ref.kind == "bundle_scalar":
+                flat_ties[ref.key] = ("scalar", ref.key[0])
+            else:
+                return None
+        declared = _declared_grid(case, source)
+        if declared is None or len(declared) != len(axis_exprs):
+            return None
+        concrete: Dict[Tuple, int] = {}
+        for key, tie in flat_ties.items():
+            if tie[0] == "scalar":
+                value = (case.get("args") or {}).get(tie[1])
+                if not _is_integral(value):
+                    return None
+                concrete[key] = int(value)
+            else:
+                view, axis = tie[1], tie[2]
+                shape = arrays.get(str(view))
+                if shape is None or not (0 <= int(axis) < len(shape)):
+                    return None
+                concrete[key] = shape[int(axis)]
+        try:
+            modeled = evaluate_expr(rprod, concrete)
+        except (KeyError, ValueError):
+            return None
+        want = 1
+        for d in declared:
+            want *= int(d)
+        if int(modeled) != want:
+            return None
+        return GridModel(
+            axes=(rprod,), ties=flat_ties, ndim=1, path=source.path,
+            linear_ndim=len(axis_exprs),
+            self_check={"modeled": [int(modeled)],
+                        "declared": [int(d) for d in declared],
+                        "declared_product": want,
+                        "flattened_from": len(axis_exprs),
+                        "tied_scalars": sorted(
+                            str(tie[1]) for tie in flat_ties.values()
+                            if tie[0] == "scalar"),
+                        "tied_views": sorted(
+                            f"{tie[1]}[{tie[2]}]"
+                            for tie in flat_ties.values()
+                            if tie[0] == "view_extent")})
 
-    # an unfilled hole (or a mod-nonzero indicator that never combined
-    # into its cdiv form) names the genuinely untraceable input
-    # (MECH-DIAGNOSTIC-REFUSAL): counted, never silently baked
-    for axis_expr in axis_exprs:
-        holes = list(_grid_holes(axis_expr))
-        mods = [m for m in _iter_modnonzero(axis_expr)]
-        if holes or mods:
-            why = ", ".join(repr(h) for h in (holes + mods)[:4])
-            raise GridError(source.path, make_case.lineno,
-                            make_case.col_offset + 1, "grid",
-                            "a grid axis is not provenance-tracked (it "
-                            "depends on values the model cannot see: "
-                            f"{why})")
+    try:
+        for axis_expr in axis_exprs:
+            for ref in _grid_leafs(axis_expr):
+                tie_leaf(ref)
+
+        # an unfilled hole (or a mod-nonzero indicator that never combined
+        # into its cdiv form) names the genuinely untraceable input
+        # (MECH-DIAGNOSTIC-REFUSAL): counted, never silently baked
+        for axis_expr in axis_exprs:
+            holes = list(_grid_holes(axis_expr))
+            mods = [m for m in _iter_modnonzero(axis_expr)]
+            if holes or mods:
+                why = ", ".join(repr(h) for h in (holes + mods)[:4])
+                raise GridError(source.path, make_case.lineno,
+                                make_case.col_offset + 1, "grid",
+                                "a grid axis is not provenance-tracked (it "
+                                "depends on values the model cannot see: "
+                                f"{why})")
+    except GridError:
+        # T039: the last reduction inside the declared launch contract --
+        # the C-order linear flattening.  The axes are individually
+        # untraceable, but when their PRODUCT is bundle-visible and the
+        # kernel's whole program-id surface is the linear index over the
+        # axes, one flat axis over the product executes exactly the same
+        # program bodies (the (pid0, pid1) -> linear map is a bijection,
+        # and every body depends only on the linear index).  Anything
+        # less -- a product that is not readable, a pid use outside the
+        # linear expression, a 1- or >3-axis grid -- keeps the located
+        # refusal above (never a guess, never a baked geometry).
+        flat = _try_linear_flatten()
+        if flat is not None:
+            return flat
+        raise
 
     # -- compile-time equality self-check: the REWRITTEN axes are exactly
     # what the native routine computes at run time -- evaluate them with
@@ -2892,6 +3151,183 @@ def _run_grid_lambda(source: OperatorSource, lam: SymLambda, case: dict,
     # value flows into a bundle scalar / view extent / meta constant, and
     # refuses naming it otherwise
     return SymTuple([value])
+
+
+def _tir_walk(module):
+    """Every (block, index, statement) of the module's structured regions."""
+    from a100c.ir import tir as _tir
+    out = []
+
+    def walk(blk):
+        for i, st in enumerate(blk.statements):
+            out.append((blk, i, st))
+            if isinstance(st, _tir.If):
+                walk(st.then)
+                walk(st.els)
+            elif isinstance(st, _tir.Loop):
+                walk(st.body)
+
+    for fn in module.functions:
+        walk(fn.body)
+    return out
+
+
+def linear_pid_root(module, ndim: int):
+    """The root op of the kernel's C-order linear program-id expression
+    (T039): for a 2-axis grid ``pid0 * num_programs(1) + pid1``; for 3
+    axes the nested ``((pid0 * num_programs(1) + pid1) * num_programs(2)
+    + pid2)`` or the flat ``pid0*np1*num2 + pid1*num2 + pid2``.  Every
+    program_id / num_programs value must be read exactly once and only
+    inside that one expression (a use outside it needs the axis factors,
+    which a flattened launch cannot reconstruct) -- otherwise None and
+    the per-axis refusal stands."""
+    from a100c.ir import tir as _tir
+    sites = _tir_walk(module)
+    ops = [st for _b, _i, st in sites if isinstance(st, _tir.Op)]
+    pids = {}
+    for op in ops:
+        if op.op in ("program_id", "num_programs"):
+            key = (op.op, op.attrs.get("axis"))
+            if key in pids:
+                return None            # a duplicate read: not the plain form
+            pids[key] = op
+    if {k for k in pids if k[0] == "program_id"} != \
+            {("program_id", a) for a in range(ndim)}:
+        return None
+    if {k for k in pids if k[0] == "num_programs"} != \
+            {("num_programs", a) for a in range(1, ndim)}:
+        return None
+    pid_vids = {op.results[0].vid for op in pids.values()}
+
+    def uses(value):
+        n = 0
+        for _b, _i, st in sites:
+            if isinstance(st, _tir.Op):
+                n += sum(1 for o in st.operands if o.vid == value.vid)
+            elif isinstance(st, _tir.If):
+                n += 1 if st.cond.vid == value.vid else 0
+            elif isinstance(st, _tir.Loop):
+                for attr in (st.lower, st.upper, st.step, st.cond):
+                    if attr is not None and attr.vid == value.vid:
+                        n += 1
+                n += sum(1 for _n, v in st.carried if v.vid == value.vid)
+        return n
+
+    def single_user(value):
+        found = []
+        for op in ops:
+            if any(o.vid == value.vid for o in op.operands):
+                found.append(op)
+        return found[0] if len(found) == 1 else None
+
+    for op in pids.values():
+        if uses(op.results[0]) != 1:
+            return None
+
+    def mul_of(a, b):
+        op = single_user(a)
+        if op is None or op is not single_user(b) or op.op != "arith.mul":
+            return None
+        if {o.vid for o in op.operands} != {a.vid, b.vid}:
+            return None
+        return op
+
+    def add_of(a, b):
+        op = single_user(a)
+        if op is None or op is not single_user(b) or op.op != "arith.add":
+            return None
+        if {o.vid for o in op.operands} != {a.vid, b.vid}:
+            return None
+        return op
+
+    p = {a: pids[("program_id", a)].results[0] for a in range(ndim)}
+    n = {a: pids[("num_programs", a)].results[0] for a in range(1, ndim)}
+    if ndim == 2:
+        mul = mul_of(p[0], n[1])
+        if mul is None:
+            return None
+        return add_of(mul.results[0], p[1])
+    # 3 axes: the nested or the flat row-major form
+    mul01 = mul_of(p[0], n[1])
+    if mul01 is not None:
+        inner = add_of(mul01.results[0], p[1])
+        if inner is not None:
+            mul2 = mul_of(inner.results[0], n[2])
+            if mul2 is not None:
+                return add_of(mul2.results[0], p[2])
+    mul01n2 = mul_of(p[0], n[1]) if mul_of(p[0], n[1]) is not None else None
+    m1 = mul_of(p[1], n[2])
+    if mul01n2 is not None and m1 is not None:
+        mul01_2 = mul_of(mul01n2.results[0], n[2])
+        if mul01_2 is not None:
+            term0 = add_of(mul01_2.results[0], m1.results[0])
+            if term0 is not None:
+                return add_of(term0.results[0], p[2])
+    return None
+
+
+def apply_linear_flattening(module, ndim: int) -> bool:
+    """Rewrite the kernel's C-order linear pid expression (found by
+    :func:`linear_pid_root`) to ``program_id(0)`` after the grid model
+    flattened the axes to one product axis (T039).  The expression's
+    ops become dead and are removed.  Returns False (and changes
+    nothing) when the surface is not the plain linear form."""
+    from a100c.ir import tir as _tir
+    root = linear_pid_root(module, ndim)
+    if root is None:
+        return False
+    # collect the expression's ops: the root plus every transitively
+    # consumed pid/num_programs leaf below it
+    tree = [root]
+    frontier = [root]
+    seen = set()
+    while frontier:
+        op = frontier.pop()
+        for o in op.operands:
+            prod = o.producer
+            if prod is None or id(prod) in seen:
+                continue
+            if prod.op in ("program_id", "num_programs", "arith.mul",
+                           "arith.add"):
+                seen.add(id(prod))
+                tree.append(prod)
+                frontier.append(prod)
+    # a fresh program_id(0) at the root's position
+    new_op = _tir.Op.program_id(0, root.loc)
+    new_op.results[0].name = "pid.linear"
+    sites = _tir_walk(module)
+    root_block = root_index = None
+    for blk, i, st in sites:
+        if st is root:
+            root_block, root_index = blk, i
+            break
+    assert root_block is not None
+    root_block.statements.insert(root_index, new_op)
+    # rewire every use of the root's result to the new value
+    new_v = new_op.results[0]
+    old_v = root.results[0]
+    for _b, _i, st in sites:
+        if isinstance(st, _tir.Op):
+            if any(o.vid == old_v.vid for o in st.operands):
+                st.operands = tuple(
+                    new_v if o.vid == old_v.vid else o
+                    for o in st.operands)
+        elif isinstance(st, _tir.If):
+            if st.cond.vid == old_v.vid:
+                st.cond = new_v
+        elif isinstance(st, _tir.Loop):
+            for attr in ("lower", "upper", "step", "cond"):
+                v = getattr(st, attr)
+                if v is not None and v.vid == old_v.vid:
+                    setattr(st, attr, new_v)
+    # the tree's ops are now dead (the surface check guaranteed their
+    # only consumers were inside the tree); remove them
+    for op in tree:
+        for blk, i, st in list(_tir_walk(module)):
+            if st is op:
+                blk.statements.pop(i)
+                break
+    return True
 
 
 def grid_of_case(module, shape=None, dtype=None, seed=None) -> Tuple[dict, dict]:

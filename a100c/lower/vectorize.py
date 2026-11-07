@@ -51,7 +51,8 @@ from a100c.ir import mir, tir
 from a100c.lower import addresses as addr_mod
 from a100c.lower import scalar as scalar_mod
 from a100c.lower.binding import ArgumentLayout
-from a100c.frontend.gridmodel import Bin, GridModel, Lit, MinMax, Ref
+from a100c.frontend.gridmodel import Bin, GridModel, Ind, Lit, \
+    MinMax, Ref, SumLoop
 from a100c.plan import stages as stages_mod
 from a100c.plan.partition import ExecutionPlan
 from a100c.target import TargetModel
@@ -767,7 +768,19 @@ class SliceLowering:
             return reg
         sew_v = lane_sew
         lmul = max(1, vl * sew_v // self.target.vlen_bits)
-        idx = self._staged_lane_index(ctx, t, consumer_shape, loc)
+        if rec.get("extent") == 1 and not rec.get("native"):
+            # T039 (the deconv3d typical-case defect): an extent-1 record
+            # holds ONE element -- every lane of every pass reads element
+            # 0, never the raw (elem + lane) position (the [1]-element
+            # allocation is one slot wide; the raw index read the
+            # neighbouring staged regions and the matching store below
+            # smashed them, corrupting the div/mod decomposition lanes
+            # of the consumers that followed)
+            ity = self._idx_vtype(vl)
+            self._vregion(ctx, ity, loc)
+            idx = self._splat_const(ctx, 0, ity, loc)
+        else:
+            idx = self._staged_lane_index(ctx, t, consumer_shape, loc)
         scaled, _ = self._ws_scaled(ctx, idx, rec["esz"], loc, vl)
         ws = self._workspace_private_reg(ctx, loc)
         base = ctx.emit(mir.MOp(
@@ -869,12 +882,21 @@ class SliceLowering:
             return
         ity = self._idx_vtype(vl)
         self._vregion(ctx, ity, loc)
-        vid = ctx.emit(mir.MOp(
-            "vid", [], [ctx.vreg(ity, hint="tvid", loc=loc)], loc=loc))
-        idx = ctx.emit(mir.MOp(
-            "vbinx", [vid, self._chunk["elem"]],
-            [ctx.vreg(ity, hint="tidx", loc=loc)],
-            attrs={"op": "add"}, loc=loc))
+        if rec.get("extent") == 1:
+            # T039 (the deconv3d typical-case defect): an extent-1 record
+            # holds ONE element -- the store writes element 0 from every
+            # lane (the register is the value's splat, so every lane
+            # carries the same element; the previous raw (elem + lane)
+            # index wrote vl lanes PER PASS far past the one-element
+            # allocation and smashed the neighbouring staged regions)
+            idx = self._splat_const(ctx, 0, ity, loc)
+        else:
+            vid = ctx.emit(mir.MOp(
+                "vid", [], [ctx.vreg(ity, hint="tvid", loc=loc)], loc=loc))
+            idx = ctx.emit(mir.MOp(
+                "vbinx", [vid, self._chunk["elem"]],
+                [ctx.vreg(ity, hint="tidx", loc=loc)],
+                attrs={"op": "add"}, loc=loc))
         scaled, _ = self._ws_scaled(ctx, idx, rec["esz"], loc, vl)
         ws = self._workspace_private_reg(ctx, loc)
         base = ctx.emit(mir.MOp(
@@ -3133,9 +3155,46 @@ class SliceLowering:
 
     # -- grid expression -----------------------------------------------------------
     def _emit_grid_expr(self, ctx: _Ctx, expr, scalar_regs: Dict[str, mir.VReg],
-                        views: mir.VReg, loc) -> mir.VReg:
+                        views: mir.VReg, loc,
+                        inds: Optional[Dict[int, mir.VReg]] = None
+                        ) -> mir.VReg:
+        if inds is None:
+            inds = {}
         if isinstance(expr, Lit):
             return ctx.const(expr.value, mir.I64, loc)
+        if isinstance(expr, Ind):
+            reg = inds.get(expr.loop)
+            if reg is None:
+                raise self._err(loc, "grid",
+                                f"a sum-loop induction {expr!r} is outside "
+                                "its loop (the model and the emission "
+                                "disagree)")
+            return reg
+        if isinstance(expr, SumLoop):
+            # T039: a runtime-length accumulation -- the count is a
+            # bundle-visible read and the body is an expression over the
+            # loop's own induction (grouped_gemm's tile-count sum over the
+            # unsigned ``groups`` axis: one identity spans groups=3 and
+            # groups=4, so the routine loops the actual scalar read)
+            count = self._emit_grid_expr(ctx, expr.count, scalar_regs,
+                                         views, loc)
+            zero = ctx.const(0, mir.I64, loc)
+            one = ctx.const(1, mir.I64, loc)
+            frame = scalar_mod.begin_counted_loop(
+                ctx, zero, count, [zero], loc, self._tag("gsum"))
+            inner = dict(inds)
+            inner[expr.loop] = frame.params[0]
+            body = self._emit_grid_expr(ctx, expr.body, scalar_regs, views,
+                                        loc, inner)
+            acc2 = ctx.emit(mir.MOp(
+                "sadd", [frame.params[1], body],
+                [ctx.vreg(mir.I64, hint="gsa", loc=loc)], loc=loc))
+            i2 = ctx.emit(mir.MOp(
+                "sadd", [frame.params[0], one],
+                [ctx.vreg(mir.I64, hint="gsi", loc=loc)], loc=loc))
+            scalar_mod.close_loop(ctx, frame, [i2, acc2])
+            ctx.switch(frame.exit)
+            return frame.exit.params[1]
         if isinstance(expr, Ref):
             tie = self.grid.ties.get(expr.key)
             if tie is None:
@@ -3171,8 +3230,10 @@ class SliceLowering:
                            "ext": "sext"}, loc=loc))
             raise self._err(loc, "grid", f"unknown tie kind {kind!r}")
         if isinstance(expr, Bin):
-            lhs = self._emit_grid_expr(ctx, expr.left, scalar_regs, views, loc)
-            rhs = self._emit_grid_expr(ctx, expr.right, scalar_regs, views, loc)
+            lhs = self._emit_grid_expr(ctx, expr.left, scalar_regs, views,
+                                       loc, inds)
+            rhs = self._emit_grid_expr(ctx, expr.right, scalar_regs, views,
+                                       loc, inds)
             code = {"add": "sadd", "sub": "ssub", "mul": "smul",
                     "floordiv": "sdivu"}[expr.op]
             return ctx.emit(mir.MOp(
@@ -3180,8 +3241,10 @@ class SliceLowering:
                 [ctx.vreg(mir.I64, hint="grid", loc=loc)], loc=loc))
         if isinstance(expr, MinMax):
             # max(a, b) = a + ((b - a) & -(a < b));  min swaps the sense
-            lhs = self._emit_grid_expr(ctx, expr.left, scalar_regs, views, loc)
-            rhs = self._emit_grid_expr(ctx, expr.right, scalar_regs, views, loc)
+            lhs = self._emit_grid_expr(ctx, expr.left, scalar_regs, views,
+                                       loc, inds)
+            rhs = self._emit_grid_expr(ctx, expr.right, scalar_regs, views,
+                                       loc, inds)
             take_left = "slt" if expr.op == "min" else "sgt-swap"
             if expr.op == "max":
                 # a < b
@@ -7706,7 +7769,18 @@ class SliceLowering:
                         self._names.define(key, op.results[0])
                 return
             self.pointer_ops[op.results[0].vid] = op
-            self.values[op.results[0].vid] = self._need(op.operands[0], loc)
+            # T039 (the gqa 1-worker CSE segfault): the base block's
+            # staged read goes through the RESULT's shape -- a staged
+            # [N, 1] base consumed by an [N, M] ptradd must map its
+            # lanes through the broadcast axes exactly like the offset
+            # reads do (T029 fixed the offset side; the base side read
+            # the region with the raw identity index, and inside the
+            # [N, M] consumer pass the element counter runs past the
+            # base's own extent -- the read crossed into the
+            # neighbouring staged regions and past the workspace end)
+            self.values[op.results[0].vid] = self._need(
+                op.operands[0], loc,
+                consumer_shape=op.results[0].shape)
             return
         if code in tir.BIN_ARITH or code in tir.BIN_BITWISE:
             lhs, rhs = op.operands

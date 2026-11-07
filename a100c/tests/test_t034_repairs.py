@@ -352,15 +352,16 @@ def check_scalar_width():
 
 
 def check_located_refusals():
-    """The honest boundaries: grouped_gemm's grid depends on data/symbolic
-    values no bundle-visible quantity can tie (a located grid refusal,
-    never a baked launch).  T037 repaired the grouped_mm grid this record
-    used to pin (the identity-signed trip count), and T036 repaired the
-    chunked carried-value family it also used to pin: logsumexp's
-    ``maximum = tl.maximum(maximum, tl.max(...))`` now carries a
-    recognized extremum merge rule, so the operator COMPILES (and its
-    identities execute and compare PASS at 1 and 4 workers -- the T036
-    repair test) instead of refusing at 'loop'."""
+    """The compile boundaries of the grouped-grid family.  T037 repaired
+    the grouped_mm grid (the identity-signed trip count), T036 repaired
+    the chunked carried-value family (logsumexec compiles), and T039
+    repaired the last boundary this record pinned: grouped_gemm's
+    tile-count sum lowers as a runtime SumLoop over the bundle-visible
+    ``group_size`` scalar (its single identity spans groups=3 and
+    groups=4, so no count is unrolled -- the routine loops the actual
+    scalar read), so the operator now COMPILES (its identities execute
+    and compare PASS at 1 and 4 workers -- the T039 repair test; the
+    SumLoop's unreadable-bound refusal gate lives there too)."""
     c = _compiler("refusals")
     bad = []
     # T037 repaired the grouped_mm grid this record used to pin: the
@@ -380,20 +381,16 @@ def check_located_refusals():
     except Exception as exc:               # noqa: BLE001
         bad.append(f"grouped_mm_kernel.py: wrong error "
                    f"{type(exc).__name__}")
-    # grouped_gemm keeps its located refusal: its single identity spans
-    # groups=3 and groups=4 cases, so the tile-count sum's trip count is
-    # per-case data no bundle-visible quantity can tie (never a bake)
+    # T039 repaired the grouped_gemm grid this record used to pin: the
+    # tile-count sum is a runtime SumLoop over the group_size scalar
     gg = _load(OPS / "suite" / "dev" / "grouped_gemm_kernel.py")
     try:
         c.compile_case(
             {k: v for k, v in gg.make_case().items()
              if k not in ("expected", "oracle_args")})
-        bad.append("grouped_gemm_kernel.py: compiled (expected a located "
-                   "refusal)")
     except PipelineError as exc:
-        if exc.construct != "grid":
-            bad.append(f"grouped_gemm_kernel.py: construct "
-                       f"{exc.construct!r}, expected 'grid'")
+        bad.append(f"grouped_gemm_kernel.py: refused at {exc.construct!r} "
+                   "(T039 repaired the sum-loop grid tie)")
     except Exception as exc:               # noqa: BLE001
         bad.append(f"grouped_gemm_kernel.py: wrong error "
                    f"{type(exc).__name__}")

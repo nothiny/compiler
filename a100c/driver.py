@@ -266,12 +266,22 @@ class Compiler:
             raise PipelineError(None, "tir-verifier", str(errors[0]))
         if dumps:
             (entry / "stage.tir.txt").write_text(tir_dump.dump_module(tir_module))
-        # 3. grid model (provenance-checked, self-checked)
+        # 3. grid model (provenance-checked, self-checked).  T039: a grid
+        #    whose axes are individually untraceable but whose product is
+        #    bundle-visible flattens to one product axis when the kernel's
+        #    whole pid surface is the C-order linear index -- the TIR is
+        #    then rewritten to program_id(0) before the MIR lowering
         try:
-            grid = grid_mod.extract_grid(src, case)
+            grid = grid_mod.extract_grid(src, case, tir_module=tir_module)
         except GridError as exc:
             raise PipelineError(f"{exc.path}:{exc.line}:{exc.col}",
                                 exc.construct, exc.message) from None
+        if grid.linear_ndim:
+            grid_mod.apply_linear_flattening(tir_module, grid.linear_ndim)
+            errors = tir.verify_module(tir_module)
+            if errors:
+                raise PipelineError(
+                    None, "tir-verifier-post-flatten", str(errors[0]))
         # 4. execution plan (work partition; the chunk plan is refined by the
         #    lowering from the TIR block form)
         plan = part_mod.ExecutionPlan()
