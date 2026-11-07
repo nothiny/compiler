@@ -1,0 +1,23 @@
+{
+  "invocation_id": "WTI044",
+  "task_id": "T041",
+  "attempt": 1,
+  "context_sha256": "c662670b84b41f4009e57beaf05c5ca40f973d3f3fa78a7798c7e35c35b287f9",
+  "outcome": "FAILED",
+  "failure_kind": "implementation",
+  "summary": "Manager-filed report for a dead child: the dispatched worker session for T041 (grid-model baking defect + resource-evidence path fix + fresh full census) was terminated by the harness after 600000ms of inactivity and never filed its own TaskReport. No commands, acceptance coverage or evidence from the worker reached the engine; nothing it may have changed was verified. The task remains unfinished work and needs a fresh worker attempt.",
+  "files_changed": [],
+  "artifacts": [],
+  "commands": [],
+  "acceptance": [],
+  "tests": [],
+  "evidence": "The Agent-tool call returned only 'Subagent was inactive for 600000ms' with no report line; the invocation WTI044 (T041 attempt 1) has no recorded outcome.",
+  "design_issue": {},
+  "debug_request": {},
+  "attack": {},
+  "remaining_work": [
+    "Re-dispatch T041 to a fresh worker per docs/compiler-agent/TASK_INPUTS/WTI044.prompt.md. Note for the retry: bound every command with timeout, keep individual commands under ~8 minutes of silence, and run the full census in cache-warm or chunked form (the environment kills long silent background work; four earlier workers died this way)."
+  ],
+  "end_revision": "",
+  "at": "2026-11-07T22:51:54.185571+00:00"
+}

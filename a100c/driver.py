@@ -65,6 +65,7 @@ _REVISION_FILES = (
     "a100c/frontend/source.py", "a100c/frontend/specialize.py",
     "a100c/frontend/types.py", "a100c/frontend/shapes.py",
     "a100c/frontend/surface.py", "a100c/frontend/lower_tir.py",
+    "a100c/frontend/gridmodel.py",
     "a100c/runtime/build.py", "a100c/runtime/a100rt.h",
     "a100c/runtime/bundle.c", "a100c/runtime/pool.c", "a100c/runtime/main.c",
 )

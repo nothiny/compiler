@@ -101,6 +101,23 @@ declared grid):
     gn_finalize's (n, g) axes (only the product n*g is view-visible)
     refuse, located, as before.
 
+T041 makes the fold boundary identity-stable (the gdn2 defect: one
+identity spans the ``(17,)`` and ``(3, 17, 2, 7)`` shapes, and the 1-D
+builder's ``B = ... if len(shape) > 1 else 2`` folded ``B * H`` to the
+constant 4 -- an artifact the 4-D case of the SAME identity reused, with
+(b,h)-blocks >= 4 left uncomputed).  A grid axis may fold to a compile-time
+constant only when the constant is identity-stable -- derived exclusively
+from identity-keyed values (source-text literals, module constants,
+``meta``/``launch_meta`` constexprs, dtype-derived folds the pointer dtypes
+sign); never from case-tier data whose value varies across the SHAPES
+table of one identity.  The per-case inputs the interpreter can see are
+exactly the shape's ARITY (``len(shape)`` -- symbolic whenever the SHAPES
+table mixes arities, so the branch it selects stays a hole the ties fill)
+and the seed (never concrete: the identity signs no seed).  When stability
+cannot be proven, the axis ties to a bundle-visible quantity (a scalar
+argument, a view extent, an identity-tier meta constant) or the operator
+refuses with a located diagnostic -- never a silent fold.
+
 A grid input that cannot be tied to a bundle-visible quantity is refused
 with a located diagnostic (MECH-DIAGNOSTIC-REFUSAL), never baked; the
 extraction/refusal census (:func:`census`) makes both sides countable.
@@ -339,13 +356,22 @@ class SymVal:
 class SymTuple(SymVal):
     """A tracked tuple (e.g. the shape parameter, the grid assignment)."""
 
-    __slots__ = ("items",)
+    __slots__ = ("items", "per_case_len")
 
-    def __init__(self, items: List[SymVal], origin=None):
+    def __init__(self, items: List[SymVal], origin=None,
+                 per_case_len: bool = False):
         concrete = tuple(i.concrete for i in items) \
             if all(i.concrete is not None for i in items) else None
         super().__init__(origin=origin, concrete=concrete)
         self.items = items
+        #: T041: the tuple's LENGTH is per-case data -- the shape parameter
+        #: of an operator whose SHAPES table mixes arities (one identity
+        #: spans ``len(shape) == 1`` and ``len(shape) > 1`` cases).  ``len()``
+        #: over such a tuple never folds to the concrete count: the count
+        #: selects case-layer branches whose literals are not identity-
+        #: stable, and folding it would bake one case's launch geometry into
+        #: an artifact the other cases of the same identity reuse.
+        self.per_case_len = per_case_len
 
 
 class SymDict(SymVal):
@@ -565,17 +591,68 @@ def _loop_effect_names(stmt: ast.For) -> Tuple[List[str], List[str]]:
     return rebound, stored
 
 
+def _stmts_effect_names(stmts) -> Tuple[List[str], List[str]]:
+    """Statically collect the names a statement LIST affects: (rebound,
+    stored) -- the statement-level counterpart of :func:`_loop_effect_names`
+    (same rules).  Used by the both-arms branch interpretation to mark what
+    an arm that fails to interpret leaves unknown (T041)."""
+    rebound: List[str] = []
+    stored: List[str] = []
+
+    def _target_name(t: ast.expr):
+        return t.id if isinstance(t, ast.Name) else None
+
+    def _walk(node: ast.AST) -> None:
+        for child in ast.iter_child_nodes(node):
+            if isinstance(child, (ast.Assign, ast.AnnAssign, ast.AugAssign)):
+                targets = child.targets if isinstance(child, ast.Assign) \
+                    else [child.target]
+                for t in targets:
+                    if isinstance(t, ast.Subscript):
+                        n = _target_name(t.value)
+                        if n is not None:
+                            stored.append(n)
+                    else:
+                        for n in ast.walk(t):
+                            name = _target_name(n) if isinstance(n, ast.Name) \
+                                else None
+                            if name is not None:
+                                rebound.append(name)
+            elif isinstance(child, (ast.Import, ast.ImportFrom)):
+                for alias in child.names:
+                    rebound.append(alias.asname or alias.name.split(".")[0])
+            elif isinstance(child, (ast.FunctionDef, ast.ClassDef)):
+                rebound.append(child.name)
+            _walk(child)
+
+    for stmt in stmts:
+        _walk(stmt)
+        if isinstance(stmt, (ast.For, ast.AsyncFor)):
+            for n in ast.walk(stmt.target):
+                name = _target_name(n) if isinstance(n, ast.Name) else None
+                if name is not None:
+                    rebound.append(name)
+    return rebound, stored
+
+
 class _Interpreter:
     """Evaluates ``_make_case``'s statements in the provenance domain."""
 
     def __init__(self, source: OperatorSource,
                  module_constants: Dict[str, object],
                  module_functions: Optional[Dict[str, ast.FunctionDef]] = None,
-                 shape_counts: Optional[Dict[int, int]] = None):
+                 shape_counts: Optional[Dict[int, int]] = None,
+                 arity_unstable: bool = False):
         self.source = source
         self.constants = module_constants
         self.env: Dict[str, SymVal] = {}
         self.path = source.path
+        #: T041: the shape parameter's LENGTH is per-case data (the
+        #: operator's SHAPES table mixes arities, so one identity spans
+        #: cases of different ``len(shape)``): ``len()`` over it never
+        #: folds, a branch on it stays symbolic (a hole the ties fill or a
+        #: located refusal), never a silent case-tier literal fold
+        self.arity_unstable = arity_unstable
         #: module-level helper functions (name -> def), budget-interpreted
         self.module_functions: Dict[str, ast.FunctionDef] = \
             module_functions or {}
@@ -748,14 +825,31 @@ class _Interpreter:
                     # views survive the branch).  A genuinely
                     # branch-dependent value is untracked -- a grid axis
                     # consuming it refuses, located, at the axis check.
+                    # T041: an arm that cannot even interpret for THIS case
+                    # (e.g. a per-case arity makes one arm's unpacking or
+                    # subscript invalid) leaves every name it statically
+                    # rebinds or element-stores into unknown -- the merge
+                    # then keeps only what the other arm proves (the other
+                    # case of the same identity runs that arm, so its
+                    # bindings are real data the model may not guess).
                     snap = dict(self.env)
-                    for s in stmt.body:
-                        self._stmt(s)
-                    then_env = dict(self.env)
-                    self.env = dict(snap)
-                    for s in stmt.orelse:
-                        self._stmt(s)
-                    else_env = dict(self.env)
+
+                    def _run_arm(stmts) -> Dict[str, SymVal]:
+                        self.env = dict(snap)
+                        try:
+                            for s in stmts:
+                                self._stmt(s)
+                            return dict(self.env)
+                        except GridError:
+                            env = dict(snap)
+                            rebound, stored = _stmts_effect_names(stmts)
+                            for name in set(rebound) | set(stored):
+                                env[name] = _opaque(
+                                    "branch arm failed to interpret")
+                            return env
+
+                    then_env = _run_arm(stmt.body)
+                    else_env = _run_arm(stmt.orelse)
                     merged = dict(snap)
                     for key in set(then_env) | set(else_env):
                         t, e = then_env.get(key), else_env.get(key)
@@ -1120,6 +1214,23 @@ class _Interpreter:
             return _lit(int(item.concrete))
         return item
 
+    def _unstable_len(self, value: SymVal) -> Optional[SymVal]:
+        """T041: ``len()`` over the shape parameter of an operator whose
+        SHAPES table mixes arities never folds to the concrete count.  The
+        count is per-case data (one identity spans both arities), so the
+        branch it selects must stay symbolic: the untracked value becomes a
+        hole at its consumers, fillable by a scalar argument, a view extent
+        or an identity-tier meta constant the interpreter proves equal --
+        or a located refusal, never a baked literal.  ``None`` keeps the
+        ordinary concrete count."""
+        if self.arity_unstable and isinstance(value, SymTuple) \
+                and value.per_case_len:
+            return _opaque(
+                "len(shape) under a mixed-arity SHAPES table (the shape "
+                "length is per-case data: not identity-stable, never "
+                "baked)")
+        return None
+
     # -- expressions ------------------------------------------------------------
     def _eval(self, node: ast.expr) -> SymVal:
         if isinstance(node, ast.Constant):
@@ -1278,7 +1389,10 @@ class _Interpreter:
                                                                SymTuple):
                     elt = node.elt
                     if isinstance(elt, ast.Name) and elt.id == target.id:
-                        return SymTuple(list(iterated.items))
+                        # T041: the passthrough keeps the per-case-length
+                        # flag (the derived tuple's count is the source's)
+                        return SymTuple(list(iterated.items),
+                                        per_case_len=iterated.per_case_len)
                     if isinstance(elt, ast.Call) and isinstance(elt.func,
                                                                 ast.Name) \
                             and elt.func.id == "int" \
@@ -1286,7 +1400,8 @@ class _Interpreter:
                             and elt.args[0].id == target.id:
                         return SymTuple([
                             self._int_passthrough(item, "int")
-                            for item in iterated.items])
+                            for item in iterated.items],
+                            per_case_len=iterated.per_case_len)
                 if isinstance(node, ast.ListComp):
                     # T034: a general element expression over an
                     # enumerable iterable (a concrete range(), a tracked
@@ -1932,6 +2047,9 @@ class _Interpreter:
                         and len(args) == 1:
                     return args[0]
                 if name == "len" and len(args) == 1:
+                    unstable = self._unstable_len(args[0])
+                    if unstable is not None:
+                        return unstable
                     if isinstance(args[0], SymTuple):
                         return _lit(len(args[0].items))
                     if isinstance(args[0], SymArray):
@@ -1949,6 +2067,9 @@ class _Interpreter:
             if name == "str":
                 return _opaque("str()")
             if name == "len":
+                unstable = self._unstable_len(args[0])
+                if unstable is not None:
+                    return unstable
                 if isinstance(args[0], SymTuple):
                     return _lit(len(args[0].items))
                 return _lit(len(vals[0]))
@@ -1962,9 +2083,12 @@ class _Interpreter:
                     and node.args[0].id in ("int", "str", "float", "bool"):
                 seq = self._eval(node.args[1])
                 if isinstance(seq, SymTuple):
+                    # T041: a per-case-length source keeps the flag (the
+                    # derived tuple's count is the same per-case arity)
                     return SymTuple([
                         self._int_passthrough(item, node.args[0].id)
-                        for item in seq.items])
+                        for item in seq.items],
+                        per_case_len=seq.per_case_len)
             return _opaque("map")
         if name == "sum" and len(node.args) == 1 and not node.keywords:
             # T034: builtin sum over an enumerable sequence or generator
@@ -2387,6 +2511,28 @@ def _shape_arity(source: OperatorSource, case: dict) -> Tuple[Tuple, Tuple]:
     return (), 0
 
 
+def _shape_arity_stable(source: OperatorSource) -> bool:
+    """Whether the operator's own SHAPES table fixes one arity for every
+    case of the file: ``len(shape)`` is then the same for every case of
+    every identity and may fold.  A table that MIXES arities (``(17,)``
+    beside ``(3, 17, 2, 7)`` -- 24 corpus operators) makes the shape's
+    LENGTH per-case data: one identity spans both arities, so a branch on
+    ``len(shape)`` selects case-tier literals that are not identity-stable,
+    and folding the count would bake one case's launch geometry into the
+    artifact the other cases of the same identity reuse (the T041 gdn2
+    defect).  An unparseable table never assumes stability."""
+    shapes_table = source.case_literals.get("SHAPES") or ()
+    if not shapes_table:
+        return True          # a one-shape (or absent) table: nothing varies
+    arities = set()
+    try:
+        for entry in shapes_table:
+            arities.add(len(entry))
+    except TypeError:
+        return False
+    return len(arities) <= 1
+
+
 def _interp_once(source: OperatorSource, case: dict,
                  view_bindings: Dict[str, SymArray],
                  module_constants: Dict[str, object],
@@ -2397,14 +2543,18 @@ def _interp_once(source: OperatorSource, case: dict,
     shape, ndim = _shape_arity(source, case)
     # The shape axes stay SYMBOLIC in the expression (their concrete values
     # are self-check inputs only): folding a case's shape into the grid
-    # would bake a runtime launch geometry.  Only the ARITY is used during
-    # interpretation (len(shape)/unpacking), which the corpus's own SHAPES
-    # tables hold fixed per operator.
+    # would bake a runtime launch geometry.  The ARITY is used during
+    # interpretation (len(shape)/unpacking) only when the operator's own
+    # SHAPES table fixes it; a table that mixes arities makes the length
+    # per-case data, so len() over the shape stays symbolic too (T041: one
+    # identity spans both arities -- the branch it selects must tie to a
+    # bundle-visible quantity or refuse, never fold).
+    arity_unstable = ndim is not None and not _shape_arity_stable(source)
     params: Dict[str, SymVal] = {
         "shape": SymTuple([
             SymVal(origin=Ref("shape_extent", (i,)),
                    gexpr=Ref("shape_extent", (i,)))
-            for i in range(ndim)])
+            for i in range(ndim)], per_case_len=True)
         if ndim is not None else
         _opaque("shape (unknown arity: mixed SHAPES, no payload echo)"),
         "dtype": SymVal(origin=Ref("case_param", ("dtype",))),
@@ -2412,14 +2562,18 @@ def _interp_once(source: OperatorSource, case: dict,
     }
     dtype_payload = case.get("dtype")
     if isinstance(dtype_payload, str) and dtype_payload:
+        # the dtype IS identity-keyed (it determines the per-pointer device
+        # dtypes the specialization signs), so dtype-derived folds stay
+        # inside one identity
         params["dtype"] = SymVal(origin=Ref("case_param", ("dtype",)),
                                  concrete=dtype_payload.rsplit(".", 1)[-1])
-    seed_payload = case.get("seed")
-    if isinstance(seed_payload, int) and not isinstance(seed_payload, bool):
-        params["seed"] = SymVal(origin=Ref("case_param", ("seed",)),
-                                concrete=seed_payload)
+    # the seed is NOT identity-keyed (the specialization signs no seed), so
+    # it never carries a concrete value: a seed-derived grid literal would
+    # be the same per-case baking defect (T041), and the corpus's case
+    # layers only ever pass it to the rng (opaque) anyway
     interp = _Interpreter(source, module_constants, module_functions,
-                          shape_counts=shape_counts)
+                          shape_counts=shape_counts,
+                          arity_unstable=arity_unstable)
     try:
         env = interp.run(make_case, params,
                          prelude=view_bindings or None)
