@@ -558,7 +558,8 @@ class SliceLowering:
                 # reduced pid*BLOCK term of one pass's addresses, reused
                 # by a later pass's store: the register did not dominate
                 # and the verifier rejected it)
-                creg = self._materialize_scalar_tree(self._ctx, t, loc)
+                creg = self._materialize_scalar_tree(
+                    self._ctx, t, loc, allow_bound_leaves=True)
                 self.values[t.vid] = creg
                 if self._chunk is not None:
                     self._pass_bound.add(t.vid)
@@ -2589,9 +2590,16 @@ class SliceLowering:
             return None
 
         for cname, init in stmt.carried[1:]:
-            if init.rank == 0:
-                out.append(("scalar", cname, init))
-                continue
+            # the uniform-recurrence check comes FIRST for every rank: a
+            # SCALAR pointer carry whose back edge is ``p += s`` (T036,
+            # forward_pass_chunks' ``sa_ptr += sa_stride_c``) is the same
+            # uniform recurrence a block pointer is.  The old rank-0
+            # shortcut classified it as a plain scalar; its body-end
+            # ptradd then bound to the PARAM register (the current
+            # pointer), the back edge passed that unchanged and the loop
+            # read the FIRST iteration's address forever -- a silent
+            # miscompile whenever the scalar carry's update had no use
+            # inside the body to materialize it.
             end = end_names.get(cname)
             step = None
             if end is not None and end.producer is not None \
@@ -2601,6 +2609,9 @@ class SliceLowering:
             if step is not None and self._value_outside(
                     step, inside, carried=carried_vids):
                 out.append(("recurrence", cname, init, step))
+                continue
+            if init.rank == 0:
+                out.append(("scalar", cname, init))
                 continue
             if init.vid in self._staged:
                 if end is None:
@@ -6107,7 +6118,7 @@ class SliceLowering:
         self._matrix_segments.append(row)
 
     def _materialize_scalar_tree(self, ctx: _Ctx, v: tir.Value,
-                                 loc) -> mir.VReg:
+                                 loc, allow_bound_leaves: bool = False) -> mir.VReg:
         """Re-emit a loop-invariant scalar tree at the current position.
 
         The uniform-recurrence step's TIR statement sits inside the loop
@@ -6117,11 +6128,20 @@ class SliceLowering:
         the loop level -- constants and scalar binops/comparisons only;
         anything else is a located refusal (a non-scalar or impure step
         is not a uniform recurrence)."""
-        # NOTE: no register reuse here -- a value already lowered may sit
-        # in a block that does not dominate this position (the two-phase
-        # split re-emits regions; the reuse crossed emissions and the
-        # verifier rejected the use).  Constants and pure scalar trees
-        # re-materialize: the cost is one instruction each.
+        # NOTE: no UNCONDITIONAL register reuse here -- a value already
+        # lowered may sit in a block that does not dominate this position
+        # (the two-phase split re-emits regions; the reuse crossed
+        # emissions and the verifier rejected the use).  Constants and
+        # pure scalar trees re-materialize: the cost is one instruction
+        # each.  ``allow_bound_leaves`` (the _need re-materialization
+        # rung, T036) additionally lets an IMPURE leaf reuse its current
+        # register: at a use position the pass close has already dropped
+        # every chunk-body binding (_close_pass's _pass_bound drop), so
+        # what remains bound is the merge-exit / liveout / entry binding
+        # that dominates the path to this position -- a restructured
+        # region's join reading ``acc + reduce(block)`` re-emits the add
+        # over the merged accumulator instead of refusing on the reduce
+        # leaf (l1_norm_2cb0f555's cached-block arms).
         prod = v.producer
         if prod is None:
             return self._need(v, loc)
@@ -6150,11 +6170,14 @@ class SliceLowering:
                 and all(getattr(o, "rank", 0) == 0 for o in prod.operands):
             # T035: a pure rank-0 select -- identical branches are the
             # value itself; distinct branches take the splat-select form
-            xv = self._materialize_scalar_tree(ctx, prod.operands[1], loc)
-            yv = self._materialize_scalar_tree(ctx, prod.operands[2], loc)
+            xv = self._materialize_scalar_tree(ctx, prod.operands[1], loc,
+                                           allow_bound_leaves=allow_bound_leaves)
+            yv = self._materialize_scalar_tree(ctx, prod.operands[2], loc,
+                                           allow_bound_leaves=allow_bound_leaves)
             if xv is yv:
                 return xv
-            cond = self._materialize_scalar_tree(ctx, prod.operands[0], loc)
+            cond = self._materialize_scalar_tree(ctx, prod.operands[0], loc,
+                                             allow_bound_leaves=allow_bound_leaves)
             if not cond.is_mask():
                 cond = self._mask_of_bool(ctx, cond, loc)
             kind = "float" if xv.type.float else (
@@ -6169,8 +6192,10 @@ class SliceLowering:
                 [ctx.vreg(vtype, hint="mstw", loc=loc)], loc=loc))
             return self._scalarize(ctx, sel, loc)
         if prod.op in tir.BIN_ARITH or prod.op in tir.BIN_BITWISE:
-            lreg = self._materialize_scalar_tree(ctx, prod.operands[0], loc)
-            rreg = self._materialize_scalar_tree(ctx, prod.operands[1], loc)
+            lreg = self._materialize_scalar_tree(ctx, prod.operands[0], loc,
+                                                  allow_bound_leaves=allow_bound_leaves)
+            rreg = self._materialize_scalar_tree(ctx, prod.operands[1], loc,
+                                                  allow_bound_leaves=allow_bound_leaves)
             if lreg.type.float or rreg.type.float:
                 # T034: the same splat-compute-extract form the main
                 # dispatch uses (the scalar core has no float arithmetic)
@@ -6184,8 +6209,10 @@ class SliceLowering:
                                                loc)
             return scalar_mod.lower_binop(ctx, prod, lreg, rreg, loc)
         if prod.op in tir.CMP_PREDS:
-            lreg = self._materialize_scalar_tree(ctx, prod.operands[0], loc)
-            rreg = self._materialize_scalar_tree(ctx, prod.operands[1], loc)
+            lreg = self._materialize_scalar_tree(ctx, prod.operands[0], loc,
+                                                  allow_bound_leaves=allow_bound_leaves)
+            rreg = self._materialize_scalar_tree(ctx, prod.operands[1], loc,
+                                                  allow_bound_leaves=allow_bound_leaves)
             if lreg.type.float or rreg.type.float:
                 # T034: a re-materialized FLOAT comparison (pdist's
                 # ``if p_val == 0.0`` guard feeding a region condition)
@@ -6211,8 +6238,10 @@ class SliceLowering:
                     loc, "ptradd",
                     f"the scalar value '{v.name}' is not a re-materializable "
                     f"scalar tree (a maxmin with a block operand)")
-            lreg = self._materialize_scalar_tree(ctx, lhs, loc)
-            rreg = self._materialize_scalar_tree(ctx, rhs, loc)
+            lreg = self._materialize_scalar_tree(ctx, lhs, loc,
+                                                  allow_bound_leaves=allow_bound_leaves)
+            rreg = self._materialize_scalar_tree(ctx, rhs, loc,
+                                                  allow_bound_leaves=allow_bound_leaves)
             vtype = mir.VectorType(
                 lreg.type.width if lreg.type.width >= rreg.type.width
                 else rreg.type.width, 1,
@@ -6234,7 +6263,8 @@ class SliceLowering:
             # same splat-convert-extract sequence the ordinary lowering
             # uses, re-emitted at the current position
             src, dst = prod.operands[0], v
-            sreg = self._materialize_scalar_tree(ctx, src, loc)
+            sreg = self._materialize_scalar_tree(ctx, src, loc,
+                                                  allow_bound_leaves=allow_bound_leaves)
             if sreg.is_vector():                    # pragma: no cover
                 raise self._err(
                     loc, "ptradd",
@@ -6255,6 +6285,15 @@ class SliceLowering:
             out = self._scalarize(ctx, cvt, loc)
             self._restore_region(ctx, loc)
             return out
+        if allow_bound_leaves:
+            # T036: an IMPURE leaf (the forms above are the pure ones)
+            # whose value is bound at a position that dominates this use
+            # -- the merge-exit / liveout / entry bindings that survive
+            # the pass close -- reuses its register: the tree re-emits
+            # the pure nodes over it instead of refusing
+            reg = self.value(v)
+            if reg is not None:
+                return reg
         raise self._err(
             loc, "ptradd",
             f"the scalar value '{v.name}' is not a re-materializable "
@@ -8177,7 +8216,17 @@ class SliceLowering:
                        or (src.is_float() and dst.is_float()
                            and sw == 64 and dw == 32)
                        or (src.is_float() and dst.is_float()
-                           and sw == 32 and dw == 64))
+                           and sw == 32 and dw == 64)
+                       # T036: a subnormal Python float literal (below
+                       # 2**-126) types fp64 under the pinned to_tensor
+                       # rule and promotes the whole maximum/rsqrt chain
+                       # (renorm_projection's ``1e-40``); the 16-bit data
+                         # then rides the exact 16->32->64 widening and
+                       # the doubly-RTNE 64->32->16 narrowing back
+                       or (src.is_float() and dst.is_float()
+                           and sw == 16 and dw == 64)
+                       or (src.is_float() and dst.is_float()
+                           and sw == 64 and dw == 16))
             if not allowed:
                 raise self._err(
                     loc, "convert",
@@ -8233,9 +8282,18 @@ class SliceLowering:
                 one = self._f32_to_ff(ctx, one32, dst, loc)
                 zero = self._f32_to_ff(ctx, zero32, dst, loc)
                 v0m = _pin_v0()
-                return ctx.emit(mir.MOp(
+                # T036: the select consumes the NARROWED 16-bit pair, so
+                # it opens the destination's own region -- _f32_to_ff
+                # restores the pass's e32 region on its way out, and the
+                # unbracketed vsel ran v16m1 values inside it (the MIR
+                # verifier's region-inconsistency refusal;
+                # prepare_wy_repr's ``eye.to(fp16)`` inside an f32 pass)
+                self._vregion(ctx, one.type, loc)
+                out = ctx.emit(mir.MOp(
                     "vsel", [v0m, one, zero],
                     [ctx.vreg(one.type, hint="cvb", loc=loc)], loc=loc))
+                self._restore_region(ctx, loc)
+                return out
             vtype = self._vtype(dst)
             self._vregion(ctx, vtype, loc)
             one = self._splat_const(ctx, 1.0 if dst.is_float() else 1,
@@ -8375,6 +8433,13 @@ class SliceLowering:
                                        rounding=rounding)
             if sw == 16 and dw == 32:
                 return self._f16_to_f32(ctx, sreg, src, loc)
+            if sw == 16 and dw == 64:
+                # fp16/bf16 -> fp64: the exact two-step widening
+                # (16 -> 32 -> 64; both steps exact, so the route is
+                # value-exact -- T036, renorm's fp64 rsqrt chain)
+                f32 = self._f16_to_f32(ctx, sreg, src, loc)
+                return self._convert_vector(ctx, f32, tir.FLOAT32, dst,
+                                            loc)
             if sw == 32 and dw == 64:
                 # T013: the exact fp32 -> fp64 widening (igamma's high-
                 # precision lane): the widening convert at the SOURCE's
@@ -8392,6 +8457,15 @@ class SliceLowering:
                     ctx, wide, mir.VectorType(64, dl, "float"), loc)                     if wide.type.lmul != dl else wide
                 self._restore_region(ctx, loc)
                 return out
+            if sw == 64 and dw == 16:
+                # f64 -> fp16/bf16: narrow to fp32 (RTNE), then the
+                # f32 -> ff route (the second RTNE; the double rounding
+                # stays inside the declared low-precision tolerance --
+                # T036, renorm's fp64 chain storing back to fp16 data)
+                f32 = self._convert_vector(ctx, sreg, src, tir.FLOAT32,
+                                           loc)
+                return self._f32_to_ff(ctx, f32, dst, loc,
+                                       rounding=rounding)
             if sw == 32 and dw == 16:
                 return self._f32_to_ff(ctx, sreg, dst, loc,
                                        rounding=rounding)
@@ -8550,11 +8624,14 @@ class SliceLowering:
                     "vunary", [operand],
                     [ctx.vreg(vtype, hint="rsq", loc=loc)],
                     attrs={"op": "fsqrt"}, loc=loc))
-                if vtype.sew == 64:
-                    one = self._splat_const(
-                        ctx, 0x3ff0000000000000, vtype, loc)
-                else:
-                    one = self._splat_const(ctx, 1.0, vtype, loc)
+                # T036: _splat_const encodes the float VALUE's IEEE bits
+                # (it packs ``float(value)``), so the dividend is 1.0 at
+                # EVERY SEW -- the old e64 branch passed the raw bit
+                # pattern 0x3ff0000000000000, which the helper encoded
+                # as 2.3e18 (renorm's fp64 rsqrt chain multiplied every
+                # element by ~4.6e18; the f64 form had never been
+                # executed-and-compared before)
+                one = self._splat_const(ctx, 1.0, vtype, loc)
                 return ctx.emit(mir.MOp(
                     "vbin", [one, sqr],
                     [ctx.vreg(vtype, hint="rsh", loc=loc)],
