@@ -249,6 +249,15 @@ class _NotConstexpr:
 
 NOT_CONSTEXPR = _NotConstexpr()
 
+#: Value methods whose RESULT METADATA is compile-time even though the
+#: result value is runtime: the cast forms.  ``X.to(D)`` / ``X.cast(D)``
+#: produce a value of type ``D`` with ``X``'s shape -- exactly what the
+#: pinned tracer's tensor object knows at trace time, which is what makes
+#: ``X.to(y.dtype).shape[1]`` and every dtype predicate on the cast
+#: result constexpr in the source language (T040: the value-level dtype
+#: introspection fold; the metadata is carried, the value never is).
+_CAST_METHODS = ("to", "cast")
+
 #: Python builtins the tracer evaluates at trace time on constexpr values
 #: (exactly what stock Triton does with plain Python calls in kernel source)
 _TRACE_BUILTINS = {
@@ -339,6 +348,51 @@ class ConstexprEnv:
         return result
 
     # -- internals ----------------------------------------------------------
+    def _fold_cast_method(self, node: ast.Call, path: str):
+        """``X.to(D)`` / ``X.cast(D)`` over a runtime symbol: the result's
+        TYPE and SHAPE are compile-time (the pinned tracer's tensor
+        metadata at trace time), so the call folds to the result's
+        RuntimeValue -- the receiver's shape, the target type.  The VALUE
+        never folds (nothing is baked); a receiver whose type is not known
+        (a pointer symbol -- ``.to`` is a tensor method, the pinned
+        semantic refuses it) or a dtype argument that does not fold
+        declines (None: the caller's ordinary path then returns
+        NOT_CONSTEXPR and the lowering owns the construct).
+
+        This is the value-level dtype-introspection fold: a block whose
+        dtype is specialization-known (from its pointer's device dtype or
+        its creation) makes ``y.to(x.dtype)`` and the constexpr arithmetic
+        on the cast result (``16 // y.to(x.dtype).shape[1]``) resolve at
+        specialization, so a dead dispatch arm behind such a condition is
+        never lowered."""
+        func = node.func
+        if not isinstance(func, ast.Attribute) \
+                or func.attr not in _CAST_METHODS:
+            return None
+        base = self._eval(func.value, path)
+        if not isinstance(base, RuntimeValue):
+            return None
+        if base.type.is_pointer() or not base.type.is_numeric():
+            return None          # .to is a value method; pointers refuse
+        dtype_node = node.args[0] if node.args else None
+        for kw in node.keywords:
+            if kw.arg == "dtype":
+                if dtype_node is not None:
+                    return None  # dtype given twice: the tracer errors
+                dtype_node = kw.value
+        if dtype_node is None:
+            return None
+        target = self._eval(dtype_node, path)
+        if isinstance(target, TypeObject):
+            target = target.element_ty
+        if not isinstance(target, DTypeValue):
+            return None          # the dtype is not compile-time: decline
+        # the cast keeps the shape and takes the target type (a bitcast
+        # keeps the width and re-reads the value: the TYPE is the target
+        # either way, and this fold claims metadata only, never a value)
+        return RuntimeValue(f"{base.name}.{func.attr}", target.ty,
+                            base.shape)
+
     def _eval(self, node: ast.AST, path: str):
         if isinstance(node, ast.Constant):
             return node.value
@@ -484,6 +538,15 @@ class ConstexprEnv:
             self.fold.record_branch(node, cond, taken)
             return self._eval(getattr(node, taken), path)
         if isinstance(node, ast.Call):
+            # a value-method call whose result METADATA is compile-time
+            # (the cast forms over a runtime symbol): fold to the result's
+            # runtime symbol -- the target type, the receiver's shape --
+            # so ``X.to(y.dtype).shape[1]`` and dtype predicates on the
+            # cast result fold exactly as the pinned tracer folds them
+            # (T040; the fold carries metadata only, never a value)
+            cast_result = self._fold_cast_method(node, path)
+            if cast_result is not None:
+                return cast_result
             func = self._eval(node.func, path)
             if func is NOT_CONSTEXPR and isinstance(node.func, ast.Name) \
                     and node.func.id in _TRACE_BUILTINS:
