@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-07T16:01:25.874182+00:00",
+  "updated_at": "2026-11-07T16:03:04.498760+00:00",
   "facts": [
     {
       "id": "F001",
@@ -3475,6 +3475,79 @@
       "worker_debug_request": {},
       "coding_failures": 0,
       "started_at": "2026-11-07T12:54:13.988817+00:00",
+      "deferrals": 0,
+      "debug_verified_patterns": [],
+      "replan_baseline": {},
+      "origin": "manager",
+      "parent_task": "T018",
+      "optimization_stage": "",
+      "bundle_passes": [],
+      "shared_analysis": [],
+      "rollback_boundary": "",
+      "fastpath_fallback": "",
+      "profile_artifact": "",
+      "profile_sha256": "",
+      "profile_revision": "",
+      "bundle_evidence": []
+    },
+    {
+      "id": "T039",
+      "goal": "Resolve the pinned pre-scan blockers so the full executed scan starts from a complete compile surface: (1) the 4 'genuinely untraceable' grid refusals from T037 (gn_finalize's (n,g) axes visible only as the view product n*g; grouped_gemm's sum over an unsigned case-shape axis spanning groups=3/4 in one identity) \u2014 investigate whether they are reducible within the declared launch contract: the kernel's program_id usage may be linear over the product (grid-stride), another view/scalar may carry the split, or the case-layer expression may be re-derived; if a case is truly not lowerable without extending the runtime launch protocol (e.g. passing grid axes as launch arguments), raise a DESIGN_ISSUE with the exact evidence (operators, shapes, the untraceable inputs, the proposed contract change) instead of forcing a fix; (2) the deconv3d typical-case compute defect pinned by T037 (compiles but computes wrong results on the typical case \u2014 reproduce minimally, walk the declared pipeline stages to the first incorrect stage, fix there; never patch the emitter to compensate); (3) the gqa 1-worker CSE segfault pinned by T030 (reproduce with passes enabled at threads=1, find the illegal rewrite, fix the CSE legality or the mis-typed value; the general path with passes off must stay green); (4) verify the fp64 tl.dot refusal's justification is recorded against the corpus's declared dtype surface (the case's declared dtypes and the FRONTEND_COVERAGE/declared-surface rows), so it reads as declared-unsupported with evidence rather than an open refusal.",
+      "kind": "general",
+      "gate": "G6",
+      "capability": "coding",
+      "purpose": "input",
+      "attempt_limit": 0,
+      "inputs": [
+        "docs/compiler-agent/COMPILE_CENSUS.json",
+        "a100c/frontend/gridmodel.py",
+        "a100c/passes/",
+        "a100c/lower/",
+        "FRONTEND_COVERAGE.json"
+      ],
+      "outputs": [
+        "Resolved pre-scan blockers (or a filed DESIGN_ISSUE for the launch-contract question) with regression tests"
+      ],
+      "dependencies": [],
+      "interfaces": [],
+      "acceptance": [
+        "Each of the 4 untraceable grid refusals is either repaired (the operator compiles and its cases execute and compare PASS at 1 and 4 workers) or carried into a filed DESIGN_ISSUE with the exact evidence (operator, shapes, untraceable inputs, why the current launch contract cannot express it, the proposed change); no silent residual.",
+        "The deconv3d typical case executes and compares PASS after a fix located at the first incorrect pipeline stage (the minimized reproduction and stage attribution are recorded); no other case regresses.",
+        "The gqa case executes and compares PASS at 1, 2, 4 and 8 workers with the passes enabled (the segfault is gone; the CSE legality fix has a regression test reproducing the illegal rewrite shape); the passes-off path stays green.",
+        "The fp64 tl.dot refusal's justification is recorded in the declared-surface/coverage records naming the corpus declaration it rests on.",
+        "All pre-existing test files still pass."
+      ],
+      "tests": [
+        "set -a; . ./.env; set +a; python3 a100c/tests/test_compile_sweep.py --operator <the owned operators> (blockers resolved or DESIGN_ISSUE filed)",
+        "python3 a100c/tests/test_passes_basic.py and the full a100c test suite"
+      ],
+      "conflicts": [
+        "a100c-ir-frontend",
+        "a100c-lowering-backend",
+        "a100c-passes"
+      ],
+      "provides": [],
+      "consumes": [],
+      "tags": [
+        "compile-sweep-repair"
+      ],
+      "status": "RUNNING",
+      "assignee": "coder",
+      "attempts": 1,
+      "evidence": "",
+      "last_error": "",
+      "failure_kind": "",
+      "start_revision": "f72848f2ec9082cb6c0409b15cce0eafde554b66",
+      "end_revision": "",
+      "completed_seq": 0,
+      "debug_required": false,
+      "debug_request_id": "",
+      "debug_pending_revision": "",
+      "debug_pending_attempts": -1,
+      "debug_pending_failures": 0,
+      "worker_debug_request": {},
+      "coding_failures": 0,
+      "started_at": "2026-11-07T16:03:04.495227+00:00",
       "deferrals": 0,
       "debug_verified_patterns": [],
       "replan_baseline": {},
@@ -6980,6 +7053,17 @@
         }
       ],
       "optimization": false
+    },
+    "c5d28e883ca675b69de786062b1db54d91b449112e6d1f7d3e4a310feb0a777e": {
+      "run_id": "",
+      "digest": "9ec613f3d43a14d23c1f525c07725b2e043869bb5567203552365ab532b36047",
+      "assignments": [
+        {
+          "task_id": "T039",
+          "cases": []
+        }
+      ],
+      "optimization": false
     }
   },
   "validation": {},
@@ -9117,6 +9201,24 @@
       "phase": "IMPLEMENTATION",
       "event": "complete-task",
       "detail": "T038 worker report WTI041: Round-3 construct long-tail repair: all 33 owned census rows resolved. (1) 9 tl.cumsum/cumprod rows: the LAST-axis scan of a multi-axis block now lowers (the chunk carry restarts at every row boundary of the row-major flat lane order, modulus = the last axis's extent); the T035 revert's miscompile was actually a workspace sizing bug -- the scan slice was reserved by the kernel's top-level max extent, which misses a restructured region's nested pass extents (cumprod_grouped's (4,128) pass vs the arange-4 top-level), so the slice overran into the staging records and the executed store scattered to garbage; the reservation is now per-scan, sized by the operand's own flat extent. The reset select also needed the region discipline (open at the carry's fp32 class before the splats) and a vmovmask (vsel reads v0), and the fp32-lane e16 element splat needed its region opened first. Non-last-axis scans keep their located refusal. (2) 6 tl.sort rows: whole-block sort/topk/histogram lower through a new reorder segment (the block-materialization protocol: operand stages to the workspace, a dedicated scalar loop writes the result region -- sort by the stable rank form, topk as the rank restricted to k, histogram as the per-bin equality count); ranked_distribution also needed the chunk/width-bound gather (workspace form through the staged source + index records) and the full-axis keep_dims reduce (the [1] result binds to the reduced scalar; the reduce constrains its pass by the OPERAND's extent). (3) 6+1 mir-verifier v0-mask rows: the two rank-0 pure-select re-materialization paths (cyclic/blocked jacobi, l1_norm) now insert the vmovmask. (4) 1 vsetvli row (fht [17] f32): the staging-loop merge vsel opens its region at the VALUES' type after the selector's index-class compare. (5) 2 tl.histogram rows: covered by the reorder segment. (6) 3 tl.cast rows: a compile-time convert materializes as a TIR const of its own literal type and takes the ordinary convert o"
+    },
+    {
+      "at": "2026-11-07T16:02:59.494143+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "task",
+      "detail": "T039 Resolve the pinned pre-scan blockers so the full executed scan starts from a complete compile surface: (1) the 4 'genuinely untraceable' grid refusals from T037 (gn_finalize's (n,g) axes visible only as the view product n*g; grouped_gemm's sum over an unsigned case-shape axis spanning groups=3/4 in one identity) \u2014 investigate whether they are reducible within the declared launch contract: the kernel's program_id usage may be linear over the product (grid-stride), another view/scalar may carry the split, or the case-layer expression may be re-derived; if a case is truly not lowerable without extending the runtime launch protocol (e.g. passing grid axes as launch arguments), raise a DESIGN_ISSUE with the exact evidence (operators, shapes, the untraceable inputs, the proposed contract change) instead of forcing a fix; (2) the deconv3d typical-case compute defect pinned by T037 (compiles but computes wrong results on the typical case \u2014 reproduce minimally, walk the declared pipeline stages to the first incorrect stage, fix there; never patch the emitter to compensate); (3) the gqa 1-worker CSE segfault pinned by T030 (reproduce with passes enabled at threads=1, find the illegal rewrite, fix the CSE legality or the mis-typed value; the general path with passes off must stay green); (4) verify the fp64 tl.dot refusal's justification is recorded against the corpus's declared dtype surface (the case's declared dtypes and the FRONTEND_COVERAGE/declared-surface rows), so it reads as declared-unsupported with evidence rather than an open refusal."
+    },
+    {
+      "at": "2026-11-07T16:02:59.494196+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "task-submission",
+      "detail": "009-final-prescan-blockers"
+    },
+    {
+      "at": "2026-11-07T16:03:04.498750+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "start-task",
+      "detail": "T039 agent=coder"
     }
   ]
 }
