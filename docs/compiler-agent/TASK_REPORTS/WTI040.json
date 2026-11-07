@@ -1,0 +1,123 @@
+{
+  "invocation_id": "WTI040",
+  "task_id": "T037",
+  "attempt": 2,
+  "context_sha256": "9eb6b632e53c21a3341652e7989088d6203b6e877c56c5c262cd105a5ff547bd",
+  "outcome": "COMPLETED",
+  "failure_kind": "implementation",
+  "summary": "Attempt 2 judged the dead attempt-1 worker's committed grid repair (7 paths, never verified by the engine) against the task contract, found it sound and complete, and verified it end to end; no further code changes were needed. The 22 residual grid-census rows resolve as follows. FIXED (18 identities): chunk_abc (6 identities, the 'cannot be proven equal' class) and deconv3d (6) now extract through three new structural tie mechanisms in a100c/frontend/gridmodel.py -- the aligned-copy '.reshape(<tracked shape tuple>)' extent rule over any base, callable module-level lambda values with opaque config-dict reads memoized per (base, key) so they fill from identity-signed meta, and the quotient view-extent solve; grouped_mm (6, the 'loop-dependent value (total_tiles)' class) extracts through the identity-signed trip-count unroll (a meta/launch_meta constexpr the interpreter proves equal to the bare shape axis; an unsigned axis never unrolls -- the control refuses, named). REMAINING (4 identities, counted, genuinely untraceable, each refusal located and naming the untraceable input): gn_finalize (3 identities, 9 cases) -- its (n, g) grid axes appear only as the view-extent product n*g (verified: all four views are (n*g,), the only scalars are the shape-independent floats count/eps, and the payload carries no shape echo), so no bundle-visible quantity can serve either axis; grouped_gemm (1 identity, 6 cases) -- its tile-count sum iterates an unsigned case-shape axis whose single identity spans groups=3 and groups=4 cases, so unrolling either count would bake the other case's loop shape (the no-baking gate). Filtered compile sweep over the census operators carrying the residual rows: 18 artifacts + 4 located grid refusals = 22 identities, all sweep checks PASS (the 5-operator run exits 1 only on the vacuous repeat-cases-reuse control -- its only multi-case identities are the refused ones; the reported run adds add_base_max, the acceptance[1] no-baking spot-check operator whose two shapes share one identity, which exercises that control with 3 cache-hit repeat compiles). Executed comparisons under the declared QEMU endpoint at 1 and 4 workers with the cases' original policies: chunk_abc both shapes (fp32/fp16), deconv3d degenerate (1,1,1,1,1) fp32, grouped_mm both shapes -- all PASS. No baking: the probe's two shapes (3,40)/(3,70) share one identity and one bit-identical artifact and compute program counts 3 vs 6 at runtime from bundle reads (pinned nprog comparison), add_base_max's two shapes cold-compile bit-identical artifacts and cache-hit one another, the tampered-declared-grid and unsigned-axis controls refuse loudly, and the model-level census binds modeled == declared for all 2719 extracted of 2734 cases (15 refused: gn_finalize 9 + grouped_gemm 6, the two counted operators). The full test suite passes (41 files). NEW non-grid defect pinned for the next repair round: deconv3d's typical case (1,4,8,8,8) compiles through the repaired grid but its first execution mismatches per-lane (ox == 3 mod 4; 435 of 11520 elements at 1 worker, 398 at 4; the grid tile tail is intact and the degenerate shape PASSes -- attributed away from the grid), recorded in test_t037_repairs.py::check_t037_deconv3d_new_defect_recorded.",
+  "files_changed": [
+    "a100c/frontend/gridmodel.py",
+    "a100c/tests/test_t037_repairs.py",
+    "a100c/tests/test_grid_model.py",
+    "a100c/tests/test_t033_repairs.py",
+    "a100c/tests/test_t034_repairs.py",
+    "a100c/cache/grid-census.json",
+    "a100c/cache/t037-filtered-census.json"
+  ],
+  "artifacts": [
+    "a100c/cache/t037-filtered-census.json",
+    "a100c/cache/grid-census.json",
+    "a100c/tests/test_t037_repairs.py"
+  ],
+  "commands": [
+    {
+      "command": "set -a; . ./.env; set +a; timeout 600 python3 a100c/tests/test_grid_model.py",
+      "exit_code": 0,
+      "observed": "all checks PASS; census 2719 extracted / 15 refused of 2734 cases (500 operators, 498 fully extracted); refusal classes {axis-untracked-value: 6 (grouped_gemm), genuinely-untied-input: 9 (gn_finalize)}; chunk_abc/deconv3d/grouped_mm 6 rows each extracted with self-checks binding; artifact a100c/cache/grid-census.json refreshed"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; timeout 3000 python3 a100c/tests/test_t037_repairs.py",
+      "exit_code": 0,
+      "observed": "5/5 checks PASS: t037-grid-ties-extract-with-runtime-reads; t037-untraceable-refuse-located-naming-input; t037-repaired-grids-execute-and-compare (chunk_abc both shapes fp32/fp16, deconv3d (1,1,1,1,1), grouped_mm both shapes, at 1 and 4 workers, original policies); t037-deconv3d-typical-case-new-defect-recorded (mismatches t=1: 435, t=4: 398 of 11520, per-lane ox==3 mod 4, grid tile tail intact); t037-no-baking-two-shapes-one-identity (probe grids 3 vs 6 on one artifact, add_base_max cold bit-identical shas, unsigned-axis and tampered-grid controls refuse)"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; timeout 3600 python3 a100c/tests/test_compile_sweep.py --operator ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py --operator ops/suite/dev/deconv3d_fwd_kernel.py --operator ops/suite/dev/gn_finalize_kernel.py --operator ops/suite/dev/grouped_mm_kernel.py --operator ops/suite/dev/grouped_gemm_kernel.py --census-out a100c/cache/t037-filtered-census.json",
+      "exit_code": 1,
+      "observed": "substance PASS on 8/9 checks (33/33 cases, 22 identities = 18 artifacts + 4 located grid refusals, 0 over-budget/crash, refusals-located-and-countable, budget respected, passes on); the single FAIL is the repeat-cases-reuse-one-artifact control, vacuous because the subset's only multi-case identities (gn_finalize, grouped_gemm) are exactly the refused ones (0 repeat cases recompiled, 0 violations); rerun below adds the reuse-control operator"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; for f in a100c/tests/test_*.py (40 files, excluding test_compile_sweep.py=test[0], test_grid_model.py and test_t037_repairs.py run separately): timeout 2400 python3 $f (12 parallel)",
+      "exit_code": 0,
+      "observed": "40/40 exit 0 (logs /tmp/wti040-suite/*: every file prints its all-checks-PASS line; the three logs containing the string FAIL are negative-control PASS lines: crash-fault-recorded-as-failure, '0 compared FAILs', guard-region-witness-fails); with test_grid_model.py the full suite is 41/41"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; timeout 600 python3 - (FactoryCompiler, shared cache dir): compile add_base_max shape (17,) then (97,)",
+      "exit_code": 0,
+      "observed": "(17,) cache_hit False sha fcc8e00f6a9e9778; (97,) cache_hit True sha fcc8e00f6a9e9778 -- two shapes, one identity, one artifact (the sweep reuse control's subject)"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; timeout 300 python3 - (inspect gn_finalize bundle for shapes (128,8), (7,3), (1,1))",
+      "exit_code": 0,
+      "observed": "all four views have extent (n*g,); the only scalars are float32 count=8192.0 (shape-independent module constant) and eps=1e-5; meta is empty; the payload carries no 'shape' echo -- no bundle-visible quantity equals n or g separately (only the product), confirming the located refusal is genuine"
+    }
+  ],
+  "acceptance": [
+    {
+      "ref": "acceptance[0]",
+      "command": "set -a; . ./.env; set +a; timeout 3600 python3 a100c/tests/test_compile_sweep.py --operator <5 residual-grid operators> --operator ops/suite/dev/add_base_max_kernel.py --census-out a100c/cache/t037-filtered-census.json",
+      "exit_code": 0,
+      "observed": "all 9 compile-sweep checks PASS, exit 0: 39/39 cases classified 0 build failures; 6/6 operators; 21 artifacts + 4 located grid refusals = 25 identities (0 over-budget, 0 crash); 21 riscv64-ELF artifacts; 25 compiles <= 1.25x2161 with 3 cache hits; 3 repeat cases recompiled 0 violations (add_base_max's two shapes of one identity reuse one artifact -- the no-baking reuse control); refusals-located-and-countable (4 grid refusals: gn_finalize 3 identities, grouped_gemm 1 identity); budget respected (slowest cold compile 511s of 600s); enabled pipeline passes on (21/21 markers, constprop 1693 / strength_reduction 1185 / cse 16112 / licm 2766 / dce 907 firings). The grid class: the 22 residual rows reduce to 4 genuinely untraceable located refusals, each naming the untraceable input (gn_finalize: 'grid input $shape_extent(0,) (case-shape axis 0) cannot be proven equal to a bundle-visible quantity; only as a factor of a view extent (gsum_ptr[0] = ($shape_extent(0,) mul $shape_extent(1,)))'; grouped_gemm: 'a grid axis is not provenance-tracked (it depends on values the model cannot see: sum over comprehension over range($shape_extent(0,) (a case-shape axis with no identity-signed count)))'); census artifact a100c/cache/t037-filtered-census.json at compiler content revision e5fb829eef9e8e40"
+    },
+    {
+      "ref": "acceptance[1]",
+      "command": "set -a; . ./.env; set +a; timeout 3000 python3 a100c/tests/test_t037_repairs.py (self-check + no-baking checks); timeout 600 python3 a100c/tests/test_grid_model.py (corpus census)",
+      "exit_code": 0,
+      "observed": "every newly extracting case self-check binds modeled == declared: chunk_abc/deconv3d/grouped_mm 6 model rows each (both shapes x 3 dtypes), the probe both shapes, and all 2719 census-extracted cases; no grid value baked: the probe's two shapes share one identity and one bit-identical artifact (second compile cache_hit) and the emitted grid routine reads the bundle at runtime (program counts 3 for m=40, 6 for m=70, pinned by the nprog comparison); add_base_max's two shapes cold-compile to identical shas and cache-hit one another; the Lit audit finds no axis literal carrying an unsigned shape value; the unsigned-axis and tampered-declared-grid controls refuse located"
+    },
+    {
+      "ref": "acceptance[2]",
+      "command": "the full a100c test suite: timeout per file over a100c/tests/test_*.py",
+      "exit_code": 0,
+      "observed": "41/41 files exit 0 (test_grid_model.py + the 40 remaining files; test_compile_sweep.py is the filtered run of tests[0])"
+    }
+  ],
+  "tests": [
+    {
+      "ref": "tests[0]",
+      "command": "set -a; . ./.env; set +a; timeout 3600 python3 a100c/tests/test_compile_sweep.py --operator ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py --operator ops/suite/dev/deconv3d_fwd_kernel.py --operator ops/suite/dev/gn_finalize_kernel.py --operator ops/suite/dev/grouped_mm_kernel.py --operator ops/suite/dev/grouped_gemm_kernel.py --operator ops/suite/dev/add_base_max_kernel.py --census-out a100c/cache/t037-filtered-census.json",
+      "exit_code": 0,
+      "observed": "all compile-sweep checks PASS (exit 0): 39/39 cases, 25 identities = 21 artifacts + 4 located grid refusals (gn_finalize 3, grouped_gemm 1, each naming the untraceable input), 3 repeat-case cache-hit recompiles with 0 violations, budget respected, passes on; census -> a100c/cache/t037-filtered-census.json"
+    },
+    {
+      "ref": "tests[1]",
+      "command": "set -a; . ./.env; set +a; timeout 600 python3 a100c/tests/test_grid_model.py; then the full a100c test suite (every a100c/tests/test_*.py under timeout 2400)",
+      "exit_code": 0,
+      "observed": "test_grid_model: all checks PASS (2719/2734 extracted, 15 refused in the two counted classes); the full suite: 41/41 files exit 0"
+    }
+  ],
+  "evidence": "The filtered compile census a100c/cache/t037-filtered-census.json (compiler content revision e5fb829eef9e8e40, identical to the dead worker's run because the a100c source is unchanged): 22 identities over the five residual-grid operators = 18 riscv64-ELF artifacts + 4 located grid refusals, each naming the untraceable input (gn_finalize x3: 'grid input $shape_extent(0,) (case-shape axis 0) cannot be proven equal to a bundle-visible quantity; only as a factor of a view extent (gsum_ptr[0] = ($shape_extent(0,) mul $shape_extent(1,)))'; grouped_gemm x1: 'a grid axis is not provenance-tracked (it depends on values the model cannot see: sum over comprehension over range($shape_extent(0,) (a case-shape axis with no identity-signed count)))'), plus add_base_max's 3 identities whose repeat cases are cache hits on one artifact. Executed-and-compared evidence in a100c/tests/test_t037_repairs.py (all 5 checks PASS, exit 0): native QEMU executions at 1 and 4 workers under the cases' original comparison policies PASS for the repaired operators; the no-baking spot checks (one identity, two shapes, one bit-identical artifact, runtime program counts 3 vs 6) and the controls (unsigned axis refuses; tampered declared grid refuses) all hold. The model-level census a100c/cache/grid-census.json binds all 2734 corpus cases: 2719 extracted with modeled == declared, 15 refused in the two counted classes.",
+  "design_issue": {},
+  "debug_request": {},
+  "attack": {
+    "cases": [
+      {
+        "path": "probe t037probe (temp operator built by test_t037_repairs.py)",
+        "operator": "probe/t037probe -- two shapes (3,40) and (3,70) of ONE identity",
+        "shape": "(3,40) vs (3,70): same artifact, runtime grids 3 vs 6 from bundle reads (a baked m freezes one value)"
+      },
+      {
+        "path": "ops/suite/dev/grouped_mm_kernel.py",
+        "operator": "grouped_mm_kernel -- identity-signed trip count",
+        "shape": "(4,67,35,29): the unrolled tile-count chain reads the runtime M scalar and offs[0] view extent; no axis literal carries the unsigned m"
+      },
+      {
+        "path": "ops/suite/dev/gn_finalize_kernel.py",
+        "operator": "gn_finalize_kernel -- genuinely untraceable axes",
+        "shape": "(7,3): non-power-of-2 axes appear only as the view product 21; refuses located"
+      },
+      {
+        "path": "ops/suite/dev/add_base_max_kernel.py",
+        "operator": "add_base_max_kernel -- pure view-read grid",
+        "shape": "(17,) vs (97,): cold-compiled bit-identical artifacts; (97,) is a cache hit on (17,)"
+      }
+    ]
+  },
+  "remaining_work": [
+    "deconv3d typical case (1,4,8,8,8) compute defect (NOT a grid defect): per-lane mismatch ox == 3 mod 4 across cout/oz/oy, 435 of 11520 elements at 1 worker and 398 at 4; the grid tile tail is intact and the degenerate shape passes -- pinned with its attribution control in a100c/tests/test_t037_repairs.py::check_t037_deconv3d_new_defect_recorded; a compute-stage repair task should pick it up and flip the pin to a full comparison PASS",
+    "gn_finalize (3 identities) and grouped_gemm (1 identity) remain refused by design: extracting them would require extending the grid model's declared tie surface (a loop-capable grid expression reading the runtime group_size, or view-content reads for grouped_gemm; a semantically-equivalent grid repartition for gn_finalize) -- an architecture change that needs a DesignIssue and fresh review, not a local repair",
+    "the stale 1-axis golden-cache entries (operator sha mismatch) that the grid census's enumeration consumes for gn_finalize are a corpus-harness caching concern outside this task's write scope (ops/harness is read-only); they extract with honest per-payload ties and do not affect the compile census"
+  ],
+  "end_revision": "e5fb829eef9e8e40",
+  "at": "2026-11-07T12:53:38.356268+00:00"
+}
