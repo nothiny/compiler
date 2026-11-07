@@ -1,0 +1,82 @@
+{
+  "invocation_id": "WTI037",
+  "task_id": "T018",
+  "attempt": 3,
+  "context_sha256": "0e29e430e23ccc30018ae278b3585da056971e65376eb358f948633a2a240954",
+  "outcome": "COMPLETED",
+  "failure_kind": "implementation",
+  "summary": "Full compile sweep (gate G6) at the current tree (compiler revision b0907986d16aba19, after repair tasks T032-T036). Kept the attempt-2 sweep driver a100c/tests/test_compile_sweep.py unchanged -- judged sound per its report and re-validated end to end: first the targeted reproduction of WTI031's two defect identities (sgn_real_kernel, sym_constrain_range_kernel) now yields 4 artifacts + 0 refusals + 0 crashes with every check PASS (the scalar_store VectorType crash and the unlocated allocation refusal are both repaired), then the full cold sweep over the whole corpus: 500/500 operators, 2734/2734 cases, 2116 identities in 4700.7s -- 2007 ELF artifacts + 109 located refusals + 0 over-budget + 0 crashes, all 9 sweep checks PASS. Economics hold (2113 compiles <= 1.25x2161 = 2701; 593/593 repeat cases of artifact identities cache-hit the very same executable -- no shape/grid/value baking). Every refusal names its construct and a file:line:col location, is countable (12 construct classes summing to 109, 29 operators), and is recorded in docs/compiler-agent/COMPILE_CENSUS.json as the repair backlog. The enabled pipeline provably ran: 2004/2004 artifact markers passes=default with all six basic passes firing (cse 59269, licm 13970, strength_reduction 5423, dce 6306, constprop 5585, copyprop 259). Budget respected: 600s/identity SIGALRM bound, exactly one attempt per identity (2116 for 2116), slowest completed cold compile 230402.7ms (complex_svd_pick_orthonormal_v), 0 over-budget. Note on execution honesty: the first full-sweep invocation was killed externally by the environment at case 1300/2734 after 3540s (inside the 14400s bound -- not a timeout, not a check failure, no census written); the completed second invocation ran detached (setsid nohup) under the same timeout 14400 bound and wrote the census.",
+  "files_changed": [
+    "docs/compiler-agent/COMPILE_CENSUS.json"
+  ],
+  "artifacts": [
+    "docs/compiler-agent/COMPILE_CENSUS.json"
+  ],
+  "commands": [
+    {
+      "command": "set -a; . ./.env; set +a; timeout 480 python3 a100c/tests/test_compile_sweep.py --budget 300 --census-out /tmp/wti037-repro.json --operator ops/suite/dev/sgn_real_kernel.py --operator ops/suite/dev/sym_constrain_range_kernel.py",
+      "exit_code": 0,
+      "observed": "targeted reproduction of WTI031's two defect identities (7 cases, 4 identities): 4 artifacts + 0 refusals + 0 over-budget + 0 crashes; 3 repeat-case checks all cache-hit the same artifact; 'all compile-sweep checks PASS'. Both prior compiler defects are repaired on this tree: sgn_real_kernel [17]/[97] bfloat16 now build artifacts (no AllocationError, no unlocated 'allocation' refusal) and sym_constrain_range_kernel [17] torch.int64 builds an artifact (no scalar_store VectorType crash)."
+    },
+    {
+      "command": "set -a; . ./.env; set +a; timeout 14400 python3 a100c/tests/test_compile_sweep.py (background task, log /tmp/wti037-full-sweep.log)",
+      "exit_code": null,
+      "observed": "KILLED EXTERNALLY by the environment at case 1300/2734 after 3540s elapsed -- inside the 14400s bound, so not a timeout and not a check failure; the exit code was never produced (the wrapper was stopped with the process). No census was written by this run; a fresh detached invocation was required and is the one that produced the recorded census."
+    },
+    {
+      "command": "set -a; . ./.env; set +a; timeout 14400 python3 a100c/tests/test_compile_sweep.py (detached via setsid nohup, log /tmp/wti037-sweep-run2.log)",
+      "exit_code": 0,
+      "observed": "full-corpus cold sweep in 4700.7s (revision b0907986d16aba19, passes=default, seed 30, isolated temporary cache, unrestricted): 2734/2734 cases classified, 500/500 operators, 2116 identities; partition 2007 artifacts + 109 refusals + 0 over-budget + 0 crashes + 0 case-build failures; 2113 compiles <= 2701 with 596 cache hits; 593 repeat-case recompiles all cache-hit the same executable (0 violations); 109/109 refusals located (12 construct classes); 600s budget, 2116 attempts for 2116 identities, slowest cold compile 230402.7ms; 2004/2004 artifact markers passes=default (cse 59269, licm 13970, strength_reduction 5423, dce 6306, constprop 5585, copyprop 259). Log ends 'all compile-sweep checks PASS' (the script's only exit-0 final line; stderr was merged and shows no failure list) and the run's temp cache was removed by the driver's finally block, confirming normal exit-0 termination; census -> docs/compiler-agent/COMPILE_CENSUS.json."
+    },
+    {
+      "command": "python3 - (verify docs/compiler-agent/COMPILE_CENSUS.json: schema, revision, restricted flag, partition, refusal rows/locations, identity count)",
+      "exit_code": 0,
+      "observed": "census is a100-compile-census/v1, compiler_revision b0907986d16aba19, pass_config passes=default, restricted false, seed 30, budget 600.0, isolated temporary cache; partition {artifacts 2007, refused 109, over_budget 0, crash 0, case_build_failures 0, sums_to_identity_census true}; 2116 identity rows; 109 refusal rows with by_construct {loop 31, mir-verifier 27, grid 22, tl.cumsum/cumprod 9, tl.sort 6, tl.cast 3, tl.multiple_of/tl.max_contiguous 3, merge 3, tl.histogram 2, tl.dot 1, layout 1, ptradd 1} summing to 109 over 29 operators; every refusal row carries a construct and matches the file:line:col location regex over location-or-detail (0 failures)."
+    }
+  ],
+  "acceptance": [
+    {
+      "ref": "acceptance[0]",
+      "command": "set -a; . ./.env; set +a; timeout 14400 python3 a100c/tests/test_compile_sweep.py",
+      "exit_code": 0,
+      "observed": "MET. The census covers all 500 operators (census-covers-all-operators PASS, 500/500) and classifies every case (census-covers-every-case PASS, 2734/2734, 0 build failures). The artifact/refusal partition sums exactly to the identity census (partition-sums-to-identity-census PASS): 2007 artifacts + 109 refusals = 2116 identities, 0 over-budget, 0 crashes -- every identity has a built ELF artifact or a located refusal diagnostic. The 109 refusals are recorded findings for the repair loop in docs/compiler-agent/COMPILE_CENSUS.json, never a pass and never a narrowed corpus (all 500 operators remain in the census)."
+    },
+    {
+      "ref": "acceptance[1]",
+      "command": "set -a; . ./.env; set +a; timeout 14400 python3 a100c/tests/test_compile_sweep.py",
+      "exit_code": 0,
+      "observed": "MET. compile-count-within-economics PASS: 2113 compiles <= 1.25 x 2161 = 2701 (and <= the run's own 2116-identity census; 596 cache hits, exactly one attempt per identity). No baking: repeat-cases-reuse-one-artifact PASS -- 593 repeat cases of artifact identities (same identity, different shape/grid/values) were recompiled and every one cache-hit the very same executable (0 violations); the identity is tier 'meta' (source + kernel + pointer dtypes + scalar specialization classes + constexprs -- never shapes, grids or case values), and 23 artifact identities carry >= 3 cases each sharing one artifact key/sha256 (e.g. any_kernel_dim, copy_last_chunk_kernel)."
+    },
+    {
+      "ref": "acceptance[2]",
+      "command": "set -a; . ./.env; set +a; timeout 14400 python3 a100c/tests/test_compile_sweep.py",
+      "exit_code": 0,
+      "observed": "MET. refusals-located-and-countable PASS: all 109 refusals name their construct and a file:line:col source location (MECH-DIAGNOSTIC-REFUSAL; the driver's LOCATION_RE check over location-or-detail passes for every row), and the by-construct classification sums exactly to 109 (12 classes over 29 operators: loop 31, mir-verifier 27, grid 22, tl.cumsum/cumprod 9, tl.sort 6, tl.cast 3, tl.multiple_of/tl.max_contiguous 3, merge 3, tl.histogram 2, tl.dot 1, layout 1, ptradd 1). Every row (identity, operator, cases, construct, location, detail) is recorded in docs/compiler-agent/COMPILE_CENSUS.json as the repair backlog -- nothing was worked around; WTI031's unlocated allocation refusal class is gone (allocation 66 -> 0 in T036; sgn_real bf16 now builds an artifact)."
+    },
+    {
+      "ref": "acceptance[3]",
+      "command": "set -a; . ./.env; set +a; timeout 14400 python3 a100c/tests/test_compile_sweep.py",
+      "exit_code": 0,
+      "observed": "MET. compile-budget-respected PASS: the per-identity wall bound (600s SIGALRM, recorded as budget_s_per_identity in the census) is enforced with exactly one attempt per identity (2116 attempts for 2116 identities -- never a silent retry); every completed compile is inside the bound (slowest cold compile 230402.7ms: complex_svd_pick_orthonormal_v; only its three identities exceed 220s) and 0 identities are over-budget (the category stays enforced and would be recorded, not retried). Every identity's cold_ms is recorded in the census so compile-cost findings remain visible."
+    }
+  ],
+  "tests": [
+    {
+      "ref": "tests[0]",
+      "command": "set -a; . ./.env; set +a; timeout 14400 python3 a100c/tests/test_compile_sweep.py",
+      "exit_code": 0,
+      "observed": "exit 0 with all 9 checks PASS. PASS census-covers-every-case (2734/2734 cases, 0 build failures); PASS census-covers-all-operators (500/500); PASS partition-sums-to-identity-census (2007 artifacts + 109 refusals = 2116 identities, over-budget 0, crash 0); PASS artifacts-are-riscv64-elf (2007/2007 ELF64-little EM_RISCV); PASS compile-count-within-economics (2113 <= 2701, 596 cache hits); PASS repeat-cases-reuse-one-artifact (593/593, 0 violations); PASS refusals-located-and-countable (109 refusals, 12 constructs, top loop 31 / mir-verifier 27 / grid 22); PASS compile-budget-respected (600s bound, 2116 attempts for 2116 identities, slowest 230403ms, 0 over-budget); PASS enabled-pipeline-passes-on (2004/2004 markers passes=default; fired constprop 5585, copyprop 259, strength_reduction 5423, cse 59269, licm 13970, dce 6306). The run's log (/tmp/wti037-sweep-run2.log) ends with the driver's exit-0 final line 'all compile-sweep checks PASS' and its finally block removed the isolated temp cache, confirming normal termination. Note: the invocation ran detached (setsid nohup) under the timeout 14400 bound because the first background invocation of the same command was killed externally at case 1300/2734 (3540s elapsed, inside the bound); the killed run wrote no census and is not evidence."
+    }
+  ],
+  "evidence": "docs/compiler-agent/COMPILE_CENSUS.json (schema a100-compile-census/v1, compiler revision b0907986d16aba19, seed 30, pass_config passes=default, budget 600s/identity, isolated cold cache, unrestricted full run): the 2007/109/0/0 artifact-refusal-overbudget-crash partition over 2116 identities and 500 operators, per-identity rows with artifact key/sha256 and cold compile times, the 109 located refusal rows with construct/location/detail plus by_construct/by_operator classification, the 593 repeat-case artifact-reuse aggregate with 0 violations, and the pass-fired totals proving the enabled pipeline ran. Independently reproducible: the targeted sweep over WTI031's two defect operators (/tmp/wti037-repro.json, exit 0, all checks PASS, 4 artifacts + 0 refusals + 0 crashes) and the completed full run's log (/tmp/wti037-sweep-run2.log, final line 'all compile-sweep checks PASS').",
+  "design_issue": {},
+  "debug_request": {},
+  "attack": {},
+  "remaining_work": [
+    "The 109-refusal repair backlog recorded in docs/compiler-agent/COMPILE_CENSUS.json (29 operators, 12 construct classes, ranked: loop 31, mir-verifier 27, grid 22, tl.cumsum/cumprod 9, tl.sort 6, tl.cast 3, tl.multiple_of/tl.max_contiguous 3, merge 3, tl.histogram 2, tl.dot 1, layout 1, ptradd 1): repair class by class through the shared paths and re-run this sweep after each batch -- each refusal is a recorded finding, never a pass",
+    "Compile-cost follow-up under MECH-COMPILE-COST-LINEAR: complex_svd_pick_orthonormal_v's three identities compile in 222-230s (under the 600s bound; per-identity cold_ms is in the census) -- the bound is headroom, not a pass criterion",
+    "The next validation stage after G6: execute and compare the built artifacts against the original references under each case's comparison policy (the compile census covers compilation only), including the required multi-worker and specialized-instruction resource evidence"
+  ],
+  "end_revision": "",
+  "at": "2026-11-07T08:18:19.476354+00:00"
+}
