@@ -51,7 +51,6 @@ Phase: **IMPLEMENTATION** · project: `compiler-a100-experiment-001`
 
 | When | Phase | Event | Detail |
 |---|---|---|---|
-| 2026-11-07T01:22:28.244145+00:00 | IMPLEMENTATION | unattributed-complete | T034: none of ['Extended backend/scalar forms with regression tests'] changed since 534f34e5b9fe2dbe654ff4692dc5e25b253f5909 |
 | 2026-11-07T01:22:58.507983+00:00 | IMPLEMENTATION | start-task | T035 agent=coder |
 | 2026-11-07T01:22:58.996475+00:00 | IMPLEMENTATION | task-delegate | WTI035 task=T035 attempt=1 profile=general-purpose |
 | 2026-11-07T04:14:08.685660+00:00 | IMPLEMENTATION | task-report-out-of-contract | T035: a100c/cache/d4baddb0a3db1cb3762fd864efb9d00ba891efd6bc5a663213923faf44ce22f0/stage.tir.txt, a100c/cache/d4baddb0a3db1cb3762fd864efb9d00ba891efd6bc5a663213923faf44ce22f0/program.S, a100c/frontend/lower_tir.py, a100c/frontend/specialize.py, a100c/cache/d4baddb0a3db1cb3762fd864efb9d00ba891efd6bc5a663213923faf44ce22f0/operator_exec |
@@ -103,3 +102,4 @@ acceptance[1]: `set -a; . ./.env; set + |
 | 2026-11-07T18:55:20.900311+00:00 | IMPLEMENTATION | task | T040 Fix the last unjustified compile refusal: suite/dev/chunk_generalized_iplr_delta_rule_fwd_kernel_o.py (identity 762de1caee99, 2 cases, dtypes float32/float16/bfloat16 — none fp64) refuses with 'tl.dot: fp64 tl.dot is outside the corpus dtype surface' at line 76. Root cause: the kernel casts with `.to(b_v.dtype)` (and reads `.shape[1]` of the cast result) where b_v is a block loaded from a pointer whose device dtype IS part of the specialization identity — value-level dtype introspection must fold at specialization to the known dtype, not fall back to a default that produces an fp64 dot no declared case exercises. Fix the shared frontend dtype-introspection fold (`.to(x.dtype)`, `x.dtype` arithmetic like `16 // ...shape[1]` on cast results, for blocks whose dtype is specialization-known from their pointer/creation); update the recorded justification for the fp64 tl.dot refusal if any genuinely-fp64 form remains (none should: no corpus case declares float64). Then re-verify the compile surface. |
 | 2026-11-07T18:55:20.900362+00:00 | IMPLEMENTATION | task-submission | 010-dtype-introspection-fold |
 | 2026-11-07T18:55:24.463449+00:00 | IMPLEMENTATION | start-task | T040 agent=coder |
+| 2026-11-07T18:55:25.044021+00:00 | IMPLEMENTATION | task-delegate | WTI043 task=T040 attempt=1 profile=general-purpose |
