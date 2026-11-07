@@ -1,0 +1,123 @@
+{
+  "invocation_id": "WTI035",
+  "task_id": "T035",
+  "attempt": 1,
+  "context_sha256": "86b75c79064407fbeecaac098ae38c95c6e505e413d21edb0ea3e2c0aedde831",
+  "outcome": "FAILED",
+  "failure_kind": "implementation",
+  "summary": "Round-2 long-tail repair, large verified progress, not all classes at zero. Fixed through shared paths (each executed-and-compared at 1 and 4 workers where it compiles): (1) frontend is-fold: ConstexprEnv's truthy NOT_CONSTEXPR sentinel leaked through 'if not result' and folded 'dtype is tl.bfloat16' True for EVERY dtype -- dtype 'is' now folds by represented-type identity (max_kernel's fp64 buffers took the fp32 arm and the TIR verifier refused the loop-carried contradiction; now an artifact, executes PASS). (2) return_indices promotion: pinned max/min(return_indices=True) promotes bfloat16 only; the blanket <32-bit promotion re-typed argmin's fp16 loop-carried min_vals mid-loop (argmin f16 artifacts, execute PASS). (3) scan: the scan runs at the OPERAND's own SEW (f32 operand in a 16-bit pass), the chunk carry threads through source loops and the early-return if (the carry was the scan loop's exit param -- undefined on the return path), the workspace scales by the operand's element size (cumprod_dim1 f32/f16/bf16 artifacts, execute PASS at 1 and 4). (4) ConstVal if-join sides reach the MIR lowering materialized (was a sweep-crashing AttributeError). (5) masked-scalar-load guard arms scope the values cache (a CSE-merged 'other' const materialized in one arm was read in a sibling -- use-before-def). (6) a select between two MASK values composes with mask logic (topk_stage1 was 'a vm value has no vsetvli region'; executes PASS). (7) tl.rand accepts a seed broadcasting one rank-0 scalar (linear_dropout executes PASS). (8) the chunked-region no-merge-rule guard applies to SCALAR joins only -- block joins stage per-lane (matmul_0a4f4889, qr artifacts, execute PASS); nested cross-pass liveouts register per (region, arm) as the emission looks them up; rank-0 pure converts/fulls/selects re-materialize at their use (l1_norm_7f6ce49c, unique_dim_row execute PASS); the {0,1}-class candidate narrows through the vector lane (median's merge width). (9) the chunk records the frames it opened with (a nested segmentation's re-filter misaligned the back edge's args) and a mid-list block statement can no longer open a chunk under a stale merge filter (naive_attn compiles past the old 'never initialized' refusal). Filtered sweep over the 48 owned operators: 233 identities, 147 artifacts (baseline 106), 86 located refusals, 0 crashes, all sweep checks PASS; tl.rand/tl.max/region/tir-verifier/arith.add and the unclassifiable cvt/cvt/f/id rows all at zero. Two repairs were REVERTED after execution exposed wrong code: the unconditional merge-frame passthrough bound the merged value to the identity (nansum harness form stored 0.0 for a 0.787 sum -- back to the located merge refusal), and the multi-axis last-axis scan acceptance miscompiled masked_cumsum_vec (15740/16384 mismatched; the 1x1 grouped_mixed case that compared PASS was vacuous -- back to the located tl.cumsum/cumprod refusal). Remaining classes: allocation 66 (the next broken stage, 21 operators), tl.sort 6, tl.cumsum/cumprod 3, merge 3, tl.histogram 2, convert 2, tl.dot 1, layout 1, ptradd 1, mir-verifier 1. naive_attn compiles but its execution faults under the pinned QEMU (open defect, see debug_request).",
+  "files_changed": [
+    "a100c/frontend/specialize.py",
+    "a100c/frontend/lower_tir.py",
+    "a100c/plan/stages.py",
+    "a100c/lower/vectorize.py",
+    "a100c/tests/test_t035_repairs.py",
+    "docs/compiler-agent/COMPILE_CENSUS.t035-owned-classes.json"
+  ],
+  "artifacts": [
+    "docs/compiler-agent/COMPILE_CENSUS.t035-owned-classes.json",
+    "/tmp/t035-sweep-final3.log",
+    "/tmp/t035-sweep-baseline.log",
+    "/tmp/t035/suite-test_t034_repairs.py.log",
+    "/tmp/t035/suite-test_reductions.py.log"
+  ],
+  "commands": [
+    {
+      "command": "python3 a100c/tests/test_compile_sweep.py --cache-root /tmp/a100-t035-sweepbase --census-out docs/compiler-agent/COMPILE_CENSUS.t035-owned-classes.json --operator <48 owned operators>",
+      "exit_code": 0,
+      "observed": "baseline (pre-fix): 233 identities, 106 artifacts, 126 refused, 1 crash (ConstVal AttributeError); all sweep checks PASS"
+    },
+    {
+      "command": "python3 a100c/tests/test_compile_sweep.py --cache-root /tmp/a100-t035-sweep5 --census-out docs/compiler-agent/COMPILE_CENSUS.t035-owned-classes.json --operator <48 owned operators>",
+      "exit_code": 0,
+      "observed": "final (rev a3d59d8dedd26fb1): 233 identities, 147 artifacts, 86 located refusals, 0 crashes; all compile-sweep checks PASS (covers every case, ELF checks, no-baking repeats, economics)"
+    },
+    {
+      "command": "python3 a100c/tests/test_t035_repairs.py",
+      "exit_code": 0,
+      "observed": "11/11 checks PASS: is-fold unit control; max_kernel fp64, argmin f16, cumprod_dim1 f32/f16, linear_dropout (rand), topk (mask select), matmul_0a4f4889 + qr (block joins/arm liveouts), l1_norm_7f6ce49c f32/f16 + unique_dim_row (rank-0 remat) each executed and compared PASS at 1 and 4 workers; naive_attn compile check PASS (execution fault tracked separately); nansum and grouped_mixed verified back at their located refusals"
+    },
+    {
+      "command": "for f in a100c/tests/test_*.py: python3 $f",
+      "exit_code": 0,
+      "observed": "38 of 39 pre-existing files PASS at the final state, including the two that my mid-round edits had regressed (test_reductions: masked_cumsum_vec's stale refusal expectation, fixed by reverting the miscompiling multi-axis scan acceptance; test_t034_repairs: pdist's bool compare became a scalar live-out, fixed by excluding the mask-convention i1 class from the live-out tables). test_compile_sweep.py passes in its filtered form (the same driver, exit 0, all checks); its full-corpus form (2116 identities, ~62 min) did not fit this attempt's remaining budget and is listed as remaining verification"
+    }
+  ],
+  "acceptance": [
+    {
+      "ref": "acceptance[0]",
+      "command": "python3 a100c/tests/test_compile_sweep.py --cache-root /tmp/a100-t035-sweep5 --census-out docs/compiler-agent/COMPILE_CENSUS.t035-owned-classes.json --operator <48 owned operators>",
+      "exit_code": 0,
+      "observed": "PARTIAL: the filtered sweep passes with every identity an artifact or a located refusal (0 crashes); tl.rand, tl.max, region, tir-verifier, arith.add and the unclassifiable cvt/cvt.3/f/id rows are at zero. NOT at zero: allocation 66 (the next broken stage exposed behind the fixed classes), tl.sort 6, tl.histogram 2, convert 2 (fp64), tl.dot 1 (fp64, located F037 refusal), layout 1, ptradd 1, mir-verifier 1; tl.cumsum/cumprod 3 and merge 3 were deliberately restored to located refusals after execution exposed miscompiles in my first versions"
+    },
+    {
+      "ref": "acceptance[1]",
+      "command": "python3 a100c/tests/test_t035_repairs.py",
+      "exit_code": 0,
+      "observed": "PARTIAL: nine repaired operators executed and compared PASS at 1 and 4 workers on the harness (golden) case form (max_kernel, argmin, cumprod_dim1 f32/f16, linear_dropout_softmax, topk_stage1, matmul_0a4f4889, qr, l1_norm_7f6ce49c f32/f16, unique_dim_row). naive_attn_decoding compiles but its execution faults under the pinned QEMU (open defect, debug_request); nansum refuses located (correctness-preserving revert)"
+    },
+    {
+      "ref": "acceptance[2]",
+      "command": "for f in a100c/tests/test_*.py (excluding test_t035_repairs.py): timeout 1200 python3 $f",
+      "exit_code": 0,
+      "observed": "38 of 39 pre-existing files PASS at the final state (test_reductions and test_t034_repairs initially regressed from mid-round edits and were repaired: the multi-axis scan acceptance reverted, the mask-convention i1 class excluded from the scalar live-out tables). test_compile_sweep.py passes in its filtered form (the same driver, exit 0, all checks PASS); its ~62-minute full-corpus form is outstanding verification (remaining_work)"
+    }
+  ],
+  "tests": [
+    {
+      "ref": "tests[0]",
+      "command": "set -a; . ./.env; set +a; python3 a100c/tests/test_compile_sweep.py --operator <48 owned operators> (classes at zero)",
+      "exit_code": 0,
+      "observed": "the filtered sweep over the census operators carrying the long-tail classes: tl.rand 0 (was 6), tl.max 0 (6), merge 3 (15, deliberate revert of a miscompiling passthrough), tl.sort 6 (unchanged), region 0 (6), allocation 66 (grew -- the fixed classes exposed it as the next stage), tl.cumsum/cumprod 3 (3, revert), arith.add 0 (fixed at baseline), tir-verifier 0 (3), tl.histogram 2 (2), convert 2 (2), unclassifiable rows 0 (11); 147 artifacts vs 106 at baseline"
+    },
+    {
+      "ref": "tests[1]",
+      "command": "the full a100c test suite",
+      "exit_code": 0,
+      "observed": "39 pre-existing files; 38 PASS; test_compile_sweep.py covered by the filtered runs in this report (its full-corpus form is outstanding, see remaining_work); the new a100c/tests/test_t035_repairs.py (11 executed-and-compared checks at 1 and 4 workers) PASSes"
+    }
+  ],
+  "evidence": "docs/compiler-agent/COMPILE_CENSUS.t035-owned-classes.json (the filtered sweep at rev a3d59d8dedd26fb1: 233 identities, 147 artifacts, 86 located refusals, 0 crashes, all checks PASS) plus a100c/tests/test_t035_repairs.py's executed comparisons at 1 and 4 workers against each case's own expected values and declared tolerances, and the baseline census run at the pre-fix revision for the delta (106 artifacts, 126 refusals, 1 crash).",
+  "design_issue": {},
+  "debug_request": {
+    "reproduction": "set -a; . ./.env; set +a; python3 - <<'EOF'\nimport sys, importlib.util\nfrom pathlib import Path\nROOT = Path('/home/i_yinzida/compiler-a100-experiment-001')\nsys.path.insert(0, str(ROOT)); sys.path.insert(0, str(ROOT/'a100c'/'tests'))\nimport _bootstrap; _bootstrap.bootstrap()\nimport warnings; warnings.filterwarnings('ignore')\nsys.path.insert(0, str(ROOT/'ops'/'harness'))\n_spec = importlib.util.spec_from_file_location('rs', ROOT/'tools'/'run_scan.py')\nrs = importlib.util.module_from_spec(_spec); _spec.loader.exec_module(rs)\nfrom a100c.driver import CompileOptions\nfrom a100c.factory import FactoryCompiler\nfrom a100c.passes import pipeline as passes_mod\nimport a100_support.native_device as nd\nop = rs.resolve_operator_path('suite/dev/naive_attn_decoding_kernel.py')\nrow = next(r for r in rs.enumerated_rows(str(ROOT/'ops/suite/manifest.json'))\n           if r['operator']==op and tuple(r['shape'])==(2,17,4,8,16,13) and r['dtype']=='float16')\ncase = rs.build_case(row, 30, use_golden=True)\ncomp = FactoryCompiler(options=CompileOptions(cache_dir='/tmp/na-debug'), pass_config=passes_mod.PassConfig())\nstaged = nd.NativeExecutableDevice(comp, 1).stage_case(case)\nstaged.launch()\nEOF",
+    "exit_code": 245,
+    "observed": "the compile succeeds (an ELF artifact; the sweep counts it), then the native process dies with signal 4 (SIGILL) under the pinned QEMU at both 1 and 4 threads and for the float32 variant; running the ELF directly makes QEMU itself segfault (exit 139), and QEMU's -d logging and the instruction_counts plugin also crash on this binary, which blocks pc-level localization",
+    "ruled_out": [
+      {
+        "hypothesis": "vwcvt.x.x.v is illegal under the pinned QEMU",
+        "command": "assembled a minimal static program (vsetvli e32m1; vid.v v2; vwcvt.x.x.v v4, v2; ecall) with the cross gcc and ran it under $A100_QEMU -cpu $A100_QEMU_CPU",
+        "observed": "exit 0 -- the widening convert executes cleanly in isolation"
+      },
+      {
+        "hypothesis": "the vsuxei64.v scatter (or its vwcvt-widened e64m2 index) at the staging store",
+        "command": "patched every vsuxei64.v (70 sites) and every vwcvt.x.x.v (132 sites) in the artifact's .text to NOPs (verified by re-disassembly) and re-ran with the same bundle",
+        "observed": "the fault persists -- not those instructions alone"
+      },
+      {
+        "hypothesis": "the F048-probed e8/e16-data + e64-index indexed-form QEMU crash",
+        "command": "disassembled every vluxei64.v site with its preceding vsetvli",
+        "observed": "all indexed loads run at e32m1 (e32 data + e64 index, the probed-safe combination); the staging lane widens 16-bit floats to fp32 before storing"
+      },
+      {
+        "hypothesis": "a wrong merge value (like nansum's identity-bound sum)",
+        "command": "compared against the case's expected outputs after every launch attempt",
+        "observed": "the process dies before producing outputs -- a crash, not a wrong number; the nansum wrong-value form was found and reverted separately"
+      }
+    ],
+    "suspected_stage": "the lowering (vectorize): the fault sits in the first chunk loop's staging sequence of the restructured region (the trace's last translated block is the chunk body around operator_entry+0x150); QEMU's own translator crashing on -d/plugin runs suggests an instruction form this QEMU build mishandles, so the emitted form around the staged block carries needs review against the pinned QEMU's probe record"
+  },
+  "attack": {},
+  "remaining_work": [
+    "allocation (66 rows, 21 operators): the register-pressure convergence class now exposed behind the fixed merge/scan/loop classes -- the allocator's spill/remat rounds do not converge for the widened live sets (adaptive_avg_pool2d, chunk_* retention family, conv/deconv pools, matmul variants, median, implicit_conv2d, prepare_wy_repr, transposed_conv3d, forward_pass_chunks)",
+    "naive_attn_decoding execution: the artifact faults under the pinned QEMU (debug_request above); localize the faulting instruction/form and fix the emission",
+    "nansum-class merge: thread the restructured region's chunk-merge candidates to the pre-region close (the passthrough silently merged the identity and was reverted to the located refusal); the same mechanism would let median_f16's merge finish (it now refuses at allocation)",
+    "multi-axis last-axis scans (cumprod_dim1_grouped_mixed, masked_cumsum_vec): prove the chunk lane order of a 2-D block before re-accepting (my flat row-boundary reset miscompiled masked_cumsum_vec); the layout lane owns these until then",
+    "tl.sort (ranked_distribution, 6 rows) and tl.histogram (nanmedian_ascend, 2 rows): the whole-block reorder / [num_bins]-shaped result need the layout lane's block-materialization protocol",
+    "fp64 internal compute (renorm's fp16->fp64 converts, chunk_generalized's fp64 tl.dot): the conversion matrix and the dot lane refuse fp64 (located, citing F037); decide fp64 routes (f16->f32->f64 chains) or keep the declared-surface refusal",
+    "the single mir-verifier (prepare_wy_repr v16m1-in-e32 region), layout (chunk_transform_qk matrix-native staged operand) and ptradd (l1_norm_2cb0f555) residuals",
+    "run the full-corpus regression sweep over all 500 operators at this revision (a run was started but did not fit the attempt budget; re-run and review before the next repair round touches the shared frontend/lowering paths again -- pdist, outside the owned set, was caught exactly this way)"
+  ],
+  "end_revision": "",
+  "at": "2026-11-07T04:14:08.654391+00:00"
+}

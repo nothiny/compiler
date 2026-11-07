@@ -462,6 +462,14 @@ class ConstexprEnv:
                         isinstance(right, RuntimeValue):
                     return NOT_CONSTEXPR
                 result = self._compare(op, left, right)
+                if result is NOT_CONSTEXPR:
+                    # T035: a comparison the constexpr domain cannot
+                    # decide (``is`` between two non-dtype values) must
+                    # stay NOT_CONSTEXPR -- the truthy sentinel leaked
+                    # through ``if not result`` and folded ``dtype is
+                    # tl.bfloat16`` to True for EVERY dtype (max_kernel's
+                    # fp64 buffers took the tl.float32 arm)
+                    return NOT_CONSTEXPR
                 # the folded comparison is still evaluated and recorded
                 self.fold.record_comparison(node, left, right, result)
                 if not result:
@@ -603,11 +611,21 @@ class ConstexprEnv:
             # None; an absent optional argument binds the constexpr
             # None).  Identity between two runtime symbols stays
             # NOT_CONSTEXPR (object identity of two traced values is
-            # not a source-level fact).
+            # not a source-level fact).  T035: the pinned tracer's
+            # ``tl.dtype`` objects ARE singletons, so ``is`` between two
+            # compile-time dtypes folds by the represented type's
+            # identity (max_kernel's ``dtype is tl.bfloat16`` on fp64
+            # buffers is False there; a DTypeValue wrapper is created
+            # per attribute read, so Python-object identity would be
+            # wrong -- the represented type is the singleton).
             if left is None or right is None:
                 both_none = left is None and right is None
                 return both_none if isinstance(op, ast.Is) \
                     else not both_none
+            if isinstance(left, (DTypeValue, TypeObject)) and \
+                    isinstance(right, (DTypeValue, TypeObject)):
+                same = left == right
+                return same if isinstance(op, ast.Is) else not same
             return NOT_CONSTEXPR
         if isinstance(op, (ast.In, ast.NotIn)):
             return NOT_CONSTEXPR
