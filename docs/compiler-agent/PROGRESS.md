@@ -46,7 +46,6 @@ Phase: **IMPLEMENTATION** · project: `compiler-a100-experiment-001`
 
 | When | Phase | Event | Detail |
 |---|---|---|---|
-| 2026-11-06T04:13:42.777231+00:00 | IMPLEMENTATION | task-delegate | WTI027 task=T030 attempt=1 profile=general-purpose |
 | 2026-11-06T05:34:56.944427+00:00 | IMPLEMENTATION | task-report-out-of-contract | T030: a100c/factory.py, a100c/lower/vectorize.py, a100c/tests/test_matrix_breadth.py, a100c/driver.py |
 | 2026-11-06T05:34:56.952534+00:00 | IMPLEMENTATION | task-report | WTI027 FAILED attempt=1 [changes outside the declared paths: a100c/factory.py, a100c/lower/vectorize.py, a100c/tests/test_matrix_breadth.py, a100c/driver.py] |
 | 2026-11-06T05:34:56.954372+00:00 | IMPLEMENTATION | fail-task | T030 [implementation] Manager-filed report for a dead child: the dispatched worker session for T030 (dot inside a runtime loop) was terminated by the harness after 600000ms of inactivity and never filed its own TaskReport. No commands, acceptance coverage or evidence from the worker reached the engine; nothing it may ha… |
@@ -96,3 +95,4 @@ Phase: **IMPLEMENTATION** · project: `compiler-a100-experiment-001`
 | 2026-11-07T04:14:08.692821+00:00 | IMPLEMENTATION | task-report | WTI035 FAILED attempt=1 [changes outside the declared paths: a100c/cache/d4baddb0a3db1cb3762fd864efb9d00ba891efd6bc5a663213923faf44ce22f0/stage.tir.txt, a100c/cache/d4baddb0a3db1cb3762fd864efb9d00ba891efd6bc5a663213923faf44ce22f0/program.S, a100c/frontend/lower_tir.py, a100c/frontend/specialize.py, a100c/cache/d4baddb0a3db1cb3762fd864efb9d00ba891efd6bc5a663213923faf44ce22f0/operator_exec] |
 | 2026-11-07T04:14:08.694296+00:00 | IMPLEMENTATION | fail-task | T035 [implementation] Round-2 long-tail repair, large verified progress, not all classes at zero. Fixed through shared paths (each executed-and-compared at 1 and 4 workers where it compiles): (1) frontend is-fold: ConstexprEnv's truthy NOT_CONSTEXPR sentinel leaked through 'if not result' and folded 'dtype is tl.bfloat1… |
 | 2026-11-07T04:14:56.702868+00:00 | IMPLEMENTATION | start-task | T035 agent=coder |
+| 2026-11-07T04:14:57.222353+00:00 | IMPLEMENTATION | task-delegate | WTI036 task=T035 attempt=2 profile=general-purpose |
