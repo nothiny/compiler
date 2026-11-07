@@ -144,6 +144,23 @@ def case_id(source: str, shape, dtype) -> str:
     return f"{source}#{json.dumps([int(v) for v in shape])}#{dtype}"
 
 
+def evidence_dir_name(case_id_text: str) -> str:
+    """The per-case evidence directory name, safe for the QEMU plugin
+    argument (T041).
+
+    QEMU splits the ``-plugin file,out=PATH`` argument value on commas, so
+    a counts path containing the case id's shape list (``...#[2,2,17,9,8,
+    4]#float16``) is truncated at the first comma: the plugin writes to a
+    cut-off path (a file named ``...#[2``) and the driver's read-back
+    raises FileNotFoundError -- the resource-flagged multi-dim-shape cases
+    recorded LAUNCH_FAIL.  Commas map to ``_``.  The mapping stays
+    injective over the corpus's case ids: the id grammar (operator path, a
+    ``[int, ...]`` shape list, a dtype name) has commas only inside the
+    shape list, where no underscore can otherwise appear.
+    """
+    return case_id_text.replace("/", "__").replace(",", "_")
+
+
 def enumerated_rows(manifest_path: str, group=None, operators=None):
     """Every (operator, shape, dtype) case, harness order, with its spec."""
     paths = cases_from_manifest(manifest_path)
@@ -541,7 +558,7 @@ class ScanDriver:
                     capture_resource_evidence(
                         staged, row["id"], args.run_id,
                         args.resource_threads, self.requirements,
-                        (evidence_root / row["id"].replace("/", "__"))
+                        (evidence_root / evidence_dir_name(row["id"]))
                         if evidence_root else Path(tempfile.mkdtemp(
                             prefix="a100-resource-")),
                         self.case_timeout)

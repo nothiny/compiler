@@ -640,6 +640,223 @@ def _expected_operators(args) -> set:
         return {op for op in expected if op.startswith(args.group + "/")}
     return expected
 
+
+# ---------------------------------------------------------------------------
+# the chunked-census merge (the full corpus inside the environment's
+# background-task limit: operator-disjoint restricted sweeps over ONE
+# shared --cache-root, merged into the full census document)
+# ---------------------------------------------------------------------------
+
+def merge_census(args) -> int:
+    """Merge operator-disjoint chunk censuses into the full census.
+
+    Each chunk is a restricted sweep (``--operator``) over the SAME
+    ``--cache-root``: the compile count of the merge is the sum of the
+    chunks' cold compiles (the shared cache makes a cross-chunk duplicate
+    a cache hit in the later chunk, and operator-disjoint chunks have no
+    duplicates by construction).  The merged document is the same shape a
+    one-process full sweep writes; ``validate`` then runs over it, and the
+    ELF check reads the artifacts from the shared cache root.
+    """
+    chunk_docs = []
+    for path in args.merge:
+        doc = json.loads(Path(path).read_text())
+        if doc.get("schema") != CENSUS_SCHEMA:
+            print(f"error: {path} is not a {CENSUS_SCHEMA} document",
+                  file=sys.stderr)
+            return 1
+        chunk_docs.append((path, doc))
+    revisions = {doc["compiler_revision"] for _p, doc in chunk_docs}
+    budgets = {doc["budget_s_per_identity"] for _p, doc in chunk_docs}
+    configs = {doc["pass_config"] for _p, doc in chunk_docs}
+    if len(revisions) != 1 or len(budgets) != 1 or len(configs) != 1:
+        print("error: the chunks disagree on revision, budget or pass "
+              f"config ({revisions} / {budgets} / {configs})",
+              file=sys.stderr)
+        return 1
+    cache_root = Path(args.cache_root) if args.cache_root else None
+    if cache_root is None:
+        print("error: --merge needs --cache-root (the shared root the "
+              "chunks compiled into; the ELF check reads it)",
+              file=sys.stderr)
+        return 1
+    # operator-disjointness: one operator in two chunks would double-count
+    # its identities
+    seen_operators = set()
+    identities = []
+    refusals_rows = []
+    over_budget_rows = []
+    crash_rows = []
+    build_failures = []
+    cold_ms = []
+    repeat_checks = []
+    chunk_summaries = []
+    compile_count = cache_hits = attempts = 0
+    cases = cases_classified = 0
+    multi_case_identities = 0
+    pass_totals = {name: 0 for name in passes_mod.PASS_ORDER}
+    markers_read = markers_enabled = 0
+    t_build = t_compile = t_wall = 0.0
+    for path, doc in chunk_docs:
+        rows = doc["identities"]
+        ops = {e["operator"] for e in rows}
+        overlap = ops & seen_operators
+        if overlap:
+            print(f"error: chunk {path} repeats operators already swept: "
+                  f"{sorted(overlap)[:3]}", file=sys.stderr)
+            return 1
+        seen_operators |= ops
+        identities.extend(rows)
+        refusals_rows.extend(doc["refusals"]["rows"])
+        over_budget_rows.extend(doc["over_budget_rows"])
+        crash_rows.extend(doc["crash_rows"])
+        build_failures.extend(doc.get("case_build_failures") or [])
+        cold_ms.extend(doc["compile"]["cold_ms"])
+        compile_count += doc["compile"]["count"]
+        cache_hits += doc["compile"]["cache_hits"]
+        attempts += doc["compile"]["attempts_one_per_identity"]
+        cases += doc["census"]["cases"]
+        cases_classified += doc["census"]["cases_classified"]
+        multi_case_identities += doc["census"]["identities_with_multiple_cases"]
+        for name, fired in (doc["passes"]["totals_fired"] or {}).items():
+            pass_totals[name] = pass_totals.get(name, 0) + fired
+        markers_read += doc["passes"]["markers_read"]
+        markers_enabled += doc["passes"]["markers_with_enabled_config"]
+        t_build += doc["wall"]["build_s"]
+        t_compile += doc["wall"]["compile_s"]
+        t_wall += doc["wall"]["total_s"]
+        chunk_summaries.append({
+            "census": str(path), "command": doc["command"],
+            "operators": len(ops), "cases": doc["census"]["cases"],
+            "identities": len(rows),
+            "artifacts": doc["partition"]["artifacts"],
+            "refused": doc["partition"]["refused"],
+            "compile_count": doc["compile"]["count"],
+            "cache_hits": doc["compile"]["cache_hits"]})
+    # the repeat-case controls: every chunk's checks, with violations
+    repeat_total = 0
+    repeat_bad = []
+    for _path, doc in chunk_docs:
+        repeat_total += doc["artifact_reuse"]["repeat_case_checks"]
+        repeat_bad.extend(doc["artifact_reuse"]["violations"])
+    by_status = {}
+    for entry in identities:
+        by_status[entry["status"]] = by_status.get(entry["status"], 0) + 1
+    by_construct = {}
+    by_operator = {}
+    for entry in refusals_rows:
+        by_construct[entry["construct"]] = \
+            by_construct.get(entry["construct"], 0) + 1
+        by_operator[entry["operator"]] = \
+            by_operator.get(entry["operator"], 0) + 1
+    crash_by_class = {}
+    for entry in crash_rows:
+        klass = entry["detail"].split(":", 1)[0]
+        crash_by_class[klass] = crash_by_class.get(klass, 0) + 1
+    cold_sorted = sorted(cold_ms)
+    merged = {
+        "schema": CENSUS_SCHEMA,
+        "generator": "a100c/tests/test_compile_sweep.py --merge",
+        "command": " ".join(sys.argv),
+        "seed": chunk_docs[0][1]["seed"],
+        "manifest": chunk_docs[0][1]["manifest"],
+        "compiler_revision": revisions.pop(),
+        "pass_config": configs.pop(),
+        "restricted": False,
+        "chunked": True,
+        "chunks": chunk_summaries,
+        "cache": {"root": str(cache_root),
+                  "isolated_temporary": False},
+        "budget_s_per_identity": budgets.pop(),
+        "census": {
+            "operators": len(seen_operators),
+            "cases": cases,
+            "cases_classified": cases_classified,
+            "identities": len(identities),
+            "cases_per_identity": round(cases / len(identities), 3)
+                                  if identities else None,
+            "declared_full_corpus": DECLARED_CENSUS,
+            "identities_with_multiple_cases": multi_case_identities,
+        },
+        "partition": {
+            "artifacts": by_status.get(STATUS_ARTIFACT, 0),
+            "refused": by_status.get(STATUS_REFUSED, 0),
+            "over_budget": by_status.get(STATUS_OVER_BUDGET, 0),
+            "crash": by_status.get(STATUS_CRASH, 0),
+            "case_build_failures": len(build_failures),
+            "sums_to_identity_census":
+                by_status.get(STATUS_ARTIFACT, 0)
+                + by_status.get(STATUS_REFUSED, 0)
+                + by_status.get(STATUS_OVER_BUDGET, 0)
+                + by_status.get(STATUS_CRASH, 0) == len(identities),
+        },
+        "compile": {
+            "count": compile_count,
+            "cache_hits": cache_hits,
+            "attempts_one_per_identity": attempts,
+            "cold_ms": cold_sorted,
+            "cold_ms_median": (cold_sorted[len(cold_sorted) // 2]
+                               if cold_sorted else None),
+            "cold_ms_max": cold_sorted[-1] if cold_sorted else None,
+            "declared_identity_bound_1_25x":
+                int(1.25 * DECLARED_CENSUS["identities"]),
+            "within_declared_economics":
+                compile_count <= 1.25 * DECLARED_CENSUS["identities"],
+        },
+        "artifact_reuse": {
+            "repeat_case_checks": repeat_total,
+            "all_reused_one_artifact": not repeat_bad,
+            "violations": repeat_bad[:20],
+        },
+        "passes": {"totals_fired": pass_totals,
+                   "markers_read": markers_read,
+                   "markers_with_enabled_config": markers_enabled},
+        "refusals": {
+            "count": len(refusals_rows),
+            "by_construct": dict(sorted(by_construct.items(),
+                                        key=lambda kv: -kv[1])),
+            "by_operator": dict(sorted(by_operator.items(),
+                                       key=lambda kv: -kv[1])),
+            "rows": refusals_rows,
+        },
+        "over_budget_rows": over_budget_rows,
+        "crash_rows": crash_rows,
+        "crashes": {"count": len(crash_rows),
+                    "by_exception_class": dict(sorted(
+                        crash_by_class.items(), key=lambda kv: -kv[1]))},
+        "case_build_failures": build_failures[:50],
+        "wall": {"total_s": round(t_wall, 1),
+                 "build_s": round(t_build, 1),
+                 "compile_s": round(t_compile, 1)},
+        "identities": identities,
+    }
+    expected_operators = {rs.resolve_operator_path(p)
+                          for p in rs.cases_from_manifest(args.manifest_path)}
+    merged["expected_operators"] = sorted(expected_operators)
+    validate(merged, expected_operators)
+    census_out = Path(args.census_out)
+    census_out.parent.mkdir(parents=True, exist_ok=True)
+    census_out.write_text(json.dumps(merged, indent=2,
+                                     ensure_ascii=False) + "\n")
+    print(f"census -> {census_out} "
+          f"({merged['census']['identities']} identities over "
+          f"{len(chunk_docs)} chunks, "
+          f"{merged['partition']['artifacts']} artifacts, "
+          f"{merged['partition']['refused']} refusals)")
+    summary = {k: dict(merged[k]) for k in
+               ("census", "partition", "artifact_reuse", "wall", "crashes")}
+    compile_summary = dict(merged["compile"])
+    compile_summary.pop("cold_ms", None)
+    summary["compile"] = compile_summary
+    print(json.dumps(summary, indent=2))
+    if FAILURES:
+        print(f"\n{len(FAILURES)} check(s) failed: {FAILURES}",
+              file=sys.stderr)
+        return 1
+    print("\nall compile-sweep checks PASS (merged census)")
+    return 0
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(
         description="the full compile sweep (gate G6): compile every corpus "
@@ -666,7 +883,15 @@ def main(argv=None) -> int:
                              "cold and the shared cache is untouched)")
     parser.add_argument("--census-out", default=str(DEFAULT_CENSUS_OUT),
                         help="where the compile census is written")
+    parser.add_argument("--merge", nargs="+", metavar="CHUNK.json",
+                        help="merge operator-disjoint chunk census documents "
+                             "(restricted sweeps over one shared "
+                             "--cache-root) into the full census, validate "
+                             "it and write --census-out; needs --cache-root")
     args = parser.parse_args(argv)
+
+    if args.merge:
+        return merge_census(args)
 
     sweep = CompileSweep(args)
     try:
