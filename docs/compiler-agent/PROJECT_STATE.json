@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-08T05:16:26.166261+00:00",
+  "updated_at": "2026-11-08T05:17:06.937992+00:00",
   "facts": [
     {
       "id": "F001",
@@ -3795,13 +3795,13 @@
       "tags": [
         "input-repair"
       ],
-      "status": "READY",
-      "assignee": "",
-      "attempts": 0,
+      "status": "RUNNING",
+      "assignee": "coder",
+      "attempts": 1,
       "evidence": "",
       "last_error": "",
       "failure_kind": "",
-      "start_revision": "",
+      "start_revision": "7286c37cf874f0138413c6816f27c202cbd21e87",
       "end_revision": "",
       "completed_seq": 0,
       "debug_required": false,
@@ -3811,7 +3811,7 @@
       "debug_pending_failures": 0,
       "worker_debug_request": {},
       "coding_failures": 0,
-      "started_at": "",
+      "started_at": "2026-11-08T05:17:06.934627+00:00",
       "deferrals": 0,
       "debug_verified_patterns": [],
       "replan_baseline": {},
@@ -13151,6 +13151,12 @@
       "phase": "IMPLEMENTATION",
       "event": "complete-task",
       "detail": "T042 worker report WTI047: Repaired the fp16/bf16 reduction SIGILL class (24 LAUNCH_FAIL cases, native exit -4). Root cause (identified by walking one failing artifact and a 6-variant probe on the pinned QEMU): the emitted 'vmslt.vv v5, v2, v4' ran at SEW=64/LMUL=2 with the mask destination v5 STRICTLY INSIDE the vs2 register group v4-v5 -- an illegal-instruction form. Probed rule: a mask-destination compare traps when vd falls strictly inside an LMUL>1 source group; vd at the group's exact base (the fp32 artifacts' form) or disjoint is legal. The allocator had no constraint for mask destinations: the mixed-LMUL interference edge requires is_vector() on both sides and masks are not vectors, and dying source operands get no def-point edge. Fix in the SHARED allocation path (a100c/backend/allocate.py, no per-operator branch): _mask_compare_groups() maps each vcmp/vcmpx mask to its LMUL>1 operand groups; the coloring rejects strictly-inside candidates in BOTH directions (mask vs already-assigned operand groups, operand group vs already-assigned mask); _check_group_overlap() asserts the invariant after every successful coloring so a regression fails at compile time. Verification: all 36 cases of the six operators (amax, count_nonzero, mean, nansum, norm__max_norm, vector_norm__l1_norm; shapes 17/97/115; float32/float16/bfloat16) execute and compare PASS at 1, 2, 4 and 8 workers (formal reports at scan-final/threads-{1,2,4,8}); new regression test a100c/tests/test_t042_repairs.py reproduces the pre-fix placement with the constraint disabled and asserts the legal form (all checks PASS); fp32 (amax) and int8 (nanmedian histogram-count) reduction artifacts are instruction-stream-identical pre/post fix (only the revision comment and the assembler temp-filename in .debug_str differ) and execute PASS; full a100c test suite green (49/49 test files; the compile sweep census: 2116 artifacts, 0 refusals, 0 over-budget); a 910-case reduction-family slice: 907 PASS + 3 TIMEOUTs that were"
+    },
+    {
+      "at": "2026-11-08T05:17:06.937981+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "start-task",
+      "detail": "T043 agent=coder"
     }
   ]
 }
