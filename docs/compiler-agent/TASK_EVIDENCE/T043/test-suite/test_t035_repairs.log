@@ -1,0 +1,13 @@
+PASS is-fold-dtype-identity-unit | dtype `is` folds by the represented type (the NOT_CONSTEXPR sentinel must never leak through the comparison chain)
+PASS max-kernel-fp64-buffers-execute-1-4
+PASS argmin-return-indices-fp16-execute-1-4
+PASS scan-own-sew-carry-and-row-boundary-execute-1-4
+PASS merge-frames-naive-attn-compiles | the stale-filter chunk open no longer strands the merge frames (execution fault tracked in the T035 report)
+PASS merge-frames-nansum-located-refusal | compiled (T036 repaired the scalar-opened chunk's frames and fallback vl); the executed identities compare PASS at 1 and 4 workers in the T036 repair test
+PASS rand-broadcast-scalar-seed-execute-1-4
+PASS mask-value-select-execute-1-4
+PASS block-join-stages-and-arm-liveouts-execute-1-4
+PASS rank0-pure-rematerialization-execute-1-4
+PASS median-f16-allocates-and-executes
+
+all T035 repair checks PASS

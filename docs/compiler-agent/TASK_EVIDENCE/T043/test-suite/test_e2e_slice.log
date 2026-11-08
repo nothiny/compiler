@@ -1,0 +1,12 @@
+PASS declared-cases-pass-at-1-2-4-8-threads
+PASS one-artifact-per-identity-across-thread-counts | {(128,): 1, (97,): 1, (17,): 1, (1,): 1}
+PASS partition-matches-strided-model-and-covers-all-work
+PASS two-cases-one-identity-compile-once | compiles=1 hits=1
+PASS artifact-is-elf64-little-riscv
+PASS artifact-runs-without-python | compares PASS under the case policy
+PASS per-stage-dumps-produced | ['artifact.json', 'operator_exec', 'program.S', 'stage.mir.allocated.txt', 'stage.mir.legalized.txt', 'stage.mir.lowered.txt', 'stage.plan.txt', 'stage.selection.txt', 'stage.tir.txt']
+PASS dumps-carry-source-attribution
+PASS same-input-reproduces-identical-artifact-bytes | 209cdafff114 vs 209cdafff114
+PASS factory-shim-constructs-native-device
+PASS factory-route-executes-and-compares | compares PASS under the case policy
+test_e2e_slice: all checks PASS

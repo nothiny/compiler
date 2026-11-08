@@ -1,0 +1,60 @@
+PASS manifest-schema | schema=input-regression/v1
+PASS manifest-covers-2734 | cases=2734
+PASS manifest-ids-unique
+PASS manifest-group-totals | {'suite/dev': 2192, 'suite/perf': 542}
+PASS manifest-comparison-policies | every case retains its declared per-output comparison policy
+PASS manifest-resource-flags-bool
+PASS manifest-identity-census | identities=2116 (recomputed from the rows)
+PASS manifest-equals-harness-enumeration | 2734 harness rows, order preserved
+PASS representatives-from-corpus-metadata | {'dev': 'suite/dev/chunk_abc_fwd_kernel_intra_K.py#[2, 2, 17, 9, 8, 4]#float16', 'perf': 'suite/perf/batched_vecmat_mult.py#[32, 32, 32]#float16'}
+PASS representatives-flagged | ['suite/dev/chunk_abc_fwd_kernel_intra_K.py#[2, 2, 17, 9, 8, 4]#float16', 'suite/perf/batched_vecmat_mult.py#[32, 32, 32]#float16']
+PASS report-schema
+PASS report-run-id | 7f702b5c6ddf442296fc9640721f3534
+PASS report-command-recorded
+PASS report-complete | partial=False
+PASS report-covers-2734 | rows=2734
+PASS report-ids-unique
+PASS report-ids-equal-manifest | same ids, same declared order (no case skipped or substituted)
+PASS rows-match-manifest-case-identity
+PASS rows-status-vocabulary
+PASS rows-boolean-contract | passed => compiled&executed&compared; compared => executed
+PASS rows-artifact-identity | every compiled row records artifact sha256 + cache key + compile identity
+PASS no-key-baking | 2114 artifact keys; violations=[]
+PASS statuses-sum-to-cases | {'PASS': 2671, 'LAUNCH_FAIL': 24, 'MISMATCH': 37, 'EVIDENCE_FAIL': 2}
+PASS summary-consistent | threads=1 resource_threads=4
+PASS summary-compile-economics | compile count 0 vs identities 2116 (<= 1.25x)
+PASS prepared-run-registered | 7f702b5c6ddf442296fc9640721f3534
+PASS prepared-run-seals-this-manifest | the sealed run enumerates exactly the manifest's cases
+PASS regression-record-conformance | ok
+PASS regression-record-failures-are-the-report-failures | 63 failing rows
+PASS regression-record-binding | report_sha256 binding matches the report bytes
+PASS resource-rows-honest | no passing resource rows to inspect; failing rows record their unmet condition
+PASS control-partial-report-refused | dropping the last row must be refused
+PASS control-duplicate-row-refused
+PASS control-unknown-case-refused
+PASS control-inconsistent-booleans-refused | a passing row with compiled=false must be refused
+PASS control-wrong-run-refused
+PASS comparison-policy-is-the-cases-own | 29 sampled cases; 
+PASS identity-key-splits-are-layout-differences | identity c2247b7892b2: 2 keys over 2 distinct layout signatures (view sets differ)
+PASS control-corrupted-output-fails | the case's own tolerance rejects a corrupted output
+PASS control-widened-scratch-tolerance-passes | the tolerance is read from the case (IR-NUMERIC-POLICY)
+PASS worker-run-reports-valid | 11 runs, 397 (case,count) cells
+PASS every-feature-class-at-every-count | 9 families x [1, 2, 4, 8]
+PASS stratified-subsets-executed | 2 picks/family/count + anchors + reps
+PASS representatives-at-all-four-counts | >=2 compared executions per count, consistent verdicts
+PASS coverage-record-identifies-representatives | the consolidated record identifies both rows and binds the run
+PASS f018-aspects-at-every-count | coverage, tails, ownership, visibility, repeated execution at 1/2/4/8
+PASS coverage-record-matches-raw-reports | 445 raw (case,count,repetition) rows consolidated
+PASS representative-captures-bound-to-run-case-artifact | captures per count: {2: 4, 4: 6, 8: 4}
+PASS captures-exist-at-each-multiworker-count | captures per count: {2: 4, 4: 6, 8: 4}
+PASS census-schema
+PASS census-covers-every-failure | 63 failing rows, 63 census rows
+PASS census-feature-class-is-the-corpus-family
+PASS census-stage-in-declared-vocabulary | stage labels derive from the row's status (acceptance[2])
+PASS census-reconciles | classes sum 63, stages sum 63, failures 63, unclassified 0 (bound 27, reason recorded: True)
+PASS census-statuses-match-report | {'PASS': 2671, 'LAUNCH_FAIL': 24, 'MISMATCH': 37, 'EVIDENCE_FAIL': 2}
+PASS census-worker-count-findings-complete | 23 worker-run failing cells, 23 recorded
+PASS census-identifies-representative-rows | per-count status for both representative rows
+PASS control-census-reconciliation-can-fail | an unaccounted census row breaks the reconciliation
+
+all scan-report checks PASS (2734 cases, statuses={'PASS': 2671, 'LAUNCH_FAIL': 24, 'MISMATCH': 37, 'EVIDENCE_FAIL': 2}, worker cells=397)

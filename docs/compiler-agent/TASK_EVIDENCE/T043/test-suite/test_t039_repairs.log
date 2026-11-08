@@ -1,0 +1,6 @@
+PASS t039-gn-finalize-linear-flattening | (n,g)->n*g over the view extent; 3 shapes PASS at 1/4 workers
+PASS t039-flattening-gate-pid-use-outside-linear | outside-use refuses located; pure-linear flattens
+PASS t039-grouped-gemm-runtime-sumloop | sum(cdiv(M+2g,16)*cdiv(N+3g,16), g<group_size); both shapes PASS at 1/4 workers
+PASS t039-sumloop-gate-unreadable-bound | opaque bound refuses located
+PASS t039-flat-grid-no-baking | one artifact for (128,8) and (7,3); both compare PASS -- the runtime grid reads the view extent (1024 vs 21)
+PASS t039-deconv-repro-extent1-staging | y_spatial == ow at every lane, passes on and off, 1/4 workers

@@ -1,0 +1,62 @@
+PASS build | /home/i_yinzida/compiler-a100-experiment-001/a100c/runtime/build/operator_exec
+PASS alias:exit0 | returncode=0 stderr=
+PASS alias:status-ok | {"runtime": "a100rt/v1", "status": "ok", "threads": 4, "repeats": 1, "pool_initializations": 1, "repeats_all_equal": true, "workers": [{"id": 0, "guest_tid": 1146478, "items": 1}, {"id": 1, "guest_tid": 1146479, "items":
+PASS alias:one-pool-init
+PASS alias:comparison | expected b=[107, 109, 111, 113, 115, 117] actual b=[107, 109, 111, 113, 115, 117]
+PASS alias:item-coverage | items=[1, 2, 1, 2]
+PASS bf16:exit0 | returncode=0 stderr=
+PASS bf16:status-ok | {"runtime": "a100rt/v1", "status": "ok", "threads": 2, "repeats": 1, "pool_initializations": 1, "repeats_all_equal": true, "workers": [{"id": 0, "guest_tid": 1146487, "items": 2}, {"id": 1, "guest_tid": 1146489, "items":
+PASS bf16:one-pool-init
+PASS bf16:comparison | expected=[-1.0, 2.5, -0.125, -4.0] actual=[-1.0, 2.5, -0.125, -4.0]
+PASS bf16:item-coverage
+PASS pool1:exit0 | returncode=0 stderr=
+PASS pool1:status-ok | {"runtime": "a100rt/v1", "status": "ok", "threads": 1, "repeats": 1, "pool_initializations": 1, "repeats_all_equal": true, "workers": [{"id": 0, "guest_tid": 1146496, "items": 32771}], "bundle_bytes": 262528}
+PASS pool1:one-pool-init
+PASS pool1:distinct-guest-tids | tids=[1146496]
+PASS pool1:full-item-coverage | items=[32771]
+PASS pool1:comparison
+PASS pool2:exit0 | returncode=0 stderr=
+PASS pool2:status-ok | {"runtime": "a100rt/v1", "status": "ok", "threads": 2, "repeats": 1, "pool_initializations": 1, "repeats_all_equal": true, "workers": [{"id": 0, "guest_tid": 1146502, "items": 16385}, {"id": 1, "guest_tid": 1146503, "ite
+PASS pool2:one-pool-init
+PASS pool2:distinct-guest-tids | tids=[1146502, 1146503]
+PASS pool2:full-item-coverage | items=[16385, 16386]
+PASS pool2:comparison
+PASS pool4:exit0 | returncode=0 stderr=
+PASS pool4:status-ok | {"runtime": "a100rt/v1", "status": "ok", "threads": 4, "repeats": 1, "pool_initializations": 1, "repeats_all_equal": true, "workers": [{"id": 0, "guest_tid": 1146509, "items": 8192}, {"id": 1, "guest_tid": 1146510, "item
+PASS pool4:one-pool-init
+PASS pool4:distinct-guest-tids | tids=[1146509, 1146510, 1146511, 1146512]
+PASS pool4:full-item-coverage | items=[8192, 8193, 8193, 8193]
+PASS pool4:comparison
+PASS pool8:exit0 | returncode=0 stderr=
+PASS pool8:status-ok | {"runtime": "a100rt/v1", "status": "ok", "threads": 8, "repeats": 1, "pool_initializations": 1, "repeats_all_equal": true, "workers": [{"id": 0, "guest_tid": 1146518, "items": 4096}, {"id": 1, "guest_tid": 1146519, "item
+PASS pool8:one-pool-init
+PASS pool8:distinct-guest-tids | tids=[1146518, 1146519, 1146520, 1146521, 1146522, 1146523, 1146524, 1146525]
+PASS pool8:full-item-coverage | items=[4096, 4096, 4097, 4096, 4096, 4097, 4096, 4097]
+PASS pool8:comparison
+PASS repeats3:exit0 | returncode=0 stderr=
+PASS repeats3:status-ok | {"runtime": "a100rt/v1", "status": "ok", "threads": 4, "repeats": 3, "pool_initializations": 1, "repeats_all_equal": true, "workers": [{"id": 0, "guest_tid": 1146531, "items": 1}, {"id": 1, "guest_tid": 1146532, "items":
+PASS repeats3:one-pool-init
+PASS repeats3:all-equal
+PASS repeats3:independent-outputs | b=[107, 109, 111, 113, 115, 117] expected=[107, 109, 111, 113, 115, 117]
+PASS repeats1:exit0 | returncode=0 stderr=
+PASS repeats1:status-ok | {"runtime": "a100rt/v1", "status": "ok", "threads": 4, "repeats": 1, "pool_initializations": 1, "repeats_all_equal": true, "workers": [{"id": 0, "guest_tid": 1146540, "items": 1}, {"id": 1, "guest_tid": 1146541, "items":
+PASS repeats1:one-pool-init
+PASS repeats1-identical-to-repeats3
+PASS reject:bad-magic:exit3 | returncode=3
+PASS reject:bad-magic:status-rejected | {"runtime": "a100rt/v1", "status": "rejected", "reason": "magic"}
+PASS reject:bad-magic:file-untouched
+PASS reject:truncated:exit3 | returncode=3
+PASS reject:truncated:status-rejected | {"runtime": "a100rt/v1", "status": "rejected", "reason": "size"}
+PASS reject:truncated:file-untouched
+PASS reject:view-offset-negative:exit3 | returncode=3
+PASS reject:view-offset-negative:status-rejected | {"runtime": "a100rt/v1", "status": "rejected", "reason": "view-offset"}
+PASS reject:view-offset-negative:file-untouched
+PASS reject:reloc-entry-out-of-bounds:exit3 | returncode=3
+PASS reject:reloc-entry-out-of-bounds:status-rejected | {"runtime": "a100rt/v1", "status": "rejected", "reason": "reloc-entry"}
+PASS reject:reloc-entry-out-of-bounds:file-untouched
+PASS reject:garbage:exit3 | returncode=3
+PASS reject:garbage:status-rejected | {"runtime": "a100rt/v1", "status": "rejected", "reason": "magic"}
+PASS reject:garbage:file-untouched
+PASS cli:threads-3-refused | returncode=2
+PASS cli:missing-bundle-refused | returncode=2
+test_runtime_smoke: all checks PASS (0.8s)

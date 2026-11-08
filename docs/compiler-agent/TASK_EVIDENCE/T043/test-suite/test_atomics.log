@@ -1,0 +1,12 @@
+PASS atomic-bitmap-all-eight-ops-threads
+PASS atomic-add-cross-program-accumulation-threads
+PASS atomic-add-block-masked-threads
+PASS atomic-add-fp32-synthesis-scatter-threads
+PASS atomic-min-fp32-scalar-synthesis-threads
+PASS grouped-gemm-refuses-located-out-of-slice | compiles through the T039 runtime SumLoop grid
+PASS guard-region-real-build-intact | compare PASS; guard intact (out row 132B, guard at +192)
+PASS guard-region-witness-degraded-build-corrupts | corrupted as required (5b5a5ada5b5a5ada != 5a5a5ada5a5a5ada)
+PASS sem-scope-mapping-emits-declared-forms
+PASS default-sem-scope-acq-rel-gpu
+PASS unsigned-min-selects-u-row-and-executes | amominu present; got [3 3 3] want 3s
+test_atomics: all checks PASS

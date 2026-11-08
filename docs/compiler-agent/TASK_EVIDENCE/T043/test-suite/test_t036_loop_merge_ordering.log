@@ -1,0 +1,12 @@
+PASS plan-extremum-binop-max-merge | [('lo', 'max'), ('red', 'max')]
+PASS plan-guarded-select-min-merge | [('worst', 'min'), ('red', 'min')]
+PASS plan-pair-select-keeps-pair-merge | [('best', 'max-index'), ('red', 'max'), ('red.2', 'min')]
+PASS plan-unrecognized-update-still-refuses | region value 'acc' escapes without a merge rule (its loop update is not a recognized reduc
+PASS plan-rebinding-select-not-an-extremum | []
+PASS carried-update-executes-1-4-workers
+PASS scalar-chunk-staging-executes-1-4-workers
+PASS join-ordering-verifiers-accept
+PASS bf16-scan-fp32-policy-executes-1-4
+PASS owned-operators-execute-1-4-workers
+
+all T036 loop-merge/ordering checks PASS

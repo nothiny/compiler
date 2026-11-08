@@ -1,0 +1,15 @@
+PASS conversion-matrix-pairs-compile | rows=122 missing=10 total=132
+PASS conversion-refusals-located-and-classified | 10 refused {'other/defect': 10}; 
+       refusal classes: {'other/defect': 10}
+PASS conversion-control-route-removal-fails-enumeration | broken=24 expected=24
+PASS int-bool-conversions-exact-executed | ran=26; 
+PASS float-conversions-within-declared-tolerance
+PASS bitcast-corpus-bit-level-exact
+PASS bitcast-and-conversion-proven-distinct | got=[1 2 0] value=[1 2 0] bits=[1069547520 1074790400          0]
+PASS identity-convert-folds-at-frontend | same-type converts=0
+PASS same-printing-width-distinct-types-convert | folds=[False, False, True]
+PASS bf16-duality-both-staging-forms-compile
+PASS bf16-duality-copy-roundtrip-symmetric |  | f32host=executed,u16bits=executed
+PASS fp32-lane-switch-recorded-in-identity | on='default' off='native-fp16-lanes'
+PASS fp32-lane-off-refuses-located | vectorization: arith.add: bf16 block arithmetic requires the fp32-lane policy (fp16_bf16_fp32_lanes=
+test_conversions: all checks PASS

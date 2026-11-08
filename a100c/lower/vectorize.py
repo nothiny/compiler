@@ -561,7 +561,8 @@ class SliceLowering:
                     and (prod.op in tir.BIN_ARITH
                          or prod.op in tir.BIN_BITWISE
                          or prod.op in tir.CMP_PREDS
-                         or prod.op in tir.MAXMIN_OPS):
+                         or prod.op in tir.MAXMIN_OPS
+                         or prod.op in tir.UNARY_OPS):
                 # T030: a PURE scalar tree re-materializes at the current
                 # position -- a value bound inside an earlier pass's
                 # chunk body does not survive the pass loop (the strength
@@ -7012,6 +7013,31 @@ class SliceLowering:
             # matrix's scalar path (the tree rule shared with _need)
             self._lower_convert(ctx, prod, loc)
             return self.values[v.vid]
+        if prod.op in tir.UNARY_OPS and v.rank == 0 \
+                and prod.operands[0].rank == 0:
+            # T043 (the tril class): a mid-pass scalar unary re-materializes
+            # at its post-close use exactly like the binary tree -- the
+            # ``logical.not`` of a runtime if's condition (``if not is_above:``)
+            # binds inside the pass that hosts its operands and the register
+            # drops at the pass close; the matrix-if's condition read then had
+            # no rung left.  The same scalar core the main dispatch uses.
+            operand = self._materialize_scalar_tree(
+                ctx, prod.operands[0], loc,
+                allow_bound_leaves=allow_bound_leaves)
+            if prod.op == "logical.not":
+                return scalar_mod.lower_not(ctx, operand, loc)
+            if prod.op in ("arith.neg", "arith.fneg") and operand.type.float:
+                return self._scalar_float_unary(ctx, prod.op, operand, loc)
+            if prod.op == "arith.neg":
+                zero = ctx.const(0, operand.type, loc)
+                return ctx.emit(mir.MOp(
+                    "ssub", [zero, operand],
+                    [ctx.vreg(operand.type, hint="neg", loc=loc)],
+                    loc=loc))
+            raise self._err(
+                loc, prod.op,
+                f"scalar unary op '{prod.op}' is not in the slice's "
+                "scalar core (not a re-materializable scalar tree)")
         if prod.op == "select.where" and v.rank == 0 \
                 and all(getattr(o, "rank", 0) == 0 for o in prod.operands):
             # T035: a pure rank-0 select -- identical branches are the
@@ -7647,6 +7673,24 @@ class SliceLowering:
                                 "tl.arange used before any block-level "
                                 "statement opened the vector chunk region")
             ity = self._vtype(tir.INT32)
+            start = int(op.attrs["start"])
+            extent = int(op.attrs["end"]) - start
+            if extent == 1:
+                # T043 (the triu class): an extent-1 arange is a splat
+                # source -- it is pass-agnostic and JOINS any open pass,
+                # so every consumer reads its element 0 (= start).  The
+                # raw chunk positions (vid + elem) would leak the PASS's
+                # index space into the value: the T039 extent-1 staging
+                # store writes element 0 from every lane (the register is
+                # assumed to be the value's splat), so the staged slot
+                # held the last lane's raw position and triu_batch's
+                # row mask compared pid + (elem+vl-1) < batch -- the
+                # store was fully masked and Y kept its fill value.
+                self._vregion(ctx, ity, loc)
+                reg = self._splat_const(ctx, start, ity, loc)
+                self._restore_region(ctx, loc)
+                self._bind_result(op, reg)
+                return
             self._vregion(ctx, ity, loc)
             vid = ctx.emit(mir.MOp(
                 "vid", [], [ctx.vreg(ity, hint="iota", loc=loc)], loc=loc))
@@ -7654,6 +7698,14 @@ class SliceLowering:
                 "vbinx", [vid, self._chunk["elem"]],
                 [ctx.vreg(ity, hint="ar", loc=loc)],
                 attrs={"op": "add"}, loc=loc))
+            if start != 0:
+                # the arange's own start: the pass's flat position p maps
+                # to the arange element start + p (the start==0 corpus
+                # majority keeps its exact previous codegen)
+                reg = ctx.emit(mir.MOp(
+                    "vbinx", [reg, ctx.const(start, mir.I32, loc)],
+                    [ctx.vreg(ity, hint="ars", loc=loc)],
+                    attrs={"op": "add"}, loc=loc))
             self._restore_region(ctx, loc)
             self._bind_result(op, reg)
             return

@@ -1,0 +1,23 @@
+{
+  "invocation_id": "WTI048",
+  "task_id": "T043",
+  "attempt": 1,
+  "context_sha256": "6b2fe5ca18c9eb97deec7e1be6115b2c191a8b94b7f2e102fe4165315a918461",
+  "outcome": "FAILED",
+  "failure_kind": "implementation",
+  "summary": "Manager-filed report for a dead child: the dispatched worker session for T043 (triangular batch matmul mismatches) was terminated by the harness after 600000ms of inactivity and never filed its own TaskReport. No commands, acceptance coverage or evidence from the worker reached the engine; nothing it may have changed was verified. The task remains unfinished work and needs a fresh worker attempt.",
+  "files_changed": [],
+  "artifacts": [],
+  "commands": [],
+  "acceptance": [],
+  "tests": [],
+  "evidence": "The Agent-tool call returned only 'Subagent was inactive for 600000ms' with no report line; the invocation WTI048 (T043 attempt 1) has no recorded outcome.",
+  "design_issue": {},
+  "debug_request": {},
+  "attack": {},
+  "remaining_work": [
+    "Re-dispatch T043 to a fresh worker per docs/compiler-agent/TASK_INPUTS/WTI048.prompt.md. Note for the retry: bound every command with timeout and avoid long silent operations (five earlier workers died this way)."
+  ],
+  "end_revision": "",
+  "at": "2026-11-08T06:07:17.978096+00:00"
+}

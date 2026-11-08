@@ -1,0 +1,34 @@
+PASS all-reduction-constructs-lower-and-verify | []
+PASS tir-carries-eight-reduces-and-two-scans | reduce=8 scan=2
+PASS reduce-kinds-carried | ['sum', 'max', 'min', 'argmax', 'argmin', 'min', 'xor_sum', 'reduce_or']
+PASS identities-carried-from-the-table
+PASS return-indices-pair-carried
+PASS softmax-composes-exp | ops=['arange', 'arith.fdiv', 'arith.sub', 'broadcast', 'load', 'math.exp']
+PASS sort-emits-tir-op
+PASS topk-emits-tir-op
+PASS histogram-emits-tir-op
+PASS tir-verifier-rejects-malformed-reductions
+PASS well-formed-scan-verifies
+  ok  red_sum
+  ok  red_max
+  ok  red_min_where
+  ok  red_argmax_tie_left
+  ok  red_argmin_tie_left
+  ok  red_return_indices
+  ok  red_sum_int_exact
+  ok  red_xor_or_exact
+  ok  red_cumsum
+  ok  red_cumprod
+  ok  red_persistent_two_phase
+PASS reduction-and-scan-forms-execute-and-compare
+PASS single-element-reduction-exact
+PASS empty-extent-reduction-exact-identity
+  ok  red.sum ops/suite/perf/mean.py
+  ok  red.sum+if_pid ops/suite/dev/reduce_kernel.py
+  ok  red.maxmin ops/suite/dev/pairwise_distance_max_kernel_2.py
+  ok  red.maxmin+axis ops/suite/dev/row_reduce_min_kernel.py
+  ok  pat.persistent_reduce ops/suite/dev/vdot_kernel_complex.py
+PASS corpus-reduction-operators-execute-1-2-4-8
+PASS remaining-family-boundaries-refuse-located
+PASS t028-block-forms-execute-1-4-workers
+test_reductions: all checks PASS

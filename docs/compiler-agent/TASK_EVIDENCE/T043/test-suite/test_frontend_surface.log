@@ -1,0 +1,27 @@
+PASS surface-table-equals-workload-api-spec | 107 constructs, 280 parameters
+PASS every-parameter-classified | implemented=251 ignorable=29 refused=0
+PASS construct-status-table-consistent
+PASS implemented-constructs-lower
+PASS decorator-constructs-triton.jit-autotune
+PASS refused-constructs-diagnosed-with-location | -2 refused constructs; 
+PASS excluded-constructs-refused-with-location
+PASS ignorable-params-accepted-and-semantic-neutral | ignored=[('tl.load', 'cache_modifier'), ('tl.load', 'eviction_policy'), ('tl.store', 'cache_modifier'), ('tl.store', 'eviction_policy')]
+PASS control-baseline-correctness-passes | masked load yields 0.0 at disabled positions; stores are masked with no-access semantics
+PASS control-load-other-ignorable-fails-correctness | default is not 'value'
+PASS control-store-mask-ignorable-fails-correctness | store is not masked
+PASS source-contract-refusals-located
+PASS static_assert-true-emits-nothing
+PASS static_assert-false-refuses-with-message | static_assert failed: BLOCK must be 16 (condition is False)
+PASS static_assert-runtime-cond-refuses | tl.static_assert requires a compile-time condition (a runtime conditio
+PASS static_assert-dead-branch-not-evaluated
+PASS tl.dtype-primitive-bitwidth-cast-method | 2 conversion ops, verify=[]
+PASS shape-attr-folds-into-constexpr-uses
+PASS cast-method-equals-to
+PASS tl.dtype-unknown-name-refuses | unknown dtype name 'float128'
+PASS tl.dtype-runtime-name-refuses | tl.dtype(name) requires a compile-time dtype name
+PASS meta-dtype-object-folds
+PASS module-constexpr-global-call-form | 2 module-global constants reach the body
+PASS fma-scalar-participates-as-fp32 | 1 fma op(s), result ['fp32']
+PASS coverage-artifact-exists | /home/i_yinzida/compiler-a100-experiment-001/FRONTEND_COVERAGE.json
+PASS coverage-matrix-enumerates-declared-surface | 107 rows (107 implemented, 0 declared-unsupported) of 107 declared; 
+test_frontend_surface: all checks PASS
