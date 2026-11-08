@@ -1,0 +1,539 @@
+{
+  "schema": "input-regression/v1",
+  "run_id": "7f702b5c6ddf442296fc9640721f3534",
+  "command": "tools/run_scan.py --manifest-path ops/suite/manifest.json run --report docs/compiler-agent/SCAN_T019/workers/reps-threads-8b/report.json --run-id 7f702b5c6ddf442296fc9640721f3534 --journal docs/compiler-agent/SCAN_T019/workers/reps-threads-8b/journal.jsonl --threads 8 --resource-threads 8 --case-timeout 240 --operator suite/dev/chunk_abc_fwd_kernel_intra_K.py --operator suite/perf/batched_vecmat_mult.py",
+  "partial": false,
+  "missing_case_ids": [],
+  "cases": [
+    {
+      "id": "suite/dev/chunk_abc_fwd_kernel_intra_K.py#[2, 2, 17, 9, 8, 4]#float32",
+      "group": "suite/dev",
+      "operator": "suite/dev/chunk_abc_fwd_kernel_intra_K.py",
+      "shape": [
+        2,
+        2,
+        17,
+        9,
+        8,
+        4
+      ],
+      "dtype": "float32",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 8,
+      "identity": "b1fe37c293cf",
+      "artifact_sha256": "af51c0285b0cf42a6d5bc328a3ea3e248595567f27f140130a1d419b624220eb",
+      "artifact_key": "8fffa7be373fcfa2c88cb9b017346df37a3bd83606ffa9620acc0f4afba33402",
+      "cache_hit": true,
+      "launch_seconds": 0.08,
+      "max_abs_error": {
+        "o": 1.1920928955078125e-07
+      },
+      "seconds": 0.093
+    },
+    {
+      "id": "suite/dev/chunk_abc_fwd_kernel_intra_K.py#[2, 2, 17, 9, 8, 4]#float16",
+      "group": "suite/dev",
+      "operator": "suite/dev/chunk_abc_fwd_kernel_intra_K.py",
+      "shape": [
+        2,
+        2,
+        17,
+        9,
+        8,
+        4
+      ],
+      "dtype": "float16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": false,
+      "status": "EVIDENCE_FAIL",
+      "detail": "instruction witness missing: smt.vmadot; instruction witness missing: smt.vfwmadot",
+      "threads": 8,
+      "identity": "3a1862a4f1a0",
+      "artifact_sha256": "64cb79bae5ae5c6d22fbb7e43da363fd5ba8d61817ed4be3e7a8294cc4811e72",
+      "artifact_key": "dac7f1094655ceaca08abf54781c5695f4844edf47158c9dec77664958e4e772",
+      "cache_hit": true,
+      "resource_observations": {
+        "exit_code": 0,
+        "command": "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64 -L /home/i_yinzida/.local/opt/a100/toolchain-1.1.2/sysroot -cpu max,vlen=1024,elen=64,vext_spec=v1.0 -plugin /home/i_yinzida/compiler-a100-experiment-001/a100_support/build/instruction_counts.so,out=/home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/SCAN_T019/workers/reps-threads-8b/resource-evidence/suite__dev__chunk_abc_fwd_kernel_intra_K.py#[2_ 2_ 17_ 9_ 8_ 4]#float16/counts.json /home/i_yinzida/compiler-a100-experiment-001/a100_support/build/scan-cache/dac7f1094655ceaca08abf54781c5695f4844edf47158c9dec77664958e4e772/operator_exec --bundle /tmp/a100-native-case-f0it73l8/bundle.bin --threads 8",
+        "interval_s": [
+          3715194.684427676,
+          3715194.792605471
+        ],
+        "instruction_counts": {
+          "smt.vmadot": 0,
+          "smt.vfwmadot": 0
+        },
+        "workers": [
+          {
+            "worker": "worker-0",
+            "unit": "a100-compute-worker-slot-0",
+            "observed_units": [
+              "a100-compute-worker-slot-0"
+            ],
+            "completed_units": 1913,
+            "start": 3715194.684427676,
+            "end": 3715194.792605471
+          },
+          {
+            "worker": "worker-1",
+            "unit": "a100-compute-worker-slot-1",
+            "observed_units": [
+              "a100-compute-worker-slot-1"
+            ],
+            "completed_units": 1912,
+            "start": 3715194.684427676,
+            "end": 3715194.792605471
+          },
+          {
+            "worker": "worker-2",
+            "unit": "a100-compute-worker-slot-2",
+            "observed_units": [
+              "a100-compute-worker-slot-2"
+            ],
+            "completed_units": 1913,
+            "start": 3715194.684427676,
+            "end": 3715194.792605471
+          },
+          {
+            "worker": "worker-3",
+            "unit": "a100-compute-worker-slot-3",
+            "observed_units": [
+              "a100-compute-worker-slot-3"
+            ],
+            "completed_units": 1912,
+            "start": 3715194.684427676,
+            "end": 3715194.792605471
+          },
+          {
+            "worker": "worker-4",
+            "unit": "a100-compute-worker-slot-4",
+            "observed_units": [
+              "a100-compute-worker-slot-4"
+            ],
+            "completed_units": 1913,
+            "start": 3715194.684427676,
+            "end": 3715194.792605471
+          },
+          {
+            "worker": "worker-5",
+            "unit": "a100-compute-worker-slot-5",
+            "observed_units": [
+              "a100-compute-worker-slot-5"
+            ],
+            "completed_units": 1912,
+            "start": 3715194.684427676,
+            "end": 3715194.792605471
+          },
+          {
+            "worker": "worker-6",
+            "unit": "a100-compute-worker-slot-6",
+            "observed_units": [
+              "a100-compute-worker-slot-6"
+            ],
+            "completed_units": 1913,
+            "start": 3715194.684427676,
+            "end": 3715194.792605471
+          },
+          {
+            "worker": "worker-7",
+            "unit": "a100-compute-worker-slot-7",
+            "observed_units": [
+              "a100-compute-worker-slot-7"
+            ],
+            "completed_units": 1912,
+            "start": 3715194.684427676,
+            "end": 3715194.792605471
+          }
+        ]
+      },
+      "launch_seconds": 0.149,
+      "max_abs_error": {
+        "o": 0.0006954669952392578
+      },
+      "seconds": 0.154
+    },
+    {
+      "id": "suite/dev/chunk_abc_fwd_kernel_intra_K.py#[2, 2, 17, 9, 8, 4]#bfloat16",
+      "group": "suite/dev",
+      "operator": "suite/dev/chunk_abc_fwd_kernel_intra_K.py",
+      "shape": [
+        2,
+        2,
+        17,
+        9,
+        8,
+        4
+      ],
+      "dtype": "bfloat16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 8,
+      "identity": "44edb09b8614",
+      "artifact_sha256": "724e58ae7281d05ddea895dadd7491b738e7f7e75cf83d2fb8be6515aeb97b3e",
+      "artifact_key": "75da02c1494412ceb33a84ca1aaf26b43060cc5ae279802585321cafc9f5ec56",
+      "cache_hit": true,
+      "launch_seconds": 0.09,
+      "max_abs_error": {
+        "o": 0.003055095672607422
+      },
+      "seconds": 0.097
+    },
+    {
+      "id": "suite/dev/chunk_abc_fwd_kernel_intra_K.py#[1, 3, 33, 13, 16, 4]#float32",
+      "group": "suite/dev",
+      "operator": "suite/dev/chunk_abc_fwd_kernel_intra_K.py",
+      "shape": [
+        1,
+        3,
+        33,
+        13,
+        16,
+        4
+      ],
+      "dtype": "float32",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 8,
+      "identity": "52987f2c2c88",
+      "artifact_sha256": "033b67bc77603a37c48a3b4a0f8aa403effae8c624c7bdfe85e6da1e1d05393b",
+      "artifact_key": "bbb8cbbe2006ab271d31d93bfe8bcb6c918eaf189983865538b09814abe04b36",
+      "cache_hit": true,
+      "launch_seconds": 0.077,
+      "max_abs_error": {
+        "o": 2.384185791015625e-07
+      },
+      "seconds": 0.084
+    },
+    {
+      "id": "suite/dev/chunk_abc_fwd_kernel_intra_K.py#[1, 3, 33, 13, 16, 4]#float16",
+      "group": "suite/dev",
+      "operator": "suite/dev/chunk_abc_fwd_kernel_intra_K.py",
+      "shape": [
+        1,
+        3,
+        33,
+        13,
+        16,
+        4
+      ],
+      "dtype": "float16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 8,
+      "identity": "a068ef19606a",
+      "artifact_sha256": "f4acab0893da73550ebb804a96713a9420aab9d0df96157c97a35ea852fc37b1",
+      "artifact_key": "b3ae3e2fc0f758af18416516563cacd0300a04325cce70f436138dcc5aff68f9",
+      "cache_hit": true,
+      "launch_seconds": 0.092,
+      "max_abs_error": {
+        "o": 0.00048828125
+      },
+      "seconds": 0.099
+    },
+    {
+      "id": "suite/dev/chunk_abc_fwd_kernel_intra_K.py#[1, 3, 33, 13, 16, 4]#bfloat16",
+      "group": "suite/dev",
+      "operator": "suite/dev/chunk_abc_fwd_kernel_intra_K.py",
+      "shape": [
+        1,
+        3,
+        33,
+        13,
+        16,
+        4
+      ],
+      "dtype": "bfloat16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 8,
+      "identity": "a3f44fd9b9a1",
+      "artifact_sha256": "84ac75a2fc6c2229b30d2f9c2a285d41bc9a364d2228e283b65120564df715d4",
+      "artifact_key": "e6a486e0c79feb01cbbc7ed07e62c23b832db283f2a38eefb64af7d82f0cd59f",
+      "cache_hit": true,
+      "launch_seconds": 0.097,
+      "max_abs_error": {
+        "o": 0.0038672685623168945
+      },
+      "seconds": 0.104
+    },
+    {
+      "id": "suite/perf/batched_vecmat_mult.py#[32, 32, 32]#bfloat16",
+      "group": "suite/perf",
+      "operator": "suite/perf/batched_vecmat_mult.py",
+      "shape": [
+        32,
+        32,
+        32
+      ],
+      "dtype": "bfloat16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 8,
+      "identity": "3f5c188c8365",
+      "artifact_sha256": "cc22395c2214253131da856aa82500b076d05c907047146ffac82a884734b3b9",
+      "artifact_key": "a73caf7a208db4f57d9a0895b74a5858d4c7cda6024cac380994a4be0ad86cde",
+      "cache_hit": true,
+      "launch_seconds": 0.074,
+      "max_abs_error": {
+        "out": 0.03116130828857422
+      },
+      "seconds": 0.082
+    },
+    {
+      "id": "suite/perf/batched_vecmat_mult.py#[32, 32, 32]#float32",
+      "group": "suite/perf",
+      "operator": "suite/perf/batched_vecmat_mult.py",
+      "shape": [
+        32,
+        32,
+        32
+      ],
+      "dtype": "float32",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 8,
+      "identity": "210064e0d32e",
+      "artifact_sha256": "19c87b5af8b216a0fdf8516973444d23ebe0d0373cc0f97bb49ab76d2d3b89ba",
+      "artifact_key": "2c85d4033374934acee9332e657c5960f9b9e2f50fffc1ec0741d6f53df40a6b",
+      "cache_hit": true,
+      "launch_seconds": 0.066,
+      "max_abs_error": {
+        "out": 2.86102294921875e-06
+      },
+      "seconds": 0.072
+    },
+    {
+      "id": "suite/perf/batched_vecmat_mult.py#[32, 32, 32]#float16",
+      "group": "suite/perf",
+      "operator": "suite/perf/batched_vecmat_mult.py",
+      "shape": [
+        32,
+        32,
+        32
+      ],
+      "dtype": "float16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": false,
+      "status": "EVIDENCE_FAIL",
+      "detail": "instruction witness missing: smt.vmadot; insufficient multi-worker observation: 1 active workers over 1 units (minimum 2)",
+      "threads": 8,
+      "identity": "9813f5fd23e3",
+      "artifact_sha256": "aa6ccd4d88f183271cf6081838f9a992bc5c41e84186333bfe7f127f8020a034",
+      "artifact_key": "064849399ecfc2aeb8b63d69b12264c8078cdb87d10c9bf03f7fac1d5969df84",
+      "cache_hit": true,
+      "resource_observations": {
+        "exit_code": 0,
+        "command": "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64 -L /home/i_yinzida/.local/opt/a100/toolchain-1.1.2/sysroot -cpu max,vlen=1024,elen=64,vext_spec=v1.0 -plugin /home/i_yinzida/compiler-a100-experiment-001/a100_support/build/instruction_counts.so,out=/home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/SCAN_T019/workers/reps-threads-8b/resource-evidence/suite__perf__batched_vecmat_mult.py#[32_ 32_ 32]#float16/counts.json /home/i_yinzida/compiler-a100-experiment-001/a100_support/build/scan-cache/064849399ecfc2aeb8b63d69b12264c8078cdb87d10c9bf03f7fac1d5969df84/operator_exec --bundle /tmp/a100-native-case-zl5393qs/bundle.bin --threads 8",
+        "interval_s": [
+          3715195.379284698,
+          3715195.461973704
+        ],
+        "instruction_counts": {
+          "smt.vmadot": 0,
+          "smt.vfwmadot": 64
+        },
+        "workers": [
+          {
+            "worker": "worker-0",
+            "unit": "a100-compute-worker-slot-0",
+            "observed_units": [
+              "a100-compute-worker-slot-0"
+            ],
+            "completed_units": 4256,
+            "start": 3715195.379284698,
+            "end": 3715195.461973704
+          },
+          {
+            "worker": "worker-1",
+            "unit": "a100-compute-worker-slot-1",
+            "observed_units": [
+              "a100-compute-worker-slot-1"
+            ],
+            "completed_units": 0,
+            "start": 3715195.379284698,
+            "end": 3715195.461973704
+          },
+          {
+            "worker": "worker-2",
+            "unit": "a100-compute-worker-slot-2",
+            "observed_units": [
+              "a100-compute-worker-slot-2"
+            ],
+            "completed_units": 0,
+            "start": 3715195.379284698,
+            "end": 3715195.461973704
+          },
+          {
+            "worker": "worker-3",
+            "unit": "a100-compute-worker-slot-3",
+            "observed_units": [
+              "a100-compute-worker-slot-3"
+            ],
+            "completed_units": 0,
+            "start": 3715195.379284698,
+            "end": 3715195.461973704
+          },
+          {
+            "worker": "worker-4",
+            "unit": "a100-compute-worker-slot-4",
+            "observed_units": [
+              "a100-compute-worker-slot-4"
+            ],
+            "completed_units": 0,
+            "start": 3715195.379284698,
+            "end": 3715195.461973704
+          },
+          {
+            "worker": "worker-5",
+            "unit": "a100-compute-worker-slot-5",
+            "observed_units": [
+              "a100-compute-worker-slot-5"
+            ],
+            "completed_units": 0,
+            "start": 3715195.379284698,
+            "end": 3715195.461973704
+          },
+          {
+            "worker": "worker-6",
+            "unit": "a100-compute-worker-slot-6",
+            "observed_units": [
+              "a100-compute-worker-slot-6"
+            ],
+            "completed_units": 0,
+            "start": 3715195.379284698,
+            "end": 3715195.461973704
+          },
+          {
+            "worker": "worker-7",
+            "unit": "a100-compute-worker-slot-7",
+            "observed_units": [
+              "a100-compute-worker-slot-7"
+            ],
+            "completed_units": 0,
+            "start": 3715195.379284698,
+            "end": 3715195.461973704
+          }
+        ]
+      },
+      "launch_seconds": 0.105,
+      "max_abs_error": {
+        "out": 0.00390625
+      },
+      "seconds": 0.111
+    },
+    {
+      "id": "suite/perf/batched_vecmat_mult.py#[33, 33, 33]#bfloat16",
+      "group": "suite/perf",
+      "operator": "suite/perf/batched_vecmat_mult.py",
+      "shape": [
+        33,
+        33,
+        33
+      ],
+      "dtype": "bfloat16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 8,
+      "identity": "ca146c9b2acb",
+      "artifact_sha256": "a7812e8c2faedd572e7e6ed3242abdc90288b3aad638c2db0f9ef838a983b08e",
+      "artifact_key": "6a744f509b52c8aff10b994277509cab81de4d05016902206bb5e00718892c0b",
+      "cache_hit": true,
+      "launch_seconds": 0.076,
+      "max_abs_error": {
+        "out": 0.031208038330078125
+      },
+      "seconds": 0.082
+    },
+    {
+      "id": "suite/perf/batched_vecmat_mult.py#[33, 33, 33]#float32",
+      "group": "suite/perf",
+      "operator": "suite/perf/batched_vecmat_mult.py",
+      "shape": [
+        33,
+        33,
+        33
+      ],
+      "dtype": "float32",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 8,
+      "identity": "46c14d2b25fd",
+      "artifact_sha256": "32967876df273ce1f0bb636539993b819d968c2d79d2126cc6c7e5a8fbc06f4b",
+      "artifact_key": "a34407086ee8ff6d7eefe7a45675f082cbdb5f2f285275f1f9e87655f1b398f3",
+      "cache_hit": true,
+      "launch_seconds": 0.073,
+      "max_abs_error": {
+        "out": 3.814697265625e-06
+      },
+      "seconds": 0.079
+    },
+    {
+      "id": "suite/perf/batched_vecmat_mult.py#[33, 33, 33]#float16",
+      "group": "suite/perf",
+      "operator": "suite/perf/batched_vecmat_mult.py",
+      "shape": [
+        33,
+        33,
+        33
+      ],
+      "dtype": "float16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 8,
+      "identity": "f90a5a5897f3",
+      "artifact_sha256": "8b2db9390e740d4fcf9c249f8f4724faa175d2b312c3fb4a4d22f1cfa279b8ad",
+      "artifact_key": "1f4a96724e74dc3024ae540a30eb884b4c2b1c58acaf00780096052cb89fd154",
+      "cache_hit": true,
+      "launch_seconds": 0.075,
+      "max_abs_error": {
+        "out": 0.0
+      },
+      "seconds": 0.082
+    }
+  ]
+}

@@ -1,0 +1,114 @@
+{
+  "invocation_id": "WTI046",
+  "task_id": "T019",
+  "attempt": 1,
+  "context_sha256": "c8f1a3c41a2e3a94617d73eda9b170d55eeffe4916ffba7ba42a346287df640d",
+  "outcome": "COMPLETED",
+  "failure_kind": "implementation",
+  "summary": "Full input scan executed and recorded, classified failure census produced. Prepared input-regression run 7f702b5c6ddf442296fc9640721f3534 (manifest: 2734 cases, 2116 identities, suite/dev 2192 + suite/perf 542, per-case comparison policies, 2 representative resource rows) and executed the whole corpus on the declared QEMU endpoint through tools/run_scan.py at the one-worker baseline with a warm artifact cache (2734/2734 cache hits, 0 cold compiles, 2114 artifact keys <= 1.25x identities): 2671 PASS, 24 LAUNCH_FAIL (fp16/bf16 reductions, native exit -4/SIGILL), 37 MISMATCH, 2 EVIDENCE_FAIL (both representatives: the EXECUTION_RESOURCES witness condition). Worker-count validation per the scan plan: every one of the 9 corpus feature classes at each of 1/2/4/8 workers (primary run + 3 stratified subsets of 20 operators + representative runs), representative rows executed at all four counts with repetition (2-3 compared executions per count, consistent verdicts), F018 aspects (coverage, tails, ownership, visibility, repeated execution) present at every count, QEMU instruction-count captures bound to run/case/artifact at 2/4/8. The report was accepted by regression-record (binding sha a63ae6b05fd2...; engine validation set 2734 cases). Census reconciles exactly: classes sum 63 = stages sum 63 = failures 63, unclassified 0 (bound 27, reason recorded); 29 worker-count findings over 23 (case,count) cells; an intermittency observation records grouped_mm [4,67,35,29] as race-shaped at threads=8 (3/3 bf16, 2/3 fp16 mismatches over 3 bounded probe repetitions, differing bad indices). One correction during the task: the first recorded run (1ca75bf3...) was superseded because the test's no-baking invariant wrongly demanded one artifact key per corpus meta identity; grouped_gemm's 6 cases legitimately map to 2 keys (3-group vs 4-group argument layouts -- a100c/lower/binding.py's documented view-set contract; 0 keys with multiple artifact bytes). The test was corrected (no-key-baking + layout-signature split justification, independently computed from case payloads) and the entire chain re-prepared, re-executed and re-recorded under run 7f702b5c with identical results (2671/24/37/2, deterministic). a100c/tests/test_scan_report.py: all 56 checks PASS, exit 0, including 5 schema-refusal controls, the census-reconciliation control and the IR-NUMERIC-POLICY corrupted-output/widened-tolerance control. Compiler fixes belong to the repair loop; the census is its input.",
+  "files_changed": [
+    "a100c/tests/test_scan_report.py"
+  ],
+  "artifacts": [
+    "docs/compiler-agent/SCAN_T019/manifest.json",
+    "docs/compiler-agent/SCAN_T019/run/report.json",
+    "docs/compiler-agent/SCAN_T019/run/report.json.summary.json",
+    "docs/compiler-agent/SCAN_T019/run/journal.jsonl",
+    "docs/compiler-agent/SCAN_T019/run/resource-evidence",
+    "docs/compiler-agent/SCAN_T019/workers/coverage.json",
+    "docs/compiler-agent/SCAN_T019/workers/manifest-nodot.json",
+    "docs/compiler-agent/SCAN_T019/workers/strata.json",
+    "docs/compiler-agent/SCAN_T019/census.json",
+    "docs/compiler-agent/REGRESSION_RUNS/7f702b5c6ddf442296fc9640721f3534.json"
+  ],
+  "commands": [
+    {
+      "command": "set -a; . ./.env; set +a; python3 -u tools/run_scan.py manifest --out docs/compiler-agent/SCAN_T019/manifest.json",
+      "exit_code": 0,
+      "observed": "2734 cases, 2116 identities, totals {'suite/dev': 2192, 'suite/perf': 542}; every case carries its declared comparison policy; representatives = chunk_abc [2,2,17,9,8,4]#float16 (dev) and batched_vecmat [32,32,32]#float16 (perf)"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; python3 -m compiler_agent --root . regression-prepare --manifest docs/compiler-agent/SCAN_T019/manifest.json",
+      "exit_code": 0,
+      "observed": "sealed run 7f702b5c6ddf442296fc9640721f3534 (sequence 2; the superseded first prepare 1ca75bf3... recorded the pre-correction test identity); program identity 50d18f43..., manifest sha 069e9dd6..."
+    },
+    {
+      "command": "set -a; . ./.env; set +a; A100C_CACHE_DIR=<project>/a100_support/build/scan-cache python3 -u tools/run_scan.py run --report docs/compiler-agent/SCAN_T019/run/report.json --run-id 7f702b5c... --journal docs/compiler-agent/SCAN_T019/run/journal.jsonl --threads 1 --resource-threads 4 --case-timeout 240",
+      "exit_code": 0,
+      "observed": "2734/2734 rows, partial=false; statuses PASS 2671, LAUNCH_FAIL 24, MISMATCH 37, EVIDENCE_FAIL 2; compile count 0 (all cache hits), 2114 artifact keys; representatives captured at resource-threads=4"
+    },
+    {
+      "command": "bash /tmp/t019-worker-runs.sh (threads-2/4/8 stratified subsets over 20 operators each: 116/111/122 rows) + reps-threads-{1a,1b} via workers/manifest-nodot.json --threads 1 + reps-threads-{2a,2b,4a,4b,8a,8b} --threads N --resource-threads N (12 rows each)",
+      "exit_code": 0,
+      "observed": "threads-2: 106 PASS/4 LAUNCH_FAIL/6 MISMATCH; threads-4: 111 PASS; threads-8: 115 PASS/7 MISMATCH; reps at 1: 12 PASS (plain rows); reps at 2/4/8: EVIDENCE_FAIL on the 2 representative rows each (compared within policy, witness condition unmet) with instruction-count captures bound to the run"
+    },
+    {
+      "command": "python3 /tmp/t019-build-census.py",
+      "exit_code": 0,
+      "observed": "coverage.json (445 (case,count,repetition) rows; all 5 F018 aspects at every count; rep counts 2/2/3/2) and census.json (63 failures: elementwise_reduce 29, norm 8, linear_attention 7, matmul 7, select_scan_index 6, conv_pool 6; stages native-launch 24, execution-mismatch 37, resource-evidence 2; unclassified 0; 29 worker findings over 23 cells)"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; for i in 1 2 3: tools/run_scan.py run --threads 8 --operator suite/dev/grouped_mm_kernel.py (bounded intermittency probe)",
+      "exit_code": 0,
+      "observed": "MISMATCH on [4,67,35,29]#bfloat16 in 3/3 and #float16 in 2/3 repetitions with differing first-bad indices ([2065..]/[1750..]/[1785..]) -- race-shaped; float32 passed 3/3; recorded as census intermittency_observations"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; python3 -m compiler_agent --root . regression-record --file docs/compiler-agent/SCAN_T019/run/report.json",
+      "exit_code": 0,
+      "observed": "accepted: binding run_id 7f702b5c6ddf442296fc9640721f3534, report sha256 a63ae6b05fd250fcca21e23c47d9cf6357f883334157d2c75e134c1b3262f6b4, 63 failed cases listed; engine validation set = 2734 cases, scope suite/dev, suite/perf"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; timeout 570 python3 a100c/tests/test_scan_report.py",
+      "exit_code": 0,
+      "observed": "all 56 checks PASS (exit 0)"
+    }
+  ],
+  "acceptance": [
+    {
+      "ref": "acceptance[0]",
+      "command": "set -a; . ./.env; set +a; timeout 570 python3 a100c/tests/test_scan_report.py",
+      "exit_code": 0,
+      "observed": "report-covers-2734 (2734 rows, partial=false), report-ids-equal-manifest (exact id sequence = the harness's own re-enumeration; per-row operator/shape/dtype/group match the sealed manifest -- no case skipped or substituted), rows-artifact-identity (every compiled row carries artifact sha256 + cache key + compile identity), no-key-baking (2114 keys, 0 keys with multiple artifact bytes), identity-key-splits-are-layout-differences (grouped_gemm's 2 keys over 2 distinct independently-computed layout signatures)"
+    },
+    {
+      "ref": "acceptance[1]",
+      "command": "set -a; . ./.env; set +a; timeout 570 python3 a100c/tests/test_scan_report.py",
+      "exit_code": 0,
+      "observed": "every-feature-class-at-every-count (all 9 corpus families at each of 1/2/4/8: primary run at 1, stratified 20-operator subsets + representative runs at 2/4/8), stratified-subsets-executed (deterministic strata recomputed and matched), representatives-at-all-four-counts (chunk_abc and batched_vecmat with >=2 compared executions per count, consistent verdicts, identified in workers/coverage.json), f018-aspects-at-every-count (coverage, tails, ownership, visibility, repeated execution at every count; ownership at 2/4/8 from captures with >=2 active workers on distinct units), representative-captures-bound-to-run-case-artifact (14 captures, per-count 4/6/4)"
+    },
+    {
+      "ref": "acceptance[2]",
+      "command": "set -a; . ./.env; set +a; timeout 570 python3 a100c/tests/test_scan_report.py",
+      "exit_code": 0,
+      "observed": "census-covers-every-failure (63 failing rows = 63 census rows, no duplicates), census-feature-class-is-the-corpus-family, census-stage-in-declared-vocabulary, census-reconciles (classes sum 63 = stages sum 63 = failures 63; unclassified 0 <= bound 27 with recorded reason), census-worker-count-findings-complete (23 failing (case,count) cells all recorded), census-identifies-representative-rows (per-count status for both), control-census-reconciliation-can-fail (an unaccounted census row breaks reconciliation)"
+    },
+    {
+      "ref": "acceptance[3]",
+      "command": "set -a; . ./.env; set +a; python3 -m compiler_agent --root . regression-record --file docs/compiler-agent/SCAN_T019/run/report.json",
+      "exit_code": 0,
+      "observed": "the input-regression/v1 report was accepted and bound to prepared run 7f702b5c... (report_sha256 binding matches the report bytes); the test independently re-verifies compiler_agent.regression.check_report against the sealed run (regression-record-conformance, regression-record-failures-are-the-report-failures = 63, prepared-run-seals-this-manifest) and proves the conformance check can refuse: partial, duplicate, unknown-id, inconsistent-boolean and wrong-run controls all refused"
+    }
+  ],
+  "tests": [
+    {
+      "ref": "tests[0]",
+      "command": "set -a; . ./.env; set +a; timeout 570 python3 a100c/tests/test_scan_report.py",
+      "exit_code": 0,
+      "observed": "all scan-report checks PASS (2734 cases, statuses={'PASS': 2671, 'LAUNCH_FAIL': 24, 'MISMATCH': 37, 'EVIDENCE_FAIL': 2}, worker cells=397); 56 checks including the manifest/report/engine-binding sections, the worker-count coverage section, the census section and 8 negative controls (5 schema refusals, census reconciliation, corrupted output, widened tolerance)"
+    }
+  ],
+  "evidence": "engine-recorded input regression run 7f702b5c6ddf442296fc9640721f3534 (docs/compiler-agent/REGRESSION_RUNS/7f702b5c6ddf442296fc9640721f3534.json; report docs/compiler-agent/SCAN_T019/run/report.json, sha256 a63ae6b05fd250fcca21e23c47d9cf6357f883334157d2c75e134c1b3262f6b4; 2734/2734 rows, 63 failures listed; validation set 2734) + docs/compiler-agent/SCAN_T019/census.json (reconciled 63=63=63, unclassified 0, 29 worker-count findings, 1 intermittency observation) + docs/compiler-agent/SCAN_T019/workers/coverage.json (9 families x 4 counts, 445 consolidated rows) + a100c/tests/test_scan_report.py exit 0 over all of it",
+  "design_issue": {},
+  "debug_request": {},
+  "attack": {
+    "cases": []
+  },
+  "remaining_work": [
+    "Repair loop class 1 (24 LAUNCH_FAIL, native exit -4/SIGILL, families elementwise_reduce/select_scan_index/norm): fp16/bf16 reductions (amax_kernel_1, count_nonzero_kernel_1, mean_kernel_1, nansum_kernel_1, norm__max_norm_kernel_1, vector_norm__l1_norm_kernel_1) die at [17]/[97]/[115] extents while float32 passes; also fails at threads=2. First incorrect stage native-launch; bisect the emitted instruction for the fp16/bf16 reduction path",
+    "Repair loop class 2 (37 MISMATCH): triu_batch/tril_matmul (masked matmul epilogue: 0.0/-7.0 outputs), chunk_gdn2_fwd_kernel_intra_token_parallel (Akk wrong at 1 and 2 threads), fused_conv3d/transposed_conv3d, gram_jacobi_sym (EVALS all 0.0), exact-int classes (bucketize, local_ne tile_sum, hardsigmoid int16), rng_dual, fused_lu_solve; first incorrect stage not localized (repair-loop bisection)",
+    "Repair loop class 3 (worker-count-specific): naive_attn_decoding and grouped_mm mismatch only at threads=8; grouped_mm [4,67,35,29] is race-shaped (3/3 bf16, 2/3 fp16 over 3 probe repetitions, differing bad indices) -- a single passing execution is not a fix; amax SIGILL reproduces at threads=2",
+    "Resource-evidence contract needs a reviewed decision (manager/DesignIssue territory, EXECUTION_RESOURCES.json is a reviewed artifact): it requires BOTH smt.vmadot and smt.vfwmadot as listing witnesses per flagged row, but a single-dtype operator artifact carries at most one IME family (chunk_abc's dot is the fp32 reshape form: neither; batched_vecmat float16: only smt.vfwmadot, 64 executed) -- both representatives therefore record EVIDENCE_FAIL with the unmet condition named (executed and compared within policy at every count). batched_vecmat [32,32,32] additionally concentrates completed units on worker-0 at 2/4/8 threads (insufficient multi-worker observation) -- either the representative rule or the work distribution needs attention"
+  ],
+  "end_revision": "",
+  "at": "2026-11-08T00:48:55.049160+00:00"
+}
