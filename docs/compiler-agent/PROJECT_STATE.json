@@ -12,7 +12,7 @@
   "optimization_round": 0,
   "evidence_epoch": 0,
   "created_at": "2026-11-04T08:09:39.620665+00:00",
-  "updated_at": "2026-11-08T07:46:46.651590+00:00",
+  "updated_at": "2026-11-08T07:47:15.818799+00:00",
   "facts": [
     {
       "id": "F001",
@@ -3856,13 +3856,13 @@
       "tags": [
         "input-repair"
       ],
-      "status": "READY",
-      "assignee": "",
-      "attempts": 0,
+      "status": "RUNNING",
+      "assignee": "coder",
+      "attempts": 1,
       "evidence": "",
       "last_error": "",
       "failure_kind": "",
-      "start_revision": "",
+      "start_revision": "b74ff188bbb262aacb3a287c88333ffc1b8a5772",
       "end_revision": "",
       "completed_seq": 0,
       "debug_required": false,
@@ -3872,7 +3872,7 @@
       "debug_pending_failures": 0,
       "worker_debug_request": {},
       "coding_failures": 0,
-      "started_at": "",
+      "started_at": "2026-11-08T07:47:15.816801+00:00",
       "deferrals": 0,
       "debug_verified_patterns": [],
       "replan_baseline": {},
@@ -10477,6 +10477,12 @@
       "phase": "IMPLEMENTATION",
       "event": "complete-task",
       "detail": "T043 worker report WTI049: Repaired the triangular batch matmul mismatch class (12 MISMATCH cases: tril_matmul_kernel_6d320d58 at [127]/[128] x fp32/fp16/bf16, triu_batch_kernel at [17]/[120] x fp32/fp16/bf16; recorded MISMATCH in full-scan run 7f702b5c). Attempt-1's worker died inactively with its work unreported on the tree; this attempt judged that on-tree work (all four fixes verified present, reviewed and re-executed) and completed the verification. Two shared-path defects behind one symptom class, each localized by stage bisection to the FIRST incorrect stage. (1) tril class, first incorrect stage = FRONTEND constexpr evaluation (a100c/frontend/specialize.py): `not <RuntimeValue>` silently folded to constant False -- RuntimeValue defines no __bool__, so the object's truthiness (True) leaked through `not` and `if not is_above:` baked the all-zeros else arm at compile time; the dot, the k-loop and the triangular tl.where never lowered. Witness: the pre-fix cached artifact a100c/cache/41d53648.../stage.tir.txt (old compiler provenance a100c/80d3ce0a2de50a70) has 29 tir_ops, NO linalg.dot, NO logical.not and C_ptr-only address trees (the loads were DCE'd away); the recorded mismatch showed C zero at kept (i>=j) positions. Fix: the UnaryOp arm of the constexpr evaluator declines a RuntimeValue operand exactly like the T016 BoolOp guard, so the condition routes to the runtime-if path and lowers logical.not. (2) triu class, first incorrect stage = MIR LOWERING arange materialization (a100c/lower/vectorize.py): tl.arange always materialized as the pass's raw chunk positions (vid+elem) regardless of the arange's own start/extent; an extent-1 arange (BATCH_BLOCK_SIZE=1) is a splat source that joins any open pass and the T039 extent-1 staging store writes element 0 from EVERY lane, so the staged slot held the last lane's raw position -- triu's row mask compared pid+(elem+vl-1) < batch, false for every chunk, the store was fully masked off and Y kept its -7 fill. Witness: pre-"
+    },
+    {
+      "at": "2026-11-08T07:47:15.818790+00:00",
+      "phase": "IMPLEMENTATION",
+      "event": "start-task",
+      "detail": "T044 agent=coder"
     }
   ]
 }
