@@ -1,0 +1,9 @@
+PASS t040-operator-identities-compile-execute | 3 identities x 2 shapes, all cases PASS at 1/4 workers; dispatch folded, no fp64 dot
+PASS t040-fold-generic-over-corpus-dtypes | 8 dtypes: comparison folded True, dead arm absent, cast target exact, no fp64
+PASS t040-no-baking-dtype-identities-vs-runtime-shapes | fp32/fp16 -> two artifacts; n=8/n=64 -> one artifact (cache hit)
+PASS t040-probe-execution-supported-dtypes | 6 dtypes execute+compare PASS; bool/int64 keep their located pre-existing convert/promotion boundaries
+PASS t040-genuinely-fp64-dot-keeps-located-refusal | the live fp64 dot still refuses at tl.dot with the F037 surface
+PASS t040-control-fold-disabled-reproduces-defect | disabled: the fp64 dot refusal returns at line 76 and the dead arm is lowered again
+PASS t040-fp64-dot-justification-updated | tl.dot note: T038 boundary + T040 dead-arm repair recorded
+
+all T040 checks PASS

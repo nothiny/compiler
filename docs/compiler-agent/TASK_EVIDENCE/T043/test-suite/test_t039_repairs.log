@@ -4,3 +4,9 @@ PASS t039-grouped-gemm-runtime-sumloop | sum(cdiv(M+2g,16)*cdiv(N+3g,16), g<grou
 PASS t039-sumloop-gate-unreadable-bound | opaque bound refuses located
 PASS t039-flat-grid-no-baking | one artifact for (128,8) and (7,3); both compare PASS -- the runtime grid reads the view extent (1024 vs 21)
 PASS t039-deconv-repro-extent1-staging | y_spatial == ow at every lane, passes on and off, 1/4 workers
+PASS t039-deconv3d-typical-case-passes | 6 case rows PASS at 1/4 workers (the T037 pin flips to a full comparison PASS)
+PASS t039-gqa-passes-enabled-all-workers | passes on and off, 1/2/4/8 workers, all PASS
+PASS t039-ptradd-staged-base-consumer-shape | the staged [N,1] base maps through the [N,N] result shape
+PASS t039-fp64-dot-refusal-justification-recorded | FRONTEND_COVERAGE tl.dot note names CORPUS_LOCK.json; declared dtypes ['bfloat16', 'bool', 'float16', 'float32', 'int16', 'int32', 'int64', 'int8']
+
+test_t039_repairs: all checks PASS

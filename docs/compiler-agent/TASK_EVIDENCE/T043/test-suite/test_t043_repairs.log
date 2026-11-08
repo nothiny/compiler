@@ -1,0 +1,6 @@
+PASS t043-not-runtime-declines-fold | runtime -> <not-constexpr> (pre-fix leak False); constexpr not True -> False
+PASS t043-tril-lowers-runtime-branch | verify=0 err; logical.not=1; dot=1; where=True; zeros=True; runtime-if-on-not=True
+PASS t043-verifier-join-alias-side | alias-side module: 0 error(s); ghost-name control rejected: True
+PASS t043-arange-own-values | vid ops at lines [29] (want exactly [29]); start-splats at the extent-1 site: 6
+PASS t043-end-to-end-pass | tril_matmul_kernel_6d320d58.py float32 [128] @1T -> PASS; tril_matmul_kernel_6d320d58.py bfloat16 [127] @4T -> PASS; triu_batch_kernel.py float32 [17] @1T -> PASS; triu_batch_kernel.py float16 [120] @4T -> PASS
+test_t043_repairs: all checks PASS

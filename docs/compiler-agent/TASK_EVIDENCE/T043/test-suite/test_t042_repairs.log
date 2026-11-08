@@ -1,0 +1,8 @@
+PASS t042-allocation-legal-mask-placement | 0 violation(s)
+PASS t042-mir-carries-the-class | 2 compare(s) over LMUL>1 operands with mask results
+PASS t042-control-prefix-coloring-reproduces | constraint-off coloring: 2 mask-in-group placement(s), e.g. ('m1', 'v5', 'splat2', 'v4', 2)
+PASS t042-control-safety-net-refuses | allocation: allocation gives the mask destination 'm1' (v5) a position strictly inside source 'splat2' register group (v4, span 2) in 'vcmp' -- the hardware rej
+PASS t042-safety-net-rejects-handbuilt | allocation: allocation gives the mask destination 'm1' (v3) a position strictly inside source 'vb1' register group (v2, span 2) in 'vcmp' -- the hardware reject
+PASS t042-emitted-legal-form | amax_kernel_1.py: 2 m2-compare(s), 0 illegal; count_nonzero_kernel_1.py: 2 m2-compare(s), 0 illegal; mean_kernel_1.py: 2 m2-compare(s), 0 illegal; nansum_kernel_1.py: 2 m2-compare(s), 0 illegal; norm__max_norm_kernel_1.py: 2 m2-compare(s), 0 illegal; vector_norm__l1_norm_kernel_1.py: 2 m2-compare(s), 0 illegal
+PASS t042-end-to-end-pass | amax_kernel_1.py float16 [17] @1T -> PASS; amax_kernel_1.py bfloat16 [17] @1T -> PASS; mean_kernel_1.py bfloat16 [17] @2T -> PASS
+test_t042_repairs: all checks PASS

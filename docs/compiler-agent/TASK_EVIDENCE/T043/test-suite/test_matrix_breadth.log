@@ -1,8 +1,8 @@
 PASS every-executed-dot-form-compares-pass | 14/14 forms PASS, 0 located allocation refusals (the heavier IME forms' spill-convergence boundary), 0 compared FAILs
 PASS fp32-dot-ieee-bit-exact | every value equals numpy fp32 matmul exactly (no tf32 path)
 PASS bf16-vector-path-with-recorded-gap | compare PASS; plan gap recorded; smt.* executions 0 (the gap: BF16 IME is not claimable, F010/F034)
-PASS int8-ime-plugin-counts-smt.vmadot | counted 4 over 1 pc(s), model 4 (tiles x k-steps), artifact 427f5cab44e9, threads 2
-PASS fp16-ime-plugin-counts-smt.vfwmadot | counted 8 over 1 pc(s), model 8 (tiles x k-steps), artifact 50704ebd618c, threads 4
+PASS int8-ime-plugin-counts-smt.vmadot | counted 4 over 1 pc(s), model 4 (tiles x k-steps), artifact b705852e0c73, threads 2
+PASS fp16-ime-plugin-counts-smt.vfwmadot | counted 8 over 1 pc(s), model 8 (tiles x k-steps), artifact f78bba210b82, threads 4
 PASS over-budget-demand-chunks-legally | 256 lanes at SEW 32 with 3 live values: chunk (256, lmul 8, 1 chunk(s)) -- fits
 PASS narrower-chunk-when-over-budget | 512 lanes at SEW 64 with 9 live values: chunk (32, lmul 2, 16 chunk(s)) -- the demand 2304B fits the 4096B file
 PASS no-chunking-exists-refusal | tile plan: budget: the register demand of 500 live values at SEW 64 exceeds the vector file (3968B) 
@@ -23,9 +23,9 @@ PASS kloop-multi-iter-3iters-threads1 | 3 k-iterations, threads 1: compares PASS
 PASS kloop-multi-iter-ragged-threads1 | 4 k-iterations, threads 1: compares PASS under the case policy
 PASS kloop-multi-iter-8iters-threads4 | 8 k-iterations, threads 4: compares PASS under the case policy
 PASS kloop-int8-kloop-compares | compares PASS under the case policy
-PASS kloop-int8-ime-counts-smt.vmadot | counted 2 (model 2: 32//16 source k-steps x 1 tile op(s) per dot at tile_k 16), artifact ca14b4492209, compare PASS
+PASS kloop-int8-ime-counts-smt.vmadot | counted 2 (model 2: 32//16 source k-steps x 1 tile op(s) per dot at tile_k 16), artifact 904cb8b33d50, compare PASS
 PASS kloop-fp16-kloop-compares | compares PASS under the case policy
-PASS kloop-fp16-ime-counts-smt.vfwmadot | counted 4 (model 4: 32//16 source k-steps x 2 tile op(s) per dot at tile_k 8), artifact 71b474555c54, compare PASS
+PASS kloop-fp16-ime-counts-smt.vfwmadot | counted 4 (model 4: 32//16 source k-steps x 2 tile op(s) per dot at tile_k 8), artifact b3d5a3352265, compare PASS
 # census:
 #   matmul_kernel.py                               matmul       RUN-ERROR ValueError operands could not be broadcast together with shapes (128,128) (16384,) 
 #   matmul_kernel_2d_8e70c631.py                   matmul       PASS
@@ -38,5 +38,5 @@ PASS kloop-fp16-ime-counts-smt.vfwmadot | counted 4 (model 4: 32//16 source k-st
 #   grouped_gemm_kernel.py                         matmul       PASS
 #   matmul_k32_splitn4_paired_kernel_6f1c91c8.py   matmul       PASS
 PASS family-census-no-silent-wrong-answers | 8 PASS, 0 located refusals (a boundary of another construct, never a silent wrong answer), 2 case/environment rows
-# evidence: /tmp/a100c-matrix-breadth-f426apxr/matrix-breadth-evidence.json
+# evidence: /tmp/a100c-matrix-breadth-rln45pim/matrix-breadth-evidence.json
 test_matrix_breadth: all checks PASS

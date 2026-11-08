@@ -2,7 +2,7 @@ PASS factory-returns-compile-case-protocol | FactoryCompiler from a100c.factory:
 PASS factory-artifact-arguments-protocol | arguments=('--bundle', '{bundle}', '--threads', '{threads}')
 PASS factory-artifact-is-riscv-elf | operator_exec, 23496 bytes
 PASS factory-artifact-provenance | a100c/47c621238ed8cc43
-PASS factory-cache-root-honored | /tmp/a100c-driver-cache-ie4wjco4/factory-cache/6f3e3d2c389809a57ece61509b47cbf84a38633ec1213fb7b73e7bdd469dee0b
+PASS factory-cache-root-honored | /tmp/a100c-driver-cache-lv8kv6u6/factory-cache/6f3e3d2c389809a57ece61509b47cbf84a38633ec1213fb7b73e7bdd469dee0b
 PASS identity-excludes-shape | one artifact for both shapes; the second call is a cache hit
 PASS identity-includes-pointer-dtype | float16 compiles a distinct artifact
 PASS pass-config-in-cache-key-and-general-path-intact | all-off is a distinct cache entry, byte-identical to the plain driver (fa55434f621b); passes-on differs (c14ba47c8e08)
@@ -12,7 +12,7 @@ PASS cold-compile-count-equals-distinct-identities | 6 compiles == 6 identities 
 PASS cold-run-every-case-compiled-executed-compared | statuses={'PASS': 11}
 PASS cold-run-report-complete | 11 rows, schema input-regression/v1
 PASS warm-run-zero-compilations | compiles=0, cache_hits=11 over 11 cases
-PASS warm-run-cache-hits-are-fast | cache-hit p50 3.362 ms vs cold p50 68.43299999999999 ms
+PASS warm-run-cache-hits-are-fast | cache-hit p50 2.695 ms vs cold p50 69.0895 ms
 PASS warm-run-results-identical | every row reproduces its cold-run verdict and artifact
 PASS resume-partial-run-exits-0 | exit 0
 PASS resume-run-exits-0 | exit 0
@@ -21,7 +21,7 @@ PASS resume-report-is-complete | 11 rows, every case compiled, executed and comp
 PASS resume-rows-come-from-the-journal | 11 journaled rows reproduced verbatim
 PASS faulted-run-exits-0 | exit 0 (the fault is a recorded row, never a scan failure)
 PASS crash-fault-recorded-as-failure | suite/dev/absolute_kernel.py#[97]#bfloat16 -> LAUNCH_FAIL: launch: RuntimeError: native process exit 3: 
-PASS timeout-fault-recorded-with-its-bound | suite/dev/absolute_kernel.py#[17]#float32 -> TIMEOUT: launch exceeded its bound 0.019s (A100_EXECUTION_TIMEOUT)
+PASS timeout-fault-recorded-with-its-bound | suite/dev/absolute_kernel.py#[17]#float32 -> TIMEOUT: launch exceeded its bound 0.0196667s (A100_EXECUTION_TIMEOUT)
 PASS fault-isolation-other-cases-unchanged | 9 other cases reproduce their clean-run results
 PASS compiler-and-factory-import-no-torch-no-reference-device | modules loaded during a real compile: []
 
