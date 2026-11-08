@@ -1,0 +1,134 @@
+{
+  "invocation_id": "WTI049",
+  "task_id": "T043",
+  "attempt": 2,
+  "context_sha256": "2cf72ea69333a350030af010af2d4a542869885073786d487295107e73a2f660",
+  "outcome": "COMPLETED",
+  "failure_kind": "implementation",
+  "summary": "Repaired the triangular batch matmul mismatch class (12 MISMATCH cases: tril_matmul_kernel_6d320d58 at [127]/[128] x fp32/fp16/bf16, triu_batch_kernel at [17]/[120] x fp32/fp16/bf16; recorded MISMATCH in full-scan run 7f702b5c). Attempt-1's worker died inactively with its work unreported on the tree; this attempt judged that on-tree work (all four fixes verified present, reviewed and re-executed) and completed the verification. Two shared-path defects behind one symptom class, each localized by stage bisection to the FIRST incorrect stage. (1) tril class, first incorrect stage = FRONTEND constexpr evaluation (a100c/frontend/specialize.py): `not <RuntimeValue>` silently folded to constant False -- RuntimeValue defines no __bool__, so the object's truthiness (True) leaked through `not` and `if not is_above:` baked the all-zeros else arm at compile time; the dot, the k-loop and the triangular tl.where never lowered. Witness: the pre-fix cached artifact a100c/cache/41d53648.../stage.tir.txt (old compiler provenance a100c/80d3ce0a2de50a70) has 29 tir_ops, NO linalg.dot, NO logical.not and C_ptr-only address trees (the loads were DCE'd away); the recorded mismatch showed C zero at kept (i>=j) positions. Fix: the UnaryOp arm of the constexpr evaluator declines a RuntimeValue operand exactly like the T016 BoolOp guard, so the condition routes to the runtime-if path and lowers logical.not. (2) triu class, first incorrect stage = MIR LOWERING arange materialization (a100c/lower/vectorize.py): tl.arange always materialized as the pass's raw chunk positions (vid+elem) regardless of the arange's own start/extent; an extent-1 arange (BATCH_BLOCK_SIZE=1) is a splat source that joins any open pass and the T039 extent-1 staging store writes element 0 from EVERY lane, so the staged slot held the last lane's raw position -- triu's row mask compared pid+(elem+vl-1) < batch, false for every chunk, the store was fully masked off and Y kept its -7 fill. Witness: pre-fix cached artifacts (e.g. a100c/cache/5dd63035.../stage.mir.lowered.txt) carry TWO vid ops; the current artifact carries exactly one (the block arange) with the extent-1 site as s2v splats of const 0. Fix: the arange materialization emits the arange's OWN values -- a splat of start when extent==1, start+(vid+elem) when start!=0 (the start==0 corpus majority keeps byte-identical codegen; the corpus has no nonzero-start arange, verified by survey). Two enabling repairs the corrected tril form then needed, same stage-bisect walk: (3) TIR verifier join scope tracking (a100c/ir/tir.py): joins define the join value's scope names (aliases included) exactly like op results, so an arm binding a join name to a loop-join value by alias (`c_tile = acc`) resolves for the both-arms rule; the malformed ghost-name control is still rejected (CARRIED_WITHOUT_JOIN). (4) scalar re-materialization rung (a100c/lower/vectorize.py): a mid-pass scalar unary (the logical.not of the runtime if's condition) re-materializes at its post-close use via the scalar core (not/neg/fneg); unhandled scalar unaries refuse with a located diagnostic. All fixes are in shared paths with no per-operator branch (tools/check_no_name_dispatch.py PASS over 35 pipeline files, behavioral name-generality identical). Verification executed at the current tree: all 12 cases execute and compare PASS under their declared policies at 1 and 4 workers (triu outputs bit-exact max_abs_err=0.0; tril fp32 ~5.7e-6, fp16/bf16 at input-precision level); regression test a100c/tests/test_t043_repairs.py (5 checks with differential controls that reproduce each pre-fix behavior) exits 0; neighbors matmul_kernel_10d5c480 (control.where+linalg.dot+masked loads, the tril tag set) 6/6 and gemm_rowstats_group_tc_kernel 2/2 PASS at 1 and 4 threads, plus an arange blast over the 12-arange kernels fused_recurrent_fwd_kernel and parallel_attn_fwd_kernel and norm__l2_norm_kernel_2 (18/18 PASS); the full a100c test suite green (49/49 test files rc=0 -- test_t039_repairs needed a 2400s re-run after the loop's own 1200s bound cut it, rc=0 in 1375s, both records kept -- and the cold compile sweep: 2116 artifacts + 0 refusals = 2116 identities, 0 over-budget, 0 crashes, 618/618 repeat cases reused one artifact, 5431s).",
+  "files_changed": [
+    "a100c/frontend/specialize.py",
+    "a100c/ir/tir.py",
+    "a100c/lower/vectorize.py",
+    "a100c/tests/test_t043_repairs.py",
+    "tools/t043_repro.py",
+    "docs/compiler-agent/TASK_EVIDENCE/T043/scan/threads-1/report.json",
+    "docs/compiler-agent/TASK_EVIDENCE/T043/scan/threads-1/report.json.summary.json",
+    "docs/compiler-agent/TASK_EVIDENCE/T043/scan/threads-1/log.txt",
+    "docs/compiler-agent/TASK_EVIDENCE/T043/scan/threads-4/report.json",
+    "docs/compiler-agent/TASK_EVIDENCE/T043/scan/threads-4/report.json.summary.json",
+    "docs/compiler-agent/TASK_EVIDENCE/T043/scan/threads-4/log.txt",
+    "docs/compiler-agent/TASK_EVIDENCE/T043/neighbors/matmul_kernel_10d5c480-t1/report.json",
+    "docs/compiler-agent/TASK_EVIDENCE/T043/neighbors/matmul_kernel_10d5c480-t4/report.json",
+    "docs/compiler-agent/TASK_EVIDENCE/T043/neighbors/gemm_rowstats_group_tc_kernel-t1/report.json",
+    "docs/compiler-agent/TASK_EVIDENCE/T043/neighbors/gemm_rowstats_group_tc_kernel-t4/report.json",
+    "docs/compiler-agent/TASK_EVIDENCE/T043/arange-blast/fused_recurrent_fwd_kernel/report.json",
+    "docs/compiler-agent/TASK_EVIDENCE/T043/arange-blast/norm__l2_norm_kernel_2/report.json",
+    "docs/compiler-agent/TASK_EVIDENCE/T043/arange-blast/parallel_attn_fwd_kernel/report.json",
+    "docs/compiler-agent/TASK_EVIDENCE/T043/test-suite/results.txt",
+    "docs/compiler-agent/TASK_EVIDENCE/T043/test-suite/test_compile_sweep.log",
+    "docs/compiler-agent/TASK_EVIDENCE/T043/test-suite/compile-census.json",
+    "docs/compiler-agent/TASK_EVIDENCE/T043/task-report.json"
+  ],
+  "artifacts": [
+    "docs/compiler-agent/TASK_EVIDENCE/T043/scan/threads-1/report.json and .../threads-4/report.json (12/12 PASS each: the [127] ragged-tail and [128] aligned shapes, fp32/fp16/bf16, at 1 and 4 compute workers)",
+    "a100c/tests/test_t043_repairs.py (the regression test: 5 checks with differential controls; exits 0)",
+    "a100c/cache/41d536480a7c46013e7105a5f531ebe1ee2504a749bad376564021382a0cbf11/stage.tir.txt (the PRE-FIX tril artifact: 29 tir_ops, no linalg.dot, no logical.not, C_ptr-only address trees -- the frontend-fold witness)",
+    "a100c/cache/a9fd0c5fe92f23f79f04df00071ef20ad3fb40afa771cb703cb7b1f0cbf5831f/stage.tir.txt (the CURRENT tril [128] fp32 artifact the scan executed: logical.not at source 86:8 feeding the runtime if, linalg.dot at 98:20, select.where at 108:22, 1 matrix segment)",
+    "a100c/cache/5dd63035d14a43d94d0aa7406f8fb3820c2e947f84589e3e3f6619a4241a1387/stage.mir.lowered.txt (the PRE-FIX triu artifact: two vid ops -- the extent-1 arange leaked the pass's index space)",
+    "a100c/cache/bfaa0eda948c3237dac659b2f327879fe16298f8ecfad534ed7c3eb9e51c2101/stage.mir.lowered.txt (the CURRENT triu artifact the scan executed: the extent-1 arange site is s2v splats of const 0, exactly one vid)",
+    "docs/compiler-agent/TASK_EVIDENCE/T043/test-suite/compile-census.json (the full cold compile sweep census at the repaired tree: 2116 artifacts, 0 refusals)",
+    "docs/compiler-agent/TASK_EVIDENCE/T043/neighbors/ and .../arange-blast/ (spot-check and arange-regression scan reports)"
+  ],
+  "commands": [
+    {
+      "command": "set -a; . ./.env; set +a; timeout 580 python3 a100c/tests/test_t043_repairs.py",
+      "exit_code": 0,
+      "observed": "all 5 checks PASS: t043-not-runtime-declines-fold (runtime -> <not-constexpr>, pre-fix differential control leak False, constexpr not True -> False); t043-tril-lowers-runtime-branch (verify=0 err; logical.not=1; dot=1; where=True; zeros=True; runtime-if-on-not=True); t043-verifier-join-alias-side (alias-side module 0 errors; ghost-name control rejected); t043-arange-own-values (vid ops at lines [29] only; 6 start-splats at the extent-1 site); t043-end-to-end-pass (tril [128] fp32 @1T, tril [127] bf16 @4T, triu [17] fp32 @1T, triu [120] fp16 @4T all PASS)"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; timeout 570 python3 tools/run_scan.py run --threads 1 --operator suite/dev/tril_matmul_kernel_6d320d58.py --operator suite/dev/triu_batch_kernel.py --report docs/compiler-agent/TASK_EVIDENCE/T043/scan/threads-1/report.json",
+      "exit_code": 0,
+      "observed": "12/12 PASS at 1 compute thread (tril [128]/[127] and triu [17]/[120] x fp32/fp16/bf16); 12 cache hits over 9 identities, report_complete=true; triu max_abs_err=0.0, tril fp32 ~5.7e-6"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; timeout 570 python3 tools/run_scan.py run --threads 4 --operator suite/dev/tril_matmul_kernel_6d320d58.py --operator suite/dev/triu_batch_kernel.py --report docs/compiler-agent/TASK_EVIDENCE/T043/scan/threads-4/report.json",
+      "exit_code": 0,
+      "observed": "12/12 PASS at 4 compute threads, same per-case max_abs_error values as the 1-thread run"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; for cfg in neighbors/matmul_kernel_10d5c480-t1 1 suite/dev/matmul_kernel_10d5c480.py, neighbors/matmul_kernel_10d5c480-t4 4 ..., neighbors/gemm_rowstats_group_tc_kernel-t1 1 ..., neighbors/gemm_rowstats_group_tc_kernel-t4 4 ..., arange-blast/fused_recurrent_fwd_kernel 1 ..., arange-blast/norm__l2_norm_kernel_2 1 ..., arange-blast/parallel_attn_fwd_kernel 1 ...: timeout 570 python3 tools/run_scan.py run --threads $T --operator $OP --report docs/compiler-agent/TASK_EVIDENCE/T043/$dir/report.json",
+      "exit_code": 0,
+      "observed": "all seven scans rc=0: matmul_kernel_10d5c480 6/6 PASS at 1T and 6/6 at 4T; gemm_rowstats_group_tc_kernel 2/2 PASS at 1T and 2/2 at 4T; arange blast 6/6 PASS each for fused_recurrent_fwd_kernel, norm__l2_norm_kernel_2, parallel_attn_fwd_kernel"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; timeout 500 python3 tools/check_no_name_dispatch.py",
+      "exit_code": 0,
+      "observed": "PASS static name-dispatch scan (legs A+B over 35 pipeline files; 499 operator names, 454 kernel names, 1000 file identities); PASS static import scan; PASS behavioral name-generality (identical emitted bodies); PASS import inspection"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; timeout 300 python3 tools/check_numeric_policy.py",
+      "exit_code": 0,
+      "observed": "all legs PASS: no rtol/atol override anywhere; tolerance/exactness/reference/comparator probes all discriminate; 15 manifest rows carry the case's own policy"
+    },
+    {
+      "command": "for f in a100c/tests/test_*.py (excluding test_compile_sweep): timeout 1200 python3 $f > docs/compiler-agent/TASK_EVIDENCE/T043/test-suite/$name.log 2>&1 (results in .../test-suite/results.txt)",
+      "exit_code": 0,
+      "observed": "48/49 rc=0; test_t039_repairs rc=124 at the loop's own 1200s bound (runner artifact, not a test failure)"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; timeout 2400 python3 a100c/tests/test_t039_repairs.py",
+      "exit_code": 0,
+      "observed": "all checks PASS in 1375s (the test legitimately exceeds 1200s; re-run at the 2400s bound, both records kept in results.txt)"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; timeout 10800 python3 a100c/tests/test_compile_sweep.py --census-out docs/compiler-agent/TASK_EVIDENCE/T043/test-suite/compile-census.json",
+      "exit_code": 0,
+      "observed": "all compile-sweep checks PASS in 5431s: 2116 artifacts + 0 refusals = 2116 identities (over-budget 0, crash 0); 618/618 repeat-case checks reused one artifact; census written to the T043 evidence dir (the shared docs/compiler-agent/COMPILE_CENSUS.json left at its engine-recorded state). The harness stopped the background wrapper mid-run; rc verified from the log's terminal 'all compile-sweep checks PASS' line and the exited process, and recorded in results.txt"
+    }
+  ],
+  "acceptance": [
+    {
+      "ref": "acceptance[0]",
+      "command": "set -a; . ./.env; set +a; timeout 570 python3 tools/run_scan.py run --threads 1 (and --threads 4) --operator suite/dev/tril_matmul_kernel_6d320d58.py --operator suite/dev/triu_batch_kernel.py --report docs/compiler-agent/TASK_EVIDENCE/T043/scan/threads-{1,4}/report.json",
+      "exit_code": 0,
+      "observed": "every listed case executes and compares PASS under its declared policy at 1 and 4 workers: 12/12 at threads-1 and 12/12 at threads-4; the [127] ragged-tail shape and the [128] aligned shape both pass in fp32, fp16 and bf16 (previously all 12 were MISMATCH in recorded run 7f702b5c). triu outputs are bit-exact (max_abs_err=0.0); tril fp32 max_abs_err ~5.7e-6, fp16 ~0.015, bf16 ~0.12 -- input-precision level, inside each case's own rtol/atol"
+    },
+    {
+      "ref": "acceptance[1]",
+      "command": "set -a; . ./.env; set +a; timeout 580 python3 a100c/tests/test_t043_repairs.py",
+      "exit_code": 0,
+      "observed": "first incorrect stages identified with minimized reproductions and recorded (test docstring + checks, and this report): tril -> FRONTEND constexpr evaluation (minimized repro: `not <RuntimeValue>` evaluates to the silent constant False on the pre-fix arm -- the test's differential control executes that arm and reproduces it -- and to NOT_CONSTEXPR after the fix; real-path witness: the pre-fix cached artifact's stage.tir.txt has no linalg.dot/logical.not, the current one carries logical.not -> runtime if -> dot -> select.where); triu -> MIR LOWERING arange materialization (minimized repro: the extent-1 arange site in the current artifact's stage.mir.lowered.txt is a splat of start with exactly one vid, vs two vids pre-fix). The fixes land at those stages in the shared paths (specialize.py UnaryOp guard; vectorize.py arange own-values + scalar-unary re-materialization rung; tir.py join scope names) with no per-operator branch (check_no_name_dispatch PASS), and the regression test would have caught each defect (checks 1/2/4 fail against the pre-fix forms, demonstrated by the differential controls and the pre-fix cached artifacts)"
+    },
+    {
+      "ref": "acceptance[2]",
+      "command": "set -a; . ./.env; set +a; timeout 570 python3 tools/run_scan.py run --threads {1,4} --operator suite/dev/matmul_kernel_10d5c480.py; ... --operator suite/dev/gemm_rowstats_group_tc_kernel.py (reports under docs/compiler-agent/TASK_EVIDENCE/T043/neighbors/)",
+      "exit_code": 0,
+      "observed": "no regression on passing triangular/masked-matmul neighbors: matmul_kernel_10d5c480 (memory.load.masked + control.where + linalg.dot + creation.arange -- the tril tag set) 6/6 cases PASS at 1 thread and 6/6 at 4 threads; gemm_rowstats_group_tc_kernel (masked dot + arange + reductions + atomics) 2/2 PASS at 1 thread and 2/2 at 4 threads; additionally an arange-materialization blast over fused_recurrent_fwd_kernel and parallel_attn_fwd_kernel (12 aranges each) and norm__l2_norm_kernel_2: 18/18 PASS"
+    }
+  ],
+  "tests": [
+    {
+      "ref": "tests[0]",
+      "command": "set -a; . ./.env; set +a; python3 tools/run_scan.py run --threads 1 --operator suite/dev/tril_matmul_kernel_6d320d58.py --operator suite/dev/triu_batch_kernel.py --report docs/compiler-agent/TASK_EVIDENCE/T043/scan/threads-1/report.json; python3 tools/run_scan.py run --threads 4 --operator suite/dev/tril_matmul_kernel_6d320d58.py --operator suite/dev/triu_batch_kernel.py --report docs/compiler-agent/TASK_EVIDENCE/T043/scan/threads-4/report.json (the driver takes a mode and repeated --operator flags; this is the executable form of the listed command, run at both worker counts per acceptance[0])",
+      "exit_code": 0,
+      "observed": "all listed cases PASS: 12/12 at 1 worker and 12/12 at 4 workers (tril_matmul_kernel_6d320d58 [128]/[127] and triu_batch_kernel [17]/[120], each x float32/float16/bfloat16); both scans rc=0, report_complete, 9 compile identities served from 12 cache hits"
+    },
+    {
+      "ref": "tests[1]",
+      "command": "python3 a100c/tests/test_<name>.py for every test file in a100c/tests/ (50 files; results in docs/compiler-agent/TASK_EVIDENCE/T043/test-suite/results.txt and per-test logs; the sweep's census redirected to .../test-suite/compile-census.json)",
+      "exit_code": 0,
+      "observed": "all 49 non-sweep test files exit 0 (test_t039_repairs required a 2400s re-run: rc=0 in 1375s after the loop's own 1200s bound cut it -- both records kept, matching the T042 precedent; it is a runner-bound artifact, not a test failure), including the new test_t043_repairs.py; test_compile_sweep exits 0 in 5431s with all checks PASS: 2116 artifacts + 0 refusals = 2116 identities, 0 over-budget, 0 crashes, 618/618 repeat cases reused one artifact, compile economics within the declared bound"
+    }
+  ],
+  "evidence": "docs/compiler-agent/TASK_EVIDENCE/T043/scan/threads-{1,4}/report.json: 12/12 PASS each at the repaired tree (the 12 previously-MISMATCH triangular cases, [127] ragged and [128] aligned, fp32/fp16/bf16, 1 and 4 workers). Stage bisection bound to concrete artifacts: the pre-fix tril artifact a100c/cache/41d53648.../stage.tir.txt (old provenance, 29 tir_ops, no dot, no logical.not, C-only address trees) vs the current a100c/cache/a9fd0c5f.../stage.tir.txt (logical.not -> runtime if -> linalg.dot -> select.where); the pre-fix triu artifacts (two vid ops in stage.mir.lowered.txt) vs the current a100c/cache/bfaa0eda.../stage.mir.lowered.txt (extent-1 arange as s2v splat of const 0, one vid). a100c/tests/test_t043_repairs.py: 5 checks with differential controls, exit 0. docs/compiler-agent/TASK_EVIDENCE/T043/neighbors/ and .../arange-blast/: neighbor spot-checks and arange regression all PASS. docs/compiler-agent/TASK_EVIDENCE/T043/test-suite/results.txt + compile-census.json: full suite green, cold sweep 2116/2116 identities, 0 refusals. The recorded full-scan run 7f702b5c (docs/compiler-agent/SCAN_T019/run/report.json) holds the pre-fix MISMATCH rows for exactly these 12 cases.",
+  "design_issue": {},
+  "debug_request": {},
+  "attack": {},
+  "remaining_work": [
+    "Re-run the engine's prepared full-corpus regression to bind the 12-case release corpus-wide: the recorded run 7f702b5c predates this repair and still lists these 12 as MISMATCH (the other 25 MISMATCH rows there belong to other classes/tasks).",
+    "The arange fix's start!=0 path is the semantically complete general form but has no live corpus coverage (every corpus arange is start==0, verified by survey); a future corpus extension with tl.arange(k, k+n) would exercise it first."
+  ],
+  "end_revision": "",
+  "at": "2026-11-08T07:46:46.520246+00:00"
+}
