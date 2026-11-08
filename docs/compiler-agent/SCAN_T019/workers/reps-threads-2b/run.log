@@ -1,0 +1,71 @@
+[1/12] PASS             suite/dev/chunk_abc_fwd_kernel_intra_K.py [2, 2, 17, 9, 8, 4] float32
+[2/12] EVIDENCE_FAIL    suite/dev/chunk_abc_fwd_kernel_intra_K.py [2, 2, 17, 9, 8, 4] float16 :: instruction witness missing: smt.vmadot; instruction witness missing: smt.vfwmadot
+[3/12] PASS             suite/dev/chunk_abc_fwd_kernel_intra_K.py [2, 2, 17, 9, 8, 4] bfloat16
+[4/12] PASS             suite/dev/chunk_abc_fwd_kernel_intra_K.py [1, 3, 33, 13, 16, 4] float32
+[5/12] PASS             suite/dev/chunk_abc_fwd_kernel_intra_K.py [1, 3, 33, 13, 16, 4] float16
+[6/12] PASS             suite/dev/chunk_abc_fwd_kernel_intra_K.py [1, 3, 33, 13, 16, 4] bfloat16
+[7/12] PASS             suite/perf/batched_vecmat_mult.py [32, 32, 32] bfloat16
+[8/12] PASS             suite/perf/batched_vecmat_mult.py [32, 32, 32] float32
+[9/12] EVIDENCE_FAIL    suite/perf/batched_vecmat_mult.py [32, 32, 32] float16 :: instruction witness missing: smt.vmadot; insufficient multi-worker observation: 1 active workers over 1 units (minimum 2
+[10/12] PASS             suite/perf/batched_vecmat_mult.py [33, 33, 33] bfloat16
+[11/12] PASS             suite/perf/batched_vecmat_mult.py [33, 33, 33] float32
+[12/12] PASS             suite/perf/batched_vecmat_mult.py [33, 33, 33] float16
+report -> docs/compiler-agent/SCAN_T019/workers/reps-threads-2b/report.json (12 rows, summary beside it)
+{
+  "schema": "a100-scan-summary/v1",
+  "run": {
+    "cases_enumerated": 12,
+    "rows_reported": 12,
+    "run_this_process": 12,
+    "resumed": 0,
+    "missing": 0,
+    "threads": 2,
+    "resource_threads": 2,
+    "case_timeout_s": 240.0,
+    "representative_resource_cases": [
+      "suite/dev/chunk_abc_fwd_kernel_intra_K.py#[2, 2, 17, 9, 8, 4]#float16",
+      "suite/perf/batched_vecmat_mult.py#[32, 32, 32]#float16"
+    ]
+  },
+  "census": {
+    "cases": 12,
+    "identities": 12,
+    "declared_full_corpus": {
+      "cases": 2734,
+      "identities": 2161
+    }
+  },
+  "compile": {
+    "count": 0,
+    "cache_hits": 12,
+    "artifact_identities": 12,
+    "cold_ms_median": null,
+    "cache_hit_ms_median": 2.5869999999999997,
+    "cold_ms": [],
+    "cache_hit_ms": [
+      8.262,
+      2.47,
+      2.403,
+      2.394,
+      2.379,
+      2.759,
+      5.505,
+      3.637,
+      2.562,
+      2.612,
+      3.018,
+      2.435
+    ]
+  },
+  "statuses": {
+    "PASS": 10,
+    "EVIDENCE_FAIL": 2
+  },
+  "checks": {
+    "compile_count_le_identity_census_1_25x": true,
+    "artifact_identities_le_identity_census_1_25x": true,
+    "compile_count_equals_artifact_identities": false,
+    "cache_hit_is_fast": true,
+    "report_complete": true
+  }
+}
