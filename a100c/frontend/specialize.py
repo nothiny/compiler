@@ -471,6 +471,19 @@ class ConstexprEnv:
             v = self._eval(node.operand, path)
             if v is NOT_CONSTEXPR:
                 return NOT_CONSTEXPR
+            if isinstance(v, RuntimeValue):
+                # a runtime symbol must never leak through Python's
+                # ``not`` either (the T016 BoolOp class): RuntimeValue
+                # defines no __bool__, so ``not v`` evaluated the OBJECT's
+                # truthiness (True) and silently baked a constant False --
+                # tril_matmul's ``if not is_above:`` folded to the
+                # all-zeros else arm and the dot never lowered.  ``-``/``+``/
+                # ``~`` on a RuntimeValue raise (no __neg__/__pos__/__
+                # __invert__) and already decline through the evaluator's
+                # exception path; ``not`` is the only silent leak.  The
+                # operand declines the fold; the lowering's unary branch
+                # emits the runtime ``logical.not``.
+                return NOT_CONSTEXPR
             return self._unaryop(node.op, v)
         if isinstance(node, ast.BoolOp):
             vals = [self._eval(v, path) for v in node.values]

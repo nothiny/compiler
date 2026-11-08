@@ -2030,7 +2030,19 @@ def _verify_block(block: Block, scope: _Scope, errors: list,
                     jv = Value(t.type, t.shape, stmt.loc, name=name)
                 jv.add_alias(name)
                 results.append(jv)
-                scope.define(name, jv)
+                # T043 (the tril class): an arm that assigns a name to an
+                # already-defined value (``c_tile = acc``, acc a loop
+                # join) encodes the binding as an ALIAS on that value --
+                # op results already define every scope name at their
+                # definition point (pdist's ``hi = mid``), so an
+                # op-defined side is visible in the pre-if scope and the
+                # both-arms rule resolves it.  A join-defined side must
+                # behave identically: the join defines the value's scope
+                # names (the join name plus its aliases), or the alias
+                # stays invisible and the both-arms rule rejects a sound
+                # outer-value side.
+                for key in jv.scope_names():
+                    scope.define(key, jv)
             if provided and len(provided) != len(results):
                 errors.append(TirError(
                     Invariant.MALFORMED, stmt.loc,
@@ -2164,7 +2176,12 @@ def _verify_block(block: Block, scope: _Scope, errors: list,
                     jv = Value(final.type, final.shape, stmt.loc, name=name)
                 jv.add_alias(name)
                 results.append(jv)
-                scope.define(name, jv)
+                # T043: same rule as the if join and op results -- the
+                # join value's scope names (aliases included) all bind at
+                # the join, so a later arm's alias-only assignment of one
+                # of those names resolves against this value
+                for key in jv.scope_names():
+                    scope.define(key, jv)
             if provided and len(provided) != len(results):
                 errors.append(TirError(
                     Invariant.MALFORMED, stmt.loc,
