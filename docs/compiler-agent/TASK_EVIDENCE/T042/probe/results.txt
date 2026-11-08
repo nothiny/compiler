@@ -1,0 +1,26 @@
+T042 mask-destination compare legality probe (pinned QEMU endpoint)
+====================================================================
+Endpoint: qemu-riscv64 10.0.2, -cpu max,vlen=1024,elen=64,vext_spec=v1.0
+(the declared execution endpoint, F005/F042).  Each program sets
+vsetvli avl=32 (m2) or 16 (m1), fills v2/v4, executes ONE compare,
+then exits 42; exit 132 = SIGILL (illegal instruction).
+
+variant  instruction (at e64,m2 unless noted)          exit  verdict
+v1        vmslt.vv v5, v2, v4   (vd inside vs2 group)   132   ILLEGAL
+v2        vmslt.vv v4, v2, v4   (vd == vs2 group base)   42   legal
+v3        vmslt.vv v6, v2, v4   (vd disjoint)            42   legal
+v4        vmslt.vv v3, v2, v4   (vd inside vs1 group)   132   ILLEGAL
+v5        vmslt.vv v2, v2, v4   (vd == vs1 group base)   42   legal
+v6        vmslt.vv v5, v2, v4 at e64,m1 (no groups)      42   legal
+
+Rule: a mask-destination compare's vd must not fall STRICTLY INSIDE an
+LMUL>1 source register group (group base < vd < base + span); vd at the
+group's exact base or at any disjoint register is legal.
+
+Reproduction in the failing artifact (pre-fix amax fp16, cache key
+7d67d6205d64c9d83b689fa7b40b77543ee6da93465f19ddfe25be1d27df8674):
+  vsetvli t0, t0, e64, m2, ta,ma   # [op107]
+  vmslt.vv v5, v2, v4              # [op108]  vd=v5 inside vs2 v4-v5 -> SIGILL
+QEMU -strace observed: "--- SIGILL {si_signo=SIGILL, si_code=1,
+si_addr=0x00000000000115f2} ---" (the vmslt.vv at PC 0x115f2).
+The same form at vd=v4 (the fp32 artifact's placement) executes.

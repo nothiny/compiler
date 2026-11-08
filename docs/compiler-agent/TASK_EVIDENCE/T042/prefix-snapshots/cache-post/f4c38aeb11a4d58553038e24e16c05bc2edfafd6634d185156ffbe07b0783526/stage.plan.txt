@@ -1,0 +1,115 @@
+{
+  "grid": {
+    "axes": [
+      "$bundle_view('mid', 0)"
+    ],
+    "linear_ndim": 0,
+    "ndim": 1,
+    "self_check": {
+      "declared": [
+        1
+      ],
+      "modeled": [
+        1
+      ],
+      "tied_scalars": [],
+      "tied_views": [
+        "mid[0]"
+      ]
+    },
+    "ties": {
+      "('mid', 0)": [
+        "view_extent",
+        "mid",
+        0
+      ]
+    }
+  },
+  "layout": {
+    "digest": "168cdead92f45432",
+    "scalar_order": [
+      "M"
+    ],
+    "scalars": [
+      {
+        "dtype": "int64",
+        "index": 0,
+        "name": "M",
+        "tir": "i32",
+        "width": 64
+      }
+    ],
+    "view_order": [
+      "inp",
+      "mid"
+    ],
+    "views": [
+      {
+        "dtype": "float32",
+        "index": 0,
+        "name": "inp",
+        "pointee": "fp32"
+      },
+      {
+        "dtype": "float32",
+        "index": 1,
+        "name": "mid",
+        "pointee": "fp32"
+      }
+    ]
+  },
+  "plan": {
+    "block_extent": 128,
+    "chunks": [
+      [
+        32,
+        1
+      ],
+      [
+        32,
+        1
+      ],
+      [
+        32,
+        1
+      ],
+      [
+        32,
+        1
+      ]
+    ],
+    "partition": "strided",
+    "stages": [],
+    "workers": [
+      1,
+      2,
+      4,
+      8
+    ],
+    "workspace_private": 0,
+    "workspace_shared": 64
+  },
+  "target": {
+    "abi": "lp64d",
+    "eew_range": [
+      8,
+      16,
+      32,
+      64
+    ],
+    "elen_bits": 64,
+    "gprs": 32,
+    "isa": "rv64gcv",
+    "model_version": "a100-rvv1-vlen1024/1",
+    "name": "spacemit-a100-qemu",
+    "vector_file_bytes": 4096,
+    "vector_registers": 32,
+    "vlen_bits": 1024,
+    "workers": [
+      1,
+      2,
+      4,
+      8
+    ]
+  }
+}

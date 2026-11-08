@@ -1,0 +1,54 @@
+// tir/v1 module nanmedian_ascend_histogram_count_kernel source=/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py
+fn nanmedian_ascend_histogram_count_kernel(inp:*i8[], partial_counts:*i32[], M:i32[])  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+{
+  pid:i32[] = program_id axis=0()  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:23:13
+  cvt:i64[] = convert -> i64(pid)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:23:13
+  pid.2:i32[] = program_id axis=1()  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:24:17
+  cvt.2:i64[] = convert -> i64(pid.2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:24:17
+  c81:i64[] = const 7()  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:25:15
+  v82:i64[] = bit.shl(cvt.2, c81)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:25:15
+  ar:i32[128] = arange start=0, end=128()  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:25:37
+  cvt.3:i64[128] = convert -> i64(ar)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:25:15
+  bc:i64[128b] = broadcast to[128b] from[](v82)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:25:15
+  add:i64[128] = arith.add(bc, cvt.3)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:25:15
+  ar.2:i32[256] = arange start=0, end=256()  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:26:12
+  lit.2:i64[] = const 17()  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:27:12
+  bc.2:i64[128b] = broadcast to[128b] from[](lit.2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:27:12
+  cmp:i1[128] = cmp.lt(add, bc.2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:27:12
+  c84:i64[] = const 4()  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:26
+  v86:i64[] = bit.shl(cvt, c84)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:26
+  v87:i64[] = arith.add(cvt, v86)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:26
+  padd:*i8[] = ptradd(inp, v87)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:20
+  padd.2:*i8[128] = ptradd(padd, add)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:20
+  lit.4:i32[] = const 0()  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  c80:i8[] = const 0()  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  bc.3:i8[128b] = broadcast to[128b] from[](c80)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  ld:i8[128] = load default=value(padd.2, cmp, bc.3)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  f:u8[128] = full value=255()  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:36:32
+  pbc:u8[128] = bitcast -> u8(ld)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:42:36
+  lit.5:u8[] = const 128()  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:43:35
+  bc.4:u8[128b] = broadcast to[128b] from[](lit.5)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:43:35
+  bit:u8[128] = bit.xor(bc.4, pbc)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:43:35
+  sel:u8[128] = select.where(cmp, bit, f)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:46:34
+  cvt.5:i32[128] = convert -> i32(sel)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:47:12
+  bc.5:i32[128b] = broadcast to[128b] from[](lit.4)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:48:12
+  rz:i32[128] = realize(bc.5)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:48:12
+  sel.2:i32[128] = select.where(cmp, cvt.5, rz)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:48:12
+  hist:i32[256] = histogram(sel.2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:49:14
+  inv:i1[128] = bit.invert(cmp)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:50:29
+  cvt.6:i32[128] = convert -> i32(inv)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:50:28
+  red:i32[] = reduce(cvt.6)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:50:21
+  bc.6:i32[256b] = broadcast to[256b] from[](lit.4)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:51:32
+  cmp.2:i1[256] = cmp.eq(ar.2, bc.6)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:51:32
+  bc.7:i32[256b] = broadcast to[256b] from[](red)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:51:23
+  sel.3:i32[256] = select.where(cmp.2, bc.7, bc.6)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:51:23
+  sub:i32[256] = arith.sub(hist, sel.3)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:51:14
+  add.2:i64[] = arith.add(cvt, cvt.2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:52:22
+  c88:i64[] = const 8()  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:52:21
+  v89:i64[] = bit.shl(add.2, c88)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:52:21
+  cvt.7:i64[256] = convert -> i64(ar.2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:52:21
+  bc.9:i64[256b] = broadcast to[256b] from[](v89)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:52:21
+  add.3:i64[256] = arith.add(bc.9, cvt.7)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:52:21
+  padd.3:*i32[256] = ptradd(partial_counts, add.3)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:53:14
+  store unmasked(padd.3, sub)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:53:5
+}

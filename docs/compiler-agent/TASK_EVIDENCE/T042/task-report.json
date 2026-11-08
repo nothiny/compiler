@@ -1,0 +1,111 @@
+{
+  "invocation_id": "WTI047",
+  "task_id": "T042",
+  "attempt": 1,
+  "context_sha256": "fe0d150e6df814cfb0637f1bc8107eee62926e17d34bcac92a8c2677c002aa12",
+  "outcome": "COMPLETED",
+  "summary": "Repaired the fp16/bf16 reduction SIGILL class (24 LAUNCH_FAIL cases, native exit -4). Root cause (identified by walking one failing artifact and a 6-variant probe on the pinned QEMU): the emitted 'vmslt.vv v5, v2, v4' ran at SEW=64/LMUL=2 with the mask destination v5 STRICTLY INSIDE the vs2 register group v4-v5 -- an illegal-instruction form. Probed rule: a mask-destination compare traps when vd falls strictly inside an LMUL>1 source group; vd at the group's exact base (the fp32 artifacts' form) or disjoint is legal. The allocator had no constraint for mask destinations: the mixed-LMUL interference edge requires is_vector() on both sides and masks are not vectors, and dying source operands get no def-point edge. Fix in the SHARED allocation path (a100c/backend/allocate.py, no per-operator branch): _mask_compare_groups() maps each vcmp/vcmpx mask to its LMUL>1 operand groups; the coloring rejects strictly-inside candidates in BOTH directions (mask vs already-assigned operand groups, operand group vs already-assigned mask); _check_group_overlap() asserts the invariant after every successful coloring so a regression fails at compile time. Verification: all 36 cases of the six operators (amax, count_nonzero, mean, nansum, norm__max_norm, vector_norm__l1_norm; shapes 17/97/115; float32/float16/bfloat16) execute and compare PASS at 1, 2, 4 and 8 workers (formal reports at scan-final/threads-{1,2,4,8}); new regression test a100c/tests/test_t042_repairs.py reproduces the pre-fix placement with the constraint disabled and asserts the legal form (all checks PASS); fp32 (amax) and int8 (nanmedian histogram-count) reduction artifacts are instruction-stream-identical pre/post fix (only the revision comment and the assembler temp-filename in .debug_str differ) and execute PASS; full a100c test suite green (49/49 test files; the compile sweep census: 2116 artifacts, 0 refusals, 0 over-budget); a 910-case reduction-family slice: 907 PASS + 3 TIMEOUTs that were the default 120s case budget vs this operator's legitimate ~210-232s cold compile (passes at the declared 240s scan timeout; pre-fix cold compile 219.2s vs post-fix 210.7s -- no compile-time regression).",
+  "files_changed": [
+    "a100c/backend/allocate.py",
+    "a100c/tests/test_t042_repairs.py",
+    "docs/compiler-agent/TASK_EVIDENCE/T042/probe/results.txt",
+    "docs/compiler-agent/TASK_EVIDENCE/T042/probe/run.sh",
+    "docs/compiler-agent/TASK_EVIDENCE/T042/probe/template.S",
+    "docs/compiler-agent/TASK_EVIDENCE/T042/probe/v1_vd5_m2.S",
+    "docs/compiler-agent/TASK_EVIDENCE/T042/probe/v2_vd4_m2.S",
+    "docs/compiler-agent/TASK_EVIDENCE/T042/probe/v3_vd6_m2.S",
+    "docs/compiler-agent/TASK_EVIDENCE/T042/probe/v4_vd3_m2.S",
+    "docs/compiler-agent/TASK_EVIDENCE/T042/probe/v5_vd2_m2.S",
+    "docs/compiler-agent/TASK_EVIDENCE/T042/probe/v6_vd5_m1.S",
+    "docs/compiler-agent/TASK_EVIDENCE/T042/prefix-snapshots/manifest.json",
+    "docs/compiler-agent/TASK_EVIDENCE/T042/prefix-snapshots/postfix-comparison.json",
+    "docs/compiler-agent/TASK_EVIDENCE/T042/scan-final/threads-1/report.json",
+    "docs/compiler-agent/TASK_EVIDENCE/T042/scan-final/threads-2/report.json",
+    "docs/compiler-agent/TASK_EVIDENCE/T042/scan-final/threads-4/report.json",
+    "docs/compiler-agent/TASK_EVIDENCE/T042/scan-final/threads-8/report.json",
+    "docs/compiler-agent/TASK_EVIDENCE/T042/family-slice/report.json",
+    "docs/compiler-agent/TASK_EVIDENCE/T042/family-slice/TIMEOUT-resolution.txt",
+    "docs/compiler-agent/TASK_EVIDENCE/T042/family-slice-svd240/report.json",
+    "docs/compiler-agent/TASK_EVIDENCE/T042/test-suite/results.txt"
+  ],
+  "artifacts": [
+    "docs/compiler-agent/TASK_EVIDENCE/T042/probe/results.txt (the probe matrix: vd strictly inside an LMUL>1 source group -> SIGILL; exact base and disjoint -> legal)",
+    "docs/compiler-agent/TASK_EVIDENCE/T042/scan-final/threads-{1,2,4,8}/report.json (36/36 PASS each at the final revision)",
+    "docs/compiler-agent/TASK_EVIDENCE/T042/prefix-snapshots/postfix-comparison.json (fp32/int8 artifacts instruction-identical pre/post)",
+    "a100c/tests/test_t042_repairs.py (regression test: pre-fix reproduction control, safety-net control, emitted legal form, end-to-end PASS)",
+    "docs/compiler-agent/TASK_EVIDENCE/T042/family-slice/report.json (910-case reduction-family slice)",
+    "a100c/cache/beed0cd199d870ffed2439eec04387a19ea75158e0e5f6a4de455ec542df3aec/program.S (the fixed amax fp16 artifact: vmslt.vv v6, v2, v4)"
+  ],
+  "commands": [
+    {
+      "command": "set -a; . ./.env; set +a; python3 tools/run_scan.py run --operator suite/dev/amax_kernel_1.py",
+      "exit_code": 0,
+      "observed": "pre-fix reproduction: float32 PASS x2; float16/bfloat16 LAUNCH_FAIL x4 'native process exit -4'"
+    },
+    {
+      "command": "$A100_QEMU -L $A100_SYSROOT -cpu max,vlen=1024,elen=64,vext_spec=v1.0 -strace <staged amax fp16 executable> --bundle <bundle> --threads 1",
+      "exit_code": -4,
+      "observed": "--- SIGILL {si_signo=SIGILL, si_code=1, si_addr=0x00000000000115f2} --- ; objdump: 0x115f2 = vmslt.vv v5, v2, v4, running under vsetvli e64,m2 (vs2 group v4-v5)"
+    },
+    {
+      "command": "docs/compiler-agent/TASK_EVIDENCE/T042/probe/run.sh",
+      "exit_code": 0,
+      "observed": "v1 (vd=v5 inside vs2 group v4-v5, e64m2) exit 132 SIGILL; v2 (vd=v4 == vs2 base) exit 42; v3 (vd=v6 disjoint) exit 42; v4 (vd=v3 inside vs1 group v2-v3) exit 132 SIGILL; v5 (vd=v2 == vs1 base) exit 42; v6 (vd=v5 at m1) exit 42"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; python3 a100c/tests/test_t042_repairs.py",
+      "exit_code": 0,
+      "observed": "7 checks PASS incl. constraint-off control reproducing ('m1','v5','splat2','v4',2) and the safety net refusing the hand-built illegal form"
+    },
+    {
+      "command": "set -a; . ./.env; set +a; python3 tools/run_scan.py run --threads {1,2,4,8} --report .../scan-final/threads-$T/report.json --operator <the six operators>",
+      "exit_code": 0,
+      "observed": "threads 1/2/4/8 each: statuses {'PASS': 36}, rows 36 (six operators x shapes x dtypes incl. the 24 previously failing fp16/bf16 cases)"
+    },
+    {
+      "command": "python3 a100c/tests/test_<each of the 50 suite files>.py (full suite, per-test bounds)",
+      "exit_code": 0,
+      "observed": "all 49 test files in a100c/tests/ exit 0 at the final tree (48 pre-existing + the new test_t042_repairs.py); test_compile_sweep (full-corpus cold compile census: 2734 cases / 2116 identities) completed rc=0 with 'all compile-sweep checks PASS': 2116 artifacts, 0 refusals, 0 over-budget rows, artifact-reuse checks green -- no compile regression anywhere in the corpus from the allocator change"
+    }
+  ],
+  "acceptance": [
+    {
+      "ref": "acceptance[0]",
+      "command": "set -a; . ./.env; set +a; for T in 1 2 4 8: python3 tools/run_scan.py run --threads $T --report docs/compiler-agent/TASK_EVIDENCE/T042/scan-final/threads-$T/report.json --operator suite/dev/amax_kernel_1.py --operator suite/dev/count_nonzero_kernel_1.py --operator suite/dev/mean_kernel_1.py --operator suite/dev/nansum_kernel_1.py --operator suite/dev/norm__max_norm_kernel_1.py --operator suite/dev/vector_norm__l1_norm_kernel_1.py",
+      "exit_code": 0,
+      "observed": "all 24 previously LAUNCH_FAIL fp16/bf16 cases plus the 12 float32 cases PASS under their declared policies at 1, 2, 4 and 8 workers (36/36 rows PASS at every thread count; worker-count LAUNCH_FAIL findings clear)"
+    },
+    {
+      "ref": "acceptance[1]",
+      "command": "probe/run.sh + python3 a100c/tests/test_t042_repairs.py + constraint-disabled control through a100c.backend.allocate",
+      "exit_code": 0,
+      "observed": "illegal encoding identified: mask-destination compare vd strictly inside an LMUL>1 source register group (probe matrix recorded); fix is in the shared allocation path (a100c/backend/allocate.py: _mask_compare_groups + two-directional candidate check + _check_group_overlap assert) with no per-operator branch; regression test reproduces the class (constraint-off coloring places m1 at v5 inside splat2's v4-v5 group) and asserts the legal form (0 violations on the real MIR, 0 illegal compares in all six operators' emitted programs, end-to-end PASS)"
+    },
+    {
+      "ref": "acceptance[2]",
+      "command": "pre/post-fix compile + sha256 + objdump comparison of amax_kernel_1#[17]#float32 and nanmedian_ascend_histogram_count_kernel#[17]#int8 (docs/compiler-agent/TASK_EVIDENCE/T042/prefix-snapshots/postfix-comparison.json)",
+      "exit_code": 0,
+      "observed": "both artifacts: disassembly identical pre/post fix, program.S identical modulo the compiler-revision comment; the only ELF byte differences are the assembler temp object filename in .debug_str; both post-fix artifacts execute and compare PASS; fp32 spot-check is byte-for-byte the exact-base legal form the fp32 path already used"
+    }
+  ],
+  "tests": [
+    {
+      "ref": "tests[0]",
+      "command": "set -a; . ./.env; set +a; python3 tools/run_scan.py run --threads 1 --report .../scan-final/threads-1/report.json --operator suite/dev/amax_kernel_1.py --operator suite/dev/count_nonzero_kernel_1.py --operator suite/dev/mean_kernel_1.py --operator suite/dev/nansum_kernel_1.py --operator suite/dev/norm__max_norm_kernel_1.py --operator suite/dev/vector_norm__l1_norm_kernel_1.py (repeated at --threads 2, 4, 8)",
+      "exit_code": 0,
+      "observed": "36/36 cases PASS at each of 1/2/4/8 workers at the final revision; reports and summaries recorded under docs/compiler-agent/TASK_EVIDENCE/T042/scan-final/"
+    },
+    {
+      "ref": "tests[1]",
+      "command": "python3 a100c/tests/test_<name>.py for every test file in a100c/tests/ (50 files, results in docs/compiler-agent/TASK_EVIDENCE/T042/test-suite/results.txt and per-test logs)",
+      "exit_code": 0,
+      "observed": "all 49 test files exit 0 at the final tree, including the new test_t042_repairs.py; test_compile_sweep completed within a 10800s bound (it cold-compiles every identity; two earlier rc=124 records were the runner's own too-tight 1200s bound under CPU contention and were re-run green on the quiet machine: t039 rc=0 in 1367s, sweep rc=0 in ~5800s); sweep census: 2116 identities, 2116 artifacts, 0 refusals, 0 over-budget, all compile-sweep checks PASS"
+    }
+  ],
+  "evidence": "docs/compiler-agent/TASK_EVIDENCE/T042/scan-final/threads-{1,2,4,8}/report.json: 36/36 PASS each (the 24 previously LAUNCH_FAIL fp16/bf16 reduction cases execute and compare at every worker count). docs/compiler-agent/TASK_EVIDENCE/T042/probe/: the six-variant probe on the pinned QEMU proving the illegal-encoding rule (mask vd strictly inside an LMUL>1 source group -> SIGILL; exact base/disjoint -> legal). a100c/tests/test_t042_repairs.py: reproduces the pre-fix coloring with the constraint disabled and asserts the legal form through allocation, emission and native execution. prefix-snapshots/postfix-comparison.json: fp32 and int8 reduction artifacts instruction-identical pre/post. The fixed artifact itself: a100c/cache/beed0cd199d870ffed2439eec04387a19ea75158e0e5f6a4de455ec542df3aec/program.S (vmslt.vv v6, v2, v4 at e64,m2).",
+  "remaining_work": [
+    "The engine-level full input regression (regression-prepare/record over all 2734 cases) should re-bind at the new revision; the reduction-family slice (910 cases, all PASS at the declared 240s timeout for the three heavy complex_svd compiles) plus the full compile sweep give strong interim coverage.",
+    "The RVV mask-destination overlap rule is recorded in code comments and the probe evidence; a workflow Fact could be filed from the probe matrix by the manager if facts are tracked outside the task report."
+  ],
+  "end_revision": ""
+}

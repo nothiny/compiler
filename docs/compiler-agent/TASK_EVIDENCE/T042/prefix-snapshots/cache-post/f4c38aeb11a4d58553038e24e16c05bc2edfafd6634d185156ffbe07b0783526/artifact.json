@@ -1,0 +1,177 @@
+{
+  "compile_ms": 453,
+  "identity": "af5e9f0cad748288",
+  "key": "f4c38aeb11a4d58553038e24e16c05bc2edfafd6634d185156ffbe07b0783526",
+  "provenance": "a100c/676724339831a98d",
+  "sha256": "ef0f0f20aa31a0c3cb6a4ec623b64dff7cc74d66a6777977405adaa73be4a6eb",
+  "stages": {
+    "address_trees": [
+      "inp1 + sext(vi64 vb1) * 4",
+      "inp1 + sext(vi64 vb2) * 4"
+    ],
+    "allocation": {
+      "frame_bytes": 16,
+      "gprs_used": 19,
+      "spill_rounds_bound": 64,
+      "spill_slots": 0,
+      "spilled_values": 0,
+      "vector_bytes_used": 896,
+      "vector_file_bytes": 4096,
+      "vector_regs_used": 7
+    },
+    "emission": {
+      "emitted_lines": 15,
+      "frame_bytes": 96,
+      "saved_regs": [
+        "s1",
+        "s2",
+        "s3",
+        "s4",
+        "s5",
+        "s6",
+        "s7",
+        "s8",
+        "s9"
+      ]
+    },
+    "grid": {
+      "axes": [
+        "$bundle_view('mid', 0)"
+      ],
+      "linear_ndim": 0,
+      "ndim": 1,
+      "self_check": {
+        "declared": [
+          1
+        ],
+        "modeled": [
+          1
+        ],
+        "tied_scalars": [],
+        "tied_views": [
+          "mid[0]"
+        ]
+      },
+      "ties": {
+        "('mid', 0)": [
+          "view_extent",
+          "mid",
+          0
+        ]
+      }
+    },
+    "legalize": {
+      "declined": {},
+      "rewrites": {
+        "strunc->swext": 6,
+        "vwiden->vwaddx0": 2
+      }
+    },
+    "matrix_segments": [],
+    "matrix_staging_offset": null,
+    "passes": {
+      "identity": "passes=default",
+      "passes": {
+        "constprop": {
+          "declined": 0,
+          "enabled": true,
+          "fired": 0,
+          "reasons": {},
+          "rewrites": []
+        },
+        "copyprop": {
+          "declined": 0,
+          "enabled": true,
+          "fired": 0,
+          "reasons": {},
+          "rewrites": []
+        },
+        "cse": {
+          "declined": 0,
+          "enabled": true,
+          "fired": 0,
+          "reasons": {},
+          "rewrites": []
+        },
+        "dce": {
+          "declined": 0,
+          "enabled": true,
+          "fired": 1,
+          "reasons": {},
+          "rewrites": [
+            "dce const"
+          ]
+        },
+        "licm": {
+          "declined": 0,
+          "enabled": true,
+          "fired": 0,
+          "reasons": {},
+          "rewrites": []
+        },
+        "strength_reduction": {
+          "declined": 0,
+          "enabled": true,
+          "fired": 1,
+          "reasons": {},
+          "rewrites": [
+            "mul by 128 -> shl 7"
+          ]
+        }
+      },
+      "rounds": 2
+    },
+    "selection": {
+      "mnemonics": [
+        "add",
+        "addiw",
+        "addw",
+        "and",
+        "bne",
+        "call",
+        "j",
+        "ld",
+        "li",
+        "lw",
+        "lwu",
+        "mul",
+        "mv",
+        "ret",
+        "sd",
+        "sll",
+        "slt",
+        "sltu",
+        "sw",
+        "vadd.vv",
+        "vadd.vx",
+        "vfredmax.vs",
+        "vid.v",
+        "vluxei64.v",
+        "vmerge.vvm",
+        "vmflt.vv",
+        "vmslt.vv",
+        "vmul.vx",
+        "vmv.v.x",
+        "vmv.x.s",
+        "vmv1r.v",
+        "vsetvli",
+        "vwadd.vx"
+      ],
+      "ops": 240
+    },
+    "specialization": "af5e9f0cad748288",
+    "tir_ops": 18,
+    "toolchain": {
+      "as": "/home/i_yinzida/.local/opt/a100/toolchain-1.1.2/bin/riscv64-unknown-linux-gnu-as",
+      "invocations": [
+        "/home/i_yinzida/.local/opt/a100/toolchain-1.1.2/bin/riscv64-unknown-linux-gnu-as -march=rv64gcv /home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/TASK_EVIDENCE/T042/prefix-snapshots/cache-post/f4c38aeb11a4d58553038e24e16c05bc2edfafd6634d185156ffbe07b0783526/program.S -o /home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/TASK_EVIDENCE/T042/prefix-snapshots/cache-post/build/program-c8282aa92e2d24df.o",
+        "/home/i_yinzida/.local/opt/a100/toolchain-1.1.2/bin/riscv64-unknown-linux-gnu-gcc -O2 -Wall -Wextra -march=rv64gcv -mabi=lp64d -pthread -fno-ident -I /home/i_yinzida/compiler-a100-experiment-001/a100c/runtime --sysroot /home/i_yinzida/.local/opt/a100/toolchain-1.1.2/sysroot -c /home/i_yinzida/compiler-a100-experiment-001/a100c/runtime/bundle.c -o /home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/TASK_EVIDENCE/T042/prefix-snapshots/cache-post/build/bundle-2bc93a97eaa37ef2.o",
+        "/home/i_yinzida/.local/opt/a100/toolchain-1.1.2/bin/riscv64-unknown-linux-gnu-gcc -O2 -Wall -Wextra -march=rv64gcv -mabi=lp64d -pthread -fno-ident -I /home/i_yinzida/compiler-a100-experiment-001/a100c/runtime --sysroot /home/i_yinzida/.local/opt/a100/toolchain-1.1.2/sysroot -c /home/i_yinzida/compiler-a100-experiment-001/a100c/runtime/pool.c -o /home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/TASK_EVIDENCE/T042/prefix-snapshots/cache-post/build/pool-36be3702ed93dc88.o",
+        "/home/i_yinzida/.local/opt/a100/toolchain-1.1.2/bin/riscv64-unknown-linux-gnu-gcc -O2 -Wall -Wextra -march=rv64gcv -mabi=lp64d -pthread -fno-ident -I /home/i_yinzida/compiler-a100-experiment-001/a100c/runtime --sysroot /home/i_yinzida/.local/opt/a100/toolchain-1.1.2/sysroot -c /home/i_yinzida/compiler-a100-experiment-001/a100c/runtime/main.c -o /home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/TASK_EVIDENCE/T042/prefix-snapshots/cache-post/build/main-f32e9ba6c6ee4c5a.o",
+        "/home/i_yinzida/.local/opt/a100/toolchain-1.1.2/bin/riscv64-unknown-linux-gnu-gcc -march=rv64gcv -mabi=lp64d -pthread -Wl,--build-id=none -lm --sysroot /home/i_yinzida/.local/opt/a100/toolchain-1.1.2/sysroot /home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/TASK_EVIDENCE/T042/prefix-snapshots/cache-post/build/program-c8282aa92e2d24df.o /home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/TASK_EVIDENCE/T042/prefix-snapshots/cache-post/build/bundle-2bc93a97eaa37ef2.o /home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/TASK_EVIDENCE/T042/prefix-snapshots/cache-post/build/pool-36be3702ed93dc88.o /home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/TASK_EVIDENCE/T042/prefix-snapshots/cache-post/build/main-f32e9ba6c6ee4c5a.o -o /home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/TASK_EVIDENCE/T042/prefix-snapshots/cache-post/f4c38aeb11a4d58553038e24e16c05bc2edfafd6634d185156ffbe07b0783526/operator_exec"
+      ],
+      "ld": "/home/i_yinzida/.local/opt/a100/toolchain-1.1.2/bin/riscv64-unknown-linux-gnu-gcc"
+    },
+    "witness": "default"
+  }
+}

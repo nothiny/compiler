@@ -19,6 +19,15 @@ with each other and with everything live-in), and across calls
 (a100rt_stage_barrier clobbers every caller-saved GPR, psABI F045, so
 values live across a call avoid those registers).
 
+Instruction-local operand legality is separate from interference
+(because an interference edge is absolute -- it would also forbid legal
+exact-base placements): a mask-destination compare (vcmp/vcmpx) must not
+place its one-register destination strictly inside an LMUL>1 source
+register group (probed SIGILL on the pinned QEMU; the group's exact base
+and disjoint registers are legal, T042).  The coloring checks this
+against the pair's actual placement in both directions, and
+_check_group_overlap asserts it after every successful coloring.
+
 Exceeding a file is a compiler-owned spill/split decision (the vector file
 has no architectural spill, F041): the live range is split -- the value is
 stored to a stack slot after each definition (block parameters included,
@@ -404,6 +413,7 @@ def _try_color(fn: mir.MFunction, target: TargetModel,
     # width (from _index_implied_groups) overrides the value's own LMUL
     # for both the neighbour blocking and the value's own alignment.
     implied = _index_implied_groups(fn)
+    mask_defs, mask_uses = _mask_compare_groups(fn)
     spans: Dict[int, int] = {
         v.rid: max(v.type.lmul if v.is_vector() else 1,
                    implied.get(v.rid, 1))
@@ -444,6 +454,35 @@ def _try_color(fn: mir.MFunction, target: TargetModel,
                      else [f"v{idx + k}" for k in range(span)])
             if any(nm in taken or nm in blocked for nm in names):
                 continue
+            if reg.is_mask():
+                # T042: a mask-destination compare's vd must not fall
+                # strictly inside an LMUL>1 source group (probed SIGILL on
+                # the pinned QEMU); the group's exact base and any
+                # disjoint register stay legal
+                illegal = False
+                for o_rid in mask_defs.get(reg.rid, ()):
+                    name = assignment.get(o_rid)
+                    if name is not None and name.startswith("v"):
+                        base = int(name[1:])
+                        if base < idx < base + spans.get(o_rid, 1):
+                            illegal = True
+                            break
+                if illegal:
+                    continue
+            elif span > 1:
+                # T042, reverse direction: a compare operand's register
+                # group must not strictly contain an already-assigned
+                # mask destination of a compare that reads this value
+                illegal = False
+                for m_rid in mask_uses.get(reg.rid, ()):
+                    name = assignment.get(m_rid)
+                    if name is not None and name.startswith("v"):
+                        midx = int(name[1:])
+                        if idx < midx < idx + span:
+                            illegal = True
+                            break
+                if illegal:
+                    continue
             chosen = names[0]
             break
         if chosen is None:
@@ -550,6 +589,48 @@ def _index_implied_groups(fn: mir.MFunction) -> Dict[int, int]:
             if width > implied.get(idx.rid, 1):
                 implied[idx.rid] = width
     return implied
+
+
+def _mask_compare_groups(
+        fn: mir.MFunction) -> Tuple[Dict[int, List[int]], Dict[int, List[int]]]:
+    """The mask-destination compare maps (T042): mask rid -> its defining
+    compares' vector-operand rids, and the reverse.
+
+    ``vcmp``/``vcmpx`` write a one-register mask destination while reading
+    their vector operands at the operands' full register-group span.
+    Probed on the pinned QEMU endpoint (the declared target, F005/F042):
+    a compare whose destination mask register falls STRICTLY INSIDE an
+    LMUL>1 source group (group base < vd < base + span) raises an illegal
+    instruction (SIGILL -- the fp16/bf16 reduction class: amax/count/
+    mean/nansum/norm compare widened i64 offsets at e64,m2 and the mask
+    landed at v5 inside the splat's v4-v5 group).  A destination at the
+    group's exact base (``vmslt.vv v4, v2, v4``) or at any disjoint
+    register is legal.  The probe matrix, at e64,m2 vl=32 VLEN=1024:
+    vd=v5 over vs2 group v4-v5 SIGILL, vd=v4 (== vs2 base) ok, vd=v6
+    (disjoint) ok, vd=v3 over vs1 group v2-v3 SIGILL, vd=v2 (== vs1
+    base) ok, the same vd=v5 at m1 (no group) ok.
+
+    The constraint is instruction-local, not a global interference edge:
+    an edge would also forbid the legal exact-base form the fp32
+    artifacts already use, so it is checked against the pair's actual
+    placement in BOTH coloring directions -- the mask against
+    already-assigned operand groups, and an operand group against an
+    already-assigned mask it would strictly contain.
+    """
+    defs: Dict[int, List[int]] = {}
+    uses: Dict[int, List[int]] = {}
+    for b in fn.blocks:
+        for op in b.ops:
+            if op.opcode not in ("vcmp", "vcmpx"):
+                continue
+            if not op.results or not op.results[0].is_mask():
+                continue
+            mrid = op.results[0].rid
+            for o in op.operands:
+                if o.is_vector() and o.type.lmul > 1:
+                    defs.setdefault(mrid, []).append(o.rid)
+                    uses.setdefault(o.rid, []).append(mrid)
+    return defs, uses
 
 
 def _spill_attrs(reg: mir.VReg, slot: int) -> dict:
@@ -1139,6 +1220,35 @@ def _check_group_overlap(fn: mir.MFunction, alloc: "Allocation") -> None:
                             f"'{o.name}' ({alloc.assignment.get(o.rid)}) in "
                             f"'{op.opcode}' -- an overlap the "
                             "hardware rejects (illegal instruction)")
+            # T042: a mask-destination compare's vd must not sit strictly
+            # inside an LMUL>1 source register group (probed SIGILL on the
+            # pinned QEMU; the exact group base and disjoint registers are
+            # legal forms).  The coloring prevents this by construction;
+            # this assert makes a regression fail at compile time instead
+            # of launching an illegal instruction.
+            if op.opcode in ("vcmp", "vcmpx") and op.results \
+                    and op.results[0].is_mask():
+                dst_name = alloc.assignment.get(op.results[0].rid)
+                if dst_name is not None and dst_name.startswith("v"):
+                    dst_index = int(dst_name[1:])
+                    for o in op.operands:
+                        if not o.is_vector():
+                            continue
+                        src_name = alloc.assignment.get(o.rid)
+                        if src_name is None or not src_name.startswith("v"):
+                            continue
+                        base = int(src_name[1:])
+                        span = alloc.shapes.get(o.rid, ("vec", 1))[1]
+                        if base < dst_index < base + span:
+                            raise AllocationError(
+                                op.loc,
+                                f"allocation gives the mask destination "
+                                f"'{op.results[0].name}' ({dst_name}) a "
+                                f"position strictly inside source "
+                                f"'{o.name}' register group ({src_name}, "
+                                f"span {span}) in '{op.opcode}' -- the "
+                                "hardware rejects this form (illegal "
+                                "instruction)")
 
 
 def allocate(module: mir.MModule, target: TargetModel) -> Allocation:

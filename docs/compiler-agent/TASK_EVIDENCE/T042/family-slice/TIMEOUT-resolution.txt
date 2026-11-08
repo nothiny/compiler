@@ -1,0 +1,20 @@
+Family-slice TIMEOUT resolution (T042 supplementary regression slice)
+=====================================================================
+The slice (910 reduction-family cases, threads=1, default
+A100_EXECUTION_TIMEOUT=120 -> 185s stage budget) recorded 3 TIMEOUT
+rows, all complex_svd_pick_orthonormal_v_kernel.py#[17]
+(float32/float16/bfloat16): "stage: case budget exceeded".
+
+Not a code regression: this operator's cold compile is ~210-232s in
+both the pre-fix and post-fix allocator (measured: constraint-disabled
+cold compile 219.2s, constraint-enabled 210.7s -- the same envelope).
+The declared full-scan setting is --case-timeout 240 (SCAN_T019 used
+case_timeout_s=240 -> 365s budget); the slice's default 120s was simply
+below this operator's legitimate compile cost.
+
+Re-run at the declared 240s timeout (family-slice-svd240/report.json):
+all three cases PASS with cold compiles 211.9s / 220.6s / 231.6s.
+
+Slice bottom line: 910/910 cases execute and compare PASS (907 at the
+default budget + 3 at the declared scan budget); no new failure class
+introduced by the T042 allocator change.

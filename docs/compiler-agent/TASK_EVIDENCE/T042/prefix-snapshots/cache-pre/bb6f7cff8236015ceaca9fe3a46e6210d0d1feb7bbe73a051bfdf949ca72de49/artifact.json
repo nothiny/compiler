@@ -1,0 +1,199 @@
+{
+  "compile_ms": 155,
+  "identity": "9f77a7e1f4cf2351",
+  "key": "bb6f7cff8236015ceaca9fe3a46e6210d0d1feb7bbe73a051bfdf949ca72de49",
+  "provenance": "a100c/bb81f4c49150cef9",
+  "sha256": "944ac8d96431b684c26cdd5748aa7d883dc93973489502d9844ccc5a0fa6157d",
+  "stages": {
+    "address_trees": [
+      "inp1 + sext(vi64 os1) * 1",
+      "partial_counts1 + sext(vi64 vb4) * 4"
+    ],
+    "allocation": {
+      "frame_bytes": 16,
+      "gprs_used": 23,
+      "spill_rounds_bound": 64,
+      "spill_slots": 0,
+      "spilled_values": 0,
+      "vector_bytes_used": 1280,
+      "vector_file_bytes": 4096,
+      "vector_regs_used": 10
+    },
+    "emission": {
+      "emitted_lines": 15,
+      "frame_bytes": 112,
+      "saved_regs": [
+        "s1",
+        "s2",
+        "s3",
+        "s4",
+        "s5",
+        "s6",
+        "s7",
+        "s8",
+        "s9",
+        "s10",
+        "s11"
+      ]
+    },
+    "grid": {
+      "axes": [
+        "3",
+        "1"
+      ],
+      "linear_ndim": 0,
+      "ndim": 2,
+      "self_check": {
+        "declared": [
+          3,
+          1
+        ],
+        "modeled": [
+          3,
+          1
+        ],
+        "tied_scalars": [],
+        "tied_views": []
+      },
+      "ties": {}
+    },
+    "legalize": {
+      "declined": {},
+      "rewrites": {
+        "strunc->swext": 7,
+        "vwiden->vwaddx0": 12
+      }
+    },
+    "matrix_segments": [],
+    "matrix_staging_offset": null,
+    "passes": {
+      "identity": "passes=default",
+      "passes": {
+        "constprop": {
+          "declined": 0,
+          "enabled": true,
+          "fired": 3,
+          "reasons": {},
+          "rewrites": [
+            "fold convert",
+            "fold arith.mul",
+            "fold bit.shl"
+          ]
+        },
+        "copyprop": {
+          "declined": 3,
+          "enabled": true,
+          "fired": 0,
+          "reasons": {
+            "realize materialises broadcast extents as real": 3
+          },
+          "rewrites": []
+        },
+        "cse": {
+          "declined": 0,
+          "enabled": true,
+          "fired": 4,
+          "reasons": {},
+          "rewrites": [
+            "cse const: 1 use(s) -> lit.4",
+            "cse const: 1 use(s) -> lit.4",
+            "cse const: 1 use(s) -> lit.4",
+            "cse broadcast: 1 use(s) -> bc.6"
+          ]
+        },
+        "dce": {
+          "declined": 0,
+          "enabled": true,
+          "fired": 4,
+          "reasons": {},
+          "rewrites": [
+            "dce const",
+            "dce const",
+            "dce const",
+            "dce const"
+          ]
+        },
+        "licm": {
+          "declined": 0,
+          "enabled": true,
+          "fired": 0,
+          "reasons": {},
+          "rewrites": []
+        },
+        "strength_reduction": {
+          "declined": 0,
+          "enabled": true,
+          "fired": 3,
+          "reasons": {},
+          "rewrites": [
+            "mul by 128 -> shl 7",
+            "mul by 17 -> shifts+add",
+            "mul by 256 -> shl 8"
+          ]
+        }
+      },
+      "rounds": 3
+    },
+    "selection": {
+      "mnemonics": [
+        "add",
+        "addiw",
+        "addw",
+        "bne",
+        "divu",
+        "j",
+        "lbu",
+        "ld",
+        "li",
+        "lw",
+        "lwu",
+        "mul",
+        "mv",
+        "ret",
+        "sb",
+        "sd",
+        "sll",
+        "slt",
+        "sltu",
+        "sub",
+        "sw",
+        "vadd.vv",
+        "vadd.vx",
+        "vcpop.m",
+        "vid.v",
+        "vle8.v",
+        "vluxei64.v",
+        "vmerge.vvm",
+        "vmnand.mm",
+        "vmseq.vv",
+        "vmslt.vv",
+        "vmsne.vv",
+        "vmul.vx",
+        "vmv.v.v",
+        "vmv.v.x",
+        "vmv.x.s",
+        "vmv1r.v",
+        "vredsum.vs",
+        "vsetvli",
+        "vslidedown.vi",
+        "vsub.vv",
+        "vsuxei64.v",
+        "vwadd.vx",
+        "vwaddu.vx",
+        "vxor.vv"
+      ],
+      "ops": 884
+    },
+    "specialization": "9f77a7e1f4cf2351",
+    "tir_ops": 50,
+    "toolchain": {
+      "as": "/home/i_yinzida/.local/opt/a100/toolchain-1.1.2/bin/riscv64-unknown-linux-gnu-as",
+      "invocations": [
+        "/home/i_yinzida/.local/opt/a100/toolchain-1.1.2/bin/riscv64-unknown-linux-gnu-as -march=rv64gcv /home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/TASK_EVIDENCE/T042/prefix-snapshots/cache-pre/bb6f7cff8236015ceaca9fe3a46e6210d0d1feb7bbe73a051bfdf949ca72de49/program.S -o /home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/TASK_EVIDENCE/T042/prefix-snapshots/cache-pre/build/program-2f959bc439782c00.o",
+        "/home/i_yinzida/.local/opt/a100/toolchain-1.1.2/bin/riscv64-unknown-linux-gnu-gcc -march=rv64gcv -mabi=lp64d -pthread -Wl,--build-id=none -lm --sysroot /home/i_yinzida/.local/opt/a100/toolchain-1.1.2/sysroot /home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/TASK_EVIDENCE/T042/prefix-snapshots/cache-pre/build/program-2f959bc439782c00.o /home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/TASK_EVIDENCE/T042/prefix-snapshots/cache-pre/build/bundle-2bc93a97eaa37ef2.o /home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/TASK_EVIDENCE/T042/prefix-snapshots/cache-pre/build/pool-36be3702ed93dc88.o /home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/TASK_EVIDENCE/T042/prefix-snapshots/cache-pre/build/main-f32e9ba6c6ee4c5a.o -o /home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/TASK_EVIDENCE/T042/prefix-snapshots/cache-pre/bb6f7cff8236015ceaca9fe3a46e6210d0d1feb7bbe73a051bfdf949ca72de49/operator_exec"
+      ],
+      "ld": "/home/i_yinzida/.local/opt/a100/toolchain-1.1.2/bin/riscv64-unknown-linux-gnu-gcc"
+    },
+    "witness": "default"
+  }
+}
