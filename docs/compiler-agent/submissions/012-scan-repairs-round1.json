@@ -1,0 +1,237 @@
+{
+  "run_id": "7f702b5c6ddf442296fc9640721f3534",
+  "submission_id": "012-scan-repairs-round1",
+  "tasks": [
+    {
+      "task_id": "T042",
+      "goal": "Repair the fp16/bf16 reduction SIGILL class (24 LAUNCH_FAIL cases; native process exit -4 / SIGILL at native launch, also seen at threads 2 in the worker-count findings): reductions over fp16/bf16 data (amax, count_nonzero, mean, nansum, norm__max_norm, vector_norm__l1_norm) emit an illegal instruction. Find the illegal encoding (walk the emitted assembly of one failing artifact against the RVV/IME repertoire facts; likely a vred/vfclass or SEW/LMUL combination the pinned QEMU CPU does not implement, or a mis-encoded fp16 reduction opcode), fix the selection/lowering to a legal form (e.g. widen to fp32 lanes for the reduction tree under the declared single-rounding policy, or use the legal fp16 reduction encoding), and verify.",
+      "capability": "coding",
+      "purpose": "input",
+      "gate": "G7",
+      "cases": [
+        "suite/dev/amax_kernel_1.py#[17]#float16",
+        "suite/dev/amax_kernel_1.py#[17]#bfloat16",
+        "suite/dev/amax_kernel_1.py#[97]#float16",
+        "suite/dev/amax_kernel_1.py#[97]#bfloat16",
+        "suite/dev/count_nonzero_kernel_1.py#[17]#float16",
+        "suite/dev/count_nonzero_kernel_1.py#[17]#bfloat16",
+        "suite/dev/count_nonzero_kernel_1.py#[97]#float16",
+        "suite/dev/count_nonzero_kernel_1.py#[97]#bfloat16",
+        "suite/dev/mean_kernel_1.py#[17]#float16",
+        "suite/dev/mean_kernel_1.py#[17]#bfloat16",
+        "suite/dev/mean_kernel_1.py#[115]#float16",
+        "suite/dev/mean_kernel_1.py#[115]#bfloat16",
+        "suite/dev/nansum_kernel_1.py#[17]#float16",
+        "suite/dev/nansum_kernel_1.py#[17]#bfloat16",
+        "suite/dev/nansum_kernel_1.py#[97]#float16",
+        "suite/dev/nansum_kernel_1.py#[97]#bfloat16",
+        "suite/dev/norm__max_norm_kernel_1.py#[17]#float16",
+        "suite/dev/norm__max_norm_kernel_1.py#[17]#bfloat16",
+        "suite/dev/norm__max_norm_kernel_1.py#[97]#float16",
+        "suite/dev/norm__max_norm_kernel_1.py#[97]#bfloat16",
+        "suite/dev/vector_norm__l1_norm_kernel_1.py#[17]#float16",
+        "suite/dev/vector_norm__l1_norm_kernel_1.py#[17]#bfloat16",
+        "suite/dev/vector_norm__l1_norm_kernel_1.py#[97]#float16",
+        "suite/dev/vector_norm__l1_norm_kernel_1.py#[97]#bfloat16"
+      ],
+      "acceptance": [
+        "Every listed case executes and compares PASS under its declared policy at 1, 2, 4 and 8 workers (the worker-count LAUNCH_FAIL findings for these operators also clear).",
+        "The illegal encoding is identified and the fix is in the shared reduction selection/lowering path (no per-operator branch); a regression test reproduces the failing opcode class and asserts the legal form.",
+        "fp32 reductions and integer/index/boolean reductions remain exact and unchanged (spot-check a passing fp32 and int reduction case for byte-identical or semantically identical artifacts)."
+      ],
+      "tests": [
+        "set -a; . ./.env; set +a; python3 tools/run_scan.py --operator <the six operators> (all listed cases PASS at 1/2/4/8)",
+        "the full a100c test suite"
+      ],
+      "conflicts": ["a100c-lowering-backend"]
+    },
+    {
+      "task_id": "T043",
+      "goal": "Repair the triangular batch matmul mismatch class (12 MISMATCH cases: tril_matmul_kernel_6d320d58 at [127]/[128] x fp32/fp16/bf16, triu_batch_kernel at [17]/[120] x fp32/fp16/bf16): both apply a triangular mask (tl.where on an arange comparison) around a batched dot. Reproduce minimally (smallest shape, one dtype), walk the declared pipeline stages to the first incorrect stage, and fix there — the likely suspects are the mask/arange comparison feeding the where around the dot epilogue or the batched-dot staging with a masked operand; never patch the emitter to compensate for an upstream defect.",
+      "capability": "coding",
+      "purpose": "input",
+      "gate": "G7",
+      "cases": [
+        "suite/dev/tril_matmul_kernel_6d320d58.py#[128]#float32",
+        "suite/dev/tril_matmul_kernel_6d320d58.py#[128]#float16",
+        "suite/dev/tril_matmul_kernel_6d320d58.py#[128]#bfloat16",
+        "suite/dev/tril_matmul_kernel_6d320d58.py#[127]#float32",
+        "suite/dev/tril_matmul_kernel_6d320d58.py#[127]#float16",
+        "suite/dev/tril_matmul_kernel_6d320d58.py#[127]#bfloat16",
+        "suite/dev/triu_batch_kernel.py#[17]#float32",
+        "suite/dev/triu_batch_kernel.py#[17]#float16",
+        "suite/dev/triu_batch_kernel.py#[17]#bfloat16",
+        "suite/dev/triu_batch_kernel.py#[120]#float32",
+        "suite/dev/triu_batch_kernel.py#[120]#float16",
+        "suite/dev/triu_batch_kernel.py#[120]#bfloat16"
+      ],
+      "acceptance": [
+        "Every listed case executes and compares PASS under its declared policy at 1 and 4 workers; the [127] ragged-tail shape and the [128] aligned shape both pass.",
+        "The first incorrect pipeline stage is identified with the minimized reproduction and recorded; the fix lands at that stage in the shared path (no per-operator branch) with a regression test that would have caught it.",
+        "No regression on passing triangular/masked-matmul neighbors (spot-check 2 passing mask+dot operators)."
+      ],
+      "tests": [
+        "set -a; . ./.env; set +a; python3 tools/run_scan.py --operator suite/dev/tril_matmul_kernel_6d320d58.py,suite/dev/triu_batch_kernel.py (all listed cases PASS)",
+        "the full a100c test suite"
+      ],
+      "conflicts": ["a100c-lowering-backend"]
+    },
+    {
+      "task_id": "T044",
+      "goal": "Repair the conv3d family mismatch class (6 MISMATCH cases: fused_conv3d_kernel [2,4,7,6,5,6,2,2,2] x fp32/fp16/bf16; transposed_conv3d [1,3,5,2,3,4,1,0]/[1,3,10,2,3,4,1,0]/[3,3,5,2,3,4,1,0] fp16): 3-D convolution/transposed-convolution indexing (multi-axis windows, stride/padding arithmetic, output coordinate decomposition). Reproduce minimally, walk the pipeline stages to the first incorrect one (suspects: multi-axis window address materialization with broadcast extents, or the implicit loop nest ordering), fix at that stage in the shared path.",
+      "capability": "coding",
+      "purpose": "input",
+      "gate": "G7",
+      "cases": [
+        "suite/dev/fused_conv3d_kernel.py#[2, 4, 7, 6, 5, 6, 2, 2, 2]#float32",
+        "suite/dev/fused_conv3d_kernel.py#[2, 4, 7, 6, 5, 6, 2, 2, 2]#float16",
+        "suite/dev/fused_conv3d_kernel.py#[2, 4, 7, 6, 5, 6, 2, 2, 2]#bfloat16",
+        "suite/dev/transposed_conv3d.py#[1, 3, 5, 2, 3, 4, 1, 0]#float16",
+        "suite/dev/transposed_conv3d.py#[1, 3, 10, 2, 3, 4, 1, 0]#float16",
+        "suite/dev/transposed_conv3d.py#[3, 3, 5, 2, 3, 4, 1, 0]#float16"
+      ],
+      "acceptance": [
+        "Every listed case executes and compares PASS under its declared policy at 1 and 4 workers.",
+        "The first incorrect pipeline stage is identified with a minimized reproduction and recorded; the fix lands at that stage in the shared conv/indexing path (no per-operator branch) with a regression test.",
+        "No regression on passing conv/pool operators (spot-check 2 passing conv family cases)."
+      ],
+      "tests": [
+        "set -a; . ./.env; set +a; python3 tools/run_scan.py --operator suite/dev/fused_conv3d_kernel.py,suite/dev/transposed_conv3d.py (all listed cases PASS)",
+        "the full a100c test suite"
+      ],
+      "conflicts": ["a100c-lowering-backend"]
+    },
+    {
+      "task_id": "T045",
+      "goal": "Repair the chunk_gdn2_fwd_kernel_intra_token_parallel mismatch class (6 MISMATCH cases: [2,17,5,7,8,4] and [3,17,5,7,8,4] x fp32/fp16/bf16): this is the operator whose grid-axis identity-stability T041 fixed (the baking defect); the remaining mismatches are compute-level. Reproduce minimally, walk the pipeline stages to the first incorrect one, fix at that stage in the shared path; verify no cache-key/baking regression (both shapes of one identity still share one correct artifact or split keys legally).",
+      "capability": "coding",
+      "purpose": "input",
+      "gate": "G7",
+      "cases": [
+        "suite/dev/chunk_gdn2_fwd_kernel_intra_token_parallel.py#[2, 17, 5, 7, 8, 4]#float32",
+        "suite/dev/chunk_gdn2_fwd_kernel_intra_token_parallel.py#[2, 17, 5, 7, 8, 4]#float16",
+        "suite/dev/chunk_gdn2_fwd_kernel_intra_token_parallel.py#[2, 17, 5, 7, 8, 4]#bfloat16",
+        "suite/dev/chunk_gdn2_fwd_kernel_intra_token_parallel.py#[3, 17, 5, 7, 8, 4]#float32",
+        "suite/dev/chunk_gdn2_fwd_kernel_intra_token_parallel.py#[3, 17, 5, 7, 8, 4]#float16",
+        "suite/dev/chunk_gdn2_fwd_kernel_intra_token_parallel.py#[3, 17, 5, 7, 8, 4]#bfloat16"
+      ],
+      "acceptance": [
+        "Every listed case executes and compares PASS under its declared policy at 1 and 4 workers.",
+        "The identity-stability property is preserved (the T041 regression test still passes; no shape-derived constant folds into a shared key).",
+        "The first incorrect pipeline stage is identified with a minimized reproduction and recorded; the fix is in the shared path with a regression test."
+      ],
+      "tests": [
+        "set -a; . ./.env; set +a; python3 tools/run_scan.py --operator suite/dev/chunk_gdn2_fwd_kernel_intra_token_parallel.py (all listed cases PASS)",
+        "the full a100c test suite"
+      ],
+      "conflicts": ["a100c-lowering-backend"]
+    },
+    {
+      "task_id": "T046",
+      "goal": "Repair the local_ne masked-load class (4 MISMATCH cases: local_ne_consecutive_kernel [17]/[97] torch.int32, local_ne_flat_impl [17]/[97] torch.int32). T031 recorded a design conflict on the masked-load undef default for this operator family: the kernel's masked load relies on the disabled-position default in a way the current lowering does not reproduce. Determine the pinned Triton 3.8 semantics for the load's other= default on disabled positions (from the archived specification), make the lowering produce exactly that, and verify; if the required semantics genuinely cannot be expressed under the current representation contract, raise a DESIGN_ISSUE with the evidence instead of forcing a local patch.",
+      "capability": "coding",
+      "purpose": "input",
+      "gate": "G7",
+      "cases": [
+        "suite/dev/local_ne_consecutive_kernel.py#[17]#torch.int32",
+        "suite/dev/local_ne_consecutive_kernel.py#[97]#torch.int32",
+        "suite/dev/local_ne_flat_impl.py#[17]#torch.int32",
+        "suite/dev/local_ne_flat_impl.py#[97]#torch.int32"
+      ],
+      "acceptance": [
+        "Every listed case executes and compares PASS (integer outputs exact) at 1 and 4 workers.",
+        "The masked-load disabled-position default semantics are implemented per the pinned specification citation (or a DESIGN_ISSUE is filed with the exact conflict, the specification anchor, and the proposed contract change).",
+        "The guard-region witness still holds for masked loads (dropping a mask in a scratch build fails)."
+      ],
+      "tests": [
+        "set -a; . ./.env; set +a; python3 tools/run_scan.py --operator suite/dev/local_ne_consecutive_kernel.py,suite/dev/local_ne_flat_impl.py (all listed cases PASS)",
+        "the full a100c test suite"
+      ],
+      "conflicts": ["a100c-ir-frontend", "a100c-lowering-backend"]
+    },
+    {
+      "task_id": "T047",
+      "goal": "Repair the rng_dual mismatch class (3 MISMATCH cases: rng_dual_kernel [1] x fp32/fp16/bf16): the kernel produces two RNG streams (philox counter variants); one of them mismatches. Compare against reference vectors from the pinned Triton 3.8 environment, find the offset/counter/round divergence in the philox implementation or its per-lane offset formula, and fix it bit-exactly (integer exactness).",
+      "capability": "coding",
+      "purpose": "input",
+      "gate": "G7",
+      "cases": [
+        "suite/dev/rng_dual_kernel.py#[1]#float32",
+        "suite/dev/rng_dual_kernel.py#[1]#float16",
+        "suite/dev/rng_dual_kernel.py#[1]#bfloat16"
+      ],
+      "acceptance": [
+        "Every listed case executes and compares PASS under its declared policy at 1 and 4 workers.",
+        "The philox fix is bit-exact against freshly generated reference vectors from the pinned Triton 3.8 environment (the generation command and vectors are recorded); no other RNG case regresses (the misc.rng family spot-check passes)."
+      ],
+      "tests": [
+        "set -a; . ./.env; set +a; python3 tools/run_scan.py --operator suite/dev/rng_dual_kernel.py (all listed cases PASS)",
+        "python3 a100c/tests/test_rng.py and the full a100c test suite"
+      ],
+      "conflicts": ["a100c-ir-frontend"]
+    },
+    {
+      "task_id": "T048",
+      "goal": "Repair the assorted small mismatch classes: gram_jacobi_sym_kernel [17]/[30,5] fp32 (select_scan_index family — likely an iterative-sweep convergence or scan ordering defect), bucketize_kernel [17]/[126] fp32 (boundary search — the comparison at bin edges), hardsigmoid_kernel_2 [128] int16 (integer saturation/clamp semantics on int16). Each: reproduce minimally, walk to the first incorrect stage, fix in the shared path.",
+      "capability": "coding",
+      "purpose": "input",
+      "gate": "G7",
+      "cases": [
+        "suite/dev/gram_jacobi_sym_kernel.py#[17]#float32",
+        "suite/dev/gram_jacobi_sym_kernel.py#[30, 5]#float32",
+        "suite/dev/bucketize_kernel.py#[17]#float32",
+        "suite/dev/bucketize_kernel.py#[126]#float32",
+        "suite/dev/hardsigmoid_kernel_2.py#[128]#int16"
+      ],
+      "acceptance": [
+        "Every listed case executes and compares PASS under its declared policy at 1 and 4 workers (integer outputs exact for the int16 case).",
+        "Each fix is at the first incorrect stage in a shared path with a minimized reproduction and regression test; no per-operator branch."
+      ],
+      "tests": [
+        "set -a; . ./.env; set +a; python3 tools/run_scan.py --operator suite/dev/gram_jacobi_sym_kernel.py,suite/dev/bucketize_kernel.py,suite/dev/hardsigmoid_kernel_2.py (all listed cases PASS)",
+        "the full a100c test suite"
+      ],
+      "conflicts": ["a100c-lowering-backend", "a100c-ir-frontend"]
+    },
+    {
+      "task_id": "T049",
+      "goal": "Repair the perf-tier mismatches: batched_vecmat_mult [32,32,32] fp16 and fused_lu_solve [9] bfloat16 (suite/perf). Reproduce minimally, walk to the first incorrect stage, fix in the shared path (batched vector-matrix multiply indexing and LU-solve triangular solve loops respectively); these are perf-tier cases but correctness repairs only — no timing work.",
+      "capability": "coding",
+      "purpose": "input",
+      "gate": "G7",
+      "cases": [
+        "suite/perf/batched_vecmat_mult.py#[32, 32, 32]#float16",
+        "suite/perf/fused_lu_solve.py#[9]#bfloat16"
+      ],
+      "acceptance": [
+        "Every listed case executes and compares PASS under its declared policy at 1 and 4 workers.",
+        "Each fix is at the first incorrect stage in a shared path with a minimized reproduction and regression test."
+      ],
+      "tests": [
+        "set -a; . ./.env; set +a; python3 tools/run_scan.py --operator suite/perf/batched_vecmat_mult.py,suite/perf/fused_lu_solve.py (all listed cases PASS)",
+        "the full a100c test suite"
+      ],
+      "conflicts": ["a100c-lowering-backend"]
+    },
+    {
+      "task_id": "T050",
+      "goal": "Repair the resource-evidence and multi-worker concurrency findings: (1) the 2 EVIDENCE_FAIL resource-contract rows for chunk_abc_fwd_kernel_intra_K [2,2,17,9,8,4]#float16 — the case PASSes at 1 worker with IME instruction witnesses, but at 2/4/8 workers the witnesses are missing ('instruction witness missing: smt.vmadot; smt.vfwmadot'): the multi-worker partition must still route the dot through IME (or the evidence capture must bind the right artifact/variant) so every required worker count shows positive smt.vmadot/smt.vfwmadot execution counts bound to the same run, case and artifact; (2) the grouped_mm_kernel [4,67,35,29]#bfloat16 8-thread race-shaped intermittency (MISMATCH on 3 of extra bounded repetitions at threads=8, PASS at 1): find the unsynchronized shared access or partial-merge ordering in the multi-worker grouped path and fix it (the same artifact must pass deterministically at 8 threads across repeated bounded runs).",
+      "capability": "coding",
+      "purpose": "input",
+      "gate": "G7",
+      "cases": [
+        "suite/dev/chunk_abc_fwd_kernel_intra_K.py#[2, 2, 17, 9, 8, 4]#float16"
+      ],
+      "acceptance": [
+        "The chunk_abc resource-evidence row records positive smt.vmadot and smt.vfwmadot execution counts at 1, 2, 4 and 8 workers, bound to the same prepared run, case identity and artifact (resource_evidence contract satisfied at every required count).",
+        "The grouped_mm case passes deterministically at 8 threads across at least 5 repeated bounded executions (fresh processes, same artifact) and at 1/2/4 workers; the race's unsynchronized access is identified and fixed in the shared multi-worker path with a regression rationale.",
+        "No regression on the other matmul-family resource-representative or multi-worker rows."
+      ],
+      "tests": [
+        "set -a; . ./.env; set +a; python3 tools/run_scan.py --resource-evidence --operator suite/dev/chunk_abc_fwd_kernel_intra_K.py (witnesses present at all counts)",
+        "bounded repeated 8-thread runs of grouped_mm (all PASS) and the full a100c test suite"
+      ],
+      "conflicts": ["a100c-lowering-backend", "a100c-tools-driver"]
+    }
+  ]
+}
