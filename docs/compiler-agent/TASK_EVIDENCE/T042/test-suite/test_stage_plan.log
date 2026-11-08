@@ -1,0 +1,33 @@
+PASS identity-table-per-op-and-dtype-signedness-correct
+PASS signed-and-unsigned-identities-differ | 2147483647 vs 4294967295
+PASS empty-extent-sum-is-exact-identity
+PASS empty-extent-min-is-exact-identity
+PASS empty-extent-arg-index-is-worst
+PASS argmax-tie-break-left-is-the-declared-default
+PASS min-return-indices-tie-break-left-declared
+PASS merge-tie-takes-the-left-index | (3.0, 2)
+PASS merge-max-tie-takes-the-left-index | (5, 1)
+PASS merge-model-matches-independent-oracles
+PASS workspace-ownership-disjoint-per-worker
+PASS violating-ownership-plan-rejected | declared workspace ownership violated: slot 1 overlaps its predecessor (a worker's own slots must be disjoint)
+PASS slot-spilling-into-neighbour-region-rejected | declared workspace ownership violated: slot 0 (16 bytes at region offset 0) spills past its worker's 8-byte region into another worker's ownership
+PASS undersized-workspace-plan-rejected | declared workspace ownership violated: total 16 bytes cannot hold 8 regions of 8
+PASS plan-without-layout-rejected | an eligible plan declares its workspace layout
+PASS non-1-2-4-8-worker-plan-rejected | worker count 3 not in 1/2/4/8 (F053)
+PASS well-formed-plan-validates-at-1-2-4-8
+PASS vdot-form-lowers-and-verifies | []
+PASS vdot-form-plan-eligible-sum-merge | 2 partial(s), two-phase split at single-program-grids; merge owner worker 0
+PASS vdot-form-plan-validates
+PASS argmin-form-lowers-and-verifies | []
+PASS argmin-form-plan-eligible-pair-merge | [{'name': 'best_val', 'merge': 'min-index', 'dtype': 'fp32', 'bytes': 8, 'tie_break_left': True}, {'name': 'red', 'merge': 'min', 'dtype': 'fp32', 'bytes': 4, 'tie_break_left': True}, {'name': 'arg', 'merge': 'min-index', 'dtype': 'fp32', 'bytes': 8, 'tie_break_left': True}]
+PASS argmin-form-plan-validates
+PASS block-reduction-form-lowers-and-verifies | []
+PASS block-reduction-form-plan-eligible | 1 partial(s), two-phase split at single-program-grids; merge owner worker 0
+PASS block-reduction-form-plan-validates
+PASS elementwise-form-plan-ineligible-with-reason | no region-exit value escapes into the suffix
+PASS non-reduction-carried-update-refuses-the-split | region value 'acc' escapes without a merge rule (its loop update is not a recognized reduction form)
+PASS split-k-feed-workspace-owns-disjoint-regions | 8 disjoint owned regions of 512 bytes (merge reads all, writes one)
+PASS split-k-feed-merges-by-exact-sum
+PASS split-k-feed-partial-tile-size | 512
+PASS split-k-integer-merge-is-modular-exact | 1346064001 vs 1346064001
+test_stage_plan: all checks PASS

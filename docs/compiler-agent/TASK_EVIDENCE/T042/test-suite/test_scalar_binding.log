@@ -1,0 +1,12 @@
+PASS record-kind-matches-transport
+PASS record-readback-declared-widths
+PASS record-readback-float64-to-fp32
+PASS record-readback-conversion-control | raw low half 0x9999999a vs RTNE 0x3dcccccd (the check distinguishes a converted from a re-read record)
+PASS const-bits-declared-rounding
+PASS const-bits-rounding-control | bf16 RTNE 0x3dcd vs trunc 0x3dcc
+PASS masked-other-const-executes
+PASS full-const-executes
+PASS conversion-refusal-boundary
+PASS census-executor-leaky-relu-strided
+PASS census-executor-perf-leaky-relu
+test_scalar_binding: all checks PASS

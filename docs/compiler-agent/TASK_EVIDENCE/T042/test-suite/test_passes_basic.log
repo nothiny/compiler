@@ -1,0 +1,42 @@
+PASS legality-cse_disjoint |  | cse:3
+PASS legality-cse_overlap |  | cse:4
+PASS legality-dce_witness |  | dce:6
+PASS legality-cp_int_witness |  | constprop:2 cse:2 dce:4
+PASS legality-cp_float_witness |  | cse:1
+PASS legality-cp_pathcond_witness |  | constprop:1 dce:2
+PASS legality-sr_witness |  | strength_reduction:3 cse:14 dce:4
+PASS legality-cp_copy_witness |  | constprop:1 copyprop:1 cse:2 dce:4
+PASS legality-licm_witness |  | strength_reduction:1 cse:4 licm:2 dce:1
+PASS legality-dot_passes |  | strength_reduction:3 cse:34 dce:2
+PASS legality-absolute-kernel-float-identity-refusal |  | constprop reasons=['float identity folding declined']
+PASS acceptance0-per-pass-legality
+PASS invalidation-mutation-forces-recomputation | pid: uses 3 -> 2 after removing one use site (the digest moved, so the suite recomputed)
+PASS invalidation-frozen-view-refuses-after-mutation
+PASS invalidation-pass-refuses-on-stale-view | the LICM pass raised StaleAnalysisError instead of reading the stale loops result
+PASS invalidation-licm-consumes-loops-analysis | licm fired 6 with the real loops analysis, 0 with a forced-empty one
+PASS invalidation-dce-consumes-liveness-analysis | dce fired 6 with the real liveness, 0 with a forced all-live one
+PASS acceptance1-invalidation-contract
+PASS switch-constprop-changes-emitted-code | on: fired=2 (compare PASS); off: enabled=False fired=None; artifact differs: True; assembly differs: True
+PASS switch-copyprop-changes-emitted-code | on: fired=1 (compare PASS); off: enabled=False fired=None; artifact differs: True; assembly differs: True
+PASS switch-strength_reduction-changes-emitted-code | on: fired=1 (compare PASS); off: enabled=False fired=None; artifact differs: True; assembly differs: True
+PASS switch-cse-changes-emitted-code | on: fired=28 (compare PASS); off: enabled=False fired=None; artifact differs: True; assembly differs: True
+PASS switch-licm-changes-emitted-code | on: fired=4 (compare PASS); off: enabled=False fired=None; artifact differs: True; assembly differs: True
+PASS switch-dce-changes-emitted-code | on: fired=6 (compare PASS); off: enabled=False fired=None; artifact differs: True; assembly differs: True
+PASS switch-fired-zero-is-not-disabled | cse=True/0 licm=True/0
+PASS switch-configuration-in-artifact-identity | same-config hit=True; other-config hit=False; bytes differ=True
+PASS switch-env-namespace | from_env: passes=strength_reduction-off vs passes=default
+PASS acceptance2-real-switches
+PASS corpus-subset-absolute_kernel | elementwise/mask/where |  | on-fires: strength_reduction:1 dce:1
+PASS corpus-subset-var_len_copy | flow.loop/dynamic-range |  | on-fires: cse:2 licm:4
+PASS corpus-subset-reduce_kernel | red.sum + if_pid |  | on-fires: 
+PASS corpus-subset-row_reduce_min_kernel | red.maxmin + axis |  | on-fires: 
+PASS corpus-subset-bincount_kernel | atomics |  | on-fires: strength_reduction:1 dce:1
+PASS corpus-subset-asinh_kernel | math.transcendental |  | on-fires: strength_reduction:1 cse:1 dce:1
+PASS corpus-subset-complex_pack | layout split/join |  | on-fires: dce:1
+PASS corpus-subset-bitcast | dtype conversions/bitcast |  | on-fires: strength_reduction:1 cse:2 dce:1
+PASS corpus-subset-vdot_kernel_complex | persistent reduce (complex) |  | on-fires: constprop:4 strength_reduction:6 cse:28 licm:7 dce:3
+PASS corpus-subset-mean | red.sum (perf tier) |  | on-fires: cse:2
+PASS corpus-subset-dot-matrix-probe | dot/matrix class (the corpus dot operators sit behind the recorded dots-in-runtime-loops boundary; the probe carries its own numpy reference)
+PASS acceptance3-corpus-subset-both-configurations
+# evidence: /tmp/a100c-passes-lfyqh0zu/evidence.json
+test_passes_basic: all checks PASS

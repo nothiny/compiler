@@ -1,0 +1,28 @@
+PASS factory-returns-compile-case-protocol | FactoryCompiler from a100c.factory:make_compiler
+PASS factory-artifact-arguments-protocol | arguments=('--bundle', '{bundle}', '--threads', '{threads}')
+PASS factory-artifact-is-riscv-elf | operator_exec, 23496 bytes
+PASS factory-artifact-provenance | a100c/80d3ce0a2de50a70
+PASS factory-cache-root-honored | /tmp/a100c-driver-cache-2bel8im0/factory-cache/037effd39a57ccc81634a9cc8312b04769cc32b78700d1d23f4b1091c3b8ccd2
+PASS identity-excludes-shape | one artifact for both shapes; the second call is a cache hit
+PASS identity-includes-pointer-dtype | float16 compiles a distinct artifact
+PASS pass-config-in-cache-key-and-general-path-intact | all-off is a distinct cache entry, byte-identical to the plain driver (8d0eb35fc8c3); passes-on differs (7d6fd3e23564)
+PASS pass-trace-recorded-in-marker | fired={'constprop': 0, 'copyprop': 0, 'cse': 0, 'dce': 1, 'licm': 0, 'strength_reduction': 1}
+PASS cold-run-exits-0 | exit 0
+PASS cold-compile-count-equals-distinct-identities | 6 compiles == 6 identities == 6 artifacts (< 11 cases)
+PASS cold-run-every-case-compiled-executed-compared | statuses={'PASS': 11}
+PASS cold-run-report-complete | 11 rows, schema input-regression/v1
+PASS warm-run-zero-compilations | compiles=0, cache_hits=11 over 11 cases
+PASS warm-run-cache-hits-are-fast | cache-hit p50 2.79 ms vs cold p50 63.763000000000005 ms
+PASS warm-run-results-identical | every row reproduces its cold-run verdict and artifact
+PASS resume-partial-run-exits-0 | exit 0
+PASS resume-run-exits-0 | exit 0
+PASS resume-skips-journaled-cases-without-recompiling | resumed=4, compiles=0, run_this_process=7
+PASS resume-report-is-complete | 11 rows, every case compiled, executed and compared
+PASS resume-rows-come-from-the-journal | 11 journaled rows reproduced verbatim
+PASS faulted-run-exits-0 | exit 0 (the fault is a recorded row, never a scan failure)
+PASS crash-fault-recorded-as-failure | suite/dev/absolute_kernel.py#[97]#bfloat16 -> LAUNCH_FAIL: launch: RuntimeError: native process exit 3: 
+PASS timeout-fault-recorded-with-its-bound | suite/dev/absolute_kernel.py#[17]#float32 -> TIMEOUT: launch exceeded its bound 0.0183333s (A100_EXECUTION_TIMEOUT)
+PASS fault-isolation-other-cases-unchanged | 9 other cases reproduce their clean-run results
+PASS compiler-and-factory-import-no-torch-no-reference-device | modules loaded during a real compile: []
+
+all driver/cache/factory checks PASS

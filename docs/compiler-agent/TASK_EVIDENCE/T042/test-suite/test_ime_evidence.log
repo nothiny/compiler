@@ -1,0 +1,95 @@
+PASS int8-case-executes-under-qemu | exit 0
+PASS int8-case-compares-pass-exact
+PASS int8-plugin-counts-executed-smt-vmadot | 18 executions over 2 pc(s)
+PASS int8-plugin-count-equals-tile-model | counted 18, model 18 (tiles x k-steps)
+PASS int8-run-bound-to-artifact-and-workers | status=ok workers=[5, 4]
+PASS fp16-case-executes-under-qemu | exit 0
+PASS fp16-case-compares-pass | max err 7.15e-07
+PASS fp16-plugin-counts-executed-smt-vfwmadot | 45 executions over 1 pc(s)
+PASS fp16-plugin-count-equals-tile-model | counted 45, model 45
+PASS bf16-plan-carries-the-recorded-gap
+PASS bf16-case-executes-under-qemu | exit 0
+PASS bf16-vector-fp32-path-compares-pass | max err 0.00e+00
+PASS bf16-records-zero-ime-executions | 0 smt.* rows (the gap: BF16 IME is not claimable, F010/F034)
+PASS int8-threads-1-pass | compare PASS; items [15] (strided model [15])
+PASS int8-threads-2-pass | compare PASS; items [8, 7] (strided model [8, 7])
+PASS int8-threads-4-pass | compare PASS; items [4, 4, 4, 3] (strided model [4, 4, 4, 3])
+PASS int8-threads-8-pass | compare PASS; items [2, 2, 2, 2, 2, 2, 2, 1] (strided model [2, 2, 2, 2, 2, 2, 2, 1])
+PASS int8-one-artifact-across-worker-counts
+PASS tail-case-executes | exit 0
+PASS tail-case-compares-pass-exact
+PASS tail-case-tile-count-equals-model | counted 8, model 8 (tail steps included)
+PASS guard-region-witness-fails | compared FAIL with the padding dropped
+PASS int8-acc-chaining-compares-pass | exit 0
+PASS uint8-variant-selects-vmadotu
+PASS uint8-variant-executes-and-compares | exit 0; smt.vmadotu selected
+# evidence: /tmp/a100c-ime-evidence-adk3843z/ime-evidence.json
+{
+  "schema": "a100c-ime-evidence/v1",
+  "endpoint": "qemu-functional (jdsk-qemu 10.0.2, -cpu max,vlen=1024,elen=64,vext_spec=v1.0)",
+  "plugin": "a100_support/probes/instruction_counts.c",
+  "cases": [
+    {
+      "case": "int8-24x20x32-threads2",
+      "dtype": "int8",
+      "shape": [
+        24,
+        20,
+        32
+      ],
+      "artifact_sha256": "fe433c86aafa4d72c2df719ca3e2bf4f51ec47b7a0827e40e9c6339c854a8d2b",
+      "mnemonic": "smt.vmadot",
+      "executed": 18,
+      "model": 18,
+      "workers": [
+        5,
+        4
+      ],
+      "compare": "exact PASS",
+      "counts_schema": "qemu-dynamic-instructions/v1"
+    },
+    {
+      "case": "fp16-20x24x40-colmajorB-threads4",
+      "dtype": "float16",
+      "shape": [
+        20,
+        24,
+        40
+      ],
+      "artifact_sha256": "7c409e0aefff349393a898039fb305417b052aaa52a87c5f917c461596273598",
+      "mnemonic": "smt.vfwmadot",
+      "executed": 45,
+      "model": 45,
+      "workers": [
+        3,
+        2,
+        2,
+        2
+      ],
+      "compare": "allclose PASS",
+      "counts_schema": "qemu-dynamic-instructions/v1"
+    },
+    {
+      "case": "bf16-12x18x24-vectorfp32-threads1",
+      "dtype": "bfloat16",
+      "shape": [
+        12,
+        18,
+        24
+      ],
+      "artifact_sha256": "35525c34628794868fabc189b6e9afadac856c8ef2db1575dfff103ec03e70a7",
+      "path": "vector-fp32",
+      "executed_ime": 0,
+      "compare": "allclose PASS",
+      "gap": "the pinned QEMU emulator's BF16 IME format selection has not passed (F010: the bf16 matrix probe fails while its executed smt.vfwmadot selects the MCPM float16 format; F034); BF16 IME execution is not claimable and FP16 or vector success never proves it -- BF16 dot lowers to the vector FP32 path (BF16->FP32 conversion is exact) and the gap is recorded separately"
+    },
+    {
+      "case": "int8-40x24x48-threads-1-2-4-8",
+      "dtype": "int8",
+      "shape": [
+        40,
+        24,
+        48
+      ],
+      "artifact_sha256": "fe433c8
+test_ime_evidence: all checks PASS

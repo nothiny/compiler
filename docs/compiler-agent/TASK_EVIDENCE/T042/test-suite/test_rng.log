@@ -1,0 +1,18 @@
+PASS pinned-triton-reference-vectors-generated | recorded under /tmp/a100c-rng-b9aewcxr/reference-vectors (command + vectors.json)
+PASS philox-words-bit-exact-vs-pinned-triton | 128/128 words equal
+PASS randint-bit-exact-vs-pinned-triton | 32/32 values equal
+PASS rand-bit-exact-vs-pinned-triton | 32/32 uniforms equal
+PASS randn-within-tolerance-vs-pinned | max |diff| 5.960e-08 (rtol 1e-4)
+PASS rand4x-bit-exact-vs-pinned-triton | the four uniforms of the 4x form
+PASS randn4x-within-tolerance-vs-pinned | the two Box-Muller pairs of the 4x form
+PASS randint4x-bit-exact-vs-pinned-triton | the four counter words of the 4x form
+PASS philox-offset-formula-counter-words | counter = (offset_lo, offset_hi, 0, 0), key = (seed_lo, seed_hi)
+PASS rand-offset-formula-uniform-conversion | bitcast int32, ~x on negatives, x * 4.6566127342e-10
+PASS randint-offset-formula-first-word | the first philox word at the base offset
+PASS randn-box-muller-composition | maximum(1e-7, u1), -2*log, sqrt, 2pi*u2, cos
+PASS off-by-one-philox-round-fails-bit-exactness | 9-round words equal the 10-round reference: False (the control must differ)
+PASS wrongly-rounded-uniform-constant-fails | correct scale PASS=True, truncated scale PASS=False (the control must fail)
+PASS rng-corpus-operators-execute-and-compare | stochastic_ensemble / fused_fill_dropout / randint__randint
+PASS rng-dual-all-declared-dtypes | randn through the selected pointer in fp32/fp16/bf16
+PASS rng-1-2-4-8-threads-one-artifact | 1 artifact sha(s) across 4 thread counts
+test_rng: all checks PASS

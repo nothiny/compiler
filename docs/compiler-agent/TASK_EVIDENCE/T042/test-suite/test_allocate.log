@@ -1,0 +1,17 @@
+PASS every-value-has-a-location | []
+PASS no-interfering-pair-shares-a-register | []
+PASS working-masks-pinned-to-v0
+PASS v0-never-allocated
+PASS vector-file-within-budget | 5 regs, 640 B of 4096 B
+PASS slice-does-not-spill | {'gprs_used': 13, 'vector_regs_used': 5, 'vector_bytes_used': 640, 'vector_file_bytes': 4096, 'spill_slots': 0, 'spilled_values': 0, 'frame_bytes': 16, 'spill_rounds_bound': 64}
+PASS m2-groups-even-aligned | []
+PASS vector-spill-fires | {'gprs_used': 1, 'vector_regs_used': 31, 'vector_bytes_used': 3968, 'vector_file_bytes': 4096, 'spill_slots': 7, 'spilled_values': 7, 'frame_bytes': 912, 'spill_rounds_bound': 64}
+PASS spill-ops-inserted | ['ret', 'sconst', 'vbin', 'vid', 'vreload', 'vsetvli', 'vspill']
+PASS post-spill-module-verifies
+PASS spill-slots-sized-by-value-class | [128, 128, 128, 128, 128, 128, 128]
+PASS scalar-spill-fires | {'gprs_used': 25, 'vector_regs_used': 0, 'vector_bytes_used': 0, 'vector_file_bytes': 4096, 'spill_slots': 17, 'spilled_values': 17, 'frame_bytes': 160, 'spill_rounds_bound': 64}
+PASS post-scalar-spill-verifies
+PASS constant-pressure-remats | 17 remat products, 0 spilled
+PASS post-remat-module-verifies
+PASS mask-exhaustion-refuses | allocation: mask value 'm31' cannot be spilled: the mask file is exhausted and mask spill is not imp
+test_allocate: all checks PASS

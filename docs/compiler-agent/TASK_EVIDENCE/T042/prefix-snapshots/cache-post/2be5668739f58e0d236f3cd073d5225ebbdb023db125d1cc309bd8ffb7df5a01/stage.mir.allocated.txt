@@ -1,0 +1,928 @@
+// mir/v1 module nanmedian_ascend_histogram_count_kernel source=/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py
+// address_trees: ['inp1 + sext(vi64 os1) * 1', 'partial_counts1 + sext(vi64 vb4) * 4']
+// allocation: {'gprs_used': 23, 'vector_regs_used': 10, 'vector_bytes_used': 1280, 'vector_file_bytes': 4096, 'spill_slots': 0, 'spilled_values': 0, 'frame_bytes': 16, 'spill_rounds_bound': 64}
+// block_extent: 256
+// chunks: [[32, 1], [32, 1], [32, 1], [32, 1], [32, 1], [32, 1], [32, 1], [32, 1]]
+// grid: {'ndim': 2, 'axes': ['3', '1'], 'ties': {}, 'self_check': {'modeled': [3, 1], 'declared': [3, 1], 'tied_scalars': [], 'tied_views': []}, 'linear_ndim': 0}
+// legalize: {'rewrites': {'strunc->swext': 7, 'vwiden->vwaddx0': 12}, 'declined': {}}
+// matrix_segments: []
+// matrix_staging_offset: None
+// selection: {'ops': 884, 'mnemonics': ['add', 'addiw', 'addw', 'bne', 'divu', 'j', 'lbu', 'ld', 'li', 'lw', 'lwu', 'mul', 'mv', 'ret', 'sb', 'sd', 'sll', 'slt', 'sltu', 'sub', 'sw', 'vadd.vv', 'vadd.vx', 'vcpop.m', 'vid.v', 'vle8.v', 'vluxei64.v', 'vmerge.vvm', 'vmnand.mm', 'vmseq.vv', 'vmslt.vv', 'vmsne.vv', 'vmul.vx', 'vmv.v.v', 'vmv.v.x', 'vmv.x.s', 'vmv1r.v', 'vredsum.vs', 'vsetvli', 'vslidedown.vi', 'vsub.vv', 'vsuxei64.v', 'vwadd.vx', 'vwaddu.vx', 'vxor.vv']}
+// sew: 32
+// stage_plan: {'eligible': False, 'reason': 'layout staging (the T012 multi-pass lane) is sequential per worker; the reduction rides the normal per-program path', 'policy': 'single-program-grids', 'merge_owner': 0, 'barriers': 1, 'partials': [{'name': 'red', 'merge': 'sum', 'dtype': 'i32', 'bytes': 4, 'tie_break_left': True}], 'layout': {'slots': [0], 'slot_sizes': [8], 'workers': 8, 'stride': 8, 'total_bytes': 64}}
+// stats_mode: chunks
+// wide_selections: []
+// witness: default
+fn operator_entry(launch:i64)
+entry(launch:i64):
+  bundle1:i64 = sload(launch:i64) ext=sext offset=0 width=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  views1:i64 = sload(bundle1:i64) ext=sext offset=0 width=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  scalars1:i64 = sload(bundle1:i64) ext=sext offset=8 width=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  stats1:i64 = sload(launch:i64) ext=sext offset=24 width=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  wid1:u32 = sload(launch:i64) ext=zext offset=40 width=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  wcnt1:u32 = sload(launch:i64) ext=zext offset=44 width=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  M1:i64 = sload(scalars1:i64) ext=sext offset=8 width=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  Mn1:i32 = swext(M1:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  inp1:i64 = sload(views1:i64) ext=sext offset=0 width=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  partial_counts1:i64 = sload(views1:i64) ext=sext offset=56 width=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  k1:i64 = sconst() value=3  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  k2:i64 = sconst() value=1  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  k3:i64 = sconst() value=1  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  gn1:i64 = smul(k3:i64, k1:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  gn2:i64 = smul(gn1:i64, k2:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  pid1:i64 = smove(wid1:u32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  wcnt641:i64 = smove(wcnt1:u32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  k4:i64 = sconst() value=0  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  br() args=[pid1, k4] target=prog_head  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+prog_head(pid.loop:i64, items.loop:i64):
+  go1:i64 = slt(pid.loop:i64, gn2:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  brc(go1:i64) false_args=[pid.loop, items.loop] false_target=prog_exit true_args=[pid.loop, items.loop] true_target=prog_body  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+prog_body(pid.body:i64, items.body:i64):
+  k5:i64 = sconst() value=1  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  gq1:i64 = sdivu(pid.body:i64, k1:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  gr1:i64 = smul(gq1:i64, k1:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  gpid1:i64 = ssub(pid.body:i64, gr1:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  gs1:i64 = smul(k5:i64, k1:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  gq2:i64 = sdivu(pid.body:i64, gs1:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  gq3:i64 = sdivu(gq2:i64, k2:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  gr2:i64 = smul(gq3:i64, k2:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  gpid2:i64 = ssub(gq2:i64, gr2:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  gs2:i64 = smul(gs1:i64, k2:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  pid01:i32 = swext(gpid1:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  pid11:i32 = swext(gpid2:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  np01:i32 = swext(k1:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  np11:i32 = swext(k2:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  wspr1:i64 = sload(launch:i64) ext=sext offset=16 width=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  wssh1:i64 = sload(launch:i64) ext=sext offset=8 width=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  w1:i64 = smove(pid01:i32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:23:13
+  w2:i64 = smove(pid11:i32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:24:17
+  k6:i64 = sconst() value=7  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:25:15
+  s1:i64 = sshl(w2:i64, k6:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:25:15
+  k7:i32 = sconst() value=0  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  br() args=[k7, items.body] target=chunk1_head  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+chunk1_head(elem.loop:i32, items.chunk:i64):
+  k8:i32 = sconst() value=128  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  cgo1:i64 = slt(elem.loop:i32, k8:i32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  brc(cgo1:i64) false_args=[pid.body, items.chunk] false_target=chunk1_exit true_args=[elem.loop, items.chunk] true_target=chunk1_body  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+chunk1_exit(pid.xreg:i64, items.xreg:i64):
+  k24:i32 = sconst() value=0  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  br() args=[k24, items.xreg] target=chunk2_head  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+chunk1_body(elem.loop:i32, items.chunk:i64):
+  k9:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  vl1:i32 = vsetvli(k9:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  k10:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:25:37
+  cvr1:i32 = vsetvli(k10:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:25:37
+  iota1:vi32m1 = vid()  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:25:37
+  ar1:vi32m1 = vbinx(iota1:vi32m1, elem.loop:i32) op=add  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:25:37
+  cvw1:vi64m2 = vwaddx0(ar1:vi32m1) mode=sext  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:25:15
+  k11:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:25:15
+  rgo1:i32 = vsetvli(k11:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:25:15
+  splat1:vi64m2 = s2v(s1:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:25:15
+  k12:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:25:15
+  cvr2:i32 = vsetvli(k12:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:25:15
+  k13:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:25:15
+  rgo2:i32 = vsetvli(k13:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:25:15
+  vb1:vi64m2 = vbin(splat1:vi64m2, cvw1:vi64m2) op=add  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:25:15
+  k14:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:25:15
+  cvr3:i32 = vsetvli(k14:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:25:15
+  tvid1:vi32m1 = vid()  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:25:15
+  tidx1:vi32m1 = vbinx(tvid1:vi32m1, elem.loop:i32) op=add  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:25:15
+  k15:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:25:15
+  lsw01:i32 = vsetvli(k15:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:25:15
+  lsw1:vi64m2 = vwaddx0(tidx1:vi32m1) mode=sext  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:25:15
+  k16:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:25:15
+  lswr1:i32 = vsetvli(k16:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:25:15
+  k17:i64 = sconst() value=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:25:15
+  lss1:vi64m2 = vbinx(lsw1:vi64m2, k17:i64) op=mul  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:25:15
+  k18:i64 = sconst() value=0  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:25:15
+  tb1:i64 = sadd(wspr1:i64, k18:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:25:15
+  k19:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:25:15
+  tsr1:i32 = vsetvli(k19:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:25:15
+  vstoreix(tb1:i64, lss1:vi64m2, vb1:vi64m2) eew=64 sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:25:15
+  k20:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:25:15
+  cvr4:i32 = vsetvli(k20:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:25:15
+  k21:i64 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  items21:i64 = sadd(items.chunk:i64, k21:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  k22:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  elem21:i32 = sadd(elem.loop:i32, k22:i32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  k23:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  bvl1:i32 = vsetvli(k23:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  br() args=[elem21, items21] target=chunk1_head  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+chunk2_head(elem.loop:i32, items.chunk:i64):
+  k25:i32 = sconst() value=256  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  cgo2:i64 = slt(elem.loop:i32, k25:i32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  brc(cgo2:i64) false_args=[pid.body, items.chunk] false_target=chunk2_exit true_args=[elem.loop, items.chunk] true_target=chunk2_body  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+chunk2_exit(pid.xreg:i64, items.xreg:i64):
+  k38:i32 = sconst() value=0  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  br() args=[k38, items.xreg] target=chunk3_head  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+chunk2_body(elem.loop:i32, items.chunk:i64):
+  k26:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  vl2:i32 = vsetvli(k26:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  k27:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:26:12
+  cvr5:i32 = vsetvli(k27:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:26:12
+  iota2:vi32m1 = vid()  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:26:12
+  ar2:vi32m1 = vbinx(iota2:vi32m1, elem.loop:i32) op=add  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:26:12
+  tvid2:vi32m1 = vid()  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:26:12
+  tidx2:vi32m1 = vbinx(tvid2:vi32m1, elem.loop:i32) op=add  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:26:12
+  k28:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:26:12
+  lsw02:i32 = vsetvli(k28:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:26:12
+  lsw2:vi64m2 = vwaddx0(tidx2:vi32m1) mode=sext  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:26:12
+  k29:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:26:12
+  lswr2:i32 = vsetvli(k29:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:26:12
+  k30:i64 = sconst() value=4  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:26:12
+  lss2:vi64m2 = vbinx(lsw2:vi64m2, k30:i64) op=mul  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:26:12
+  k31:i64 = sconst() value=1024  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:26:12
+  tb2:i64 = sadd(wspr1:i64, k31:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:26:12
+  k32:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:26:12
+  tsr2:i32 = vsetvli(k32:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:26:12
+  vstoreix(tb2:i64, lss2:vi64m2, ar2:vi32m1) eew=64 sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:26:12
+  k33:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:26:12
+  cvr6:i32 = vsetvli(k33:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:26:12
+  k34:i64 = sconst() value=17  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:27:12
+  k35:i64 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  items22:i64 = sadd(items.chunk:i64, k35:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  k36:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  elem22:i32 = sadd(elem.loop:i32, k36:i32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  k37:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  bvl2:i32 = vsetvli(k37:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  br() args=[elem22, items22] target=chunk2_head  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+chunk3_head(elem.loop:i32, items.chunk:i64):
+  k39:i32 = sconst() value=128  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  cgo3:i64 = slt(elem.loop:i32, k39:i32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  brc(cgo3:i64) false_args=[pid.body, items.chunk] false_target=chunk3_exit true_args=[elem.loop, items.chunk] true_target=chunk3_body  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+chunk3_exit(pid.xreg:i64, items.xreg:i64):
+  k198:i64 = sconst() value=2560  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:49:14
+  rrb1:i64 = sadd(wspr1:i64, k198:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:49:14
+  k199:i64 = sconst() value=3072  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:49:14
+  rrd1:i64 = sadd(wspr1:i64, k199:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:49:14
+  k200:i64 = sconst() value=0  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:49:14
+  k201:i64 = sconst() value=256  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:49:14
+  br() args=[k200] target=rhb4.head  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:49:14
+chunk3_body(elem.loop:i32, items.chunk:i64):
+  k40:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  vl3:i32 = vsetvli(k40:i32) lmul=1 policy=ta,ma sew=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  k41:i64 = sconst() value=17  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:27:12
+  k42:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:27:12
+  rgo3:i32 = vsetvli(k42:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:27:12
+  splat2:vi64m2 = s2v(k41:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:27:12
+  k43:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:27:12
+  cvr7:i32 = vsetvli(k43:i32) lmul=1 policy=ta,ma sew=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:27:12
+  k44:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:27:12
+  cvr8:i32 = vsetvli(k44:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:27:12
+  svid1:vi32m1 = vid()  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:27:12
+  sidx1:vi32m1 = vbinx(svid1:vi32m1, elem.loop:i32) op=add  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:27:12
+  k45:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:27:12
+  lsw03:i32 = vsetvli(k45:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:27:12
+  lsw3:vi64m2 = vwaddx0(sidx1:vi32m1) mode=sext  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:27:12
+  k46:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:27:12
+  lswr3:i32 = vsetvli(k46:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:27:12
+  k47:i64 = sconst() value=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:27:12
+  lss3:vi64m2 = vbinx(lsw3:vi64m2, k47:i64) op=mul  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:27:12
+  k48:i64 = sconst() value=0  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:27:12
+  sb1:i64 = sadd(wspr1:i64, k48:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:27:12
+  k49:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:27:12
+  slr1:i32 = vsetvli(k49:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:27:12
+  sld1:vi64m2 = vloadix(sb1:i64, lss3:vi64m2) eew=64 sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:27:12
+  k50:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:27:12
+  cvr9:i32 = vsetvli(k50:i32) lmul=1 policy=ta,ma sew=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:27:12
+  k51:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:27:12
+  rgo4:i32 = vsetvli(k51:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:27:12
+  m1:vm = vcmp(sld1:vi64m2, splat2:vi64m2) fp=False pred=lt  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:27:12
+  k52:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:27:12
+  cvr10:i32 = vsetvli(k52:i32) lmul=1 policy=ta,ma sew=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:27:12
+  k53:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:27:12
+  cvr11:i32 = vsetvli(k53:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:27:12
+  tvid3:vi32m1 = vid()  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:27:12
+  tidx3:vi32m1 = vbinx(tvid3:vi32m1, elem.loop:i32) op=add  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:27:12
+  k54:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:27:12
+  lsw04:i32 = vsetvli(k54:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:27:12
+  lsw4:vi64m2 = vwaddx0(tidx3:vi32m1) mode=sext  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:27:12
+  k55:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:27:12
+  lswr4:i32 = vsetvli(k55:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:27:12
+  k56:i64 = sconst() value=4  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:27:12
+  lss4:vi64m2 = vbinx(lsw4:vi64m2, k56:i64) op=mul  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:27:12
+  k57:i64 = sconst() value=2048  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:27:12
+  tb3:i64 = sadd(wspr1:i64, k57:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:27:12
+  k58:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:27:12
+  cvr12:i32 = vsetvli(k58:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:27:12
+  k59:i32 = sconst() value=1  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:27:12
+  ids1:vi32m1 = s2v(k59:i32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:27:12
+  k60:i32 = sconst() value=0  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:27:12
+  ids2:vi32m1 = s2v(k60:i32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:27:12
+  tb01:vm = vmovmask(m1:vm)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:27:12
+  tb11:vi32m1 = vsel(tb01:vm, ids1:vi32m1, ids2:vi32m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:27:12
+  vstoreix(tb3:i64, lss4:vi64m2, tb11:vi32m1) eew=64 sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:27:12
+  k61:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:27:12
+  cvr13:i32 = vsetvli(k61:i32) lmul=1 policy=ta,ma sew=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:27:12
+  k62:i64 = sconst() value=4  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:26
+  s2:i64 = sshl(w1:i64, k62:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:26
+  s3:i64 = sadd(w1:i64, s2:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:26
+  k63:i32 = sconst() value=0  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k64:i8 = sconst() value=0  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  splat3:vi8m1 = s2v(k64:i8)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k65:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  rgo5:i32 = vsetvli(k65:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  os1:vi64m2 = vbinx(sld1:vi64m2, s3:i64) op=add  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k66:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr14:i32 = vsetvli(k66:i32) lmul=1 policy=ta,ma sew=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k67:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  rega1:i32 = vsetvli(k67:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k68:i64 = sconst() value=1  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  addrs1:vi64m2 = vbinx(os1:vi64m2, k68:i64) op=mul  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k69:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  regr1:i32 = vsetvli(k69:i32) lmul=1 policy=ta,ma sew=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k70:i64 = sconst() value=4096  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nws1:i64 = sadd(wspr1:i64, k70:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k71:i64 = sconst() value=128  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nwr1:i64 = sadd(nws1:i64, k71:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k72:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr15:i32 = vsetvli(k72:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k73:i32 = sconst() value=0  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  ids3:vi32m1 = s2v(k73:i32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k74:i32 = sconst() value=1  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  ids4:vi32m1 = s2v(k74:i32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nm01:vm = vmovmask(m1:vm)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nm11:vi32m1 = vsel(nm01:vm, ids4:vi32m1, ids3:vi32m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k75:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr16:i32 = vsetvli(k75:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nva1:vi64m2 = vbinx(addrs1:vi64m2, inp1:i64) op=add  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k76:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr17:i32 = vsetvli(k76:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k77:i32 = sconst() value=0  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  sp1:vi32m1 = s2v(k77:i32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nnm1:vm = vcmp(nm11:vi32m1, sp1:vi32m1) fp=False pred=ne  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nv01:vm = vmovmask(nnm1:vm)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k78:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr18:i32 = vsetvli(k78:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k79:i64 = sconst() value=0  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  sp2:vi64m2 = s2v(k79:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  sp3:vi64m2 = s2v(nwr1:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nvd1:vi64m2 = vbin(nva1:vi64m2, sp3:vi64m2) op=sub  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nvs1:vi64m2 = vsel(nv01:vm, nvd1:vi64m2, sp2:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nvo1:vi64m2 = vbin(sp3:vi64m2, nvs1:vi64m2) op=add  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k80:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr19:i32 = vsetvli(k80:i32) lmul=1 policy=ta,ma sew=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k81:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr20:i32 = vsetvli(k81:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nl01:i64 = vextract(nvo1:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k82:i64 = sconst() value=0  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nls1:i64 = sadd(nws1:i64, k82:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k83:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr21:i32 = vsetvli(k83:i32) lmul=1 policy=ta,ma sew=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nl02:i8 = vextract(splat3:vi8m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  sstore(nwr1:i64, nl02:i8) offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nsl1:vi8m1 = vslidedn(splat3:vi8m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nlv1:i8 = sload(nl01:i64) ext=zext offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  sstore(nls1:i64, nlv1:i8) offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k84:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr22:i32 = vsetvli(k84:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nsl2:vi64m2 = vslidedn(nvo1:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nl03:i64 = vextract(nsl2:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k85:i64 = sconst() value=1  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nls2:i64 = sadd(nws1:i64, k85:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k86:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr23:i32 = vsetvli(k86:i32) lmul=1 policy=ta,ma sew=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nl04:i8 = vextract(nsl1:vi8m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  sstore(nwr1:i64, nl04:i8) offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nsl3:vi8m1 = vslidedn(nsl1:vi8m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nlv2:i8 = sload(nl03:i64) ext=zext offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  sstore(nls2:i64, nlv2:i8) offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k87:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr24:i32 = vsetvli(k87:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nsl4:vi64m2 = vslidedn(nsl2:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nl05:i64 = vextract(nsl4:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k88:i64 = sconst() value=2  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nls3:i64 = sadd(nws1:i64, k88:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k89:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr25:i32 = vsetvli(k89:i32) lmul=1 policy=ta,ma sew=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nl06:i8 = vextract(nsl3:vi8m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  sstore(nwr1:i64, nl06:i8) offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nsl5:vi8m1 = vslidedn(nsl3:vi8m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nlv3:i8 = sload(nl05:i64) ext=zext offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  sstore(nls3:i64, nlv3:i8) offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k90:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr26:i32 = vsetvli(k90:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nsl6:vi64m2 = vslidedn(nsl4:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nl07:i64 = vextract(nsl6:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k91:i64 = sconst() value=3  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nls4:i64 = sadd(nws1:i64, k91:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k92:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr27:i32 = vsetvli(k92:i32) lmul=1 policy=ta,ma sew=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nl08:i8 = vextract(nsl5:vi8m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  sstore(nwr1:i64, nl08:i8) offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nsl7:vi8m1 = vslidedn(nsl5:vi8m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nlv4:i8 = sload(nl07:i64) ext=zext offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  sstore(nls4:i64, nlv4:i8) offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k93:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr28:i32 = vsetvli(k93:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nsl8:vi64m2 = vslidedn(nsl6:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nl09:i64 = vextract(nsl8:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k94:i64 = sconst() value=4  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nls5:i64 = sadd(nws1:i64, k94:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k95:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr29:i32 = vsetvli(k95:i32) lmul=1 policy=ta,ma sew=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nl010:i8 = vextract(nsl7:vi8m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  sstore(nwr1:i64, nl010:i8) offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nsl9:vi8m1 = vslidedn(nsl7:vi8m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nlv5:i8 = sload(nl09:i64) ext=zext offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  sstore(nls5:i64, nlv5:i8) offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k96:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr30:i32 = vsetvli(k96:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nsl10:vi64m2 = vslidedn(nsl8:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nl011:i64 = vextract(nsl10:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k97:i64 = sconst() value=5  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nls6:i64 = sadd(nws1:i64, k97:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k98:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr31:i32 = vsetvli(k98:i32) lmul=1 policy=ta,ma sew=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nl012:i8 = vextract(nsl9:vi8m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  sstore(nwr1:i64, nl012:i8) offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nsl11:vi8m1 = vslidedn(nsl9:vi8m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nlv6:i8 = sload(nl011:i64) ext=zext offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  sstore(nls6:i64, nlv6:i8) offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k99:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr32:i32 = vsetvli(k99:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nsl12:vi64m2 = vslidedn(nsl10:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nl013:i64 = vextract(nsl12:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k100:i64 = sconst() value=6  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nls7:i64 = sadd(nws1:i64, k100:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k101:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr33:i32 = vsetvli(k101:i32) lmul=1 policy=ta,ma sew=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nl014:i8 = vextract(nsl11:vi8m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  sstore(nwr1:i64, nl014:i8) offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nsl13:vi8m1 = vslidedn(nsl11:vi8m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nlv7:i8 = sload(nl013:i64) ext=zext offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  sstore(nls7:i64, nlv7:i8) offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k102:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr34:i32 = vsetvli(k102:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nsl14:vi64m2 = vslidedn(nsl12:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nl015:i64 = vextract(nsl14:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k103:i64 = sconst() value=7  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nls8:i64 = sadd(nws1:i64, k103:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k104:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr35:i32 = vsetvli(k104:i32) lmul=1 policy=ta,ma sew=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nl016:i8 = vextract(nsl13:vi8m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  sstore(nwr1:i64, nl016:i8) offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nsl15:vi8m1 = vslidedn(nsl13:vi8m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nlv8:i8 = sload(nl015:i64) ext=zext offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  sstore(nls8:i64, nlv8:i8) offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k105:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr36:i32 = vsetvli(k105:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nsl16:vi64m2 = vslidedn(nsl14:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nl017:i64 = vextract(nsl16:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k106:i64 = sconst() value=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nls9:i64 = sadd(nws1:i64, k106:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k107:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr37:i32 = vsetvli(k107:i32) lmul=1 policy=ta,ma sew=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nl018:i8 = vextract(nsl15:vi8m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  sstore(nwr1:i64, nl018:i8) offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nsl17:vi8m1 = vslidedn(nsl15:vi8m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nlv9:i8 = sload(nl017:i64) ext=zext offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  sstore(nls9:i64, nlv9:i8) offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k108:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr38:i32 = vsetvli(k108:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nsl18:vi64m2 = vslidedn(nsl16:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nl019:i64 = vextract(nsl18:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k109:i64 = sconst() value=9  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nls10:i64 = sadd(nws1:i64, k109:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k110:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr39:i32 = vsetvli(k110:i32) lmul=1 policy=ta,ma sew=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nl020:i8 = vextract(nsl17:vi8m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  sstore(nwr1:i64, nl020:i8) offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nsl19:vi8m1 = vslidedn(nsl17:vi8m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nlv10:i8 = sload(nl019:i64) ext=zext offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  sstore(nls10:i64, nlv10:i8) offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k111:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr40:i32 = vsetvli(k111:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nsl20:vi64m2 = vslidedn(nsl18:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nl021:i64 = vextract(nsl20:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k112:i64 = sconst() value=10  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nls11:i64 = sadd(nws1:i64, k112:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k113:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr41:i32 = vsetvli(k113:i32) lmul=1 policy=ta,ma sew=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nl022:i8 = vextract(nsl19:vi8m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  sstore(nwr1:i64, nl022:i8) offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nsl21:vi8m1 = vslidedn(nsl19:vi8m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nlv11:i8 = sload(nl021:i64) ext=zext offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  sstore(nls11:i64, nlv11:i8) offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k114:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr42:i32 = vsetvli(k114:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nsl22:vi64m2 = vslidedn(nsl20:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nl023:i64 = vextract(nsl22:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k115:i64 = sconst() value=11  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nls12:i64 = sadd(nws1:i64, k115:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k116:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr43:i32 = vsetvli(k116:i32) lmul=1 policy=ta,ma sew=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nl024:i8 = vextract(nsl21:vi8m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  sstore(nwr1:i64, nl024:i8) offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nsl23:vi8m1 = vslidedn(nsl21:vi8m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nlv12:i8 = sload(nl023:i64) ext=zext offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  sstore(nls12:i64, nlv12:i8) offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k117:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr44:i32 = vsetvli(k117:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nsl24:vi64m2 = vslidedn(nsl22:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nl025:i64 = vextract(nsl24:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k118:i64 = sconst() value=12  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nls13:i64 = sadd(nws1:i64, k118:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k119:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr45:i32 = vsetvli(k119:i32) lmul=1 policy=ta,ma sew=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nl026:i8 = vextract(nsl23:vi8m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  sstore(nwr1:i64, nl026:i8) offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nsl25:vi8m1 = vslidedn(nsl23:vi8m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nlv13:i8 = sload(nl025:i64) ext=zext offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  sstore(nls13:i64, nlv13:i8) offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k120:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr46:i32 = vsetvli(k120:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nsl26:vi64m2 = vslidedn(nsl24:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nl027:i64 = vextract(nsl26:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k121:i64 = sconst() value=13  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nls14:i64 = sadd(nws1:i64, k121:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k122:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr47:i32 = vsetvli(k122:i32) lmul=1 policy=ta,ma sew=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nl028:i8 = vextract(nsl25:vi8m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  sstore(nwr1:i64, nl028:i8) offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nsl27:vi8m1 = vslidedn(nsl25:vi8m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nlv14:i8 = sload(nl027:i64) ext=zext offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  sstore(nls14:i64, nlv14:i8) offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k123:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr48:i32 = vsetvli(k123:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nsl28:vi64m2 = vslidedn(nsl26:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nl029:i64 = vextract(nsl28:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k124:i64 = sconst() value=14  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nls15:i64 = sadd(nws1:i64, k124:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k125:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr49:i32 = vsetvli(k125:i32) lmul=1 policy=ta,ma sew=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nl030:i8 = vextract(nsl27:vi8m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  sstore(nwr1:i64, nl030:i8) offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nsl29:vi8m1 = vslidedn(nsl27:vi8m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nlv15:i8 = sload(nl029:i64) ext=zext offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  sstore(nls15:i64, nlv15:i8) offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k126:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr50:i32 = vsetvli(k126:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nsl30:vi64m2 = vslidedn(nsl28:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nl031:i64 = vextract(nsl30:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k127:i64 = sconst() value=15  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nls16:i64 = sadd(nws1:i64, k127:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k128:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr51:i32 = vsetvli(k128:i32) lmul=1 policy=ta,ma sew=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nl032:i8 = vextract(nsl29:vi8m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  sstore(nwr1:i64, nl032:i8) offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nsl31:vi8m1 = vslidedn(nsl29:vi8m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nlv16:i8 = sload(nl031:i64) ext=zext offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  sstore(nls16:i64, nlv16:i8) offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k129:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr52:i32 = vsetvli(k129:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nsl32:vi64m2 = vslidedn(nsl30:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nl033:i64 = vextract(nsl32:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k130:i64 = sconst() value=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nls17:i64 = sadd(nws1:i64, k130:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k131:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr53:i32 = vsetvli(k131:i32) lmul=1 policy=ta,ma sew=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nl034:i8 = vextract(nsl31:vi8m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  sstore(nwr1:i64, nl034:i8) offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nsl33:vi8m1 = vslidedn(nsl31:vi8m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nlv17:i8 = sload(nl033:i64) ext=zext offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  sstore(nls17:i64, nlv17:i8) offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k132:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr54:i32 = vsetvli(k132:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nsl34:vi64m2 = vslidedn(nsl32:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nl035:i64 = vextract(nsl34:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k133:i64 = sconst() value=17  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nls18:i64 = sadd(nws1:i64, k133:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k134:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr55:i32 = vsetvli(k134:i32) lmul=1 policy=ta,ma sew=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nl036:i8 = vextract(nsl33:vi8m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  sstore(nwr1:i64, nl036:i8) offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nsl35:vi8m1 = vslidedn(nsl33:vi8m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nlv18:i8 = sload(nl035:i64) ext=zext offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  sstore(nls18:i64, nlv18:i8) offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k135:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr56:i32 = vsetvli(k135:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nsl36:vi64m2 = vslidedn(nsl34:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nl037:i64 = vextract(nsl36:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k136:i64 = sconst() value=18  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nls19:i64 = sadd(nws1:i64, k136:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k137:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr57:i32 = vsetvli(k137:i32) lmul=1 policy=ta,ma sew=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nl038:i8 = vextract(nsl35:vi8m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  sstore(nwr1:i64, nl038:i8) offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nsl37:vi8m1 = vslidedn(nsl35:vi8m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nlv19:i8 = sload(nl037:i64) ext=zext offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  sstore(nls19:i64, nlv19:i8) offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k138:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr58:i32 = vsetvli(k138:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nsl38:vi64m2 = vslidedn(nsl36:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nl039:i64 = vextract(nsl38:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k139:i64 = sconst() value=19  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nls20:i64 = sadd(nws1:i64, k139:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k140:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr59:i32 = vsetvli(k140:i32) lmul=1 policy=ta,ma sew=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nl040:i8 = vextract(nsl37:vi8m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  sstore(nwr1:i64, nl040:i8) offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nsl39:vi8m1 = vslidedn(nsl37:vi8m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nlv20:i8 = sload(nl039:i64) ext=zext offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  sstore(nls20:i64, nlv20:i8) offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k141:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr60:i32 = vsetvli(k141:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nsl40:vi64m2 = vslidedn(nsl38:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nl041:i64 = vextract(nsl40:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k142:i64 = sconst() value=20  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nls21:i64 = sadd(nws1:i64, k142:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k143:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr61:i32 = vsetvli(k143:i32) lmul=1 policy=ta,ma sew=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nl042:i8 = vextract(nsl39:vi8m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  sstore(nwr1:i64, nl042:i8) offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nsl41:vi8m1 = vslidedn(nsl39:vi8m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nlv21:i8 = sload(nl041:i64) ext=zext offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  sstore(nls21:i64, nlv21:i8) offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k144:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr62:i32 = vsetvli(k144:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nsl42:vi64m2 = vslidedn(nsl40:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nl043:i64 = vextract(nsl42:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k145:i64 = sconst() value=21  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nls22:i64 = sadd(nws1:i64, k145:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k146:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr63:i32 = vsetvli(k146:i32) lmul=1 policy=ta,ma sew=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nl044:i8 = vextract(nsl41:vi8m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  sstore(nwr1:i64, nl044:i8) offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nsl43:vi8m1 = vslidedn(nsl41:vi8m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nlv22:i8 = sload(nl043:i64) ext=zext offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  sstore(nls22:i64, nlv22:i8) offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k147:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr64:i32 = vsetvli(k147:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nsl44:vi64m2 = vslidedn(nsl42:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nl045:i64 = vextract(nsl44:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k148:i64 = sconst() value=22  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nls23:i64 = sadd(nws1:i64, k148:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k149:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr65:i32 = vsetvli(k149:i32) lmul=1 policy=ta,ma sew=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nl046:i8 = vextract(nsl43:vi8m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  sstore(nwr1:i64, nl046:i8) offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nsl45:vi8m1 = vslidedn(nsl43:vi8m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nlv23:i8 = sload(nl045:i64) ext=zext offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  sstore(nls23:i64, nlv23:i8) offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k150:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr66:i32 = vsetvli(k150:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nsl46:vi64m2 = vslidedn(nsl44:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nl047:i64 = vextract(nsl46:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k151:i64 = sconst() value=23  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nls24:i64 = sadd(nws1:i64, k151:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k152:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr67:i32 = vsetvli(k152:i32) lmul=1 policy=ta,ma sew=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nl048:i8 = vextract(nsl45:vi8m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  sstore(nwr1:i64, nl048:i8) offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nsl47:vi8m1 = vslidedn(nsl45:vi8m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nlv24:i8 = sload(nl047:i64) ext=zext offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  sstore(nls24:i64, nlv24:i8) offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k153:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr68:i32 = vsetvli(k153:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nsl48:vi64m2 = vslidedn(nsl46:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nl049:i64 = vextract(nsl48:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k154:i64 = sconst() value=24  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nls25:i64 = sadd(nws1:i64, k154:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k155:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr69:i32 = vsetvli(k155:i32) lmul=1 policy=ta,ma sew=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nl050:i8 = vextract(nsl47:vi8m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  sstore(nwr1:i64, nl050:i8) offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nsl49:vi8m1 = vslidedn(nsl47:vi8m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nlv25:i8 = sload(nl049:i64) ext=zext offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  sstore(nls25:i64, nlv25:i8) offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k156:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr70:i32 = vsetvli(k156:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nsl50:vi64m2 = vslidedn(nsl48:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nl051:i64 = vextract(nsl50:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k157:i64 = sconst() value=25  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nls26:i64 = sadd(nws1:i64, k157:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k158:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr71:i32 = vsetvli(k158:i32) lmul=1 policy=ta,ma sew=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nl052:i8 = vextract(nsl49:vi8m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  sstore(nwr1:i64, nl052:i8) offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nsl51:vi8m1 = vslidedn(nsl49:vi8m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nlv26:i8 = sload(nl051:i64) ext=zext offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  sstore(nls26:i64, nlv26:i8) offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k159:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr72:i32 = vsetvli(k159:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nsl52:vi64m2 = vslidedn(nsl50:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nl053:i64 = vextract(nsl52:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k160:i64 = sconst() value=26  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nls27:i64 = sadd(nws1:i64, k160:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k161:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr73:i32 = vsetvli(k161:i32) lmul=1 policy=ta,ma sew=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nl054:i8 = vextract(nsl51:vi8m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  sstore(nwr1:i64, nl054:i8) offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nsl53:vi8m1 = vslidedn(nsl51:vi8m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nlv27:i8 = sload(nl053:i64) ext=zext offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  sstore(nls27:i64, nlv27:i8) offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k162:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr74:i32 = vsetvli(k162:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nsl54:vi64m2 = vslidedn(nsl52:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nl055:i64 = vextract(nsl54:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k163:i64 = sconst() value=27  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nls28:i64 = sadd(nws1:i64, k163:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k164:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr75:i32 = vsetvli(k164:i32) lmul=1 policy=ta,ma sew=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nl056:i8 = vextract(nsl53:vi8m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  sstore(nwr1:i64, nl056:i8) offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nsl55:vi8m1 = vslidedn(nsl53:vi8m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nlv28:i8 = sload(nl055:i64) ext=zext offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  sstore(nls28:i64, nlv28:i8) offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k165:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr76:i32 = vsetvli(k165:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nsl56:vi64m2 = vslidedn(nsl54:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nl057:i64 = vextract(nsl56:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k166:i64 = sconst() value=28  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nls29:i64 = sadd(nws1:i64, k166:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k167:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr77:i32 = vsetvli(k167:i32) lmul=1 policy=ta,ma sew=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nl058:i8 = vextract(nsl55:vi8m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  sstore(nwr1:i64, nl058:i8) offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nsl57:vi8m1 = vslidedn(nsl55:vi8m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nlv29:i8 = sload(nl057:i64) ext=zext offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  sstore(nls29:i64, nlv29:i8) offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k168:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr78:i32 = vsetvli(k168:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nsl58:vi64m2 = vslidedn(nsl56:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nl059:i64 = vextract(nsl58:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k169:i64 = sconst() value=29  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nls30:i64 = sadd(nws1:i64, k169:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k170:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr79:i32 = vsetvli(k170:i32) lmul=1 policy=ta,ma sew=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nl060:i8 = vextract(nsl57:vi8m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  sstore(nwr1:i64, nl060:i8) offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nsl59:vi8m1 = vslidedn(nsl57:vi8m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nlv30:i8 = sload(nl059:i64) ext=zext offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  sstore(nls30:i64, nlv30:i8) offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k171:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr80:i32 = vsetvli(k171:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nsl60:vi64m2 = vslidedn(nsl58:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nl061:i64 = vextract(nsl60:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k172:i64 = sconst() value=30  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nls31:i64 = sadd(nws1:i64, k172:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k173:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr81:i32 = vsetvli(k173:i32) lmul=1 policy=ta,ma sew=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nl062:i8 = vextract(nsl59:vi8m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  sstore(nwr1:i64, nl062:i8) offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nsl61:vi8m1 = vslidedn(nsl59:vi8m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nlv31:i8 = sload(nl061:i64) ext=zext offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  sstore(nls31:i64, nlv31:i8) offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k174:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr82:i32 = vsetvli(k174:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nsl62:vi64m2 = vslidedn(nsl60:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nl063:i64 = vextract(nsl62:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k175:i64 = sconst() value=31  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nls32:i64 = sadd(nws1:i64, k175:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k176:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr83:i32 = vsetvli(k176:i32) lmul=1 policy=ta,ma sew=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nl064:i8 = vextract(nsl61:vi8m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  sstore(nwr1:i64, nl064:i8) offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nsl63:vi8m1 = vslidedn(nsl61:vi8m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nlv32:i8 = sload(nl063:i64) ext=zext offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  sstore(nls32:i64, nlv32:i8) offset=0 width=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k177:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr84:i32 = vsetvli(k177:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nsl64:vi64m2 = vslidedn(nsl62:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k178:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  cvr85:i32 = vsetvli(k178:i32) lmul=1 policy=ta,ma sew=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  nld1:vi8m1 = vunit_load(nws1:i64) sew=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:28:12
+  k179:u8 = sconst() value=255  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:36:32
+  cst1:vu8m1 = s2v(k179:u8)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:36:32
+  cvm1:vu8m1 = vmovv(nld1:vi8m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:42:36
+  k180:u8 = sconst() value=128  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:43:35
+  splat4:vu8m1 = s2v(k180:u8)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:43:35
+  vb2:vu8m1 = vbin(splat4:vu8m1, cvm1:vu8m1) op=xor  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:43:35
+  v01:vm = vmovmask(m1:vm)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:46:34
+  sel1:vu8m1 = vsel(v01:vm, vb2:vu8m1, cst1:vu8m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:46:34
+  cvw2:vu16m2 = vwaddx0(sel1:vu8m1) mode=zext  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:47:12
+  k181:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:47:12
+  cvr86:i32 = vsetvli(k181:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:47:12
+  cvm2:vu16m1 = vmovv(cvw2:vu16m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:47:12
+  cvw3:vu32m2 = vwaddx0(cvm2:vu16m1) mode=zext  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:47:12
+  k182:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:47:12
+  cvr87:i32 = vsetvli(k182:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:47:12
+  cvm3:vi32m1 = vmovv(cvw3:vu32m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:47:12
+  k183:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:47:12
+  cvr88:i32 = vsetvli(k183:i32) lmul=1 policy=ta,ma sew=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:47:12
+  k184:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:48:12
+  rgo6:i32 = vsetvli(k184:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:48:12
+  splat5:vi32m1 = s2v(k63:i32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:48:12
+  k185:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:48:12
+  cvr89:i32 = vsetvli(k185:i32) lmul=1 policy=ta,ma sew=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:48:12
+  v02:vm = vmovmask(m1:vm)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:48:12
+  k186:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:48:12
+  rgo7:i32 = vsetvli(k186:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:48:12
+  sel2:vi32m1 = vsel(v02:vm, cvm3:vi32m1, splat5:vi32m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:48:12
+  k187:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:48:12
+  cvr90:i32 = vsetvli(k187:i32) lmul=1 policy=ta,ma sew=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:48:12
+  k188:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:48:12
+  cvr91:i32 = vsetvli(k188:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:48:12
+  tvid4:vi32m1 = vid()  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:48:12
+  tidx4:vi32m1 = vbinx(tvid4:vi32m1, elem.loop:i32) op=add  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:48:12
+  k189:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:48:12
+  lsw05:i32 = vsetvli(k189:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:48:12
+  lsw5:vi64m2 = vwaddx0(tidx4:vi32m1) mode=sext  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:48:12
+  k190:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:48:12
+  lswr5:i32 = vsetvli(k190:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:48:12
+  k191:i64 = sconst() value=4  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:48:12
+  lss5:vi64m2 = vbinx(lsw5:vi64m2, k191:i64) op=mul  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:48:12
+  k192:i64 = sconst() value=2560  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:48:12
+  tb4:i64 = sadd(wspr1:i64, k192:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:48:12
+  k193:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:48:12
+  tsr3:i32 = vsetvli(k193:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:48:12
+  vstoreix(tb4:i64, lss5:vi64m2, sel2:vi32m1) eew=64 sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:48:12
+  k194:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:48:12
+  cvr92:i32 = vsetvli(k194:i32) lmul=1 policy=ta,ma sew=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:48:12
+  k195:i64 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  items23:i64 = sadd(items.chunk:i64, k195:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  k196:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  elem23:i32 = sadd(elem.loop:i32, k196:i32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  k197:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  bvl3:i32 = vsetvli(k197:i32) lmul=1 policy=ta,ma sew=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  br() args=[elem23, items23] target=chunk3_head  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+rhb4.head(i.rhb41:i64):
+  go2:i64 = slt(i.rhb41:i64, k201:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:49:14
+  brc(go2:i64) false_args=[i.rhb41] false_target=rhb4.exit true_args=[i.rhb41] true_target=rhb4.body  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:49:14
+rhb4.body(i.rhb41:i64):
+  rhb21:i32 = swext(i.rhb41:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:49:14
+  k202:i64 = sconst() value=0  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:49:14
+  k203:i64 = sconst() value=128  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:49:14
+  k204:i64 = sconst() value=0  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:49:14
+  br() args=[k202, k204] target=rhj5.head  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:49:14
+rhb4.exit(i.rhb4x1:i64):
+  k211:i32 = sconst() value=0  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  k212:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  cvr94:i32 = vsetvli(k212:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  k213:i32 = sconst() value=0  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  ids5:vi32m1 = s2v(k213:i32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  br() args=[k211, items.xreg, ids5] target=chunk6_head  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+rhj5.head(i.rhj51:i64, crhj51:i64):
+  go3:i64 = slt(i.rhj51:i64, k203:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:49:14
+  brc(go3:i64) false_args=[i.rhj51, crhj51] false_target=rhj5.exit true_args=[i.rhj51, crhj51] true_target=rhj5.body  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:49:14
+rhj5.body(i.rhj51:i64, crhj51:i64):
+  k205:i64 = sconst() value=4  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:49:14
+  rsm1:i64 = smul(i.rhj51:i64, k205:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:49:14
+  rsa1:i64 = sadd(rrb1:i64, rsm1:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:49:14
+  rsv1:i32 = sload(rsa1:i64) ext=sext offset=0 width=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:49:14
+  k206:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:49:14
+  cvr93:i32 = vsetvli(k206:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:49:14
+  sp4:vi32m1 = s2v(rsv1:i32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:49:14
+  sp5:vi32m1 = s2v(rhb21:i32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:49:14
+  rcm1:vm = vcmp(sp4:vi32m1, sp5:vi32m1) fp=False pred=eq  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:49:14
+  rcc1:i64 = vpopc(rcm1:vm)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:49:14
+  k207:i64 = sconst() value=0  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:49:14
+  rcb1:i64 = sltu(k207:i64, rcc1:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:49:14
+  rhc1:i64 = sadd(crhj51:i64, rcb1:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:49:14
+  k208:i64 = sconst() value=1  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:49:14
+  rhn1:i64 = sadd(i.rhj51:i64, k208:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:49:14
+  br() args=[rhn1, rhc1] target=rhj5.head  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:49:14
+rhj5.exit(i.rhj5x1:i64, crhj5x1:i64):
+  rht1:i32 = swext(crhj5x1:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:49:14
+  k209:i64 = sconst() value=4  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:49:14
+  rtm1:i64 = smul(i.rhb41:i64, k209:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:49:14
+  rta1:i64 = sadd(rrd1:i64, rtm1:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:49:14
+  sstore(rta1:i64, rht1:i32) offset=0 width=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:49:14
+  k210:i64 = sconst() value=1  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:49:14
+  rhb31:i64 = sadd(i.rhb41:i64, k210:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:49:14
+  br() args=[rhb31] target=rhb4.head  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:49:14
+chunk6_head(elem.loop:i32, items.chunk:i64, mrg0:vi32m1):
+  k214:i32 = sconst() value=128  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  cgo4:i64 = slt(elem.loop:i32, k214:i32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  brc(cgo4:i64) false_args=[pid.body, items.chunk, mrg0] false_target=chunk6_exit true_args=[elem.loop, items.chunk, mrg0] true_target=chunk6_body  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+chunk6_exit(pid.xreg:i64, items.xreg:i64, mrgx0:vi32m1):
+  k231:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  cvr98:i32 = vsetvli(k231:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  x02:i32 = vextract(mrgx0:vi32m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  k232:i32 = sconst() value=0  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  br() args=[k232, items.xreg] target=chunk7_head  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+chunk6_body(elem.loop:i32, items.chunk:i64, mrg0:vi32m1):
+  k215:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  vl4:i32 = vsetvli(k215:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  k216:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:50:29
+  cvr95:i32 = vsetvli(k216:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:50:29
+  svid2:vi32m1 = vid()  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:50:29
+  sidx2:vi32m1 = vbinx(svid2:vi32m1, elem.loop:i32) op=add  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:50:29
+  k217:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:50:29
+  lsw06:i32 = vsetvli(k217:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:50:29
+  lsw6:vi64m2 = vwaddx0(sidx2:vi32m1) mode=sext  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:50:29
+  k218:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:50:29
+  lswr6:i32 = vsetvli(k218:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:50:29
+  k219:i64 = sconst() value=4  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:50:29
+  lss6:vi64m2 = vbinx(lsw6:vi64m2, k219:i64) op=mul  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:50:29
+  k220:i64 = sconst() value=2048  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:50:29
+  sb2:i64 = sadd(wspr1:i64, k220:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:50:29
+  k221:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:50:29
+  slr2:i32 = vsetvli(k221:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:50:29
+  sld2:vi32m1 = vloadix(sb2:i64, lss6:vi64m2) eew=64 sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:50:29
+  k222:i32 = sconst() value=0  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:50:29
+  ids6:vi32m1 = s2v(k222:i32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:50:29
+  slm1:vm = vcmp(sld2:vi32m1, ids6:vi32m1) fp=False pred=ne  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:50:29
+  k223:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:50:29
+  cvr96:i32 = vsetvli(k223:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:50:29
+  mnot1:vm = vmnot(slm1:vm)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:50:29
+  k224:i32 = sconst() value=1  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:50:28
+  ids7:vi32m1 = s2v(k224:i32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:50:28
+  k225:i32 = sconst() value=0  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:50:28
+  ids8:vi32m1 = s2v(k225:i32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:50:28
+  cv01:vm = vmovmask(mnot1:vm)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:50:28
+  cvb1:vi32m1 = vsel(cv01:vm, ids7:vi32m1, ids8:vi32m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:50:28
+  k226:i32 = sconst() value=0  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:50:21
+  ids9:vi32m1 = s2v(k226:i32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:50:21
+  vr1:vi32m1 = vred(cvb1:vi32m1, ids9:vi32m1) kind=sum  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:50:21
+  x01:i32 = vextract(vr1:vi32m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:50:21
+  k227:i64 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  items24:i64 = sadd(items.chunk:i64, k227:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  k228:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  elem24:i32 = sadd(elem.loop:i32, k228:i32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  k229:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  bvl4:i32 = vsetvli(k229:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  k230:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  cvr97:i32 = vsetvli(k230:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  mc1:vi32m1 = s2v(x01:i32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  mg1:vi32m1 = vbin(mrg0:vi32m1, mc1:vi32m1) op=add  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  br() args=[elem24, items24, mg1] target=chunk6_head  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+chunk7_head(elem.loop:i32, items.chunk:i64):
+  k233:i32 = sconst() value=256  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  cgo5:i64 = slt(elem.loop:i32, k233:i32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  brc(cgo5:i64) false_args=[pid.body, items.chunk] false_target=chunk7_exit true_args=[elem.loop, items.chunk] true_target=chunk7_body  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+chunk7_exit(pid.xreg:i64, items.xreg:i64):
+  br() args=[pid.body, items.xreg] target=prog_next  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+chunk7_body(elem.loop:i32, items.chunk:i64):
+  k234:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  vl5:i32 = vsetvli(k234:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  k235:i32 = sconst() value=0  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:51:32
+  k236:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:51:32
+  rgo8:i32 = vsetvli(k236:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:51:32
+  splat6:vi32m1 = s2v(k235:i32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:51:32
+  svid3:vi32m1 = vid()  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:51:32
+  sidx3:vi32m1 = vbinx(svid3:vi32m1, elem.loop:i32) op=add  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:51:32
+  k237:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:51:32
+  lsw07:i32 = vsetvli(k237:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:51:32
+  lsw7:vi64m2 = vwaddx0(sidx3:vi32m1) mode=sext  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:51:32
+  k238:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:51:32
+  lswr7:i32 = vsetvli(k238:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:51:32
+  k239:i64 = sconst() value=4  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:51:32
+  lss7:vi64m2 = vbinx(lsw7:vi64m2, k239:i64) op=mul  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:51:32
+  k240:i64 = sconst() value=1024  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:51:32
+  sb3:i64 = sadd(wspr1:i64, k240:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:51:32
+  k241:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:51:32
+  slr3:i32 = vsetvli(k241:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:51:32
+  sld3:vi32m1 = vloadix(sb3:i64, lss7:vi64m2) eew=64 sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:51:32
+  k242:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:51:32
+  cvr99:i32 = vsetvli(k242:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:51:32
+  m2:vm = vcmp(sld3:vi32m1, splat6:vi32m1) fp=False pred=eq  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:51:32
+  splat7:vi32m1 = s2v(x02:i32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:51:23
+  v03:vm = vmovmask(m2:vm)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:51:23
+  sel3:vi32m1 = vsel(v03:vm, splat7:vi32m1, splat6:vi32m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:51:23
+  svid4:vi32m1 = vid()  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:51:14
+  sidx4:vi32m1 = vbinx(svid4:vi32m1, elem.loop:i32) op=add  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:51:14
+  k243:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:51:14
+  lsw08:i32 = vsetvli(k243:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:51:14
+  lsw8:vi64m2 = vwaddx0(sidx4:vi32m1) mode=sext  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:51:14
+  k244:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:51:14
+  lswr8:i32 = vsetvli(k244:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:51:14
+  k245:i64 = sconst() value=4  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:51:14
+  lss8:vi64m2 = vbinx(lsw8:vi64m2, k245:i64) op=mul  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:51:14
+  k246:i64 = sconst() value=3072  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:51:14
+  sb4:i64 = sadd(wspr1:i64, k246:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:51:14
+  k247:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:51:14
+  slr4:i32 = vsetvli(k247:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:51:14
+  sld4:vi32m1 = vloadix(sb4:i64, lss8:vi64m2) eew=64 sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:51:14
+  k248:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:51:14
+  cvr100:i32 = vsetvli(k248:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:51:14
+  vb3:vi32m1 = vbin(sld4:vi32m1, sel3:vi32m1) op=sub  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:51:14
+  s4:i64 = sadd(w1:i64, w2:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:52:22
+  k249:i64 = sconst() value=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:52:21
+  s5:i64 = sshl(s4:i64, k249:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:52:21
+  cvw4:vi64m2 = vwaddx0(sld3:vi32m1) mode=sext  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:52:21
+  k250:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:52:21
+  rgo9:i32 = vsetvli(k250:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:52:21
+  splat8:vi64m2 = s2v(s5:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:52:21
+  k251:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:52:21
+  cvr101:i32 = vsetvli(k251:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:52:21
+  k252:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:52:21
+  rgo10:i32 = vsetvli(k252:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:52:21
+  vb4:vi64m2 = vbin(splat8:vi64m2, cvw4:vi64m2) op=add  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:52:21
+  k253:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:52:21
+  cvr102:i32 = vsetvli(k253:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:52:21
+  k254:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:53:5
+  rega2:i32 = vsetvli(k254:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:53:5
+  k255:i64 = sconst() value=4  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:53:5
+  addrs2:vi64m2 = vbinx(vb4:vi64m2, k255:i64) op=mul  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:53:5
+  k256:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:53:5
+  regr2:i32 = vsetvli(k256:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:53:5
+  k257:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:53:5
+  cvr103:i32 = vsetvli(k257:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:53:5
+  vstoreix(partial_counts1:i64, addrs2:vi64m2, vb3:vi32m1) eew=64 sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:53:5
+  k258:i64 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  items25:i64 = sadd(items.chunk:i64, k258:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  k259:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  elem25:i32 = sadd(elem.loop:i32, k259:i32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  k260:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  bvl5:i32 = vsetvli(k260:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  br() args=[elem25, items25] target=chunk7_head  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+prog_next(pid.next:i64, items.next:i64):
+  pid21:i64 = sadd(pid.next:i64, wcnt641:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  br() args=[pid21, items.next] target=prog_head  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+prog_exit(pid.exit:i64, items.exit:i64):
+  sstore(stats1:i64, items.exit:i64) offset=0 width=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+  ret()  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/nanmedian_ascend_histogram_count_kernel.py:22:1
+
+// allocation: {"assignment": {"244": "a1", "245": "t0", "246": "t1", "247": "t0", "248": "s2", "249": "t2", "250": "s1", "251": "t0", "252": "t0", "253": "s3", "254": "s4", "255": "a3", "256": "a4", "257": "t0", "258": "t0", "259": "s5", "260": "t0", "261": "s6", "262": "t1", "263": "t0", "264": "t1", "265": "t2", "266": "s1", "267": "a2", "268": "t0", "269": "t1", "270": "t1", "271": "t2", "272": "t0", "273": "t1", "274": "a5", "275": "a5", "276": "t1", "277": "t0", "278": "t0", "279": "t1", "280": "t2", "281": "t2", "282": "t2", "283": "a5", "284": "a5", "285": "a7", "286": "t0", "287": "a6", "288": "t0", "289": "t0", "290": "t1", "291": "a2", "292": "a2", "293": "t1", "294": "t0", "295": "a2", "296": "a2", "297": "a2", "298": "a2", "299": "v1", "300": "v1", "301": "v2", "302": "a2", "303": "a2", "304": "v4", "305": "a2", "306": "a2", "307": "a2", "308": "a2", "309": "v2", "310": "a2", "311": "a2", "312": "v1", "313": "v1", "314": "a2", "315": "a2", "316": "v4", "317": "a2", "318": "a2", "319": "a2", "320": "v4", "321": "a2", "322": "a2", "323": "s7", "324": "s7", "325": "a2", "326": "a2", "327": "a2", "328": "t1", "329": "a2", "330": "t0", "331": "a2", "332": "a2", "333": "t1", "334": "t0", "335": "t1", "336": "a2", "337": "a2", "338": "t1", "339": "t0", "340": "a2", "341": "a2", "342": "a2", "343": "a2", "344": "v1", "345": "v1", "346": "v2", "347": "v2", "348": "a2", "349": "a2", "350": "v4", "351": "a2", "352": "a2", "353": "a2", "354": "v2", "355": "a2", "356": "a2", "357": "a6", "358": "a6", "359": "a2", "360": "a2", "361": "a2", "362": "a2", "363": "t1", "364": "a2", "365": "t0", "366": "a2", "367": "a2", "368": "t1", "369": "a2", "370": "a6", "371": "t0", "372": "t0", "373": "t0", "374": "a6", "375": "t0", "376": "t0", "377": "t0", "378": "t1", "379": "t1", "380": "v4", "381": "t0", "382": "t0", "383": "t0", "384": "t0", "385": "v1", "386": "v1", "387": "t0", "388": "t0", "389": "v2", "390": "t0", "391": "t0", "392": "t0", "393": "v6", "394": "t0", "395": "t0", "396": "t1", "397": "t1", "398": "v2", "399": "t0", "400": "t0", "401": "t0", "402": "t0", "403": "v1", "404": "t0", "405": "t0", "406": "t0", "407": "t0", "408": "v4", "409": "v4", "410": "t0", "411": "t0", "412": "v6", "413": "t0", "414": "t0", "415": "t0", "416": "v4", "417": "t0", "418": "t0", "419": "t1", "420": "t1", "421": "t1", "422": "v6", "423": "t1", "424": "v7", "425": "v0", "426": "v6", "427": "t0", "428": "t0", "429": "t0", "430": "t0", "431": "t0", "432": "s7", "433": "t1", "434": "v4", "435": "t1", "436": "t1", "437": "v2", "438": "t0", "439": "t0", "440": "t0", "441": "t0", "442": "t0", "443": "v2", "444": "t0", "445": "t0", "446": "t0", "447": "t0", "448": "t1", "449": "t1", "450": "s8", "451": "s8", "452": "s8", "453": "v5", "454": "s8", "455": "v6", "456": "v0", "457": "v5", "458": "s8", "459": "s8", "460": "v6", "461": "s8", "462": "s8", "463": "s8", "464": "v2", "465": "v2", "466": "v0", "467": "s8", "468": "s8", "469": "s8", "470": "v8", "471": "v2", "472": "v6", "473": "v6", "474": "v2", "475": "s8", "476": "s8", "477": "s8", "478": "s8", "479": "s8", "480": "s9", "481": "s9", "482": "s10", "483": "s10", "484": "s10", "485": "v4", "486": "s8", "487": "s8", "488": "s8", "489": "v2", "490": "s8", "491": "s9", "492": "s9", "493": "s10", "494": "s10", "495": "s10", "496": "v4", "497": "s8", "498": "s8", "499": "s8", "500": "v2", "501": "s8", "502": "s9", "503": "s9", "504": "s10", "505": "s10", "506": "s10", "507": "v4", "508": "s8", "509": "s8", "510": "s8", "511": "v2", "512": "s8", "513": "s9", "514": "s9", "515": "s10", "516": "s10", "517": "s10", "518": "v4", "519": "s8", "520": "s8", "521": "s8", "522": "v2", "523": "s8", "524": "s9", "525": "s9", "526": "s10", "527": "s10", "528": "s10", "529": "v4", "530": "s8", "531": "s8", "532": "s8", "533": "v2", "534": "s8", "535": "s9", "536": "s9", "537": "s10", "538": "s10", "539": "s10", "540": "v4", "541": "s8", "542": "s8", "543": "s8", "544": "v2", "545": "s8", "546": "s9", "547": "s9", "548": "s10", "549": "s10", "550": "s10", "551": "v4", "552": "s8", "553": "s8", "554": "s8", "555": "v2", "556": "s8", "557": "s9", "558": "s9", "559": "s10", "560": "s10", "561": "s10", "562": "v4", "563": "s8", "564": "s8", "565": "s8", "566": "v2", "567": "s8", "568": "s9", "569": "s9", "570": "s10", "571": "s10", "572": "s10", "573": "v4", "574": "s8", "575": "s8", "576": "s8", "577": "v2", "578": "s8", "579": "s9", "580": "s9", "581": "s10", "582": "s10", "583": "s10", "584": "v4", "585": "s8", "586": "s8", "587": "s8", "588": "v2", "589": "s8", "590": "s9", "591": "s9", "592": "s10", "593": "s10", "594": "s10", "595": "v4", "596": "s8", "597": "s8", "598": "s8", "599": "v2", "600": "s8", "601": "s9", "602": "s9", "603": "s10", "604": "s10", "605": "s10", "606": "v4", "607": "s8", "608": "s8", "609": "s8", "610": "v2", "611": "s8", "612": "s9", "613": "s9", "614": "s10", "615": "s10", "616": "s10", "617": "v4", "618": "s8", "619": "s8", "620": "s8", "621": "v2", "622": "s8", "623": "s9", "624": "s9", "625": "s10", "626": "s10", "627": "s10", "628": "v4", "629": "s8", "630": "s8", "631": "s8", "632": "v2", "633": "s8", "634": "s9", "635": "s9", "636": "s10", "637": "s10", "638": "s10", "639": "v4", "640": "s8", "641": "s8", "642": "s8", "643": "v2", "644": "s8", "645": "s9", "646": "s9", "647": "s10", "648": "s10", "649": "s10", "650": "v4", "651": "s8", "652": "s8", "653": "s8", "654": "v2", "655": "s8", "656": "s9", "657": "s9", "658": "s10", "659": "s10", "660": "s10", "661": "v4", "662": "s8", "663": "s8", "664": "s8", "665": "v2", "666": "s8", "667": "s9", "668": "s9", "669": "s10", "670": "s10", "671": "s10", "672": "v4", "673": "s8", "674": "s8", "675": "s8", "676": "v2", "677": "s8", "678": "s9", "679": "s9", "680": "s10", "681": "s10", "682": "s10", "683": "v4", "684": "s8", "685": "s8", "686": "s8", "687": "v2", "688": "s8", "689": "s9", "690": "s9", "691": "s10", "692": "s10", "693": "s10", "694": "v4", "695": "s8", "696": "s8", "697": "s8", "698": "v2", "699": "s8", "700": "s9", "701": "s9", "702": "s10", "703": "s10", "704": "s10", "705": "v4", "706": "s8", "707": "s8", "708": "s8", "709": "v2", "710": "s8", "711": "s9", "712": "s9", "713": "s10", "714": "s10", "715": "s10", "716": "v4", "717": "s8", "718": "s8", "719": "s8", "720": "v2", "721": "s8", "722": "s9", "723": "s9", "724": "s10", "725": "s10", "726": "s10", "727": "v4", "728": "s8", "729": "s8", "730": "s8", "731": "v2", "732": "s8", "733": "s9", "734": "s9", "735": "s10", "736": "s10", "737": "s10", "738": "v4", "739": "s8", "740": "s8", "741": "s8", "742": "v2", "743": "s8", "744": "s9", "745": "s9", "746": "s10", "747": "s10", "748": "s10", "749": "v4", "750": "s8", "751": "s8", "752": "s8", "753": "v2", "754": "s8", "755": "s9", "756": "s9", "757": "s10", "758": "s10", "759": "s10", "760": "v4", "761": "s8", "762": "s8", "763": "s8", "764": "v2", "765": "s8", "766": "s9", "767": "s9", "768": "s10", "769": "s10", "770": "s10", "771": "v4", "772": "s8", "773": "s8", "774": "s8", "775": "v2", "776": "s8", "777": "s9", "778": "s9", "779": "s10", "780": "s10", "781": "s10", "782": "v4", "783": "s8", "784": "s8", "785": "s8", "786": "v2", "787": "s8", "788": "s9", "789": "s9", "790": "s10", "791": "s10", "792": "s10", "793": "v4", "794": "s8", "795": "s8", "796": "s8", "797": "v2", "798": "s8", "799": "s9", "800": "s9", "801": "s10", "802": "s10", "803": "s10", "804": "v4", "805": "s8", "806": "s8", "807": "s8", "808": "v2", "809": "s8", "810": "s9", "811": "s9", "812": "s10", "813": "s10", "814": "s10", "815": "v4", "816": "s8", "817": "s8", "818": "s8", "819": "v2", "820": "s8", "821": "s9", "822": "s9", "823": "s10", "824": "s10", "825": "s10", "826": "v4", "827": "t1", "828": "t1", "829": "t1", "830": "v2", "831": "t1", "832": "t1", "833": "v2", "834": "t0", "835": "v3", "836": "v4", "837": "t0", "838": "v2", "839": "v2", "840": "v0", "841": "v2", "842": "v4", "843": "t0", "844": "t0", "845": "v2", "846": "v4", "847": "t0", "848": "t0", "849": "v2", "850": "t0", "851": "t0", "852": "t0", "853": "t0", "854": "v3", "855": "t0", "856": "t0", "857": "v0", "858": "t0", "859": "t0", "860": "v1", "861": "t0", "862": "t0", "863": "t0", "864": "t0", "865": "v2", "866": "v2", "867": "t0", "868": "t0", "869": "v4", "870": "t0", "871": "t0", "872": "t0", "873": "v2", "874": "t0", "875": "t0", "876": "t1", "877": "t1", "878": "t0", "879": "t0", "880": "t0", "881": "t0", "882": "t1", "883": "t1", "884": "a2", "885": "a2", "886": "t0", "887": "s7", "888": "t0", "889": "s8", "890": "t0", "891": "s9", "892": "t0", "893": "t0", "894": "t1", "895": "s10", "896": "t1", "897": "s11", "898": "a2", "899": "t1", "900": "a2", "901": "a2", "902": "t1", "903": "t3", "904": "t3", "905": "t3", "906": "t3", "907": "t3", "908": "t4", "909": "t4", "910": "v1", "911": "v2", "912": "v1", "913": "t3", "914": "t4", "915": "t3", "916": "a2", "917": "t3", "918": "t1", "919": "t1", "920": "a2", "921": "a2", "922": "a2", "923": "t1", "924": "t0", "925": "t0", "926": "t1", "927": "t1", "928": "t1", "929": "v1", "930": "t0", "931": "t1", "932": "v1", "933": "a2", "934": "a2", "935": "t1", "936": "t0", "937": "v1", "938": "a2", "939": "a2", "940": "a2", "941": "a2", "942": "v2", "943": "v2", "944": "a2", "945": "a2", "946": "v4", "947": "a2", "948": "a2", "949": "a2", "950": "v2", "951": "a2", "952": "a2", "953": "a6", "954": "a6", "955": "v4", "956": "a2", "957": "v2", "958": "v2", "959": "a2", "960": "a2", "961": "v2", "962": "a2", "963": "v3", "964": "a2", "965": "v4", "966": "v0", "967": "v2", "968": "a2", "969": "v3", "970": "v2", "971": "a2", "972": "a6", "973": "t1", "974": "a6", "975": "t0", "976": "a6", "977": "a6", "978": "a6", "979": "a6", "980": "v2", "981": "v1", "982": "t1", "983": "t1", "984": "a2", "985": "t1", "986": "t0", "987": "t1", "988": "a6", "989": "a6", "990": "t1", "991": "t0", "992": "a6", "993": "a6", "994": "a6", "995": "s7", "996": "s7", "997": "v1", "998": "v2", "999": "v2", "1000": "a6", "1001": "a6", "1002": "v4", "1003": "a6", "1004": "a6", "1005": "a6", "1006": "v4", "1007": "a6", "1008": "a6", "1009": "s7", "1010": "s7", "1011": "v2", "1012": "a6", "1013": "a6", "1014": "v3", "1015": "v4", "1016": "v0", "1017": "v1", "1018": "v3", "1019": "v3", "1020": "a6", "1021": "a6", "1022": "v4", "1023": "a6", "1024": "a6", "1025": "a6", "1026": "v4", "1027": "a6", "1028": "a6", "1029": "s7", "1030": "s7", "1031": "v3", "1032": "a6", "1033": "a6", "1034": "v1", "1035": "a6", "1036": "s7", "1037": "a6", "1038": "v4", "1039": "s7", "1040": "s7", "1041": "v2", "1042": "a6", "1043": "a6", "1044": "a6", "1045": "a6", "1046": "v2", "1047": "a6", "1048": "a6", "1049": "a6", "1050": "a6", "1051": "a6", "1052": "v2", "1053": "a6", "1054": "a6", "1055": "a6", "1056": "a6", "1057": "a6", "1058": "t1", "1059": "a6", "1060": "t0", "1061": "a6", "1062": "a6", "1063": "t0", "1064": "t1", "1065": "t0", "1066": "t1", "1067": "t0"}, "slots": [], "spilled": {}, "stats": {"frame_bytes": 16, "gprs_used": 23, "spill_rounds_bound": 64, "spill_slots": 0, "spilled_values": 0, "vector_bytes_used": 1280, "vector_file_bytes": 4096, "vector_regs_used": 10}}

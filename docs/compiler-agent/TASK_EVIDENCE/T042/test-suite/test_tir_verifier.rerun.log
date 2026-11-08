@@ -1,0 +1,17 @@
+PASS malformed-use-before-definition
+PASS malformed-type-contradiction
+PASS malformed-masked-without-default | [TirError("masked-op-without-declared-default: masked 'load' without a declared disabled-position default (an 'other' value or undef) (at handbuilt.py:1:1)")]
+PASS malformed-broadcast-as-real | [TirError("broadcast-extent-consumed-as-real: store value operand 'v30' consumes broadcast extent(s) at axis/axes [0] as a real extent; an explicit realize is required first (at handbuilt.py:1:1)")]
+PASS malformed-carried-without-join | [TirError("carried-value-without-join: op 'arith.add' operand 0 uses value 'c33' defined in a closed region (if-arm at handbuilt.py:1:1) without a join (at handbuilt.py:1:1)")]
+PASS malformed-loop-carried-without-join
+PASS masked-store-must-declare-no-access | [TirError("type-contradiction: masked 'store' must declare no-access semantics for disabled positions (at handbuilt.py:1:1)")]
+PASS control-deleted-definition-rejected | [TirError("use-before-definition: op 'cmp.lt' operand 0 uses value 'v47' before its definition (at handbuilt.py:1:1)")]
+PASS frontend-output-verified:absolute_kernel | 18 statements
+PASS frontend-output-verified:leaky_relu | 24 statements
+PASS frontend-output-verified:signbit_bitwise_and | 24 statements
+PASS frontend-output-verified:slice_scatter_kernel | 58 statements
+PASS frontend-output-verified:fused_index_select_eq | 25 statements
+PASS frontend-output-verified:mul_scalar_kernel | 14 statements
+PASS frontend-output-verified:kv_cache_write | 21 statements
+PASS frontend-output-verified:square_matrix | 17 statements
+test_tir_verifier: all checks PASS

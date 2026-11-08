@@ -1,0 +1,13 @@
+PASS identity-properties
+PASS do_not_specialize-excluded-from-class
+PASS autotune-deterministic-config-in-identity
+PASS dtype-dispatch-folds-and-records-comparison | comparisons=['dtype_ == tl.float64']
+PASS float64-dispatch-live-branch
+PASS dtype-predicates-fold
+PASS runtime-condition-not-folded-refused | line 12
+PASS real-ifexp-folding-mul_scalar-float32 | branches: ['orelse', 'orelse']
+PASS real-ifexp-folding-mul_scalar-bool-arm | branches: ['body', 'body']
+PASS real-float64-dispatch-nansum_kernel_2-float16 | folded=['mid.dtype.element_ty == tl.float64'] result=[False] zeros=fp32
+PASS real-float64-dispatch-nansum_kernel_2-float32 | folded=['mid.dtype.element_ty == tl.float64'] result=[True] zeros=fp64
+PASS corpus-identity-census-matches-meta-tier | cases=2734 identities=2113 corpus-meta-tier=2116 declared=2161 dns-merges=['suite/dev/var_mean_welford_kernel.py']x3 (6s, never the 2734 case count)
+test_specialize: all checks PASS

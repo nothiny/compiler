@@ -1,0 +1,22 @@
+// tir/v1 module amax_kernel_1 source=/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py
+fn amax_kernel_1(inp:*fp32[], mid:*fp32[], M:i32[])  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+{
+  pid:i32[] = program_id axis=0()  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:12:11
+  cvt:i64[] = convert -> i64(pid)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:12:11
+  c21:i64[] = const 7()  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:13:14
+  v22:i64[] = bit.shl(cvt, c21)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:13:14
+  ar:i32[128] = arange start=0, end=128()  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:13:33
+  cvt.2:i64[128] = convert -> i64(ar)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:13:14
+  bc:i64[128b] = broadcast to[128b] from[](v22)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:13:14
+  add:i64[128] = arith.add(bc, cvt.2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:13:14
+  padd:*fp32[128] = ptradd(inp, add)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:14:16
+  cvt.3:i64[] = convert -> i64(M)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:15:12
+  bc.2:i64[128b] = broadcast to[128b] from[](cvt.3)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:15:12
+  cmp:i1[128] = cmp.lt(add, bc.2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:15:12
+  lit.2:fp32[] = const -inf()  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  bc.3:fp32[128b] = broadcast to[128b] from[](lit.2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ld:fp32[128] = load default=value(padd, cmp, bc.3)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  red:fp32[] = reduce(ld)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:32:16
+  padd.2:*fp32[] = ptradd(mid, cvt)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:33:15
+  store unmasked(padd.2, red)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:34:5
+}

@@ -1,0 +1,68 @@
+{
+  "identity": "passes=default",
+  "passes": {
+    "constprop": {
+      "declined": 0,
+      "enabled": true,
+      "fired": 3,
+      "reasons": {},
+      "rewrites": [
+        "fold convert",
+        "fold arith.mul",
+        "fold bit.shl"
+      ]
+    },
+    "copyprop": {
+      "declined": 3,
+      "enabled": true,
+      "fired": 0,
+      "reasons": {
+        "realize materialises broadcast extents as real": 3
+      },
+      "rewrites": []
+    },
+    "cse": {
+      "declined": 0,
+      "enabled": true,
+      "fired": 4,
+      "reasons": {},
+      "rewrites": [
+        "cse const: 1 use(s) -> lit.4",
+        "cse const: 1 use(s) -> lit.4",
+        "cse const: 1 use(s) -> lit.4",
+        "cse broadcast: 1 use(s) -> bc.6"
+      ]
+    },
+    "dce": {
+      "declined": 0,
+      "enabled": true,
+      "fired": 4,
+      "reasons": {},
+      "rewrites": [
+        "dce const",
+        "dce const",
+        "dce const",
+        "dce const"
+      ]
+    },
+    "licm": {
+      "declined": 0,
+      "enabled": true,
+      "fired": 0,
+      "reasons": {},
+      "rewrites": []
+    },
+    "strength_reduction": {
+      "declined": 0,
+      "enabled": true,
+      "fired": 3,
+      "reasons": {},
+      "rewrites": [
+        "mul by 128 -> shl 7",
+        "mul by 17 -> shifts+add",
+        "mul by 256 -> shl 8"
+      ]
+    }
+  },
+  "rounds": 3
+}

@@ -1,0 +1,18 @@
+PASS rejects-vsetvli-region-inconsistency | vsetvli-region-inconsistency: vector width v64m1 does not match the active region e32m1
+PASS rejects-vector-op-outside-any-region | vsetvli-region-inconsistency: vector op 'vbin' executes outside any vsetvli region
+PASS rejects-masked-store-without-inactive-semantics | masked-op-without-inactive-semantics: masked 'vstoreix' without a declared disabled-positi
+PASS rejects-masked-store-declaring-undef | masked-op-without-inactive-semantics: masked store declares 'undef'; disabled positions mu
+PASS rejects-masked-load-without-declared-default | masked-op-without-inactive-semantics: masked 'vloadix' without a declared disabled-positio
+PASS rejects-use-before-definition | use-before-definition: op 'sadd' operand 0 'a' is used before its definition
+PASS rejects-cross-block-use-before-definition | use-before-definition: op 'sadd' operand 1 'b' is used before its definition
+PASS rejects-vsel-mask-not-in-v0 | v0-mask-constraint: 'vsel' reads its mask from hardware v0; operand loose is not the fixed
+PASS rejects-missing-terminator
+PASS rejects-branch-to-unknown-block
+PASS rejects-branch-arg-arity
+PASS rejects-type-mismatch
+PASS rejects-unknown-opcode
+PASS accepts-the-lowerings-real-output
+PASS accepts-the-legalized-output
+PASS accepts-the-mixed-sew-lowering |  (sews seen: [16, 32])
+PASS mixed-sew-lowering-mixes-regions | sews seen: [16, 32]
+test_mir_verifier: all checks PASS

@@ -1,0 +1,9 @@
+PASS t041-gdn2-model-identity-stable | axes=(((($bundle_scalar('T',) add 16) sub 1) floordiv 16), ($bundle_view('Akkd', 0) mul $bundle_view('Akkd', 2))) ties={('T',): ('scalar', 'T'), ('Akkd', 0): ('view_extent', 'Akkd', 0), ('Akkd', 2): ('view_extent', 'Akkd', 2)} shared-identity=True all-runtime-reads=True
+PASS t041-gdn2-separate-processes | [17]: key=f8e983e04207 sha=1b0a73ae9760 cache_hit=False; [3,17,2,7]: key=f8e983e04207 sha=1b0a73ae9760 cache_hit=False; shared-key=True byte-identical=True
+PASS t041-gdn2-both-compile-orders | order-A [3,17,2,7]: PASS cache_hit=True max_err={'Akk': 2.7939677238464355e-09, 'Aqk': 3.166496753692627e-08}; order-B [3,17,2,7]: PASS cache_hit=False; order-B [17]: PASS cache_hit=True
+PASS t041-control-refusal | both shapes refuse located ([17]: grid: a grid axis is not provenance-tracked (it depends on values the model cannot see: ?(symbolic conditional expressio); stability-rule-disabled control folds axis 2: (2,)
+PASS t041-comma-unit | dir=suite__dev__chunk_abc_fwd_kernel_intra_K.py#[2_ 2_ 17_ 9_ 8_ 4]#float16 plugin-arg-out=/tmp/a100c-t041-c0qrakxc/comma-unit/suite__dev__chunk_abc_fwd_kernel_intra_K.py#[2_ 2_ 17_ 9_ 8_ 4]#float16/counts.json injective=True grammar=True
+PASS t041-comma-qemu-roundtrip | qemu exit 0, counts at the sanitized path: True (parsed=True); unsanitized comma path created: False (the pre-fix split)
+PASS t041-chunk-abc-resource-evidence | status=EVIDENCE_FAIL executed=True compared-pass=True evidence-files=True active-workers=4 distinct-units=4 comma-free-dir=True detail=instruction witness missing: smt.vmadot; instruction witness missing: smt.vfwmadot
+
+all t041 checks PASS

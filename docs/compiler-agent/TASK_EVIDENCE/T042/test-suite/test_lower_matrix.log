@@ -1,0 +1,66 @@
+PASS i8-family-tile-8x16x8 | (8, 8, 16) acc=32 mul_c=2 lambda=4
+PASS fp16-family-tile-8x8x8 | (8, 8, 8) acc=32
+PASS i8-signedness-variant-vmadot | smt.vmadot
+PASS i8-signedness-variant-vmadotu | smt.vmadotu
+PASS i8-signedness-variant-vmadotus | smt.vmadotus
+PASS i8-signedness-variant-vmadotsu | smt.vmadotsu
+PASS int8-plan-mnemonic-suffix-empty | smt.vmadot
+PASS uint8-plan-mnemonic-u | smt.vmadotu
+PASS uint8-x-int8-plan-mnemonic-us | smt.vmadotus
+PASS int8-x-uint8-plan-mnemonic-su | smt.vmadotsu
+PASS fp16-plan-mnemonic-vfwmadot | smt.vfwmadot
+PASS slot-map-vs1-a-row-major | A tile, row-major (8x16 bytes)
+PASS slot-map-vs2-b-column-major | B tile, column-major (8 columns x 16 bytes)
+PASS slot-map-vd-mul-c-2-group | C tile accumulator (MUL_C=2 group, i32)
+PASS tile-grid-model
+PASS k-steps-model
+PASS expected-tile-ops-24x20x32 | 18
+PASS int4-dot-refused | tile plan: int4: int4 source-level dot is outside the declared surface (SUBSET.md 6 exclus
+PASS fp8-dot-refused | tile plan: fp8: fp8 is excluded by the declared subset (SUBSET.md 6); 
+PASS int16-dot-refused | tile plan: integer-non-i8: int16/int32/int64 dot operands have no IME 
+PASS fp32-ieee-dot-refused | tile plan: fp32-ieee: fp32 IEEE tl.dot is exact and takes the vector F
+PASS mixed-fp16-bf16-refused | tile plan: mixed-dtypes: tl.dot operands of different dtypes have no I
+PASS out-dtype-narrow-refused | tile plan: out-dtype-narrow: out_dtype narrower than the accumulator (
+PASS bf16-plans-vector-fp32-path | vector-fp32
+PASS bf16-gap-recorded | the pinned QEMU emulator's BF16 IME format selection has not passed (F010: the b
+PASS int8-zero-lowering-verifies | 604 ops
+PASS int8-read_c-lowering-verifies | 735 ops
+PASS uint8-zero-lowering-verifies | 604 ops
+PASS float16-zero-lowering-verifies | 602 ops
+PASS float16-read_c-lowering-verifies | 733 ops
+PASS bfloat16-zero-lowering-verifies | 157 ops
+PASS bfloat16-read_c-lowering-verifies | 157 ops
+PASS generic-verifier-flags-ime-opcodes-only | 38 ime UNKNOWN_OP, 0 other
+PASS mir-has-tile-op
+PASS k-loop-carries-m2-accumulator | ['i64', 'vi32m2']
+PASS mir-has-staging-stores
+PASS mir-has-masked-strided-c-stores
+PASS tile-loop-is-worker-strided | the tile id is the only carried scalar
+PASS mir-dump-carries-source-attribution
+PASS witness-drops-staging-masks | 16 unmasked staging loads, 0 masked
+PASS witness-recorded-in-meta
+PASS illegal-lmul-not-1-rejected | [MirError("ime-lmul-not-1: 'vmdot' executes in region e8m2; IME instructions require vtype LMUL=1 (F033: every other encoding is reserved and illegal) (at probe)")]
+PASS illegal-odd-vd-rejected | [MirError("ime-odd-destination-group: 'vmdot' result is fixed to v3; MUL_C=2 requires an even-numbered vd (vd and vd+1 the group) (at probe)")]
+PASS illegal-destination-overlap-rejected | [MirError("ime-destination-overlaps-source: 'vmdot' destination group v4/v5 overlaps source a at v5 (F033/F040) (at probe)")]
+PASS illegal-family-format-rejected | [MirError("ime-operand-format-inconsistent-with-family: 'vmdot' A tile must be vi8m1 for the i8 family (F030/F031), got vf16m1 (at probe)")]
+PASS illegal-vfwmadot-int-tiles-rejected | [MirError("ime-operand-format-inconsistent-with-family: 'vfwmadot' A tile must be vf16m1 for the fp16 family (F030/F031), got vi8m1 (at probe)")]
+PASS vmdot-legal-form-verifies
+PASS vmdotu-legal-form-verifies
+PASS vmdotus-legal-form-verifies
+PASS vmdotsu-legal-form-verifies
+PASS illegal-mask-not-v0-rejected | [MirError("ime-mask-not-v0: 'vuload8m' reads its mask from hardware v0; operand m is not the fixed v0 value (insert a vmovmask) (at probe)")]
+PASS pressured-module-verifies
+PASS pressured-allocation-honors-parity-and-groups | m2 bases ['v10', 'v12', 'v14', 'v16', 'v18', 'v20', 'v22', 'v24', 'v26', 'v4', 'v6', 'v8'] tiles ['v1', 'v2'] spills=0
+PASS overconstrained-module-verifies
+PASS overconstrained-allocates-legally-or-refuses | legal allocation with spills=5
+PASS int8-selection-includes-smt-vmadot | ['smt.vmadot']
+PASS fp16-selection-includes-smt-vfwmadot
+PASS bf16-selection-has-no-ime-instruction | the vector-FP32 path emits no IME instruction (F010/F034)
+PASS repertoire-rows-registered | 13 ime opcodes in the table
+PASS repertoire-row-smt.vmadot
+PASS repertoire-row-smt.vmadotu
+PASS repertoire-row-smt.vmadotus
+PASS repertoire-row-smt.vmadotsu
+PASS repertoire-row-smt.vfwmadot
+PASS matrix-refusal-contract-kept | matrix lowering: tl.dot: probe; the IME tile path is not implemented by the vert
+test_lower_matrix: all checks PASS

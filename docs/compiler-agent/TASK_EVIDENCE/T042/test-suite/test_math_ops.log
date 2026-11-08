@@ -1,0 +1,12 @@
+PASS every-declared-math-form-executes-and-compares | 24/24 forms PASS
+PASS wrongly-rounded-constant-fails-the-accuracy-test | correct ref PASS=True, perturbed ref PASS=False (the control must fail)
+PASS fp32-ieee-forms-bit-exact | sqrt/sqrt_rn/div_rn/fma equal the double-rounded oracle
+PASS fp16-bf16-ride-the-fp32-lanes | one final rounding inside the 16-bit tolerance
+PASS integer-abs-and-maxmin-exact | compares PASS under the case policy
+PASS maximum-minimum-honor-propagate_nan | compares PASS under the case policy
+PASS refusal-fp16-transcendental | <probe>:16:11: tl.exp: tl.exp requires fp32 or fp64 operands (the pinned _check_dtype); 16
+PASS refusal-tensor-pow | <probe>:16:11: **: tensor pow is not supported by the pinned Triton 3.8 semantics (constex
+PASS corpus-math-representatives-execute-and-compare | 4 operators (math.transcendental, math.transcendental (erf), sigmoid, math.round (floor))
+PASS math-op-1-2-4-8-threads-one-artifact | 1 artifact sha(s) across 4 thread counts
+PASS constexpr-pow-folds-exact | compares PASS under the case policy
+test_math_ops: all checks PASS

@@ -1,0 +1,17 @@
+PASS licm-name-shadow-module-valid
+PASS licm-name-shadow-declined-and-green | hoistable in body=True, verifier errors=0, decline recorded=True, pass changed=True
+PASS licm-name-shadow-control-reproduces | check disabled: hoisted=True, use-before-def=True (op 'arith.add' operand 1 uses value 'rs' before its definition)
+PASS licm-implicit-conv2d-post-pass-green | verifier errors=0, licm fired=16
+PASS mask-complement-amp-fp32 | ELF=True, vmnand lines=1, source-attributed=True first: vmnand.mm v4, v4, v4  # [op68] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/
+PASS float-inf-bit-packing | fp16=0xfc00 fp32=0xff800000 fp64=0xfff0000000000000
+PASS float-inf-identity-argmax2 | artifact /tmp/a100c-t024-1za8ykc0/cache/abb7f4eb43b26e58e040439ea4214e6ca220ebf2f98f4b5247aae23c8a9c4ad7/operator_exec
+PASS autotune-unwrap-loads-11-units | 11/11 compile units loaded (kernel.fn.fn reached, config = first declared, deterministic)
+PASS autotune-unwrap-progresses-11-units | 11/11 identities progressed past the load (artifact or a located refusal of another construct)
+    suite/dev/median_int_lastdim_select_kernel.py: grid extracted (1-d)
+    suite/dev/nanmedian_select_kernel.py: grid extracted (1-d)
+PASS grid-multi-index-interprets | x[1, -1]-style multi-index stores no longer crash the provenance interpreter (int() over a tuple)
+PASS grid-multi-index-progresses | 2/2 identities past the interpreter (artifact or a located refusal of another construct)
+PASS is-not-none-folds-on-presence | MASK is not None -> True, MASK is None -> False (MASK is a passed pointer argument: its traced object is never None)
+PASS is-not-none-progresses | 2/2 identities past the literal class (artifact or a located refusal of another construct)
+
+test_compile_regressions: all checks PASS
