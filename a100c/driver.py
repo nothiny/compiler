@@ -120,7 +120,6 @@ class CompileOptions:
         if os.environ.get("A100C_VMATH_LIBM", "").strip().lower() in \
                 ("libm", "1", "true", "yes", "on"):
             self.vmath_libm = True
-
     def identity_part(self) -> str:
         parts = []
         if self.witness_drop_tail_predicates:

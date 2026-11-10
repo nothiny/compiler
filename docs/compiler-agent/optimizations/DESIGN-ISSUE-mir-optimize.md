@@ -156,3 +156,35 @@ evidence. A recorded engine-side reconciliation (re-running the engine's
 architecture review over the same revision) is noted as a follow-up for
 whenever the engine is free; this document and the byte-identical copies
 are the artifacts both reviews consume.
+
+## Outcome of the first implementation attempt (same day)
+
+Implemented and measured; **the stage is unwired** (the contract
+revision that declared it is reverted in the same round -- the contract
+must describe the real pipeline):
+
+- mir-licm, sconst-only, hoisting to the loop's unique preheader with
+  def-sites tracked by value identity (sibling blocks carry
+  identically-named params -- a name-keyed map aliases them and hoists a
+  chunk head's own induction test into its preheader, the use-before-
+  definition the MIR verifier caught in testing).
+- Measured (guest dynamic instructions per call, calibrated QEMU
+  plugin): softmax-f16 50,318 -> 49,071 (-2.5%); linear-dropout-f16
+  16.72M -> 16.90M (+1.1%); log_softmax_linear-f16 2.13M -> 2.31M
+  (+8.1%).  The register-pressure perturbation (hoisted constants
+  occupy registers across the loop; the allocator's coloring shifts)
+  outweighs the per-iteration li savings.
+- Unbounded hoisting does not converge: the allocator relieves pressure
+  by rematerializing ONE value per spill round (64-round cap), so ~100
+  hoisted constants per preheader are a compile-time convergence bomb
+  even though every one is rematerializable.  A cap of 8 keeps 4/5
+  smoke cases converging; 4 keeps all -- and the wins shrink to noise.
+- Conclusion: the sconst class needs a pressure-aware design (per-loop
+  live-range accounting against the real register budget, or hoisting
+  only constants with multiple in-loop uses), not a capped blanket
+  hoist.  The address-tree class (SBIN chains) additionally needs the
+  non-rematerializable values excluded or split-aware.  The loop
+  analysis in a100c/passes/mir_optimize.py (identity-keyed def-sites,
+  single-entry natural loops, innermost-first processing) is the
+  reusable machinery for that follow-up; the module stays in the tree,
+  unwired.
