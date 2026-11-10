@@ -156,14 +156,22 @@ _MEM_OPCODES: Dict[str, Tuple[int, int, bool, bool]] = {
     "vustore32": (32, 2, False, True),
 }
 
-#: strided vector load: opcode -> (sew, lmul) -- the B-operand pack's
-#: column gather (the matmul optimization round).  Probe-verified under
-#: the pinned QEMU (docs/compiler-agent/optimizations/matmul/tooling/
-#: probe-strided.S); the recorded indexed-form emulator defect (e64
-#: index + sub-32-bit data SEGFAULT) does not cover strided forms.
-_STRIDE_MEM_OPCODES: Dict[str, Tuple[int, int]] = {
-    "vloads8": (8, 1),
-    "vloads16": (16, 1),
+#: strided vector memory: opcode -> (sew, lmul, masked, stores) -- the
+#: B-operand pack's column gather (the matmul optimization round) plus
+#: the W2-C8 narrow-data strided forms (masked loads and the strided
+#: stores).  Probe-verified under the pinned QEMU
+#: (docs/compiler-agent/optimizations/matmul/tooling/probe-strided.S);
+#: the recorded indexed-form emulator defect (e64 index + sub-32-bit
+#: data SEGFAULT) does not cover strided forms.
+_STRIDE_MEM_OPCODES: Dict[str, Tuple[int, int, bool, bool]] = {
+    "vloads8": (8, 1, False, False),
+    "vloads16": (16, 1, False, False),
+    "vloads8m": (8, 1, True, False),
+    "vloads16m": (16, 1, True, False),
+    "vstores8": (8, 1, False, True),
+    "vstores16": (16, 1, False, True),
+    "vstores8m": (8, 1, True, True),
+    "vstores16m": (16, 1, True, True),
 }
 
 IME_OPCODES = frozenset(_TILE_OPCODES) | frozenset(_MEM_OPCODES) | \
@@ -226,17 +234,36 @@ def ime_repertoire_rows() -> List[InstructionEntry]:
                        "lanes; undisturbed lanes are merged by a vsel)"
                        if masked else
                        "unit-stride load of one full tile register")))
-    for opcode, (sew, lmul) in sorted(_STRIDE_MEM_OPCODES.items()):
-        rows.append(InstructionEntry(
-            f"vlse{sew}.v", opcode, (),
-            f"vlse{sew}.v {{vd}}, 0({{rs1}}), {{rs2}}",
-            evidence="RVV 1.0 VLEN=1024; probe-verified under the pinned "
-                     "QEMU (matmul round: docs/compiler-agent/optimizations"
-                     "/matmul/tooling/probe-strided.S -- the pack shapes, "
-                     "the region transition and avl 0)",
-            notes="strided load of one staging column: lane l reads "
-                  "rs1 + l*rs2 bytes; rs2 is the byte stride (N*esz), the "
-                  "region's vl is the guarded element count"))
+    for opcode, (sew, lmul, masked, stores) in \
+            sorted(_STRIDE_MEM_OPCODES.items()):
+        suffix = ", v0.t" if masked else ""
+        if stores:
+            rows.append(InstructionEntry(
+                f"vss{sew}.v", opcode, (),
+                f"vss{sew}.v {{vs3}}, 0({{rs1}}), {{rs2}}{suffix}",
+                evidence="RVV 1.0 VLEN=1024",
+                notes=("masked strided store (no access at disabled "
+                       "lanes)" if masked else
+                       "strided store: lane l writes rs1 + l*rs2 bytes; "
+                       "rs2 is the byte stride, the region's vl is the "
+                       "element count (W2-C8: the narrow-data store "
+                       "form)")))
+        else:
+            rows.append(InstructionEntry(
+                f"vlse{sew}.v", opcode, (),
+                f"vlse{sew}.v {{vd}}, 0({{rs1}}), {{rs2}}{suffix}",
+                evidence="RVV 1.0 VLEN=1024; probe-verified under the "
+                         "pinned QEMU (matmul round: docs/compiler-agent/"
+                         "optimizations/matmul/tooling/probe-strided.S -- "
+                         "the pack shapes, the region transition and "
+                         "avl 0)",
+                notes=("masked strided load (no access at disabled "
+                       "lanes; undisturbed lanes are merged by a vsel -- "
+                       "W2-C8)" if masked else
+                       "strided load of one staging column: lane l reads "
+                       "rs1 + l*rs2 bytes; rs2 is the byte stride "
+                       "(N*esz), the region's vl is the guarded element "
+                       "count")))
     return rows
 
 
@@ -399,12 +426,16 @@ def _ime_op_errors(op: mir.MOp, region) -> List[mir.MirError]:
         return errors
 
     if code in _STRIDE_MEM_OPCODES:
-        sew, lmul = _STRIDE_MEM_OPCODES[code]
-        if len(op.operands) != 2 or len(op.results) != 1:
+        sew, lmul, masked, stores = _STRIDE_MEM_OPCODES[code]
+        want = (3 if masked else 2) + (1 if stores else 0)
+        if len(op.operands) != want or (len(op.results) != 0 if stores
+                                        else len(op.results) != 1):
             return err(IMEInvariant.IME_SHAPE,
-                       f"'{code}' takes (base, stride) and produces the "
-                       "loaded vector")
-        base, stride = op.operands
+                       f"'{code}' takes (base, stride"
+                       f"{', value' if stores else ''}"
+                       f"{', mask' if masked else ''}) and produces "
+                       f"{'nothing' if stores else 'the loaded vector'}")
+        base, stride = op.operands[0], op.operands[1]
         if base.type != mir.I64:
             return err(IMEInvariant.IME_SHAPE,
                        f"'{code}' base must be i64, got {base.type!r}")
@@ -412,12 +443,30 @@ def _ime_op_errors(op: mir.MOp, region) -> List[mir.MirError]:
             return err(IMEInvariant.IME_SHAPE,
                        f"'{code}' stride must be i64 (bytes), got "
                        f"{stride.type!r}")
-        res = op.results[0]
-        if not res.is_vector() or (res.type.sew, res.type.lmul) != \
-                (sew, lmul):
-            return err(IMEInvariant.IME_SHAPE,
-                       f"'{code}' result must be (sew={sew}, lmul={lmul}), "
-                       f"got {res.type!r}")
+        if stores:
+            val = op.operands[2]
+            if not val.is_vector() or (val.type.sew, val.type.lmul) != \
+                    (sew, lmul):
+                return err(IMEInvariant.IME_SHAPE,
+                           f"'{code}' value must be (sew={sew}, "
+                           f"lmul={lmul}), got {val.type!r}")
+        else:
+            res = op.results[0]
+            if not res.is_vector() or (res.type.sew, res.type.lmul) != \
+                    (sew, lmul):
+                return err(IMEInvariant.IME_SHAPE,
+                           f"'{code}' result must be (sew={sew}, "
+                           f"lmul={lmul}), got {res.type!r}")
+        if masked:
+            maskop = op.operands[-1]
+            if not maskop.is_mask():
+                return err(IMEInvariant.IME_SHAPE,
+                           f"'{code}' mask operand must be a mask value")
+            if maskop.fixed_phys != "v0":
+                return err(IMEInvariant.IME_MASK,
+                           f"'{code}' reads its mask from hardware v0; "
+                           f"operand {maskop.name} is not the fixed v0 "
+                           "value (insert a vmovmask)")
         if region is None:
             return err(IMEInvariant.IME_REGION,
                        f"'{code}' executes outside any vsetvli region")
