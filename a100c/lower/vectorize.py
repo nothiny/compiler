@@ -4464,6 +4464,104 @@ class SliceLowering:
                         f"statement {stmt!r} is not lowerable")
 
     # -- the chunk region ---------------------------------------------------------
+    #: P1 (the unified round): op kinds that cannot observe a skipped
+    #: fully-masked chunk.  Anything outside this set (plus the
+    #: shared-mask load/store forms) declines the chunk clamp.
+    _CLAMP_SAFE_OPS = frozenset((
+        "program_id", "const", "arange", "broadcast", "realize", "hint",
+        "ptradd", "convert", "select.where", "zeros", "full", "reduce_idx",
+    ))
+    _CLAMP_UNSAFE_OPS = frozenset((
+        "reduce", "atomic", "linalg.dot", "gather", "scan", "vmath",
+    ))
+
+    def _chunk_clamp_bound(self, fn: tir.Function):
+        """P1: the per-instance live-element bound of the chunk loop.
+
+        Valid when every memory op in the function (any nesting depth)
+        shares ONE mask of the form ``cmp.lt(arange + scalars, S)`` whose
+        scalar terms and bound are ALREADY-BOUND registers
+        (function-prologue values -- a loop-carried mask term declines),
+        no unmasked memory op exists, no reduction/atomic/dot/gather can
+        observe the masked lanes' ``other`` values, every other op is
+        pure lane-wise work, and the function is single-pass (a skipped
+        chunk's staged regions must never be read by a later pass).
+        Returns ``(S value, [scalar terms])`` or None (the loop keeps its
+        full-extent bound).  The skipped chunks are exactly those where
+        every lane of every memory op is masked off -- pure avoided
+        work; the per-chunk mask machinery is untouched."""
+        n_passes = sum(1 for p in self._pass_params if p is not None)
+        if n_passes != 1:
+            return None
+        mask_vid = None
+        s_val = None
+        terms = None
+
+        def walk(block) -> bool:
+            nonlocal mask_vid, s_val, terms
+            for stmt in block.statements:
+                if isinstance(stmt, tir.If):
+                    if not walk(stmt.then) or not walk(stmt.els):
+                        return False
+                    continue
+                if isinstance(stmt, tir.Loop):
+                    if not walk(stmt.body):
+                        return False
+                    continue
+                op = stmt
+                if op.op in ("load", "store"):
+                    # load: (ptr) | (ptr, mask) | (ptr, mask, other);
+                    # store: (ptr, value) | (ptr, value, mask)
+                    mask = op.operands[1] if (op.op == "load"
+                                              and len(op.operands) > 1) \
+                        else (op.operands[2] if op.op == "store"
+                              and len(op.operands) > 2 else None)
+                    if mask is None:
+                        return False        # unmasked: never skippable
+                    if mask_vid is None:
+                        prod = mask.producer
+                        if prod is None or prod.op != "cmp.lt":
+                            return False
+                        lhs, rhs = prod.operands
+                        if lhs.rank == 0:
+                            lhs, rhs = rhs, lhs
+                        # the bound rides as a broadcast-of-scalar block
+                        # (the compare's own width class): unwrap FIRST --
+                        # the rank check below would reject the wrapper
+                        if rhs.producer is not None \
+                                and rhs.producer.op == "broadcast" \
+                                and rhs.producer.operands[0].rank == 0:
+                            rhs = rhs.producer.operands[0]
+                        if lhs.rank == 0 or rhs.rank != 0:
+                            return False
+                        split = scalar_mod._split_arange_sum(lhs)
+                        if split is None or split[1] != 1:
+                            return False
+                        mask_vid = mask.vid
+                        s_val = rhs
+                        terms = list(split[0])
+                    elif mask.vid != mask_vid:
+                        return False
+                    continue
+                if op.op in self._CLAMP_UNSAFE_OPS:
+                    return False
+                if op.op in self._CLAMP_SAFE_OPS or op.op.startswith(
+                        ("arith.", "bit.", "cmp.", "math.")):
+                    continue
+                return False        # an unknown op kind: decline
+            return True
+
+        if not walk(fn.body):
+            return None
+        if mask_vid is None or s_val is None:
+            return None
+        for t in [*terms, s_val]:
+            if self.value(t) is None:
+                return None     # not a prologue-bound register
+            if t.type.width != s_val.type.width:
+                return None     # mixed-width terms: decline (never guessed)
+        return s_val, terms
+
     def _ensure_chunk(self, ctx: _Ctx, fn: tir.Function,
                       strided: Optional[bool] = None) -> None:
         """Open the chunk loop over the block extent (block-local index
@@ -4556,10 +4654,68 @@ class SliceLowering:
             acc_params.append(p)
         ctx.switch(head)
         # (the head's own brc is emitted below, after the exit block)
-        extent = ctx.const(B, mir.I32, loc)
-        ccont = ctx.emit(mir.MOp(
-            "slt", [elem_h, extent],
-            [ctx.vreg(mir.I64, hint="cgo", loc=loc)], loc=loc))
+        # P1: the per-instance live-element clamp -- when the whole
+        # function's memory ops share one prefix mask over the block
+        # offsets (and nothing lane-consuming can observe the masked
+        # lanes), the chunk loop's upper bound is the mask's own bound:
+        # the fully-masked tail chunks (a [4]-element instance of a
+        # BLOCK=1024 kernel still ran all 32 chunks) are pure avoided
+        # work.  upper = min(B, S - block_base); a negative live count
+        # makes the test false -- the loop is simply zero-trip.
+        clamp = self._chunk_clamp_bound(fn)
+        if clamp is not None:
+            s_val, terms = clamp
+            w = s_val.type.width
+            sty = mir.ScalarType(w, signed=True)
+            base = None
+            for t in terms:
+                treg = self.value(t)
+                base = treg if base is None else ctx.emit(mir.MOp(
+                    "sadd", [base, treg],
+                    [ctx.vreg(sty, hint="clb", loc=loc)], loc=loc))
+            sreg = self.value(s_val)
+            if base is None:
+                live = sreg
+            else:
+                live = ctx.emit(mir.MOp(
+                    "ssub", [sreg, base],
+                    [ctx.vreg(sty, hint="cll", loc=loc)], loc=loc))
+            bK = ctx.const(B, sty, loc)
+            # min(live, B) = B + ((live - B) & -(live < B))
+            cless = ctx.emit(mir.MOp(
+                "slt", [live, bK],
+                [ctx.vreg(mir.I64, hint="clc", loc=loc)], loc=loc))
+            if w != 64:
+                cless = ctx.emit(mir.MOp(
+                    "strunc", [cless],
+                    [ctx.vreg(sty, hint="clt", loc=loc)], loc=loc))
+            zeroK = ctx.const(0, sty, loc)
+            mneg = ctx.emit(mir.MOp(
+                "ssub", [zeroK, cless],
+                [ctx.vreg(sty, hint="clm", loc=loc)], loc=loc))
+            diff = ctx.emit(mir.MOp(
+                "ssub", [live, bK],
+                [ctx.vreg(sty, hint="cld", loc=loc)], loc=loc))
+            sel = ctx.emit(mir.MOp(
+                "sand", [diff, mneg],
+                [ctx.vreg(sty, hint="cls", loc=loc)], loc=loc))
+            upper = ctx.emit(mir.MOp(
+                "sadd", [bK, sel],
+                [ctx.vreg(sty, hint="clu", loc=loc)], loc=loc))
+            if w == 32:
+                ccont = ctx.emit(mir.MOp(
+                    "slt", [elem_h, upper],
+                    [ctx.vreg(mir.I64, hint="cgo", loc=loc)], loc=loc))
+            else:
+                elemw = scalar_mod.widen_to(ctx, elem_h, 64, loc)
+                ccont = ctx.emit(mir.MOp(
+                    "slt", [elemw, upper],
+                    [ctx.vreg(mir.I64, hint="cgo", loc=loc)], loc=loc))
+        else:
+            extent = ctx.const(B, mir.I32, loc)
+            ccont = ctx.emit(mir.MOp(
+                "slt", [elem_h, extent],
+                [ctx.vreg(mir.I64, hint="cgo", loc=loc)], loc=loc))
         # the exit: pid (for the program step), the items count and every
         # merge accumulator at its all-chunk value
         exit_params = [mir.VReg(mir.I64, name="pid.xreg", loc=loc),
