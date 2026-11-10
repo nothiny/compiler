@@ -1,0 +1,666 @@
+{
+  "schema": "a100c-matmul-metrics/v1",
+  "case": "suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py#[2, 64, 128]#float16",
+  "threads": 1,
+  "seed": 30,
+  "steady_repeats": 5,
+  "artifact": {
+    "key": "f0a9588b4fff2ac5e8b05ea636a6c36c702f97f0246bfd828646ddaa361a6dae",
+    "sha256": "2500c6acfcda4a415c36ad658708fa5467c55855d2b20368a82dd6ea28dade43",
+    "identity": "d6559ca10895e185",
+    "cache_entry": "/home/i_yinzida/compiler-a100-experiment-001/a100c/cache/f0a9588b4fff2ac5e8b05ea636a6c36c702f97f0246bfd828646ddaa361a6dae"
+  },
+  "environment": {
+    "qemu": "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64",
+    "qemu_version": "qemu-riscv64 version 10.0.2",
+    "cpu": "max,vlen=1024,elen=64,vext_spec=v1.0",
+    "plugin": "/home/i_yinzida/compiler-a100-experiment-001/tools/profiling/full_instruction_counts.so"
+  },
+  "asm_join": {
+    "listing_instruction_rows": 6427,
+    "program_instructions": 6427,
+    "affine_offset": 70686,
+    "region": [
+      70686,
+      94736
+    ],
+    "byte_identity": true
+  },
+  "runs": {
+    "r1": {
+      "repeats": 1,
+      "exit_code": 0,
+      "wall_s": 0.245,
+      "command": "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64 -L /home/i_yinzida/.local/opt/a100/toolchain-1.1.2/sysroot -cpu max,vlen=1024,elen=64,vext_spec=v1.0 -plugin /home/i_yinzida/compiler-a100-experiment-001/tools/profiling/full_instruction_counts.so,out=docs/compiler-agent/optimizations/softmax/candidates/vector-poly/metrics/bias-scale-sigmoid-f16-t1/counts.r1.json /home/i_yinzida/compiler-a100-experiment-001/a100c/cache/f0a9588b4fff2ac5e8b05ea636a6c36c702f97f0246bfd828646ddaa361a6dae/operator_exec --bundle /tmp/a100-native-case-xnilzhv5/bundle.bin --threads 1 --repeats 1",
+      "stdout_last_json": {
+        "runtime": "a100rt/v1",
+        "status": "ok",
+        "threads": 1,
+        "repeats": 1,
+        "pool_initializations": 1,
+        "repeats_all_equal": true,
+        "workers": [
+          {
+            "id": 0,
+            "guest_tid": 279127,
+            "items": 92928
+          }
+        ],
+        "bundle_bytes": 33088
+      },
+      "total": 2015462,
+      "per_vcpu_totals": [
+        241306,
+        1774156,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "categories": {
+        "scalar-arith": 883227,
+        "scalar-load": 120880,
+        "branch": 161672,
+        "scalar-store": 152126,
+        "vec-config": 175064,
+        "vec-mem": 20976,
+        "vec-arith": 501224,
+        "system": 137,
+        "atomic": 156
+      }
+    },
+    "r2": {
+      "repeats": 6,
+      "exit_code": 0,
+      "wall_s": 0.879,
+      "command": "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64 -L /home/i_yinzida/.local/opt/a100/toolchain-1.1.2/sysroot -cpu max,vlen=1024,elen=64,vext_spec=v1.0 -plugin /home/i_yinzida/compiler-a100-experiment-001/tools/profiling/full_instruction_counts.so,out=docs/compiler-agent/optimizations/softmax/candidates/vector-poly/metrics/bias-scale-sigmoid-f16-t1/counts.r2.json /home/i_yinzida/compiler-a100-experiment-001/a100c/cache/f0a9588b4fff2ac5e8b05ea636a6c36c702f97f0246bfd828646ddaa361a6dae/operator_exec --bundle /tmp/a100-native-case-xnilzhv5/bundle.bin --threads 1 --repeats 6",
+      "stdout_last_json": {
+        "runtime": "a100rt/v1",
+        "status": "ok",
+        "threads": 1,
+        "repeats": 6,
+        "pool_initializations": 1,
+        "repeats_all_equal": true,
+        "workers": [
+          {
+            "id": 0,
+            "guest_tid": 279130,
+            "items": 92928
+          }
+        ],
+        "bundle_bytes": 33088
+      },
+      "total": 11160472,
+      "per_vcpu_totals": [
+        533601,
+        10626871,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "categories": {
+        "scalar-arith": 4966977,
+        "scalar-load": 537870,
+        "branch": 830147,
+        "scalar-store": 642286,
+        "vec-config": 1050189,
+        "vec-mem": 125266,
+        "vec-arith": 3007344,
+        "system": 177,
+        "atomic": 216
+      }
+    }
+  },
+  "steady_state": {
+    "per_call_total": 1829002.0,
+    "init_total": 186460.0,
+    "per_call_categories": {
+      "scalar-arith": 831285.7999999009,
+      "scalar-load": 92496.59999999544,
+      "branch": 141837.20000000324,
+      "scalar-store": 114797.19999999634,
+      "vec-config": 175025.0,
+      "vec-mem": 20858.0,
+      "vec-arith": 501224.0,
+      "system": 33.399999999999984,
+      "atomic": 43.00000000000006
+    },
+    "indivisible_pc_deltas": 11974,
+    "note": "per-call = (repeats=1+R minus repeats=1)/R; indivisible deltas indicate run-to-run variation (e.g. barrier spin) and are kept as fractions"
+  },
+  "program_region": {
+    "origins_per_call": {
+      "frame": 14.0,
+      "scalar-mem": 141109.0,
+      "const-materialization": 454223.0,
+      "op:smul": 67603.0,
+      "op:sdivu": 14.0,
+      "op:sadd": 205621.0,
+      "op:ssub": 9.0,
+      "op:smove": 10.0,
+      "branch": 127850.0,
+      "op:slt": 40181.0,
+      "op:swext": 16.0,
+      "op:sshl": 12.0,
+      "vec-config": 174992.0,
+      "vec-arith": 486648.0,
+      "vec-mem": 19504.0,
+      "op:vmand": 512.0,
+      "op:vfwcvt": 1036.0,
+      "op:vunit_load": 776.0,
+      "op:vfmacc": 11488.0,
+      "op:vfncvt": 1028.0,
+      "op:vunit_store": 512.0,
+      "op:vpopc": 512.0,
+      "control": 14.0
+    },
+    "opcodes_per_call": {
+      "frame": 14.0,
+      "sload": 74016.0,
+      "sconst": 454223.0,
+      "smul": 67603.0,
+      "sdivu": 14.0,
+      "sadd": 205621.0,
+      "ssub": 9.0,
+      "smove": 10.0,
+      "br": 44233.0,
+      "slt": 40181.0,
+      "brc": 83617.0,
+      "swext": 16.0,
+      "sshl": 12.0,
+      "vsetvli": 174992.0,
+      "vid": 17212.0,
+      "vbinx": 40572.0,
+      "s2v": 112556.0,
+      "vbin": 51980.0,
+      "vcmp": 23704.0,
+      "vwaddx0": 19520.0,
+      "vmovmask": 24224.0,
+      "vsel": 24224.0,
+      "vstoreix": 6540.0,
+      "sstore": 67093.0,
+      "vloadix": 12964.0,
+      "vmand": 512.0,
+      "vfwcvt": 1036.0,
+      "vmovv": 5200.0,
+      "vextract": 98816.0,
+      "vslidedn": 66048.0,
+      "vunit_load": 776.0,
+      "vfmacc": 11488.0,
+      "vunary": 2592.0,
+      "vfncvt": 1028.0,
+      "vunit_store": 512.0,
+      "vpopc": 512.0,
+      "ret": 14.0
+    },
+    "spill_traffic": {
+      "spill_instructions": 0.0,
+      "reload_instructions": 0.0,
+      "spill_bytes_model": 0.0,
+      "reload_bytes_model": 0.0,
+      "bytes_model_note": "scalar=8B; vector=VLEN/8*lmul at vlmax"
+    },
+    "vsetvli": {
+      "static": {
+        "e32,m1": 243,
+        "e64,m2": 326,
+        "e16,m1": 281
+      },
+      "dynamic_call": 174992.0
+    },
+    "static": {
+      "instructions": 6427,
+      "frame_bytes": 112,
+      "saved_regs": [
+        "s1",
+        "s2",
+        "s3",
+        "s4",
+        "s5",
+        "s6",
+        "s7",
+        "s8",
+        "s9",
+        "s10",
+        "s11"
+      ],
+      "spill_slots": 0,
+      "spilled_values": 0,
+      "gprs_used": 25,
+      "vector_regs_used": 10,
+      "vector_bytes_used": 1280
+    }
+  },
+  "runtime_region_per_call": {
+    "_PROCEDURE_LINKAGE_TABLE_": 24.0,
+    "main": 247.0,
+    "operator_entry": 36744.0,
+    "a100rt_worker_main": 12.0,
+    "a100rt_pool_call": 25.0
+  },
+  "loader_unknown_per_call": 106864.19999998616,
+  "hot_pcs_per_call": [
+    {
+      "pc": 81348,
+      "per_call": 8448.0,
+      "mnemonic": "bnez",
+      "region": "program",
+      "origin": "branch",
+      "opcode": "brc",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:45:14",
+      "text": "bne t5, zero, .Lbrc3026_true  # [op3026] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:45:14"
+    },
+    {
+      "pc": 81344,
+      "per_call": 8448.0,
+      "mnemonic": "slt",
+      "region": "program",
+      "origin": "op:slt",
+      "opcode": "slt",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:45:14",
+      "text": "slt t5, t2, t4  # [op3025] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:45:14"
+    },
+    {
+      "pc": 80208,
+      "per_call": 8448.0,
+      "mnemonic": "bnez",
+      "region": "program",
+      "origin": "branch",
+      "opcode": "brc",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:41:17",
+      "text": "bne t5, zero, .Lbrc2688_true  # [op2688] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:41:17"
+    },
+    {
+      "pc": 80204,
+      "per_call": 8448.0,
+      "mnemonic": "slt",
+      "region": "program",
+      "origin": "op:slt",
+      "opcode": "slt",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:41:17",
+      "text": "slt t5, t2, t4  # [op2687] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:41:17"
+    },
+    {
+      "pc": 75964,
+      "per_call": 8448.0,
+      "mnemonic": "bnez",
+      "region": "program",
+      "origin": "branch",
+      "opcode": "brc",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:45:14",
+      "text": "bne t5, zero, .Lbrc1505_true  # [op1505] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:45:14"
+    },
+    {
+      "pc": 75960,
+      "per_call": 8448.0,
+      "mnemonic": "slt",
+      "region": "program",
+      "origin": "op:slt",
+      "opcode": "slt",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:45:14",
+      "text": "slt t5, t2, t4  # [op1504] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:45:14"
+    },
+    {
+      "pc": 74840,
+      "per_call": 8448.0,
+      "mnemonic": "bnez",
+      "region": "program",
+      "origin": "branch",
+      "opcode": "brc",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:41:17",
+      "text": "bne t5, zero, .Lbrc1165_true  # [op1165] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:41:17"
+    },
+    {
+      "pc": 74836,
+      "per_call": 8448.0,
+      "mnemonic": "slt",
+      "region": "program",
+      "origin": "op:slt",
+      "opcode": "slt",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:41:17",
+      "text": "slt t5, t2, t4  # [op1164] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:41:17"
+    },
+    {
+      "pc": 81416,
+      "per_call": 8192.0,
+      "mnemonic": "j",
+      "region": "program",
+      "origin": "branch",
+      "opcode": "br",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:45:14",
+      "text": "j .Lpgt29.head  # [op3044] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:45:14"
+    },
+    {
+      "pc": 81414,
+      "per_call": 8192.0,
+      "mnemonic": "add",
+      "region": "program",
+      "origin": "op:sadd",
+      "opcode": "sadd",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:45:14",
+      "text": "add t2, t2, t5  # [op3043] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:45:14"
+    },
+    {
+      "pc": 81412,
+      "per_call": 8192.0,
+      "mnemonic": "addi",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:45:14",
+      "text": "li t5, 1  # [op3042] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:45:14"
+    },
+    {
+      "pc": 81408,
+      "per_call": 8192.0,
+      "mnemonic": "vmv.x.s",
+      "region": "program",
+      "origin": "vec-arith",
+      "opcode": "vextract",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:45:14",
+      "text": "vmv.x.s a1, v1  # [op3041] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:45:14"
+    },
+    {
+      "pc": 81404,
+      "per_call": 8192.0,
+      "mnemonic": "vfadd.vv",
+      "region": "program",
+      "origin": "vec-arith",
+      "opcode": "vbin",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:45:14",
+      "text": "vfadd.vv v1, v1, v2  # [op3040] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:45:14"
+    },
+    {
+      "pc": 81400,
+      "per_call": 8192.0,
+      "mnemonic": "vmv.v.x",
+      "region": "program",
+      "origin": "vec-arith",
+      "opcode": "s2v",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:45:14",
+      "text": "vmv.v.x v2, t5  # [op3039] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:45:14"
+    },
+    {
+      "pc": 81396,
+      "per_call": 8192.0,
+      "mnemonic": "vmv.v.x",
+      "region": "program",
+      "origin": "vec-arith",
+      "opcode": "s2v",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:45:14",
+      "text": "vmv.v.x v1, a1  # [op3038] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:45:14"
+    },
+    {
+      "pc": 81392,
+      "per_call": 8192.0,
+      "mnemonic": "vsetvli",
+      "region": "program",
+      "origin": "vec-config",
+      "opcode": "vsetvli",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:45:14",
+      "text": "vsetvli t6, t6, e32, m1, ta,ma  # [op3037] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:45:14"
+    },
+    {
+      "pc": 81388,
+      "per_call": 8192.0,
+      "mnemonic": "addi",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:45:14",
+      "text": "li t6, 32  # [op3036] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:45:14"
+    },
+    {
+      "pc": 81384,
+      "per_call": 8192.0,
+      "mnemonic": "lw",
+      "region": "program",
+      "origin": "scalar-mem",
+      "opcode": "sload",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:45:14",
+      "text": "lw t5, 0(t5)  # [op3035] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:45:14"
+    },
+    {
+      "pc": 81382,
+      "per_call": 8192.0,
+      "mnemonic": "add",
+      "region": "program",
+      "origin": "op:sadd",
+      "opcode": "sadd",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:45:14",
+      "text": "add t5, s7, t5  # [op3034] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:45:14"
+    },
+    {
+      "pc": 81378,
+      "per_call": 8192.0,
+      "mnemonic": "mul",
+      "region": "program",
+      "origin": "op:smul",
+      "opcode": "smul",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:45:14",
+      "text": "mul t5, t5, t6  # [op3033] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:45:14"
+    },
+    {
+      "pc": 81376,
+      "per_call": 8192.0,
+      "mnemonic": "addi",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:45:14",
+      "text": "li t6, 4  # [op3032] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:45:14"
+    },
+    {
+      "pc": 81374,
+      "per_call": 8192.0,
+      "mnemonic": "add",
+      "region": "program",
+      "origin": "op:sadd",
+      "opcode": "sadd",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:45:14",
+      "text": "add t5, t3, t5  # [op3031] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:45:14"
+    },
+    {
+      "pc": 81372,
+      "per_call": 8192.0,
+      "mnemonic": "add",
+      "region": "program",
+      "origin": "op:sadd",
+      "opcode": "sadd",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:45:14",
+      "text": "add t5, t5, t6  # [op3030] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:45:14"
+    },
+    {
+      "pc": 81368,
+      "per_call": 8192.0,
+      "mnemonic": "mul",
+      "region": "program",
+      "origin": "op:smul",
+      "opcode": "smul",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:45:14",
+      "text": "mul t6, t2, t6  # [op3029] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:45:14"
+    },
+    {
+      "pc": 81364,
+      "per_call": 8192.0,
+      "mnemonic": "addi",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:45:14",
+      "text": "li t6, 64  # [op3028] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:45:14"
+    },
+    {
+      "pc": 81362,
+      "per_call": 8192.0,
+      "mnemonic": "mv",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:45:14",
+      "text": "li t5, 0  # [op3027] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:45:14"
+    },
+    {
+      "pc": 81360,
+      "per_call": 8192.0,
+      "mnemonic": "j",
+      "region": "program",
+      "origin": "branch",
+      "opcode": "brc",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:45:14",
+      "text": "j .Lpgt29.body  # [op3026] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:45:14"
+    },
+    {
+      "pc": 80284,
+      "per_call": 8192.0,
+      "mnemonic": "j",
+      "region": "program",
+      "origin": "branch",
+      "opcode": "br",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:41:17",
+      "text": "j .Lpgt24.head  # [op2708] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:41:17"
+    },
+    {
+      "pc": 80282,
+      "per_call": 8192.0,
+      "mnemonic": "add",
+      "region": "program",
+      "origin": "op:sadd",
+      "opcode": "sadd",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:41:17",
+      "text": "add t2, t2, t5  # [op2707] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:41:17"
+    },
+    {
+      "pc": 80280,
+      "per_call": 8192.0,
+      "mnemonic": "addi",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:41:17",
+      "text": "li t5, 1  # [op2706] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:41:17"
+    },
+    {
+      "pc": 80276,
+      "per_call": 8192.0,
+      "mnemonic": "vmv.x.s",
+      "region": "program",
+      "origin": "vec-arith",
+      "opcode": "vextract",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:41:17",
+      "text": "vmv.x.s a1, v1  # [op2705] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:41:17"
+    },
+    {
+      "pc": 80272,
+      "per_call": 8192.0,
+      "mnemonic": "vmerge.vvm",
+      "region": "program",
+      "origin": "vec-arith",
+      "opcode": "vsel",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:41:17",
+      "text": "vmerge.vvm v1, v1, v2, v0  # [op2704] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:41:17"
+    },
+    {
+      "pc": 80268,
+      "per_call": 8192.0,
+      "mnemonic": "vmv1r.v",
+      "region": "program",
+      "origin": "vec-arith",
+      "opcode": "vmovmask",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:41:17",
+      "text": "vmv1r.v v0, v3  # [op2703] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:41:17"
+    },
+    {
+      "pc": 80264,
+      "per_call": 8192.0,
+      "mnemonic": "vmflt.vv",
+      "region": "program",
+      "origin": "vec-arith",
+      "opcode": "vcmp",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:41:17",
+      "text": "vmflt.vv v3, v1, v2  # [op2702] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:41:17"
+    },
+    {
+      "pc": 80260,
+      "per_call": 8192.0,
+      "mnemonic": "vmv.v.x",
+      "region": "program",
+      "origin": "vec-arith",
+      "opcode": "s2v",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:41:17",
+      "text": "vmv.v.x v2, t5  # [op2701] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:41:17"
+    },
+    {
+      "pc": 80256,
+      "per_call": 8192.0,
+      "mnemonic": "vmv.v.x",
+      "region": "program",
+      "origin": "vec-arith",
+      "opcode": "s2v",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:41:17",
+      "text": "vmv.v.x v1, a1  # [op2700] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:41:17"
+    },
+    {
+      "pc": 80252,
+      "per_call": 8192.0,
+      "mnemonic": "vsetvli",
+      "region": "program",
+      "origin": "vec-config",
+      "opcode": "vsetvli",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:41:17",
+      "text": "vsetvli t6, t6, e32, m1, ta,ma  # [op2699] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:41:17"
+    },
+    {
+      "pc": 80248,
+      "per_call": 8192.0,
+      "mnemonic": "addi",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:41:17",
+      "text": "li t6, 32  # [op2698] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:41:17"
+    },
+    {
+      "pc": 80244,
+      "per_call": 8192.0,
+      "mnemonic": "lw",
+      "region": "program",
+      "origin": "scalar-mem",
+      "opcode": "sload",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:41:17",
+      "text": "lw t5, 0(t5)  # [op2697] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:41:17"
+    },
+    {
+      "pc": 80242,
+      "per_call": 8192.0,
+      "mnemonic": "add",
+      "region": "program",
+      "origin": "op:sadd",
+      "opcode": "sadd",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:41:17",
+      "text": "add t5, s7, t5  # [op2696] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/softmax_bias_scale_sigmoid_fused_nchw_inplace.py:41:17"
+    }
+  ],
+  "problems": []
+}

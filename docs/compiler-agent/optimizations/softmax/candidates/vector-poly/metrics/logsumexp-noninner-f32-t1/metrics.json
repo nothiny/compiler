@@ -1,0 +1,659 @@
+{
+  "schema": "a100c-matmul-metrics/v1",
+  "case": "suite/dev/logsumexp__logsumexp_kernel_non_inner.py#[104]#float32",
+  "threads": 1,
+  "seed": 30,
+  "steady_repeats": 5,
+  "artifact": {
+    "key": "6e260522fc05fbed684881bf3045502495b028b99f164d1e8ce62e51219c59bd",
+    "sha256": "948ee94e501ae88ebc393e45a919f81fc916d8a0cba9058e01dbe83066632325",
+    "identity": "f97c2afa75121005",
+    "cache_entry": "/home/i_yinzida/compiler-a100-experiment-001/a100c/cache/6e260522fc05fbed684881bf3045502495b028b99f164d1e8ce62e51219c59bd"
+  },
+  "environment": {
+    "qemu": "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64",
+    "qemu_version": "qemu-riscv64 version 10.0.2",
+    "cpu": "max,vlen=1024,elen=64,vext_spec=v1.0",
+    "plugin": "/home/i_yinzida/compiler-a100-experiment-001/tools/profiling/full_instruction_counts.so"
+  },
+  "asm_join": {
+    "listing_instruction_rows": 2169,
+    "program_instructions": 2169,
+    "affine_offset": 70686,
+    "region": [
+      70686,
+      78060
+    ],
+    "byte_identity": true
+  },
+  "runs": {
+    "r1": {
+      "repeats": 1,
+      "exit_code": 0,
+      "wall_s": 0.138,
+      "command": "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64 -L /home/i_yinzida/.local/opt/a100/toolchain-1.1.2/sysroot -cpu max,vlen=1024,elen=64,vext_spec=v1.0 -plugin /home/i_yinzida/compiler-a100-experiment-001/tools/profiling/full_instruction_counts.so,out=docs/compiler-agent/optimizations/softmax/candidates/vector-poly/metrics/logsumexp-noninner-f32-t1/counts.r1.json /home/i_yinzida/compiler-a100-experiment-001/a100c/cache/6e260522fc05fbed684881bf3045502495b028b99f164d1e8ce62e51219c59bd/operator_exec --bundle /tmp/a100-native-case-8q34e63_/bundle.bin --threads 1 --repeats 1",
+      "stdout_last_json": {
+        "runtime": "a100rt/v1",
+        "status": "ok",
+        "threads": 1,
+        "repeats": 1,
+        "pool_initializations": 1,
+        "repeats_all_equal": true,
+        "workers": [
+          {
+            "id": 0,
+            "guest_tid": 278208,
+            "items": 19354
+          }
+        ],
+        "bundle_bytes": 1344
+      },
+      "total": 744583,
+      "per_vcpu_totals": [
+        188703,
+        555880,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "categories": {
+        "scalar-arith": 326438,
+        "scalar-load": 80529,
+        "branch": 75783,
+        "scalar-store": 42685,
+        "vec-config": 55720,
+        "vec-mem": 12120,
+        "vec-arith": 151020,
+        "system": 135,
+        "atomic": 153
+      }
+    },
+    "r2": {
+      "repeats": 6,
+      "exit_code": 0,
+      "wall_s": 0.263,
+      "command": "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64 -L /home/i_yinzida/.local/opt/a100/toolchain-1.1.2/sysroot -cpu max,vlen=1024,elen=64,vext_spec=v1.0 -plugin /home/i_yinzida/compiler-a100-experiment-001/tools/profiling/full_instruction_counts.so,out=docs/compiler-agent/optimizations/softmax/candidates/vector-poly/metrics/logsumexp-noninner-f32-t1/counts.r2.json /home/i_yinzida/compiler-a100-experiment-001/a100c/cache/6e260522fc05fbed684881bf3045502495b028b99f164d1e8ce62e51219c59bd/operator_exec --bundle /tmp/a100-native-case-8q34e63_/bundle.bin --threads 1 --repeats 6",
+      "stdout_last_json": {
+        "runtime": "a100rt/v1",
+        "status": "ok",
+        "threads": 1,
+        "repeats": 6,
+        "pool_initializations": 1,
+        "repeats_all_equal": true,
+        "workers": [
+          {
+            "id": 0,
+            "guest_tid": 278211,
+            "items": 19354
+          }
+        ],
+        "bundle_bytes": 1344
+      },
+      "total": 3566948,
+      "per_vcpu_totals": [
+        249913,
+        3317035,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "categories": {
+        "scalar-arith": 1624763,
+        "scalar-load": 255714,
+        "branch": 283213,
+        "scalar-store": 90030,
+        "vec-config": 334280,
+        "vec-mem": 72440,
+        "vec-arith": 906120,
+        "system": 175,
+        "atomic": 213
+      }
+    }
+  },
+  "steady_state": {
+    "per_call_total": 564473.0,
+    "init_total": 180110.0,
+    "per_call_categories": {
+      "scalar-arith": 273157.0000000264,
+      "scalar-load": 44149.19999999744,
+      "branch": 48587.59999999751,
+      "scalar-store": 17873.000000000393,
+      "vec-config": 55712.0,
+      "vec-mem": 12064.0,
+      "vec-arith": 151020.0,
+      "system": 32.999999999999986,
+      "atomic": 42.40000000000003
+    },
+    "indivisible_pc_deltas": 11894,
+    "note": "per-call = (repeats=1+R minus repeats=1)/R; indivisible deltas indicate run-to-run variation (e.g. barrier spin) and are kept as fractions"
+  },
+  "program_region": {
+    "origins_per_call": {
+      "frame": 24250.0,
+      "spill": 1.0,
+      "reload": 20624.0,
+      "scalar-mem": 28761.0,
+      "op:swext": 62.0,
+      "const-materialization": 190495.0,
+      "op:sadd": 25841.0,
+      "op:sdivu": 21.0,
+      "op:smul": 752.0,
+      "op:smove": 145.0,
+      "branch": 11890.0,
+      "op:slt": 2480.0,
+      "op:ssub": 20.0,
+      "op:sshl": 10.0,
+      "vec-config": 102320.0,
+      "vec-arith": 107724.0,
+      "vec-mem": 15060.0,
+      "op:vmand": 320.0,
+      "op:vfncvt": 320.0,
+      "op:vfmacc": 2640.0
+    },
+    "opcodes_per_call": {
+      "frame": 24250.0,
+      "sspill": 1.0,
+      "sreload": 20624.0,
+      "sload": 27771.0,
+      "swext": 62.0,
+      "sconst": 190495.0,
+      "sadd": 25841.0,
+      "sdivu": 21.0,
+      "smul": 752.0,
+      "smove": 145.0,
+      "br": 9330.0,
+      "slt": 2480.0,
+      "brc": 2560.0,
+      "ssub": 20.0,
+      "sshl": 10.0,
+      "vsetvli": 102320.0,
+      "vid": 19530.0,
+      "vbinx": 35080.0,
+      "vwaddx0": 18780.0,
+      "vmovv": 1310.0,
+      "s2v": 14104.0,
+      "vbin": 9040.0,
+      "vstoreix": 11430.0,
+      "sstore": 990.0,
+      "vloadix": 3630.0,
+      "vcmp": 2550.0,
+      "vmovmask": 3380.0,
+      "vsel": 3110.0,
+      "vmand": 320.0,
+      "vfncvt": 320.0,
+      "vfmacc": 2640.0,
+      "vunary": 670.0,
+      "vextract": 170.0
+    },
+    "spill_traffic": {
+      "spill_instructions": 1.0,
+      "reload_instructions": 20624.0,
+      "spill_bytes_model": 8.0,
+      "reload_bytes_model": 288008.0,
+      "bytes_model_note": "scalar=8B; vector=VLEN/8*lmul at vlmax"
+    },
+    "vsetvli": {
+      "static": {
+        "e32,m1": 214,
+        "e64,m1": 46,
+        "e64,m2": 73
+      },
+      "dynamic_call": 102320.0
+    },
+    "static": {
+      "instructions": 2169,
+      "frame_bytes": 128,
+      "saved_regs": [
+        "s1",
+        "s2",
+        "s3",
+        "s4",
+        "s5",
+        "s6",
+        "s7",
+        "s8",
+        "s9",
+        "s10",
+        "s11"
+      ],
+      "spill_slots": 1,
+      "spilled_values": 1,
+      "gprs_used": 25,
+      "vector_regs_used": 11,
+      "vector_bytes_used": 1408
+    }
+  },
+  "runtime_region_per_call": {
+    "_PROCEDURE_LINKAGE_TABLE_": 24.0,
+    "main": 30.0,
+    "operator_entry": 18380.0,
+    "a100rt_worker_main": 12.0,
+    "a100rt_pool_call": 25.0
+  },
+  "loader_unknown_per_call": 50431.199999997094,
+  "hot_pcs_per_call": [
+    {
+      "pc": 77150,
+      "per_call": 5160.0,
+      "mnemonic": "bnez",
+      "region": "program",
+      "origin": "scalar-mem",
+      "opcode": "sload",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:55:13",
+      "text": "bne t5, zero, .Lbrc1832_true  # [op1832] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:55:13"
+    },
+    {
+      "pc": 77146,
+      "per_call": 5160.0,
+      "mnemonic": "slt",
+      "region": "program",
+      "origin": "reload",
+      "opcode": "sreload",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:55:13",
+      "text": "slt t5, s1, t4  # [op1831] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:55:13"
+    },
+    {
+      "pc": 76298,
+      "per_call": 5160.0,
+      "mnemonic": "bnez",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:52:66",
+      "text": "bne t5, zero, .Lbrc1599_true  # [op1599] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:54:21"
+    },
+    {
+      "pc": 76294,
+      "per_call": 5160.0,
+      "mnemonic": "slt",
+      "region": "program",
+      "origin": "vec-config",
+      "opcode": "vsetvli",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:52:66",
+      "text": "slt t5, s1, t4  # [op1598] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:54:21"
+    },
+    {
+      "pc": 77216,
+      "per_call": 5120.0,
+      "mnemonic": "j",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:55:31",
+      "text": "j .Lpgt25.head  # [op1850] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:55:13"
+    },
+    {
+      "pc": 77214,
+      "per_call": 5120.0,
+      "mnemonic": "add",
+      "region": "program",
+      "origin": "vec-config",
+      "opcode": "vsetvli",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:55:31",
+      "text": "add s1, s1, t5  # [op1849] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:55:13"
+    },
+    {
+      "pc": 77212,
+      "per_call": 5120.0,
+      "mnemonic": "addi",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:55:31",
+      "text": "li t5, 1  # [op1848] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:55:13"
+    },
+    {
+      "pc": 77208,
+      "per_call": 5120.0,
+      "mnemonic": "vmv.x.s",
+      "region": "program",
+      "origin": "vec-arith",
+      "opcode": "vwaddx0",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:55:31",
+      "text": "vmv.x.s a3, v1  # [op1847] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:55:13"
+    },
+    {
+      "pc": 77204,
+      "per_call": 5120.0,
+      "mnemonic": "vfadd.vv",
+      "region": "program",
+      "origin": "vec-config",
+      "opcode": "vsetvli",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:55:31",
+      "text": "vfadd.vv v1, v1, v2  # [op1846] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:55:13"
+    },
+    {
+      "pc": 77200,
+      "per_call": 5120.0,
+      "mnemonic": "vmv.v.x",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:55:31",
+      "text": "vmv.v.x v2, t5  # [op1845] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:55:13"
+    },
+    {
+      "pc": 77196,
+      "per_call": 5120.0,
+      "mnemonic": "vmv.v.x",
+      "region": "program",
+      "origin": "vec-arith",
+      "opcode": "vbinx",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:55:31",
+      "text": "vmv.v.x v1, a3  # [op1844] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:55:13"
+    },
+    {
+      "pc": 77192,
+      "per_call": 5120.0,
+      "mnemonic": "vsetvli",
+      "region": "program",
+      "origin": "vec-arith",
+      "opcode": "vid",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:55:31",
+      "text": "vsetvli t6, t6, e32, m1, ta,ma  # [op1843] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:55:13"
+    },
+    {
+      "pc": 77188,
+      "per_call": 5120.0,
+      "mnemonic": "addi",
+      "region": "program",
+      "origin": "vec-config",
+      "opcode": "vsetvli",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:55:31",
+      "text": "li t6, 32  # [op1842] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:55:13"
+    },
+    {
+      "pc": 77184,
+      "per_call": 5120.0,
+      "mnemonic": "lw",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:55:31",
+      "text": "lw t5, 0(t5)  # [op1841] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:55:13"
+    },
+    {
+      "pc": 77182,
+      "per_call": 5120.0,
+      "mnemonic": "add",
+      "region": "program",
+      "origin": "vec-config",
+      "opcode": "vsetvli",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:22:1",
+      "text": "add t5, s7, t5  # [op1840] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:55:13"
+    },
+    {
+      "pc": 77178,
+      "per_call": 5120.0,
+      "mnemonic": "mul",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:22:1",
+      "text": "mul t5, t5, t6  # [op1839] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:55:13"
+    },
+    {
+      "pc": 77176,
+      "per_call": 5120.0,
+      "mnemonic": "addi",
+      "region": "program",
+      "origin": "branch",
+      "opcode": "br",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:55:13",
+      "text": "li t6, 4  # [op1838] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:55:13"
+    },
+    {
+      "pc": 77174,
+      "per_call": 5120.0,
+      "mnemonic": "add",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:55:13",
+      "text": "add t5, t3, t5  # [op1837] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:55:13"
+    },
+    {
+      "pc": 77172,
+      "per_call": 5120.0,
+      "mnemonic": "add",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:55:13",
+      "text": "add t5, t5, t6  # [op1836] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:55:13"
+    },
+    {
+      "pc": 77168,
+      "per_call": 5120.0,
+      "mnemonic": "mul",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:55:13",
+      "text": "mul t6, s1, t6  # [op1835] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:55:13"
+    },
+    {
+      "pc": 77166,
+      "per_call": 5120.0,
+      "mnemonic": "addi",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:55:13",
+      "text": "li t6, 4  # [op1834] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:55:13"
+    },
+    {
+      "pc": 77164,
+      "per_call": 5120.0,
+      "mnemonic": "mv",
+      "region": "program",
+      "origin": "op:sadd",
+      "opcode": "sadd",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:55:13",
+      "text": "li t5, 0  # [op1833] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:55:13"
+    },
+    {
+      "pc": 77162,
+      "per_call": 5120.0,
+      "mnemonic": "j",
+      "region": "program",
+      "origin": "scalar-mem",
+      "opcode": "sload",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:55:13",
+      "text": "j .Lpgt25.body  # [op1832] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:55:13"
+    },
+    {
+      "pc": 76372,
+      "per_call": 5120.0,
+      "mnemonic": "j",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:52:42",
+      "text": "j .Lpgt21.head  # [op1619] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:54:21"
+    },
+    {
+      "pc": 76370,
+      "per_call": 5120.0,
+      "mnemonic": "add",
+      "region": "program",
+      "origin": "vec-config",
+      "opcode": "vsetvli",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:52:66",
+      "text": "add s1, s1, t5  # [op1618] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:54:21"
+    },
+    {
+      "pc": 76368,
+      "per_call": 5120.0,
+      "mnemonic": "addi",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:52:66",
+      "text": "li t5, 1  # [op1617] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:54:21"
+    },
+    {
+      "pc": 76364,
+      "per_call": 5120.0,
+      "mnemonic": "vmv.x.s",
+      "region": "program",
+      "origin": "vec-mem",
+      "opcode": "vstoreix",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:52:66",
+      "text": "vmv.x.s a3, v1  # [op1616] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:54:21"
+    },
+    {
+      "pc": 76360,
+      "per_call": 5120.0,
+      "mnemonic": "vmerge.vvm",
+      "region": "program",
+      "origin": "vec-config",
+      "opcode": "vsetvli",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:52:66",
+      "text": "vmerge.vvm v1, v1, v2, v0  # [op1615] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:54:21"
+    },
+    {
+      "pc": 76356,
+      "per_call": 5120.0,
+      "mnemonic": "vmv1r.v",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:52:66",
+      "text": "vmv1r.v v0, v3  # [op1614] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:54:21"
+    },
+    {
+      "pc": 76352,
+      "per_call": 5120.0,
+      "mnemonic": "vmflt.vv",
+      "region": "program",
+      "origin": "op:sadd",
+      "opcode": "sadd",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:52:66",
+      "text": "vmflt.vv v3, v1, v2  # [op1613] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:54:21"
+    },
+    {
+      "pc": 76348,
+      "per_call": 5120.0,
+      "mnemonic": "vmv.v.x",
+      "region": "program",
+      "origin": "scalar-mem",
+      "opcode": "sload",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:52:66",
+      "text": "vmv.v.x v2, t5  # [op1612] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:54:21"
+    },
+    {
+      "pc": 76344,
+      "per_call": 5120.0,
+      "mnemonic": "vmv.v.x",
+      "region": "program",
+      "origin": "reload",
+      "opcode": "sreload",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:52:66",
+      "text": "vmv.v.x v1, a3  # [op1611] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:54:21"
+    },
+    {
+      "pc": 76340,
+      "per_call": 5120.0,
+      "mnemonic": "vsetvli",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:52:66",
+      "text": "vsetvli t6, t6, e32, m1, ta,ma  # [op1610] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:54:21"
+    },
+    {
+      "pc": 76336,
+      "per_call": 5120.0,
+      "mnemonic": "addi",
+      "region": "program",
+      "origin": "vec-arith",
+      "opcode": "vbinx",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:52:66",
+      "text": "li t6, 32  # [op1609] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:54:21"
+    },
+    {
+      "pc": 76332,
+      "per_call": 5120.0,
+      "mnemonic": "lw",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:52:66",
+      "text": "lw t5, 0(t5)  # [op1608] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:54:21"
+    },
+    {
+      "pc": 76330,
+      "per_call": 5120.0,
+      "mnemonic": "add",
+      "region": "program",
+      "origin": "vec-config",
+      "opcode": "vsetvli",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:52:66",
+      "text": "add t5, s7, t5  # [op1607] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:54:21"
+    },
+    {
+      "pc": 76326,
+      "per_call": 5120.0,
+      "mnemonic": "mul",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:52:66",
+      "text": "mul t5, t5, t6  # [op1606] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:54:21"
+    },
+    {
+      "pc": 76324,
+      "per_call": 5120.0,
+      "mnemonic": "addi",
+      "region": "program",
+      "origin": "vec-arith",
+      "opcode": "vwaddx0",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:52:66",
+      "text": "li t6, 4  # [op1605] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:54:21"
+    },
+    {
+      "pc": 76322,
+      "per_call": 5120.0,
+      "mnemonic": "add",
+      "region": "program",
+      "origin": "vec-config",
+      "opcode": "vsetvli",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:52:66",
+      "text": "add t5, t3, t5  # [op1604] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:54:21"
+    },
+    {
+      "pc": 76320,
+      "per_call": 5120.0,
+      "mnemonic": "add",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:52:66",
+      "text": "add t5, t5, t6  # [op1603] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/logsumexp__logsumexp_kernel_non_inner.py:54:21"
+    }
+  ],
+  "problems": []
+}
