@@ -224,6 +224,21 @@ def _peephole(lines: List[str]) -> List[str]:
                 vstate = (src, sew, lmul, policy)
                 written_since_v = set()
                 written_since_v.add(dst)
+                # the vsetvli writes vl (= min(avl, VLMAX)) into dst --
+                # NOT the avl.  When the avl exceeds VLMAX (an e64,m1
+                # region at avl 32 on VLEN 1024 writes 16) the register
+                # no longer holds any li'd value, so the li-dedup state
+                # for dst is stale: drop it (softmax_kernel_inner's
+                # staged N-splat lost its upper lanes when a removed
+                # `li avl, 32` let the store run at vl 16).  Modeling
+                # vl exactly would need the target's VLEN here; the
+                # conservative unknown costs a few un-deduped li.
+                if dst in li_state:
+                    del li_state[dst]
+                if dst in written_since_li:
+                    written_since_li[dst].add(dst)
+                else:
+                    written_since_li[dst] = {dst}
                 out.append(line)
                 continue
             out.append(line)
