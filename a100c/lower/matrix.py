@@ -2000,7 +2000,67 @@ class _Composed:
 
     def _stage_a_rows(self, ws, a_rec, a_stag, m0, kb, krem, vid_k, zero_a):
         """The A tile: 8 rows of tk elements, masked (row guard + K tail),
-        zero-merged, stored to the dense tile staging."""
+        zero-merged, stored to the dense tile staging.
+
+        W2-P1b (the unified optimization round): the full-tile fast path
+        -- every row in bounds (m0 + tm <= M) and the whole K prefix
+        present (krem >= tk) -- skips the per-row guard/kmin/bound/mask
+        chain and the zero merge entirely: straight unmasked row loads at
+        a constant vl with incrementing addresses (one vsetvli for the
+        whole tile instead of one per row).  The tail tiles keep the
+        guarded form below."""
+        loc = self.spec.loc
+        esz = a_rec["esz"]
+        if self.pack_vector and self.in_sew in (8, 16):
+            m_end = self._sadd(m0, self._k(self.tm), "tfne")
+            full_m = self._slt(m_end, self._k(self.M + 1), "tfl")
+            full_k = self._slt(self._k(self.tk),
+                               self._sadd(krem, self._k(1), "tfkr"), "tfk")
+            both = self._sand(full_m, full_k, "tfa")
+            tag = self.if_.tag("taf")
+            frame = scalar_mod.begin_if(self.if_.ctx, both, loc, tag)
+            # -- the fast arm: unmasked straight row loads ---------------
+            self.if_.ctx.switch(frame.then_block)
+            self.if_.region(self.in_sew, 1, self.tk, loc)
+            base = self._sadd(ws, self._k(a_rec["offset"]), "tfs")
+            base = self._sadd(base, self._smul(m0, self._k(self.K * esz),
+                                               "tfm"), "tfr")
+            base = self._sadd(base, self._smul(kb, self._k(esz), "tfkz"),
+                             "tfc")
+            stag = a_stag
+            row_stride = self._k(self.K * esz)
+            for i in range(self.tm):
+                # the raw form: _vload_unit would re-emit the region per
+                # row -- the peel's whole point is ONE vsetvli for the
+                # tile
+                row = self.if_.emit(mir.MOp(
+                    "vunit_load", [base],
+                    [self.if_.vreg(self.in_type, hint=f"tfv{i}", loc=loc)],
+                    attrs={"sew": self.in_sew}, loc=loc))
+                self.if_.emit0(mir.MOp(
+                    "vustore8" if self.in_sew == 8 else "vustore16",
+                    [stag, row], [], loc=loc))
+                if i + 1 < self.tm:
+                    base = self._sadd(base, row_stride, f"tfb{i}")
+                    stag = self._sadd(stag, self._k(self.row_bytes),
+                                      f"tft{i}")
+            scalar_mod.close_arm(self.if_.ctx, frame, f"{tag}.join", [])
+            # -- the slow arm: the guarded masked staging -----------------
+            self.if_.ctx.switch(frame.else_block)
+            self._stage_a_rows_guarded(ws, a_rec, a_stag, m0, kb, krem,
+                                       vid_k, zero_a)
+            scalar_mod.close_arm(self.if_.ctx, frame, f"{tag}.join", [])
+            scalar_mod.join_if(self.if_.ctx, frame, f"{tag}.join", [[], []],
+                               loc)
+            self.if_.ctx.switch(self.if_.ctx.blocks[f"{tag}.join"])
+            return
+        self._stage_a_rows_guarded(ws, a_rec, a_stag, m0, kb, krem, vid_k,
+                                   zero_a)
+
+    def _stage_a_rows_guarded(self, ws, a_rec, a_stag, m0, kb, krem, vid_k,
+                              zero_a):
+        """The guarded A staging: the per-row mask chain and zero merges --
+        the tail-tile path and the rollback form."""
         loc = self.spec.loc
         esz = a_rec["esz"]
         for i in range(self.tm):
