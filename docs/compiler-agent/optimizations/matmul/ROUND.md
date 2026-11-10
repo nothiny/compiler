@@ -68,8 +68,11 @@
 
 ## 提交记录
 
--（提交后回填：见 git log 本轮 `[opt]` 提交；回退 = revert 该提交，或设置
-  A100C_MATRIX_PACK=scalar）
+- `f69be1d` [opt] IME B-operand pack: strided vector load replaces the
+  scalar copy loops（292 文件：编译器 6 文件 + 测试 + tools/profiling
+  观测链 + 本证据目录；不含可复现的二进制产物）。
+  回退 = `git revert f69be1d`，或设置 `A100C_MATRIX_PACK=scalar`（行为级，
+  已验证 6/6 PASS）。
 
 ## 证据布局
 
