@@ -23,4 +23,5 @@ Evidence roots are absolute under this project.
 - `matmul/regression/full-input/` — the full-input regression at the
   candidate revision.
 - `matmul/retrospective.md` — cross-round synthesis (compiler-design-
-  retrospective).
+  retrospective; covers this round + the prior emission-peephole round,
+  lesson ids L1-L8).
