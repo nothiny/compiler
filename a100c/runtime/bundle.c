@@ -260,6 +260,24 @@ int a100rt_bundle_open(struct a100rt_bundle *b, const char *path, int *reason) {
       goto fail;
     }
 
+  /* The writable span: the union of the storage payloads.  The metadata
+   * and the relocation records never change after the one-time open
+   * patch (the patched pointer slots live INSIDE the storages) and the
+   * operator writes only its views plus its separate workspace -- so
+   * the repeat loop's snapshot restore and equality check only need
+   * this span, never the whole image (the byte-wise loops over the
+   * full bundle were the small cases' per-call floor). */
+  b->writable_start = 0;
+  b->writable_end = 0;
+  for (uint32_t i = 0; i < nstorage; i++) {
+    uint64_t off = rd_u64(storages + 16 * i);
+    uint64_t sz = rd_u64(storages + 16 * i + 8);
+    if (!b->writable_end || off + sz > b->writable_end)
+      b->writable_end = off + sz;
+    if (!b->writable_start || off < b->writable_start)
+      b->writable_start = off;
+  }
+
   /* Validate every relocation record before patching anything. */
   for (uint32_t i = 0; i < b->nrelocations; i++) {
     const unsigned char *r = b->relocations + (size_t)i * 24;
@@ -318,6 +336,13 @@ fail:
   b->fd = -1;
   *reason = failure;
   return -1;
+}
+
+void a100rt_bundle_writable(const struct a100rt_bundle *b, uint64_t *start,
+                             uint64_t *end) {
+  /* The storage-union span (empty when the bundle has no storages). */
+  *start = b->writable_start;
+  *end = b->writable_end;
 }
 
 int a100rt_bundle_close(struct a100rt_bundle *b) {

@@ -114,6 +114,10 @@ struct a100rt_bundle {
   unsigned char *relocations; /* nrelocations * 24 bytes (in the image) */
   uint64_t *originals;        /* saved pointer-table words, restored on close */
   int fd;
+  /* appended AFTER every asm-read field (the _Static_assert pins their
+   * offsets; appending shifts nothing): the storage-union span the
+   * repeat loop restores/compares */
+  uint64_t writable_start, writable_end;
 };
 
 /* Per-worker observation record, written by the operator during a call. */
@@ -148,6 +152,8 @@ void a100rt_stage_barrier(const struct a100rt_launch *launch);
  * untouched (a100rt_reject_reason names the reason). */
 int a100rt_bundle_open(struct a100rt_bundle *b, const char *path, int *reason);
 int a100rt_bundle_close(struct a100rt_bundle *b); /* restores relocated words */
+void a100rt_bundle_writable(const struct a100rt_bundle *b, uint64_t *start,
+                            uint64_t *end); /* storage-union span */
 const char *a100rt_reject_reason(int code);
 
 /* Persistent worker pool (opaque; defined in pool.c). */

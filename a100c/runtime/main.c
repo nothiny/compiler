@@ -98,15 +98,57 @@ int main(int argc, char **argv) {
     return A100RT_EXIT_RESOURCE;
   }
 
+  /* The repeat loop's restore/compare runs over the WRITABLE span only
+   * (the metadata and the patched pointer slots never change after
+   * open; the operator writes only its views and its separate
+   * workspace), word-wide with a byte-exact tail: the whole-image
+   * byte-wise loops were the small cases' per-call floor (a [4]-element
+   * instance spent ~97% of its per-call instructions copying and
+   * comparing bytes that never change).  The storages are 64-byte
+   * aligned and mmap/malloc bases are word-aligned, so the word loops
+   * read aligned. */
+  uint64_t ws = 0, we = 0;
+  a100rt_bundle_writable(&bundle, &ws, &we);
+  uint64_t wlen = we > ws ? we - ws : 0;
+  unsigned char *wbase = bundle.mapping + ws;
+  unsigned char *wsnap = snapshot + ws;
+  unsigned char *wfirst = first_result + ws;
   int repeats_equal = 1;
   for (uint32_t r = 0; r < repeats; r++) {
-    if (r)
-      memcpy(bundle.mapping, snapshot, bundle.size);
+    if (r && wlen) {
+      uint64_t words = wlen >> 3, i = wlen & ~(uint64_t)7;
+      uint64_t *d = (uint64_t *)wbase;
+      const uint64_t *src = (const uint64_t *)wsnap;
+      while (words--)
+        *d++ = *src++;
+      for (; i < wlen; i++)
+        wbase[i] = wsnap[i];
+    }
     a100rt_pool_call(pool);
-    if (!r)
-      memcpy(first_result, bundle.mapping, bundle.size);
-    else if (memcmp(bundle.mapping, first_result, bundle.size))
-      repeats_equal = 0;
+    if (!r) {
+      uint64_t words = wlen >> 3, i = wlen & ~(uint64_t)7;
+      uint64_t *d = (uint64_t *)wfirst;
+      const uint64_t *src = (const uint64_t *)wbase;
+      while (words--)
+        *d++ = *src++;
+      for (; i < wlen; i++)
+        wfirst[i] = wbase[i];
+    } else {
+      uint64_t words = wlen >> 3, i = wlen & ~(uint64_t)7;
+      const uint64_t *a = (const uint64_t *)wbase;
+      const uint64_t *b = (const uint64_t *)wfirst;
+      while (words--)
+        if (*a++ != *b++) {
+          repeats_equal = 0;
+          break;
+        }
+      if (repeats_equal)
+        for (; i < wlen; i++)
+          if (wbase[i] != wfirst[i]) {
+            repeats_equal = 0;
+            break;
+          }
+    }
   }
 
   uint64_t tids[A100RT_MAX_WORKERS], items[A100RT_MAX_WORKERS];
