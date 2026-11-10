@@ -128,3 +128,12 @@ carry ~2% of the total (gelu's own block attribution), and the big
 cases' constant/region classes are not chunk-count-proportional.  The
 doubling also carries register-pressure risk for no measured gain.
 Reverted; the committed tree keeps the pre-P5 chunk plan.
+
+## The final full-input regression (834d1a2)
+
+**2732/2734 PASS** (`full-input/`): the only two non-PASS entries are
+the known pre-existing deconv3d compile-timeout class
+([1,4,8,8,8] f16/bf16, the matmul round's triple-attributed存量).  The
+4217b79 baseline carried EIGHT known non-PASS (chunk_gdn2 fp32 x2,
+complex_svd/deconv3d x6) -- six of those now pass at this revision.
+No new failure was introduced by any item in this round.
