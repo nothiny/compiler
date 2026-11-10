@@ -113,3 +113,18 @@ recursion + chunk-invariant hoisting), P5 (LMUL m2 -- the mid/large
 cases' remaining per-chunk overhead halves; the 6 hardcoded lmul sites
 plus the derived regions), P6 (fp16/bf16 masked narrow accesses), P7
 (sin/cos polynomials).
+
+### P5 (LMUL m2) attempted, measured ~zero, reverted
+
+The chunk plan's lmul doubled (the 20 data-region emission sites plus
+the three chunk_plan calls, _data_lmul deriving the region width).
+Measured across the representative classes: add_value[4] 621 vs 613,
+gelu[128] 2,208 vs 2,216, sigmoid 1,720 vs 1,728, softmax-f16 50,340
+vs ~50,300, tanh-f16 6,510 vs 6,612 (-1.5%), linear-dropout 16.73M vs
+16.90M (-1.0%) -- all inside or barely beyond the run-to-run noise.
+The roadmap's "per-chunk overhead halves" estimate was formed BEFORE
+P1: after the clamp and the W1/P0 work, the profiled cases' chunk loops
+carry ~2% of the total (gelu's own block attribution), and the big
+cases' constant/region classes are not chunk-count-proportional.  The
+doubling also carries register-pressure risk for no measured gain.
+Reverted; the committed tree keeps the pre-P5 chunk plan.
