@@ -1,0 +1,671 @@
+{
+  "schema": "a100c-matmul-metrics/v1",
+  "case": "suite/dev/chunk_abc_fwd_kernel_intra_K.py#[2, 2, 17, 9, 8, 4]#float16",
+  "threads": 1,
+  "seed": 30,
+  "steady_repeats": 5,
+  "artifact": {
+    "key": "182025dea134d1860d468cf64cb653fa3e84a18cedde2a32fb8aff553a7bc9ce",
+    "sha256": "97a9edf5bf90b592da85518760e49d2ea109efac25803713d72851c185227252",
+    "identity": "5e848f75626ac503",
+    "cache_entry": "/home/i_yinzida/compiler-a100-experiment-001/a100c/cache/182025dea134d1860d468cf64cb653fa3e84a18cedde2a32fb8aff553a7bc9ce"
+  },
+  "environment": {
+    "qemu": "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64",
+    "qemu_version": "qemu-riscv64 version 10.0.2",
+    "cpu": "max,vlen=1024,elen=64,vext_spec=v1.0",
+    "plugin": "/home/i_yinzida/compiler-a100-experiment-001/tools/profiling/full_instruction_counts.so"
+  },
+  "asm_join": {
+    "listing_instruction_rows": 6162,
+    "program_instructions": 6162,
+    "affine_offset": 70686,
+    "region": [
+      70686,
+      90400
+    ],
+    "byte_identity": true
+  },
+  "runs": {
+    "r1": {
+      "repeats": 1,
+      "exit_code": 0,
+      "wall_s": 0.167,
+      "command": "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64 -L /home/i_yinzida/.local/opt/a100/toolchain-1.1.2/sysroot -cpu max,vlen=1024,elen=64,vext_spec=v1.0 -plugin /home/i_yinzida/compiler-a100-experiment-001/tools/profiling/full_instruction_counts.so,out=/tmp/c8-chunk/counts.r1.json /home/i_yinzida/compiler-a100-experiment-001/a100c/cache/182025dea134d1860d468cf64cb653fa3e84a18cedde2a32fb8aff553a7bc9ce/operator_exec --bundle /tmp/a100-native-case-xzwkilbp/bundle.bin --threads 1 --repeats 1",
+      "stdout_last_json": {
+        "runtime": "a100rt/v1",
+        "status": "ok",
+        "threads": 1,
+        "repeats": 1,
+        "pool_initializations": 1,
+        "repeats_all_equal": true,
+        "workers": [
+          {
+            "id": 0,
+            "guest_tid": 1121774,
+            "items": 15300
+          }
+        ],
+        "bundle_bytes": 5312
+      },
+      "total": 912308,
+      "per_vcpu_totals": [
+        168963,
+        743345,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "categories": {
+        "scalar-arith": 384001,
+        "scalar-load": 120381,
+        "branch": 76891,
+        "scalar-store": 39981,
+        "vec-config": 95278,
+        "vec-mem": 22976,
+        "vec-arith": 172512,
+        "system": 135,
+        "atomic": 153
+      }
+    },
+    "r2": {
+      "repeats": 6,
+      "exit_code": 0,
+      "wall_s": 0.328,
+      "command": "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64 -L /home/i_yinzida/.local/opt/a100/toolchain-1.1.2/sysroot -cpu max,vlen=1024,elen=64,vext_spec=v1.0 -plugin /home/i_yinzida/compiler-a100-experiment-001/tools/profiling/full_instruction_counts.so,out=/tmp/c8-chunk/counts.r2.json /home/i_yinzida/compiler-a100-experiment-001/a100c/cache/182025dea134d1860d468cf64cb653fa3e84a18cedde2a32fb8aff553a7bc9ce/operator_exec --bundle /tmp/a100-native-case-xzwkilbp/bundle.bin --threads 1 --repeats 6",
+      "stdout_last_json": {
+        "runtime": "a100rt/v1",
+        "status": "ok",
+        "threads": 1,
+        "repeats": 6,
+        "pool_initializations": 1,
+        "repeats_all_equal": true,
+        "workers": [
+          {
+            "id": 0,
+            "guest_tid": 1121934,
+            "items": 15300
+          }
+        ],
+        "bundle_bytes": 5312
+      },
+      "total": 4634920,
+      "per_vcpu_totals": [
+        194090,
+        4440830,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "categories": {
+        "scalar-arith": 1976531,
+        "scalar-load": 500017,
+        "branch": 300703,
+        "scalar-store": 113281,
+        "vec-config": 571588,
+        "vec-mem": 137336,
+        "vec-arith": 1035072,
+        "system": 178,
+        "atomic": 214
+      }
+    }
+  },
+  "steady_state": {
+    "per_call_total": 744522.4,
+    "init_total": 167785.59999999998,
+    "per_call_categories": {
+      "scalar-arith": 331578.6000000333,
+      "scalar-load": 85020.99999999552,
+      "branch": 51439.999999997475,
+      "scalar-store": 19893.00000000067,
+      "vec-config": 95262.0,
+      "vec-mem": 22872.0,
+      "vec-arith": 172512.0,
+      "system": 33.59999999999998,
+      "atomic": 42.600000000000044
+    },
+    "indivisible_pc_deltas": 11895,
+    "note": "per-call = (repeats=1+R minus repeats=1)/R; indivisible deltas indicate run-to-run variation (e.g. barrier spin) and are kept as fractions"
+  },
+  "program_region": {
+    "origins_per_call": {
+      "frame": 64442.0,
+      "scalar-mem": 40496.0,
+      "reload": 25927.0,
+      "op:swext": 505.0,
+      "const-materialization": 217012.0,
+      "op:sadd": 33914.0,
+      "op:ssub": 362.0,
+      "op:sdivu": 582.0,
+      "spill": 541.0,
+      "op:smul": 1332.0,
+      "op:smove": 648.0,
+      "branch": 14868.0,
+      "op:slt": 5112.0,
+      "op:ssra": 144.0,
+      "op:sand": 144.0,
+      "op:sshl": 792.0,
+      "vec-config": 133236.0,
+      "vec-arith": 146088.0,
+      "vec-mem": 17100.0,
+      "op:vmand": 144.0,
+      "op:vfwcvt": 5040.0,
+      "op:vunit_load": 540.0,
+      "op:vfncvt": 4176.0,
+      "op:vfmacc": 2232.0,
+      "op:vunit_store": 72.0
+    },
+    "opcodes_per_call": {
+      "frame": 64442.0,
+      "sload": 29372.0,
+      "sreload": 25927.0,
+      "swext": 505.0,
+      "sconst": 217012.0,
+      "sadd": 33914.0,
+      "ssub": 362.0,
+      "sdivu": 582.0,
+      "sspill": 541.0,
+      "smul": 1332.0,
+      "smove": 648.0,
+      "br": 9468.0,
+      "slt": 5112.0,
+      "ssra": 144.0,
+      "sand": 144.0,
+      "sshl": 792.0,
+      "brc": 5400.0,
+      "vsetvli": 133236.0,
+      "vid": 16128.0,
+      "vbinx": 35316.0,
+      "vwaddx0": 16380.0,
+      "vmovv": 11160.0,
+      "vstoreix": 7920.0,
+      "s2v": 21528.0,
+      "vbin": 12060.0,
+      "vloadix": 9180.0,
+      "vcmp": 3636.0,
+      "vmovmask": 3816.0,
+      "vsel": 3744.0,
+      "sstore": 11124.0,
+      "vmand": 144.0,
+      "vfwcvt": 5040.0,
+      "vextract": 11160.0,
+      "vslidedn": 10728.0,
+      "vunit_load": 540.0,
+      "vfncvt": 4176.0,
+      "vfmacc": 2232.0,
+      "vunary": 432.0,
+      "vunit_store": 72.0
+    },
+    "spill_traffic": {
+      "spill_instructions": 541.0,
+      "reload_instructions": 25927.0,
+      "spill_bytes_model": 4608.0,
+      "reload_bytes_model": 466872.0,
+      "bytes_model_note": "scalar=8B; vector=VLEN/8*lmul at vlmax"
+    },
+    "vsetvli": {
+      "static": {
+        "e32,m1": 532,
+        "e64,m2": 194,
+        "e64,m1": 114,
+        "e16,m1": 180
+      },
+      "dynamic_call": 133236.0
+    },
+    "static": {
+      "instructions": 6162,
+      "frame_bytes": 192,
+      "saved_regs": [
+        "s1",
+        "s2",
+        "s3",
+        "s4",
+        "s5",
+        "s6",
+        "s7",
+        "s8",
+        "s9",
+        "s10",
+        "s11"
+      ],
+      "spill_slots": 9,
+      "spilled_values": 9,
+      "gprs_used": 25,
+      "vector_regs_used": 9,
+      "vector_bytes_used": 1152
+    }
+  },
+  "runtime_region_per_call": {
+    "_PROCEDURE_LINKAGE_TABLE_": 24.0,
+    "main": 58.0,
+    "operator_entry": 24120.0,
+    "a100rt_worker_main": 12.0,
+    "a100rt_pool_call": 25.0
+  },
+  "loader_unknown_per_call": 38966.79999999564,
+  "hot_pcs_per_call": [
+    {
+      "pc": 82960,
+      "per_call": 2448.0,
+      "mnemonic": "bnez",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:33:23",
+      "text": "bne a4, zero, .Lbrc3713_true  # [op3713] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:33:16"
+    },
+    {
+      "pc": 82956,
+      "per_call": 2448.0,
+      "mnemonic": "slt",
+      "region": "program",
+      "origin": "vec-config",
+      "opcode": "vsetvli",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:33:23",
+      "text": "slt a4, t2, t3  # [op3712] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:33:16"
+    },
+    {
+      "pc": 83058,
+      "per_call": 2304.0,
+      "mnemonic": "j",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:33:23",
+      "text": "j .Lvk41.head  # [op3738] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:33:16"
+    },
+    {
+      "pc": 83056,
+      "per_call": 2304.0,
+      "mnemonic": "add",
+      "region": "program",
+      "origin": "vec-arith",
+      "opcode": "vbinx",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:33:23",
+      "text": "add t2, t2, a4  # [op3737] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:33:16"
+    },
+    {
+      "pc": 83054,
+      "per_call": 2304.0,
+      "mnemonic": "addi",
+      "region": "program",
+      "origin": "vec-arith",
+      "opcode": "vid",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:33:23",
+      "text": "li a4, 1  # [op3736] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:33:16"
+    },
+    {
+      "pc": 83050,
+      "per_call": 2304.0,
+      "mnemonic": "vfmacc.vv",
+      "region": "program",
+      "origin": "vec-arith",
+      "opcode": "vmovv",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:33:23",
+      "text": "vfmacc.vv v1, v4, v5  # [op3735] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:33:16"
+    },
+    {
+      "pc": 83046,
+      "per_call": 2304.0,
+      "mnemonic": "vmv.v.x",
+      "region": "program",
+      "origin": "vec-config",
+      "opcode": "vsetvli",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:33:23",
+      "text": "vmv.v.x v5, t4  # [op3734] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:33:16"
+    },
+    {
+      "pc": 83042,
+      "per_call": 2304.0,
+      "mnemonic": "vmerge.vvm",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:33:23",
+      "text": "vmerge.vvm v4, v2, v4, v0  # [op3733] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:33:16"
+    },
+    {
+      "pc": 83038,
+      "per_call": 2304.0,
+      "mnemonic": "vle32.v",
+      "region": "program",
+      "origin": "op:vfwcvt",
+      "opcode": "vfwcvt",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:33:23",
+      "text": "vle32.v v4, 0(a4), v0.t  # [op3732] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:33:16"
+    },
+    {
+      "pc": 83034,
+      "per_call": 2304.0,
+      "mnemonic": "vsetvli",
+      "region": "program",
+      "origin": "vec-config",
+      "opcode": "vsetvli",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:33:23",
+      "text": "vsetvli t5, t5, e32, m1, ta,ma  # [op3731] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:33:16"
+    },
+    {
+      "pc": 83032,
+      "per_call": 2304.0,
+      "mnemonic": "addi",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:33:23",
+      "text": "li t5, 4  # [op3730] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:33:16"
+    },
+    {
+      "pc": 83030,
+      "per_call": 2304.0,
+      "mnemonic": "add",
+      "region": "program",
+      "origin": "vec-config",
+      "opcode": "vsetvli",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:33:23",
+      "text": "add a4, t5, a4  # [op3729] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:33:16"
+    },
+    {
+      "pc": 83026,
+      "per_call": 2304.0,
+      "mnemonic": "mul",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:33:23",
+      "text": "mul a4, t6, a4  # [op3728] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:33:16"
+    },
+    {
+      "pc": 83024,
+      "per_call": 2304.0,
+      "mnemonic": "ld",
+      "region": "program",
+      "origin": "frame",
+      "opcode": null,
+      "loc": null,
+      "text": "ld t6, 176(sp)  # [op-1] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:33:16"
+    },
+    {
+      "pc": 83022,
+      "per_call": 2304.0,
+      "mnemonic": "add",
+      "region": "program",
+      "origin": "op:vfncvt",
+      "opcode": "vfncvt",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:33:23",
+      "text": "add t5, t5, t6  # [op3727] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:33:16"
+    },
+    {
+      "pc": 83018,
+      "per_call": 2304.0,
+      "mnemonic": "mul",
+      "region": "program",
+      "origin": "vec-config",
+      "opcode": "vsetvli",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:33:23",
+      "text": "mul t6, t2, t6  # [op3726] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:33:16"
+    },
+    {
+      "pc": 83016,
+      "per_call": 2304.0,
+      "mnemonic": "addi",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:33:23",
+      "text": "li t6, 16  # [op3725] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:33:16"
+    },
+    {
+      "pc": 83014,
+      "per_call": 2304.0,
+      "mnemonic": "add",
+      "region": "program",
+      "origin": "vec-arith",
+      "opcode": "vmovv",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:33:23",
+      "text": "add t5, t6, t5  # [op3724] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:33:16"
+    },
+    {
+      "pc": 83010,
+      "per_call": 2304.0,
+      "mnemonic": "ld",
+      "region": "program",
+      "origin": "frame",
+      "opcode": null,
+      "loc": null,
+      "text": "ld t6, 16(t6)  # [op-1] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:33:16"
+    },
+    {
+      "pc": 83008,
+      "per_call": 2304.0,
+      "mnemonic": "ld",
+      "region": "program",
+      "origin": "frame",
+      "opcode": null,
+      "loc": null,
+      "text": "ld t6, 112(sp)  # [op-1] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:33:16"
+    },
+    {
+      "pc": 83004,
+      "per_call": 2304.0,
+      "mnemonic": "addiw",
+      "region": "operator_entry",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 83002,
+      "per_call": 2304.0,
+      "mnemonic": "lui",
+      "region": "program",
+      "origin": "vec-config",
+      "opcode": "vsetvli",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:33:23",
+      "text": "li t5, 5424  # [op3723] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:33:16"
+    },
+    {
+      "pc": 82998,
+      "per_call": 2304.0,
+      "mnemonic": "lw",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:33:23",
+      "text": "lw t4, 0(t4)  # [op3722] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:33:16"
+    },
+    {
+      "pc": 82996,
+      "per_call": 2304.0,
+      "mnemonic": "add",
+      "region": "program",
+      "origin": "vec-mem",
+      "opcode": "vloadix",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:33:23",
+      "text": "add t4, t4, t5  # [op3721] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:33:16"
+    },
+    {
+      "pc": 82992,
+      "per_call": 2304.0,
+      "mnemonic": "mul",
+      "region": "program",
+      "origin": "vec-config",
+      "opcode": "vsetvli",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:33:23",
+      "text": "mul t5, t2, a4  # [op3720] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:33:16"
+    },
+    {
+      "pc": 82990,
+      "per_call": 2304.0,
+      "mnemonic": "addi",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:33:23",
+      "text": "li a4, 4  # [op3719] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:33:16"
+    },
+    {
+      "pc": 82988,
+      "per_call": 2304.0,
+      "mnemonic": "add",
+      "region": "program",
+      "origin": "op:sadd",
+      "opcode": "sadd",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:33:23",
+      "text": "add t4, a4, t4  # [op3718] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:33:16"
+    },
+    {
+      "pc": 82984,
+      "per_call": 2304.0,
+      "mnemonic": "mul",
+      "region": "program",
+      "origin": "scalar-mem",
+      "opcode": "sload",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:33:23",
+      "text": "mul t4, t1, t4  # [op3717] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:33:16"
+    },
+    {
+      "pc": 82980,
+      "per_call": 2304.0,
+      "mnemonic": "addi",
+      "region": "program",
+      "origin": "reload",
+      "opcode": "sreload",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:33:23",
+      "text": "li t4, 64  # [op3716] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:33:16"
+    },
+    {
+      "pc": 82978,
+      "per_call": 2304.0,
+      "mnemonic": "add",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:33:23",
+      "text": "add a4, t4, a4  # [op3715] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:33:16"
+    },
+    {
+      "pc": 82974,
+      "per_call": 2304.0,
+      "mnemonic": "ld",
+      "region": "program",
+      "origin": "frame",
+      "opcode": null,
+      "loc": null,
+      "text": "ld t4, 16(t4)  # [op-1] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:33:16"
+    },
+    {
+      "pc": 82972,
+      "per_call": 2304.0,
+      "mnemonic": "ld",
+      "region": "program",
+      "origin": "frame",
+      "opcode": null,
+      "loc": null,
+      "text": "ld t4, 112(sp)  # [op-1] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:33:16"
+    },
+    {
+      "pc": 82968,
+      "per_call": 2304.0,
+      "mnemonic": "addiw",
+      "region": "operator_entry",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 82966,
+      "per_call": 2304.0,
+      "mnemonic": "lui",
+      "region": "program",
+      "origin": "vec-arith",
+      "opcode": "vbinx",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:33:23",
+      "text": "li a4, 3584  # [op3714] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:33:16"
+    },
+    {
+      "pc": 82964,
+      "per_call": 2304.0,
+      "mnemonic": "j",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:33:23",
+      "text": "j .Lvk41.body  # [op3713] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:33:16"
+    },
+    {
+      "pc": 89324,
+      "per_call": 576.0,
+      "mnemonic": "bnez",
+      "region": "program",
+      "origin": "branch",
+      "opcode": "brc",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:11:1",
+      "text": "bne s3, zero, .Lbrc5659_true  # [op5659] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:41:5"
+    },
+    {
+      "pc": 89320,
+      "per_call": 576.0,
+      "mnemonic": "slt",
+      "region": "program",
+      "origin": "op:slt",
+      "opcode": "slt",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:11:1",
+      "text": "slt s3, t1, a4  # [op5658] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:41:5"
+    },
+    {
+      "pc": 88974,
+      "per_call": 576.0,
+      "mnemonic": "bnez",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:46:15",
+      "text": "bne a1, zero, .Lbrc5537_true  # [op5537] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:11:1"
+    },
+    {
+      "pc": 88970,
+      "per_call": 576.0,
+      "mnemonic": "slt",
+      "region": "program",
+      "origin": "vec-arith",
+      "opcode": "vwaddx0",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:46:15",
+      "text": "slt a1, t1, a1  # [op5536] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:11:1"
+    },
+    {
+      "pc": 88968,
+      "per_call": 576.0,
+      "mnemonic": "addi",
+      "region": "program",
+      "origin": "vec-config",
+      "opcode": "vsetvli",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:46:15",
+      "text": "li a1, 16  # [op5535] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/chunk_abc_fwd_kernel_intra_K.py:11:1"
+    }
+  ],
+  "problems": []
+}

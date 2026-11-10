@@ -106,17 +106,49 @@ store, workspace dump) are summarized in the commit message.
   test_lower_vector, test_conversions, test_driver_cache,
   test_e2e_slice, check_no_name_dispatch (+ witness).
 - Family scans (threads 1, this candidate revision):
-  softmax 146/146 PASS (`../../softmax/candidates/vector-poly/scan/`).
-- PENDING (appended as they complete): elementwise 683, matmul 312,
-  attention ~135; the metric on/off comparison (softmax 44 groups,
-  elementwise 13 cases, attention 6 cases, 1/2/4/8 workers); the full
-  2734-case regression.
+  softmax 146/146 PASS (`../../softmax/candidates/vector-poly/scan/`);
+  elementwise 683/683 PASS
+  (`../../elementwise/candidates/vector-poly/scan/`).
+- Measured (guest dynamic instructions per call, calibrated QEMU
+  plugin, baseline 4217b79 -> candidate; softmax and elementwise at
+  `2cb9e6c`, attention at `9dd0bc8`):
+  - softmax family, 35 comparable groups: MEDIAN -76.8% (39 of 37
+    groups improve; deepest -85.0% soft-margin, -84.1% perf-logit;
+    two regressions: linear-dropout-f16 +9.1% and
+    log-softmax-linear-f16 +2.9% -- the polynomial's ~14 splat
+    constants re-materialize per chunk iteration and push this
+    spill-bound kernel over the register budget; recorded as the
+    pressure-aware mir-licm follow-up's target).
+  - elementwise family, 8 comparable groups: MEDIAN -87.8% (sigmoid
+    -91.0%, selu -89.9%, pow -89.2%, tanh-f16 -88.0%, erf -87.8%,
+    gelu -87.5%; the untouched pure-elementwise paths +-1% -- the
+    control).
+  - attention family (4 profiled cases): flash-f16 -36.4%,
+    chunkabc-f16 -25.6%, gqa-f32 -15.5%, naive-f16 +13.7% (the same
+    spill class as linear-dropout).  Evidence:
+    `../../unified-round/attention-metrics/`.
+- The full 2734-case regression at the round's final HEAD (9dd0bc8):
+  `../../unified-round/full-input/` (appended when it completes).
 
 ## Good practices and bad practices
 
-(to be completed with the metric results at round close; the peephole
-lesson is already recorded in the fix commit: a value-tracking
-optimization must model every instruction that writes the tracked
-register, including the vl result of vsetvli -- and a "conservative
-unknown" beats an exact-but-wrong model when the exact model needs
-target state the optimization does not own.)
+- A value-tracking optimization must model every instruction that
+  writes the tracked register, including the vl result of vsetvli --
+  and a "conservative unknown" beats an exact-but-wrong model when the
+  exact model needs target state the optimization does not own (the
+  peephole fix, c706ebb).
+- A latent miscompile can hide behind an unrelated operation's side
+  effects for months: the vmath call's caller-saved clobber forced the
+  reload that kept the wrong peephole dedup harmless; removing vmath
+  (this round's whole point) exposed it within one family scan.  When
+  an optimization changes call structure, re-run the widest scan
+  available immediately, not just the unit suite.
+- The polynomial path's cost model must count its CONSTANT traffic,
+  not just its arithmetic: on spill-bound kernels (linear-dropout,
+  naive_attn) the ~14 splats per chunk cost more in allocator pressure
+  than the libm call they replaced saved.  A per-shape cost switch
+  (poly below N live values, libm above) is the honest fix -- deferred
+  with the regression recorded.
+- Def-site maps keyed by VALUE NAME alias across sibling blocks (every
+  chunk head names its induction "elem.loop"); identity-keyed maps are
+  the only sound form (the mir-licm lesson).
