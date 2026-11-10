@@ -107,11 +107,19 @@ class CompileOptions:
     #: the artifact identity when set.  Env route (the A100C_PASS_*
     #: switches' pattern): A100C_MATRIX_PACK=scalar.
     matrix_scalar_pack: bool = False
+    #: the fp32 transcendental vector-polynomial path (the unified
+    #: optimization round's W1); True forces the per-element libm vmath
+    #: path -- the on/off contrast and rollback.  Env route:
+    #: A100C_VMATH_LIBM=1.
+    vmath_libm: bool = False
 
     def __post_init__(self):
         if os.environ.get("A100C_MATRIX_PACK", "").strip().lower() in \
                 ("scalar", "1", "true", "yes"):
             self.matrix_scalar_pack = True
+        if os.environ.get("A100C_VMATH_LIBM", "").strip().lower() in \
+                ("libm", "1", "true", "yes", "on"):
+            self.vmath_libm = True
 
     def identity_part(self) -> str:
         parts = []
@@ -123,6 +131,8 @@ class CompileOptions:
             parts.append("witness-drop-atomic-masks")
         if self.matrix_scalar_pack:
             parts.append("matrix-scalar-pack")
+        if self.vmath_libm:
+            parts.append("vmath-libm")
         if not self.dumps:
             parts.append("no-dumps")      # dumps do not affect the ELF
         return ",".join(parts) if parts else "default"
@@ -305,7 +315,12 @@ class Compiler:
         options = LowerOptions(
             witness_drop_tail_predicates=self.options.witness_drop_tail_predicates,
             witness_drop_stage_barrier=self.options.witness_drop_stage_barrier,
-            witness_drop_atomic_masks=self.options.witness_drop_atomic_masks)
+            witness_drop_atomic_masks=self.options.witness_drop_atomic_masks,
+            # the identity records these switches, so the compile must
+            # honor them here too (the plain-driver path predated the
+            # matrix pack switch and silently ignored it; W1 adds both)
+            matrix_scalar_pack=self.options.matrix_scalar_pack,
+            vmath_libm=self.options.vmath_libm)
         try:
             mir_module = vectorize.lower_to_mir(tir_module, plan, self.target,
                                                 layout, grid, options)

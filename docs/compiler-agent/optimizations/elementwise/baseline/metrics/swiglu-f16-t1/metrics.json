@@ -1,0 +1,652 @@
+{
+  "schema": "a100c-matmul-metrics/v1",
+  "case": "suite/perf/swiglu_fwd.py#[4, 64]#float16",
+  "threads": 1,
+  "seed": 30,
+  "steady_repeats": 3,
+  "artifact": {
+    "key": "4c4600b95d4ef9c0ab3703092d18781a0d1c4d62d72f7b0cc5da6991270dfcfa",
+    "sha256": "18bf8e91fd13d3921c63273474dd12f04b653c88862ee6ce377089aa9d232090",
+    "identity": "eae0d6e111facb41",
+    "cache_entry": "/tmp/opt-ew/a100c/cache/4c4600b95d4ef9c0ab3703092d18781a0d1c4d62d72f7b0cc5da6991270dfcfa"
+  },
+  "environment": {
+    "qemu": "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64",
+    "qemu_version": "qemu-riscv64 version 10.0.2",
+    "cpu": "max,vlen=1024,elen=64,vext_spec=v1.0",
+    "plugin": "/tmp/opt-ew/tools/profiling/full_instruction_counts.so"
+  },
+  "asm_join": {
+    "listing_instruction_rows": 294,
+    "program_instructions": 294,
+    "affine_offset": 70878,
+    "region": [
+      70878,
+      71740
+    ],
+    "byte_identity": true
+  },
+  "runs": {
+    "r1": {
+      "repeats": 1,
+      "exit_code": 0,
+      "wall_s": 0.12,
+      "command": "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64 -L /home/i_yinzida/.local/opt/a100/toolchain-1.1.2/sysroot -cpu max,vlen=1024,elen=64,vext_spec=v1.0 -plugin /tmp/opt-ew/tools/profiling/full_instruction_counts.so,out=ew-round/baseline/metrics/swiglu-f16-t1/counts.r1.json /tmp/opt-ew/a100c/cache/4c4600b95d4ef9c0ab3703092d18781a0d1c4d62d72f7b0cc5da6991270dfcfa/operator_exec --bundle /tmp/a100-native-case-rp_7zkun/bundle.bin --threads 1 --repeats 1",
+      "stdout_last_json": {
+        "runtime": "a100rt/v1",
+        "status": "ok",
+        "threads": 1,
+        "repeats": 1,
+        "pool_initializations": 1,
+        "repeats_all_equal": true,
+        "workers": [
+          {
+            "id": 0,
+            "guest_tid": 1760805,
+            "items": 256
+          }
+        ],
+        "bundle_bytes": 1856
+      },
+      "total": 186085,
+      "per_vcpu_totals": [
+        168021,
+        18064,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "categories": {
+        "scalar-arith": 74385,
+        "scalar-load": 49740,
+        "branch": 35567,
+        "scalar-store": 25432,
+        "vec-config": 308,
+        "vec-mem": 120,
+        "vec-arith": 240,
+        "system": 141,
+        "atomic": 152
+      }
+    },
+    "r2": {
+      "repeats": 4,
+      "exit_code": 0,
+      "wall_s": 0.129,
+      "command": "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64 -L /home/i_yinzida/.local/opt/a100/toolchain-1.1.2/sysroot -cpu max,vlen=1024,elen=64,vext_spec=v1.0 -plugin /tmp/opt-ew/tools/profiling/full_instruction_counts.so,out=ew-round/baseline/metrics/swiglu-f16-t1/counts.r2.json /tmp/opt-ew/a100c/cache/4c4600b95d4ef9c0ab3703092d18781a0d1c4d62d72f7b0cc5da6991270dfcfa/operator_exec --bundle /tmp/a100-native-case-rp_7zkun/bundle.bin --threads 1 --repeats 4",
+      "stdout_last_json": {
+        "runtime": "a100rt/v1",
+        "status": "ok",
+        "threads": 1,
+        "repeats": 4,
+        "pool_initializations": 1,
+        "repeats_all_equal": true,
+        "workers": [
+          {
+            "id": 0,
+            "guest_tid": 1761001,
+            "items": 256
+          }
+        ],
+        "bundle_bytes": 1856
+      },
+      "total": 234310,
+      "per_vcpu_totals": [
+        172584,
+        61726,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "categories": {
+        "scalar-arith": 99072,
+        "scalar-load": 61953,
+        "branch": 42287,
+        "scalar-store": 28231,
+        "vec-config": 1202,
+        "vec-mem": 252,
+        "vec-arith": 960,
+        "system": 165,
+        "atomic": 188
+      }
+    }
+  },
+  "steady_state": {
+    "per_call_total": 16075.0,
+    "init_total": 170010.0,
+    "per_call_categories": {
+      "scalar-arith": 32252.66666666593,
+      "scalar-load": 19946.666666666304,
+      "branch": 13587.333333333476,
+      "scalar-store": 9086.000000000118,
+      "vec-config": 298.0,
+      "vec-mem": 44.0,
+      "vec-arith": 240.0,
+      "system": 51.66666666666666,
+      "atomic": 62.3333333333334
+    },
+    "indivisible_pc_deltas": 10720,
+    "note": "per-call = (repeats=1+R minus repeats=1)/R; indivisible deltas indicate run-to-run variation (e.g. barrier spin) and are kept as fractions"
+  },
+  "program_region": {
+    "origins_per_call": {
+      "frame": 232.0,
+      "spill": 39.0,
+      "reload": 156.0,
+      "scalar-mem": 95.0,
+      "op:smove": 68.0,
+      "const-materialization": 317.0,
+      "op:ssub": 24.0,
+      "op:sadd": 40.0,
+      "op:sdivu": 32.0,
+      "op:smul": 2712.0,
+      "branch": 56.0,
+      "op:slt": 16.0,
+      "op:swext": 16.0,
+      "op:sshl": 8.0,
+      "vec-config": 185.0,
+      "vec-arith": 121.0,
+      "op:vunit_load": 16.0,
+      "op:vfwcvt": 16.0,
+      "op:vmath": 8.0
+    },
+    "opcodes_per_call": {
+      "frame": 232.0,
+      "sspill": 39.0,
+      "sreload": 156.0,
+      "sload": 95.0,
+      "smove": 68.0,
+      "sconst": 317.0,
+      "ssub": 24.0,
+      "sadd": 40.0,
+      "sdivu": 32.0,
+      "smul": 2712.0,
+      "br": 40.0,
+      "slt": 16.0,
+      "brc": 16.0,
+      "swext": 16.0,
+      "sshl": 8.0,
+      "vsetvli": 185.0,
+      "vid": 8.0,
+      "vbinx": 16.0,
+      "s2v": 32.0,
+      "vbin": 9.0,
+      "vcmp": 8.0,
+      "vmovmask": 16.0,
+      "vunit_load": 16.0,
+      "vsel": 16.0,
+      "vfwcvt": 16.0,
+      "vmovv": 8.0,
+      "vunary": 8.0,
+      "vmath": 8.0
+    },
+    "spill_traffic": {
+      "spill_instructions": 39.0,
+      "reload_instructions": 156.0,
+      "spill_bytes_model": 1108.0,
+      "reload_bytes_model": 5152.0,
+      "bytes_model_note": "scalar=8B; vector=VLEN/8*lmul at vlmax"
+    },
+    "vsetvli": {
+      "static": {
+        "e16,m1": 12,
+        "e32,m1": 14
+      },
+      "dynamic_call": 185.0
+    },
+    "static": {
+      "instructions": 294,
+      "frame_bytes": 336,
+      "saved_regs": [
+        "s1",
+        "s2",
+        "s3",
+        "s4",
+        "s5",
+        "s6",
+        "s7",
+        "s8",
+        "s9",
+        "s10",
+        "s11"
+      ],
+      "spill_slots": 10,
+      "spilled_values": 10,
+      "gprs_used": 17,
+      "vector_regs_used": 8,
+      "vector_bytes_used": 1024
+    }
+  },
+  "runtime_region_per_call": {
+    "_PROCEDURE_LINKAGE_TABLE_": 792.0,
+    "main": 30.0,
+    "operator_entry": 809.0,
+    "a100rt_worker_main": 12.0,
+    "a100rt_pool_call": 25.0
+  },
+  "loader_unknown_per_call": 69743.66666667066,
+  "hot_pcs_per_call": [
+    {
+      "pc": 131876631903256,
+      "per_call": 713.0,
+      "mnemonic": "beqz",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 131876631903254,
+      "per_call": 713.0,
+      "mnemonic": "mv",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 131876631903250,
+      "per_call": 713.0,
+      "mnemonic": "lbu",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 131876631903248,
+      "per_call": 713.0,
+      "mnemonic": "bnez",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 131876631903246,
+      "per_call": 713.0,
+      "mnemonic": "mv",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 131876631903242,
+      "per_call": 713.0,
+      "mnemonic": "lbu",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 131876631903238,
+      "per_call": 713.0,
+      "mnemonic": "beq",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 131876631903234,
+      "per_call": 713.0,
+      "mnemonic": "addi",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 131876631903172,
+      "per_call": 402.0,
+      "mnemonic": "bne",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 131876631903170,
+      "per_call": 402.0,
+      "mnemonic": "addi",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 131876631903168,
+      "per_call": 379.0,
+      "mnemonic": "beqz",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 131876631903164,
+      "per_call": 379.0,
+      "mnemonic": "lbu",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 131876631903160,
+      "per_call": 379.0,
+      "mnemonic": "add",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 131876631892668,
+      "per_call": 357.333,
+      "mnemonic": "bgtu",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 131876631892664,
+      "per_call": 357.333,
+      "mnemonic": "sb",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 131876631892660,
+      "per_call": 357.333,
+      "mnemonic": "sb",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 131876631892656,
+      "per_call": 357.333,
+      "mnemonic": "sb",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 131876631892652,
+      "per_call": 357.333,
+      "mnemonic": "sb",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 131876631892648,
+      "per_call": 357.333,
+      "mnemonic": "sb",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 131876631892644,
+      "per_call": 357.333,
+      "mnemonic": "sb",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 131876631892640,
+      "per_call": 357.333,
+      "mnemonic": "sb",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 131876631892636,
+      "per_call": 357.333,
+      "mnemonic": "sb",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 131876631892634,
+      "per_call": 357.333,
+      "mnemonic": "add",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 131876631892630,
+      "per_call": 357.333,
+      "mnemonic": "lbu",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 131876631892626,
+      "per_call": 357.333,
+      "mnemonic": "lbu",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 131876631892622,
+      "per_call": 357.333,
+      "mnemonic": "lbu",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 131876631892618,
+      "per_call": 357.333,
+      "mnemonic": "lbu",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 131876631892614,
+      "per_call": 357.333,
+      "mnemonic": "lbu",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 131876631892610,
+      "per_call": 357.333,
+      "mnemonic": "lbu",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 131876631892606,
+      "per_call": 357.333,
+      "mnemonic": "lbu",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 131876631892602,
+      "per_call": 357.333,
+      "mnemonic": "lbu",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 131876631892598,
+      "per_call": 357.333,
+      "mnemonic": "sd",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 131876631892596,
+      "per_call": 357.333,
+      "mnemonic": "add",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 131876631892594,
+      "per_call": 357.333,
+      "mnemonic": "addi",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 131876631892592,
+      "per_call": 357.333,
+      "mnemonic": "ld",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 131876631892590,
+      "per_call": 357.333,
+      "mnemonic": "ld",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 131876631561000,
+      "per_call": 341.333,
+      "mnemonic": "ret",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 131876631560996,
+      "per_call": 341.333,
+      "mnemonic": "fcvt.s.d",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 131876631560992,
+      "per_call": 341.333,
+      "mnemonic": "fmul.d",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 131876631560988,
+      "per_call": 341.333,
+      "mnemonic": "fmv.d.x",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    }
+  ],
+  "problems": []
+}

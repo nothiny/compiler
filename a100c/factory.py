@@ -148,7 +148,8 @@ class FactoryCompiler(Compiler):
             witness_drop_tail_predicates=self.options.witness_drop_tail_predicates,
             witness_drop_stage_barrier=self.options.witness_drop_stage_barrier,
             witness_drop_atomic_masks=self.options.witness_drop_atomic_masks,
-            matrix_scalar_pack=self.options.matrix_scalar_pack)
+            matrix_scalar_pack=self.options.matrix_scalar_pack,
+            vmath_libm=self.options.vmath_libm)
         try:
             mir_module = vectorize.lower_to_mir(tir_module, plan, self.target,
                                                 layout, grid, options)

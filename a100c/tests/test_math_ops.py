@@ -596,6 +596,80 @@ def make_case(shape=None, dtype=None, seed=None):
     check("constexpr-pow-folds-exact", good, why)
 
 
+def check_vmath_poly_switch(compiler):
+    """W1 (the unified optimization round): the fp32 vector-polynomial
+    path for exp/exp2/log/log2/erf/floor.  Default: the lowered MIR
+    carries no vmath op and the polynomial's vfmacc steps are present;
+    sin keeps the vmath form (no polynomial this round);
+    A100C_VMATH_LIBM=1 (options.vmath_libm) restores the libm vmath
+    path, executes and compares PASS, agrees with the polynomial
+    position only inside the offline-validated error class, and changes
+    the artifact identity (the rollback switch is load-bearing)."""
+    ok = True
+    poly = Compiler(options=CompileOptions(
+        cache_dir=str(Path(tempfile.mkdtemp(prefix="a100c-mpoly-")))))
+    libm = Compiler(options=CompileOptions(
+        cache_dir=str(Path(tempfile.mkdtemp(prefix="a100c-mlibm-"))),
+        vmath_libm=True))
+
+    def mir_of(comp, module):
+        art = comp.compile_case(module.make_case())
+        text = (art.executable.parent / "stage.mir.lowered.txt").read_text()
+        return text, art.executable.parent.name
+
+    # IR-level: the default position emits the polynomial, the libm
+    # position and the sin keeper emit vmath
+    exp_mod = build_form("wp_exp", "tl.exp(x)",
+                         "np.exp(x.astype(np.float64)).astype(np.float32)",
+                         3e-7, 3e-7)
+    poly_txt, poly_entry = mir_of(poly, exp_mod)
+    libm_txt, libm_entry = mir_of(libm, exp_mod)
+    ok &= check("vmath-poly-default-no-vmath-op",
+                "vmath" not in poly_txt and "vfmacc" in poly_txt,
+                f"vfmacc={'vfmacc' in poly_txt} "
+                f"vmath={'vmath' in poly_txt}")
+    ok &= check("vmath-poly-libm-rollback-keeps-vmath",
+                "vmath" in libm_txt and "vfmacc" not in libm_txt,
+                f"vmath={'vmath' in libm_txt} "
+                f"vfmacc={'vfmacc' in libm_txt}")
+    sin_mod = build_form("wp_sin", "tl.sin(x)",
+                         "np.sin(x.astype(np.float64)).astype(np.float32)",
+                         3e-7, 3e-7)
+    sin_txt, _ = mir_of(poly, sin_mod)
+    ok &= check("vmath-poly-sin-keeps-libm", "vmath" in sin_txt,
+                "sin/cos/ceil have no polynomial in this round")
+    ok &= check("vmath-poly-switch-changes-identity",
+                poly_entry != libm_entry,
+                f"{poly_entry[:12]}.. vs {libm_entry[:12]}..")
+    # execution: both positions compare PASS on the same case and the
+    # positions agree within the offline-validated error class (the
+    # polynomial's measured bound vs the ~1-ulp libm)
+    for name, body, refexpr, rtol, atol in (
+            ("wp_exp", "tl.exp(x)",
+             "np.exp(x.astype(np.float64)).astype(np.float32)",
+             3e-7, 3e-7),
+            ("wp_erf", "tl.erf(x * 1.25)",
+             "np.vectorize(math.erf)(x.astype(np.float64) * 1.25)"
+             ".astype(np.float32)", 3e-7, 3e-7)):
+        mod = build_form(name, body, refexpr, rtol, atol)
+        outs = {}
+        for tag, comp in (("poly", poly), ("libm", libm)):
+            c, o, _ = run_case(mod, comp)
+            good, why = compare(c, o)
+            ok &= check(f"vmath-poly-{tag}-{name}-executes", good, why)
+            outs[tag] = np.asarray(o["y_ptr"])
+        diff = np.abs(outs["poly"].astype(np.float64)
+                      - outs["libm"].astype(np.float64))
+        bound = 5e-6 * np.maximum(np.abs(outs["libm"].astype(np.float64)),
+                                  1e-3)
+        ok &= check(f"vmath-poly-{name}-positions-agree",
+                    bool(np.all(diff <= bound)),
+                    f"max cross-position |diff| {diff.max():.3e}")
+    check("vmath-poly-switch-matrix", ok,
+          "the W1 rollback wiring is load-bearing end to end")
+    return ok
+
+
 def main() -> int:
     compiler = Compiler(options=CompileOptions(cache_dir=str(CACHE)))
     check_every_form(compiler)
@@ -608,6 +682,7 @@ def main() -> int:
     check_corpus_representatives(compiler)
     check_thread_matrix(compiler)
     check_constexpr_pow_fold()
+    check_vmath_poly_switch(compiler)
     if FAILURES:
         print(f"test_math_ops: FAILED: {len(FAILURES)} check(s)")
         for f in FAILURES:

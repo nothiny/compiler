@@ -1,0 +1,59 @@
+/tmp/opt-ew/tools/profiling/fit_math_coeffs.py:59: RuntimeWarning: invalid value encountered in divide
+  target = (np.exp2(fgrid.astype(np.float64)) - 1.0) / fgrid
+/tmp/opt-ew/tools/profiling/fit_math_coeffs.py:217: RuntimeWarning: invalid value encountered in divide
+  np.vectorize(__import__("math").erf)(t) / t)
+/tmp/opt-ew/tools/profiling/fit_math_coeffs.py:86: RuntimeWarning: invalid value encountered in subtract
+  f = (y - k).astype(F32)
+/tmp/opt-ew/tools/profiling/fit_math_coeffs.py:89: RuntimeWarning: invalid value encountered in cast
+  ki = k.astype(np.int32)                 # rtz; k integral
+/tmp/opt-ew/tools/profiling/fit_math_coeffs.py:95: RuntimeWarning: overflow encountered in multiply
+  res = (res * s2).astype(F32)
+/tmp/opt-ew/tools/profiling/fit_math_coeffs.py:304: RuntimeWarning: overflow encountered in exp
+  report("expf", sim_expf(x), fn_of_f32(x, lambda v: np.exp(v)), x)
+/tmp/opt-ew/tools/profiling/fit_math_coeffs.py:281: RuntimeWarning: overflow encountered in cast
+  ref32 = ref.astype(F32)
+/tmp/opt-ew/tools/profiling/fit_math_coeffs.py:140: RuntimeWarning: overflow encountered in multiply
+  xs = np.where(m_sub, (x * F32(8388608.0)).astype(F32), x).astype(F32)
+/tmp/opt-ew/tools/profiling/fit_math_coeffs.py:317: RuntimeWarning: divide by zero encountered in log
+  report("logf", sim_logf(x), fn_of_f32(x, lambda v: np.log(v)), x)
+/tmp/opt-ew/tools/profiling/fit_math_coeffs.py:317: RuntimeWarning: invalid value encountered in log
+  report("logf", sim_logf(x), fn_of_f32(x, lambda v: np.log(v)), x)
+/tmp/opt-ew/tools/profiling/fit_math_coeffs.py:318: RuntimeWarning: divide by zero encountered in log2
+  report("log2f", sim_log2f(x), fn_of_f32(x, lambda v: np.log2(v)), x)
+/tmp/opt-ew/tools/profiling/fit_math_coeffs.py:318: RuntimeWarning: invalid value encountered in log2
+  report("log2f", sim_log2f(x), fn_of_f32(x, lambda v: np.log2(v)), x)
+/tmp/opt-ew/tools/profiling/fit_math_coeffs.py:353: RuntimeWarning: divide by zero encountered in divide
+  ti = (F32(1.0) / z).astype(F32)
+/tmp/opt-ew/tools/profiling/fit_math_coeffs.py:29: RuntimeWarning: overflow encountered in cast
+  return F32(np.float64(a) * np.float64(b) + np.float64(c))
+/tmp/opt-ew/tools/profiling/fit_math_coeffs.py:356: RuntimeWarning: overflow encountered in divide
+  term = ((ez * w).astype(F32) / ax).astype(F32)
+exp2f poly deg 5: max rel err 3.603e-08
+=== coefficient fits ===
+erf piece lo z-deg 8: max rel 1.389e-07
+erf piece hi z-deg 8: max rel 4.847e-07
+erf tail W t-deg 5: max rel 1.948e-04
+erf tail W t-deg 6: max rel 5.882e-05
+erf tail W t-deg 7: max rel 1.847e-05
+erf tail W t-deg 8: max rel 6.131e-06
+erf tail W t-deg 9: max rel 2.233e-06
+erf tail W t-deg 10: max rel 1.740e-06
+
+=== EXP_P ===
+EXP_P = [0.6931471857326423, 0.2402265086478695, 0.055503674298855665, 0.00961806832877608, 0.001338565020577674, 0.0001545698671819237]
+
+=== LOG_SERIES === [0.3333333333333333, 0.2, 0.14285714285714285, 0.1111111111111111]
+
+=== ERF lo === [1.1283791670949297, -0.3761263889320303, 0.1128379138964683, -0.026866140194897532, 0.005223812641953173, -0.0008543298099749196, 0.00011964801459056699, -1.396267464929573e-05, 1.0729163118306902e-06]
+=== ERF hi === [1.1283451946415421, -0.37597070211881056, 0.11252765728215369, -0.026511870052148768, 0.004966779437242604, -0.0007303349189241944, 7.950809067532344e-05, -5.638235991925951e-06, 1.921853837189562e-07]
+=== ERF tail Q === [0.5641751233324483, -0.2813598202473231, 0.407041793198911, -0.8501695704192889, 1.8443547089405885, -3.406454802105437, 4.794277470200201, -4.7842971297096035, 3.148805865370541, -1.2173561826391135, 0.20856641201419582]
+
+=== validation (dense + extremes) ===
+expf: n=4200018 max_rel_normal=3.907e-06 max_subnormal_ulp=32.000 nan_mm=0 inf_mm=0
+exp2f: n=4000008 max_rel_normal=1.191e-07 max_subnormal_ulp=1.000 nan_mm=0 inf_mm=1
+logf: n=4400013 max_rel_normal=2.036e-07 max_subnormal_ulp=0.000 nan_mm=1 inf_mm=0
+log2f: n=4400013 max_rel_normal=2.362e-07 max_subnormal_ulp=0.000 nan_mm=1 inf_mm=0
+floorf: n=4200017 max_rel_normal=0.000e+00 max_subnormal_ulp=0.000 nan_mm=0 inf_mm=0
+erff: n=4400020 max_rel_normal=4.244e-07 max_subnormal_ulp=0.000 nan_mm=1 inf_mm=0
+
+All validations above must meet the bar before emitting.
