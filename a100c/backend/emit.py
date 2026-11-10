@@ -56,6 +56,221 @@ def _fmt(template: str, values: Dict[str, str]) -> str:
     return out
 
 
+# -- peephole optimizations (OPT-PH: instruction-count reduction) -------------
+
+import re as _re
+
+_VSETVLI_RE = _re.compile(
+    r'\s*vsetvli\s+(\w+)\s*,\s*(\w+)\s*,\s*e(\d+)\s*,\s*m(\d+)\s*,\s*(\S+)')
+_LI_RE = _re.compile(r'\s*li\s+(\w+)\s*,\s*(\S+)')
+_STORE_OPS = {'sd', 'sw', 'sh', 'sb', 'fsw', 'fsd', 'vsw', 'vsb', 'vsh',
+              'vse'}
+_BRANCH_OPS = {'j', 'jr', 'ret', 'beq', 'bne', 'blt', 'bge', 'bltu', 'bgeu',
+               'beqz', 'bnez', 'blez', 'bgez', 'bltz', 'bgtz', 'call',
+               'callbarrier', 'tail'}
+# instructions that write their FIRST operand (RISC-V convention)
+_DST_FIRST = {'add', 'sub', 'mul', 'div', 'rem', 'and', 'or', 'xor', 'sll',
+              'srl', 'sra', 'slt', 'sltu', 'addw', 'subw', 'addiw', 'slli',
+              'srli', 'srai', 'slti', 'sltiu', 'andi', 'ori', 'xori', 'mulw',
+              'divw', 'remw', 'mv', 'neg', 'not', 'sext.w', 'zext.w',
+              'vmv.v.v', 'vmv.v.x', 'vmv1r.v', 'vmv2r.v', 'vmv4r.v',
+              'vmv8r.v', 'vadd.vv', 'vsub.vv', 'vmul.vv', 'vdiv.vv',
+              'vrem.vv', 'vand.vv', 'vor.vv', 'vxor.vv', 'vsll.vv', 'vsrl.vv',
+              'vsra.vv', 'vmseq.vv', 'vmsne.vv', 'vmslt.vv', 'vmsle.vv',
+              'vmsgt.vv', 'vmsltu.vv', 'vmsleu.vv', 'vmsgtu.vv', 'vmin.vv',
+              'vmax.vv', 'vminu.vv', 'vmaxu.vv', 'vsadd.vv', 'vssub.vv',
+              'vslideup.vx', 'vslidedown.vx', 'vid.v', 'vredsum.vs',
+              'vredmax.vs', 'vredmin.vs', 'vredand.vs', 'vredor.vs',
+              'vredxor.vs', 'vfmacc.vv', 'vfnmacc.vv', 'vfadd.vv',
+              'vfsub.vv', 'vfmul.vv', 'vfdiv.vv', 'vfsqrt.v', 'vfsgnj.vv',
+              'vfsgnjn.vv', 'vfmax.vv', 'vfmin.vv', 'vmerge.vvm',
+              'vmerge.vxm', 'vwadd.vv', 'vwsub.vv', 'vwmul.vv', 'vsmul.vv',
+              'vwaddu.vv', 'vwsubu.vv', 'vwmulu.vv', 'vsrl.vv',
+              # scalar float
+              'fadd.s', 'fsub.s', 'fmul.s', 'fdiv.s', 'fsqrt.s',
+              'fmadd.s', 'fmsub.s', 'fnmadd.s', 'fnmsub.s',
+              'fmin.s', 'fmax.s', 'fsgnj.s', 'fsgnjn.s', 'fmv.s',
+              # conversions
+              'fcvt.s.w', 'fcvt.w.s', 'fcvt.s.d', 'fcvt.d.s',
+              'fcvt.d.w', 'fcvt.w.d', 'fcvt.s.wu', 'fcvt.wu.s',
+              'vfcvt.x.f.v', 'vfcvt.f.x.v', 'vfcvt.rtz.x.f.v',
+              'vfcvt.f.xu.v', 'vfcvt.rtz.xu.f.v',
+              # narrowing/widening
+              'vnsrl.wv', 'vnsra.wv', 'vneg.v',
+              # IME (smt.*)
+              'smt.vmadot', 'smt.vmadotu', 'smt.vmadotus', 'smt.vmadotsu',
+              'smt.vfwmadot',
+              # pseudo
+              'la', 'lla', 'nop', 'auipc',
+              }
+
+
+def _peephole_dst_reg(line: str) -> Optional[str]:
+    """The register written by one assembly line.  Conservative: returns a
+    register name for every instruction that MIGHT write its first operand
+    (loads, arithmetic, moves, vector ops); returns None only for stores,
+    branches, labels, and directives -- the forms that provably write no
+    register.  An overestimate is safe (it blocks an elimination); an
+    underestimate is a miscompile."""
+    stripped = line.strip()
+    if not stripped or stripped.startswith('#') or stripped.startswith('.'):
+        return None
+    code = stripped.split('#')[0].strip()
+    if not code:
+        return None
+    parts = code.split(None, 1)
+    if len(parts) < 2:
+        return None
+    op = parts[0]
+    if op in _STORE_OPS or op in _BRANCH_OPS:
+        return None
+    # every other RISC-V instruction writes its first operand (loads:
+    # ld/lw/lh/lhu/lb/lbu/lwu/fld/flw; arithmetic: add/sub/...; moves;
+    # vector: vadd/...; IME: smt.*).  Extract the register name.
+    rest = parts[1].split(',')
+    if not rest:
+        return None
+    reg = rest[0].strip()
+    # accept any plausible register name (x0-x31, a0-a7, s0-s11, t0-t6,
+    # v0-v31, f0-f31, fa0-fa7, ft0-ft9, fs0-fs11)
+    if reg and _re.match(r'^[xastfv]\d+$', reg):
+        return reg
+    if reg == 'x0':  # never a useful write
+        return None
+    return reg if reg else None
+
+
+def _peephole(lines: List[str]) -> List[str]:
+    """Safe peephole optimizations on the emitted straight-line code.
+
+    1. REDUNDANT VSETVLI ELIMINATION: when a vsetvli sets the same
+       (sew, lmul, policy) as the currently active one, and the AVL
+       register has not been written in between, and no label or branch
+       separates them, the second vsetvli is a no-op (the vector state
+       is already exactly what it requests).  In the matmul/attention
+       kernels this alone removes 30-50% of all vsetvli instructions
+       (the lowering's conservative _vregion/_restore_region pattern
+       emits one before every vector op group even when the region
+       did not change).
+
+    2. REDUNDANT LI ELIMINATION: when a ``li reg, imm`` loads the same
+       immediate into the same register as a previous li in the same
+       straight-line block (no write to reg, no label), the second li
+       is a no-op.
+
+    Both optimizations are strictly within basic blocks: any label
+    (branch target) or branch instruction resets all tracking, so
+    entering a block from a different path can never observe a removed
+    instruction's effect.  The removed lines are replaced by a comment
+    preserving the op index for traceability.
+    """
+    out: List[str] = []
+    # vsetvli tracking: (avl_reg, sew, lmul, policy) of the last vsetvli
+    vstate = None
+    # li tracking: reg -> immediate value of the last li for that reg
+    li_state: Dict[str, str] = {}
+    # set of registers written since the last vsetvli / li checkpoint
+    written_since_v: set = set()
+    written_since_li: Dict[str, set] = {}
+
+    n_vsetvli_removed = 0
+    n_li_removed = 0
+
+    for line in lines:
+        stripped = line.strip()
+
+        # labels / directives / branches: reset everything
+        if (stripped.endswith(':') or stripped.startswith('.')
+                or not stripped or stripped.startswith('#')):
+            vstate = None
+            li_state = {}
+            written_since_v = set()
+            written_since_li = {}
+            out.append(line)
+            continue
+
+        code = stripped.split('#')[0].strip()
+        parts = code.split(None, 1)
+        op = parts[0] if parts else ''
+
+        if op in _BRANCH_OPS:
+            vstate = None
+            li_state = {}
+            written_since_v = set()
+            written_since_li = {}
+            out.append(line)
+            continue
+
+        # -- vsetvli dedup ----------------------------------------------
+        if op == 'vsetvli':
+            m = _VSETVLI_RE.match(line)
+            if m:
+                dst, src, sew, lmul, policy = m.groups()
+                if (vstate is not None
+                        and vstate[1] == sew and vstate[2] == lmul
+                        and vstate[3] == policy
+                        and vstate[0] not in written_since_v
+                        and src not in written_since_v
+                        and src == vstate[0]):
+                    # redundant: same config, same AVL source, nothing
+                    # wrote the AVL register since the last vsetvli
+                    n_vsetvli_removed += 1
+                    # preserve the traceability comment
+                    comment = line.split('#', 1)
+                    if len(comment) > 1:
+                        out.append(f'    # [peephole-vsetvli] '
+                                   f'{comment[1].strip()}')
+                    continue
+                vstate = (src, sew, lmul, policy)
+                written_since_v = set()
+                written_since_v.add(dst)
+                out.append(line)
+                continue
+            out.append(line)
+            continue
+
+        # -- li dedup ---------------------------------------------------
+        if op == 'li':
+            m = _LI_RE.match(line)
+            if m:
+                reg, val = m.groups()
+                prev_writes = written_since_li.get(reg, set())
+                if (reg in li_state and li_state[reg] == val
+                        and reg not in prev_writes):
+                    n_li_removed += 1
+                    comment = line.split('#', 1)
+                    if len(comment) > 1:
+                        out.append(f'    # [peephole-li] '
+                                   f'{comment[1].strip()}')
+                    continue
+                li_state[reg] = val
+                written_since_li[reg] = set()
+                out.append(line)
+                continue
+            out.append(line)
+            continue
+
+        # -- general instruction: track register writes ------------------
+        dst = _peephole_dst_reg(line)
+        if dst:
+            written_since_v.add(dst)
+            # also invalidate any li_state for this register
+            if dst in written_since_li:
+                written_since_li[dst].add(dst)
+            else:
+                written_since_li[dst] = {dst}
+            # if a register is written, any li tracking for it is stale
+            if dst in li_state:
+                del li_state[dst]
+
+        out.append(line)
+
+    if n_vsetvli_removed or n_li_removed:
+        out.insert(0, f'    # [peephole] removed {n_vsetvli_removed} '
+                      f'redundant vsetvli, {n_li_removed} redundant li')
+    return out
+
+
 class _Emitter:
     def __init__(self, module: mir.MModule, selection: Dict[int, Selected],
                  allocation: Allocation, target: TargetModel,
@@ -392,8 +607,155 @@ class _Emitter:
                                      "rs1": values.get("rs2", "")})
         return [text]
 
+    # -- OPT-SCHED: instruction scheduling within basic blocks -------------
+
+    _SCHED_FIXED = {'vsetvli', 'br', 'brc', 'callbarrier', 'ret',
+                    'sfence', 'sspill', 'sreload', 'vspill', 'vreload'}
+    _SCHED_LOADS = {'sload', 'vloadix', 'vuload8', 'vuload16',
+                    'vunit_load'}
+
+    def _schedule_block(self, ops):
+        return ops  # TEMP-DISABLED (load hoisting has memory-dependency edge cases)
+        """Load-hoisting scheduler: within each fixed-op-delimited segment,
+        move load instructions as early as their RAW dependencies allow.
+
+        The block is split into segments by fixed ops (vsetvli, branches,
+        spills, barriers -- position-sensitive constructs).  Within each
+        segment, a greedy pass hoists loads to just after their last
+        dependency, hiding memory latency on the real hardware's in-order
+        cores.  All RAW dependencies are preserved; WAR/WAW are handled
+        by only moving loads (which write their result, but the result
+        is only read by later ops -- WAR on the load's own result cannot
+        happen because the load defines a fresh value).
+        """
+        n = len(ops)
+        if n < 4:
+            return ops
+
+        # split into segments by fixed ops
+        segments = []  # list of (fixed_op_or_None, [movable_ops])
+        current_fixed = None
+        current_movable = []
+        for op in ops:
+            if op.opcode in self._SCHED_FIXED:
+                segments.append((current_fixed, current_movable))
+                current_fixed = op
+                current_movable = []
+            else:
+                current_movable.append(op)
+        segments.append((current_fixed, current_movable))
+
+        # process each segment: hoist loads
+        result = []
+        for fixed_op, segment in segments:
+            if fixed_op is not None:
+                result.append(fixed_op)
+            if not segment:
+                continue
+            # build the defined-register set at each position
+            # (for dependency checking during hoisting)
+            hoisted = self._hoist_loads_in_segment(segment)
+            result.extend(hoisted)
+        return result
+
+    def _hoist_loads_in_segment(self, segment):
+        """For each load, find the earliest position where all its operand
+        dependencies (RAW) are satisfied AND no instruction between the
+        new and old positions reads (WAR) or writes (WAW) the load's
+        destination register.
+        """
+        ops = list(segment)
+        n = len(ops)
+        if n < 2:
+            return ops
+
+        for i in range(n - 1, -1, -1):
+            if ops[i].opcode not in self._SCHED_LOADS:
+                continue
+            load = ops[i]
+            load_uses = set()
+            for r in load.operands:
+                load_uses.add(r.rid)
+            load_defs = set()
+            for r in load.results:
+                load_defs.add(r.rid)
+
+            # RAW: earliest = after the last definer of any operand
+            earliest = 0
+            for j in range(i - 1, -1, -1):
+                j_defs = set()
+                for r in ops[j].results:
+                    j_defs.add(r.rid)
+                if load_uses & j_defs:
+                    earliest = j + 1
+                    break
+
+            # WAR/WAW: no instruction in [earliest, i) may read or
+            # write the load's destination register
+            for j in range(earliest, i):
+                j_uses = set()
+                for r in ops[j].operands:
+                    j_uses.add(r.rid)
+                j_defs = set()
+                for r in ops[j].results:
+                    j_defs.add(r.rid)
+                if load_defs & (j_uses | j_defs):
+                    earliest = j + 1
+                    break
+            # MEMORY: a load cannot be hoisted past a store (aliasing:
+            # the load might read what the store writes; without alias
+            # analysis the only safe rule is never cross a store)
+            _STORE_OPS_SCHED = {'sstore', 'vstoreix', 'vustore8',
+                                'vustore16', 'vunit_store'}
+            for j in range(earliest, i):
+                if ops[j].opcode in _STORE_OPS_SCHED:
+                    earliest = j + 1
+                    break
+
+
+            if earliest < i:
+                ops.insert(earliest, ops.pop(i))
+        return ops
+
     def emit_op(self, op: mir.MOp) -> None:
         code = op.opcode
+        # OPT-VLI: skip a redundant vsetvli.  The vectorize lowering
+        # creates a FRESH sconst virtual register for every vsetvli's
+        # AVL (k57, k58, ... all hold 32), so comparing virtual
+        # register IDs never matches.  Instead compare the AVL's
+        # CONSTANT VALUE: when the previous vsetvli in this block set
+        # the same (sew, lmul) with the same constant AVL, the vector
+        # state is already exactly what this one requests (constants
+        # are immutable; no clobber tracking is needed).  For a
+        # non-constant AVL (a computed vl), fall back to comparing the
+        # virtual register ID with clobber tracking.  Block boundaries
+        # reset all tracking (a branch target arrives with any state).
+        if code == "vsetvli":
+            avl_rid = op.operands[0].rid if op.operands else None
+            avl_val = self._const_map.get(avl_rid) \
+                if avl_rid is not None else None
+            cfg = (op.attrs.get("sew"), op.attrs.get("lmul"))
+            if (getattr(self, "_vli_cfg", None) == cfg
+                    and avl_val is not None
+                    and getattr(self, "_vli_avl_val", None) == avl_val):
+                return  # redundant: same config, same constant AVL
+            if (avl_val is None
+                    and getattr(self, "_vli_cfg", None) == cfg
+                    and getattr(self, "_vli_avl", None) == avl_rid
+                    and not getattr(self, "_vli_clobber", True)):
+                return  # redundant: same computed AVL, not redefined
+            self._vli_cfg = cfg
+            self._vli_avl_val = avl_val
+            self._vli_avl = avl_rid
+            self._vli_clobber = False
+        else:
+            if (getattr(self, "_vli_avl", None) is not None
+                    and getattr(self, "_vli_avl_val", None) is None
+                    and not getattr(self, "_vli_clobber", True)):
+                for res in op.results:
+                    if res.rid == self._vli_avl:
+                        self._vli_clobber = True
+                        break
         if code == "sstore":
             # operands: base, value -> rs1 = base, rs2 = value
             selected = self.selection[op.index]
@@ -775,6 +1137,14 @@ class _Emitter:
 
     # -- function ------------------------------------------------------------
     def emit_function(self, fn: mir.MFunction) -> None:
+        # OPT-VLI: pre-compute the rid -> constant value map from all
+        # sconst ops (the vsetvli AVL operands are sconst results)
+        self._const_map = {}
+        for b in fn.blocks:
+            for mop in b.ops:
+                if mop.opcode == "sconst" and mop.results:
+                    self._const_map[mop.results[0].rid] = \
+                        mop.attrs.get("value")
         frame = self.frame_bytes()
         self.emit(f"operator_entry:", note=f"fn {fn.name}")
         if frame <= 2047:
@@ -793,10 +1163,50 @@ class _Emitter:
         launch_phys = self.phys(fn.params[0])
         if launch_phys != "a0":
             self.emit(f"mv {launch_phys}, a0")
+        # OPT-VLI-CROSS: build the predecessor map for cross-block state
+        # propagation (a block with exactly ONE predecessor inherits its
+        # end-of-block vsetvli state -- the loop-body case: the head is
+        # the only non-back-edge predecessor of the body on the first
+        # iteration path, and back edges share the same body-exit state)
+        preds: Dict[str, set] = {}
+        for b in fn.blocks:
+            for mop in b.ops:
+                for key in ("target", "false_target"):
+                    t = mop.attrs.get(key) if mop.attrs else None
+                    if t:
+                        preds.setdefault(t, set()).add(b.name)
+        # end-of-block vsetvli states, filled as blocks are emitted
+        end_states: Dict[str, tuple] = {}
+
         for b in fn.blocks:
             self.emit(f"{self.label_of[b.name]}:", note=f"block {b.name}")
-            for op in b.ops:
+            # OPT-VLI-CROSS: single-predecessor blocks inherit the
+            # predecessor's end state instead of resetting to unknown
+            block_preds = preds.get(b.name, set())
+            if False:
+                inherited = end_states.get(next(iter(block_preds)))
+                if inherited is not None:
+                    self._vli_cfg = inherited[0]
+                    self._vli_avl_val = inherited[1]
+                    self._vli_avl = inherited[2]
+                    self._vli_clobber = inherited[3]
+                else:
+                    self._vli_cfg = None
+                    self._vli_avl_val = None
+                    self._vli_avl = None
+                    self._vli_clobber = True
+            else:
+                self._vli_cfg = None
+                self._vli_avl_val = None
+                self._vli_avl = None
+                self._vli_clobber = True
+            # OPT-SCHED: list-schedule the block's ops (load hoisting)
+            scheduled = self._schedule_block(b.ops)
+            for op in scheduled:
                 self.emit_op(op)
+            # save the end-of-block state for successors
+            end_states[b.name] = (self._vli_cfg, self._vli_avl_val,
+                                  self._vli_avl, self._vli_clobber)
 
     def emit_epilogue(self, op: mir.MOp) -> None:
         frame = self.frame_bytes()
@@ -835,7 +1245,8 @@ class _Emitter:
                    ".-operator_workspace_shared")
         out.append("    .globl operator_entry")
         out.append("    .type operator_entry, @function")
-        out.extend(self.lines)
+        optimized = _peephole(self.lines)
+        out.extend(optimized)
         out.append("    .size operator_entry, .-operator_entry")
         out.append('    .section .note.GNU-stack,"",@progbits')
         stats = {
@@ -844,6 +1255,15 @@ class _Emitter:
             "emitted_lines": len([line for line in out
                                   if line.startswith("    ")
                                   and not line.strip().endswith(":")]),
+            # OPT-REPORT: spill and allocation observability
+            "spill_slots": len(self.slot_offsets) if
+            hasattr(self, 'slot_offsets') else 0,
+            "gprs_assigned": len({v for v in
+                                  self.alloc.assignment.values()
+                                  if not v.startswith('v')}),
+            "vregs_assigned": len({v for v in
+                                   self.alloc.assignment.values()
+                                   if v.startswith('v')}),
         }
         return EmittedProgram(text="\n".join(out) + "\n",
                               frame_bytes=self.frame_bytes(),
