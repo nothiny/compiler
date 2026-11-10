@@ -545,7 +545,12 @@ class ConstexprEnv:
             return True
         if isinstance(node, ast.IfExp):
             cond = self._eval(node.test, path)
-            if cond is NOT_CONSTEXPR:
+            # a runtime value must never select a ternary arm: object
+            # truthiness would silently answer for the condition (the
+            # same leak BoolOp declines and T043 fixed for UnaryOp
+            # ``not`` -- rng_dual's ``(n if is_c0 else 0)`` folded to
+            # the body arm for every program)
+            if cond is NOT_CONSTEXPR or isinstance(cond, RuntimeValue):
                 return NOT_CONSTEXPR
             taken = "body" if cond else "orelse"
             self.fold.record_branch(node, cond, taken)

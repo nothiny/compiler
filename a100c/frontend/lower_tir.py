@@ -1325,15 +1325,25 @@ class Lowering:
                 return self._emit_convert(v, idx_ty, loc)
             return v
 
+        name = st.target.id
         lower_i = as_index(lower_v)
         if lower_i is None:
             lower_i = self._emit(tir.Op.const(0, idx_ty, loc), "lb")
+        else:
+            # the induction channel's init must not share its value with
+            # a name that stays loop-invariant: uses of the lower bound
+            # inside the body (``j - i_ts`` over ``range(i_ts, ...)``)
+            # must read the INVARIANT, never the per-iteration channel
+            # entry.  The same fresh-identity rule every other carried
+            # name gets (_fresh_channel_init); without it the two uses
+            # collapse (``j - i_ts`` folds to ``j - j`` = 0 -- the
+            # chunk_gdn2 Akk column stuck at one address).
+            lower_i = self._fresh_channel_init(lower_i, name)
         upper_i = as_index(upper_v)
         step_i = as_index(step_v)
         if step_i is None:
             step_i = self._emit(tir.Op.const(1, idx_ty, loc), "st")
 
-        name = st.target.id
         jumps = _scan_jumps(st.body)
         if jumps.returns or jumps.breaks:
             # a break/return inside the body needs the loop-exit channel:
@@ -2551,7 +2561,18 @@ class Lowering:
                     other_v = self._convert_if_needed(other, pointee, loc)
                 default = tir.MaskedDefault.VALUE
             else:
-                default = tir.MaskedDefault.UNDEF
+                # the pinned Triton 3.8 semantics, verified against the
+                # reference environment (local_ne's full-block reduce over
+                # an other-less masked load): a masked load without
+                # ``other`` materializes the pointee's ZERO at disabled
+                # positions -- deterministic, and exactly what the
+                # reference produces (its disabled lanes read as 0, so
+                # comparisons over them fold to false and contribute
+                # nothing to reductions).  Masked STORES are unchanged:
+                # disabled positions never store (NO_ACCESS).
+                other_v = self._broadcast_value_to(
+                    self._const_at(0, pointee, loc), ptr.shape, loc, node)
+                default = tir.MaskedDefault.VALUE
         elif "other" in args:
             raise self._err(node, "tl.load",
                             "'other' cannot be provided without 'mask'")
@@ -2615,13 +2636,13 @@ class Lowering:
         default = None
         if masks is not None:
             mask_v = self._broadcast_value_to(masks, ptr.shape, loc, node)
-            default = tir.MaskedDefault.UNDEF
-            if boundary:
-                # padding_option 'zero': the declared disabled-position
-                # value (the load itself performs no access there)
-                other_v = self._broadcast_value_to(
-                    self._const_at(0, pointee, loc), ptr.shape, loc, node)
-                default = tir.MaskedDefault.VALUE
+            # every masked load materializes the pointee's zero at
+            # disabled positions when no other value is declared (the
+            # pinned reference semantics -- see the plain-load path);
+            # padding_option 'zero' simply declares the same value
+            other_v = self._broadcast_value_to(
+                self._const_at(0, pointee, loc), ptr.shape, loc, node)
+            default = tir.MaskedDefault.VALUE
         elif boundary:
             raise self._err(node, "tl.load",
                             "boundary_check produced no mask (an internal "
