@@ -434,9 +434,13 @@ def store_ops_of(module):
 
 
 def masked_load_semantics(module):
-    """Correctness check: a masked load with other=0.0 must declare
-    default=value and carry a 0.0 constant of the pointee type at its
-    disabled positions."""
+    """Correctness check: a masked load with other=7.0 must declare
+    default=value and carry a 7.0 constant of the pointee type at its
+    disabled positions.  (The probe value is deliberately NONZERO: since
+    the no-other masked load materializes the pointee's zero at disabled
+    positions -- the pinned reference semantics -- an other=0.0 probe
+    would be semantically indistinguishable from dropping ``other``, and
+    the ignorable-lie control could no longer fail.)"""
     loads = load_ops_of(module)
     if len(loads) != 1:
         return False, f"expected one load, got {len(loads)}"
@@ -447,11 +451,11 @@ def masked_load_semantics(module):
         return False, "no other operand"
     other = load.operands[2]
     const = underlying_const(other)
-    if const is None or const.attrs.get("value") != 0.0:
-        return False, "other is not the constant 0.0"
+    if const is None or const.attrs.get("value") != 7.0:
+        return False, "other is not the constant 7.0"
     if other.type != load.results[0].type:
         return False, "other type is not the pointee type"
-    return True, "masked load yields 0.0 at disabled positions"
+    return True, "masked load yields 7.0 at disabled positions"
 
 
 def masked_store_semantics(module):
@@ -472,7 +476,7 @@ def check_control_semantic_param_marked_ignorable():
     body = """
 offs = tl.arange(0, BLOCK)
 m = offs < n
-v = tl.load(x_ptr + offs, mask=m, other=0.0)
+v = tl.load(x_ptr + offs, mask=m, other=7.0)
 tl.store(y_ptr + offs, v, mask=m)
 tl.store(y_ptr + offs, 0.0, mask=m)
 """
@@ -485,7 +489,8 @@ tl.store(y_ptr + offs, 0.0, mask=m)
 
     # control 1: tl.load.other marked ignorable -> the masked-load
     # correctness check must FAIL (the disabled positions lose their
-    # declared 0.0 and become undefined)
+    # declared 7.0 and fall back to the zero default -- no longer the
+    # declared value, so the lie stays caught)
     surface = DEFAULT_SURFACE.with_param_classification(
         "tl.load", "other", CLASS_IGNORABLE, "control: semantic param lied")
     mod2, _, _, _ = compile_snippet(BASE_PARAMS, body, BASE_ARGS,

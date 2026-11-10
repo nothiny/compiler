@@ -2558,6 +2558,9 @@ class SliceLowering:
         # suffix uses (the plan's liveouts are scalars; block values used
         # by the suffix would cross the last pass -- refuse: the suffix is
         # scalar-only by construction)
+        # T044: the flat-identity native-record propagation (see the
+        # method) runs before the regions are allocated
+        self._propagate_flat_identity_native()
         # allocate the workspace regions: a deterministic bump per staged
         # value (correct and simple; the layout regions are the value's
         # own storage -- no aliasing by construction).  Boolean blocks
@@ -2827,14 +2830,50 @@ class SliceLowering:
             # read the FIRST iteration's address forever -- a silent
             # miscompile whenever the scalar carry's update had no use
             # inside the body to materialize it.
+            #
+            # T044: the back edge may be a CHAIN of uniform ptradds, not
+            # one hop.  An unrolled tap nest advances the carried weight
+            # pointer once per tap (``curr_w_ptr += w_step`` inside a
+            # static_range: eight ptradds in the body), so the body-end
+            # value's immediate predecessor is NOT the init and the old
+            # single-hop check missed it -- the carry then fell to the
+            # staged path, whose back-edge copy refreshes a pointer-valued
+            # region the flattened address reads never consult (they read
+            # the invariant offset operand's region), and every iteration
+            # re-read the FIRST iteration's weights (fused_conv3d_kernel's
+            # n=1 batch: all 6 MISMATCH cases).  Walk the chain back to
+            # the init; every hop must add a loop-invariant uniform step.
             end = end_names.get(cname)
             step = None
             if end is not None and end.producer is not None \
-                    and end.producer.op == "ptradd" \
-                    and end.producer.operands[0].vid == init.vid:
-                step = _bare_step(end.producer.operands[1])
-            if step is not None and self._value_outside(
-                    step, inside, carried=carried_vids):
+                    and end.producer.op == "ptradd":
+                hops: list = []
+                node = end
+                chain_ok = True
+                while node is not None and node.vid != init.vid:
+                    prod = node.producer
+                    if prod is None or prod.op != "ptradd":
+                        chain_ok = False
+                        break
+                    hop = _bare_step(prod.operands[1])
+                    if hop is None or not self._value_outside(
+                            hop, inside, carried=carried_vids):
+                        chain_ok = False
+                        break
+                    hops.append(hop)
+                    node = prod.operands[0]
+                if chain_ok and node is not None \
+                        and node.vid == init.vid and hops:
+                    # the per-iteration advance is the SUM of the hops'
+                    # steps (a list keeps the single-hop entry shape)
+                    step = hops[0] if len(hops) == 1 else hops
+            if step is not None and (
+                    isinstance(step, list)
+                    or self._value_outside(step, inside,
+                                           carried=carried_vids)):
+                # a list is the multi-hop chain: every hop's invariance
+                # was checked inside the walk; a single value keeps the
+                # original one-shot check
                 out.append(("recurrence", cname, init, step))
                 continue
             if init.rank == 0:
@@ -2864,6 +2903,79 @@ class SliceLowering:
             if rec is not None:
                 return rec
         return None
+
+    def _propagate_flat_identity_native(self) -> None:
+        """T044: keep a flat-identity layout op's record alias convention
+        consistent.
+
+        A reshape/realize aliases the result's staged record to the
+        source's at lowering time; that alias must not clobber a record
+        the analysis allocated under a DIFFERENT convention.  The
+        reproduced defect: the dot's A operand (the reshape of the loaded
+        fp16 tile, inside the matrix region) carries the NATIVE 16-bit
+        record part (a) gave it, while the source (the load's result)
+        stages under the standard widened convention; the alias handed
+        the IME tile pipeline the source's 32-bit record, whose
+        esz-strided 16-bit row loads read the zero low halves of the
+        widened fp32 lanes (transposed_conv3d fp16: every output wrong;
+        fp32/bf16 unaffected -- only sub-32 dot operands stage natively).
+        Alias the SOURCE to the result's native record here -- the
+        producer's _store_staged then writes the raw 16-bit lanes the
+        tile pipeline reads, and every other consumer goes through the
+        native reload or the T038 mirror.  The walk is over the TIR (a
+        reshape inside a matrix region is not a top-level layout
+        segment) and runs to a fixpoint so a reshape CHAIN converges."""
+        def _flat_identity_ops(block):
+            for st in block.statements:
+                if isinstance(st, tir.Op):
+                    if st.op in ("reshape", "realize") and st.operands \
+                            and st.results:
+                        yield st
+                elif isinstance(st, tir.If):
+                    yield from _flat_identity_ops(st.then)
+                    yield from _flat_identity_ops(st.els)
+                elif isinstance(st, tir.Loop):
+                    yield from _flat_identity_ops(st.body)
+        for _ in range(8):
+            changed = False
+            for op in _flat_identity_ops(self.tir_module.functions[0].body):
+                res_rec = self._staged.get(op.results[0].vid)
+                src_rec = self._staged.get(op.operands[0].vid)
+                if res_rec is None or src_rec is None or res_rec is src_rec:
+                    continue
+                if res_rec.get("native") and not src_rec.get("native"):
+                    self._staged[op.operands[0].vid] = res_rec
+                    changed = True
+            if not changed:
+                break
+
+    def _recurrence_step_width(self, step) -> int:
+        """The offset param's width for one recurrence step (a single
+        value, or the sum of a T044 multi-hop chain's steps)."""
+        steps = step if isinstance(step, list) else [step]
+        return max(s.type.width for s in steps)
+
+    def _recurrence_step_reg(self, ctx: _Ctx, step, loc) -> mir.VReg:
+        """Materialize one recurrence step as a scalar register: a single
+        value, or the SUM of a multi-hop chain's steps (T044: the body
+        advanced the carried pointer once per unrolled tap; the whole
+        chain's advance is what one iteration must add).  Hops wider than
+        the first widen to the chain's maximum so the sum is one type."""
+        steps = step if isinstance(step, list) else [step]
+        width = max(s.type.width for s in steps)
+        total: Optional[mir.VReg] = None
+        for s in steps:
+            reg = self._materialize_scalar_tree(ctx, s, loc)
+            if reg.type.width != width:
+                reg = scalar_mod.widen_to(ctx, reg, width, loc)
+            if total is None:
+                total = reg
+                continue
+            total = ctx.emit(mir.MOp(
+                "sadd", [total, reg],
+                [ctx.vreg(total.type, hint="rst", loc=loc)], loc=loc))
+        assert total is not None
+        return total
 
     def _active_recurrence_offsets(self, v: tir.Value) -> List[mir.VReg]:
         """Every active recurrence layer's offset register for one vid
@@ -4526,6 +4638,7 @@ class SliceLowering:
         n_passes = sum(1 for seg in segments if seg[0] == "pass")
         seen_pass = 0
         saved_liveouts = self._liveouts
+        saved_reduce_accs = dict(getattr(self, "_reduce_accs", {}))
         params_list = self._compute_pass_params(segments)
         # T035: the vids the segmentation's OWN pass statements define
         # outside any restructured region (the single-pass fallback's
@@ -4623,6 +4736,18 @@ class SliceLowering:
                 self._liveouts = list(nested.get(si, []))
             if seen_pass == n_passes and segments is self._segments:
                 self._liveouts.extend(saved_liveouts)
+            # T045b (the gram_jacobi in-region reduction): a frameless
+            # full-block reduction whose result spills per chunk through
+            # its liveout slot ACCUMULATES through the slot -- initialise
+            # the slot to the identity here (the pass preheader; a region
+            # body re-runs this per iteration, so every execution's
+            # reduction starts fresh) and let each chunk's vred seed from
+            # the running value (see _lower_reduce).  Without it the
+            # per-chunk spill overwrote the slot and the consumer read
+            # the LAST chunk's partial alone.
+            self._reduce_accs = self._frameless_reduce_accs(
+                seg[1], self._liveouts, all_merges, params.get("sew"))
+            self._emit_reduce_acc_inits(ctx, self._reduce_accs)
             if self._chunk is not None and [
                     f["vid"] for f in self._chunk.get("frames", [])] != [
                     f["vid"] for f in self._chunk_merges]:
@@ -4639,6 +4764,7 @@ class SliceLowering:
             if seen_pass < n_passes or close_all:
                 self._close_pass(ctx, fn, strided)
         self._liveouts = saved_liveouts
+        self._reduce_accs = saved_reduce_accs
         self._chunk_merges = saved_merges
         # no pass at all (scalar-only region): nothing stays open
         if self._chunk is not None and (seen_pass < n_passes or close_all):
@@ -6663,11 +6789,13 @@ class SliceLowering:
                                 f"carried '{entry[1]}': {entry[3]}")
             if entry[0] == "recurrence":
                 zero = ctx.const(
-                    0, mir.ScalarType(entry[3].type.width, signed=True),
+                    0, mir.ScalarType(
+                        self._recurrence_step_width(entry[3]),
+                        signed=True),
                     loc)
                 carried_inits.append(zero)
                 step_regs.append(
-                    self._materialize_scalar_tree(ctx, entry[3], loc))
+                    self._recurrence_step_reg(ctx, entry[3], loc))
             else:
                 carried_inits.append(self._need(entry[2], loc))
         tag = self._tag("loop")
@@ -6792,11 +6920,13 @@ class SliceLowering:
                                 f"carried '{entry[1]}': {entry[3]}")
             if entry[0] == "recurrence":
                 zero = ctx.const(
-                    0, mir.ScalarType(entry[3].type.width, signed=True),
+                    0, mir.ScalarType(
+                        self._recurrence_step_width(entry[3]),
+                        signed=True),
                     loc)
                 carried_inits.append(zero)
                 step_regs.append(
-                    self._materialize_scalar_tree(ctx, entry[3], loc))
+                    self._recurrence_step_reg(ctx, entry[3], loc))
             else:
                 carried_inits.append(self._need(entry[2], loc))
         tag = self._tag("while")
@@ -7229,10 +7359,12 @@ class SliceLowering:
         for entry in entries:
             if entry[0] == "recurrence":
                 carried_inits.append(ctx.const(
-                    0, mir.ScalarType(entry[3].type.width, signed=True),
+                    0, mir.ScalarType(
+                        self._recurrence_step_width(entry[3]),
+                        signed=True),
                     loc))
                 step_regs.append(
-                    self._materialize_scalar_tree(ctx, entry[3], loc))
+                    self._recurrence_step_reg(ctx, entry[3], loc))
                 param_entries.append(entry)
             elif entry[0] == "staged":
                 continue                    # the workspace is the carry
@@ -7787,13 +7919,23 @@ class SliceLowering:
             return
         if code == "realize":
             src = op.operands[0]
-            if src.vid in self._staged:
+            if src.vid in self._staged and not any(
+                    src.vid in layer for layer in self._overrides):
                 # the staging loop already materialized real lanes
                 self._staged[op.results[0].vid] = self._staged[src.vid]
                 if self._names is not None:
                     for key in op.results[0].scope_names():
                         self._names.define(key, op.results[0])
                 return
+            # T045c (bucketize's frozen `hi`): when the source is an
+            # ACTIVE loop-carried entry (an override layer maps it to the
+            # head parameter), the staged-alias path above must not run:
+            # the operand's record was written ONCE in the preheader (the
+            # channel's init), so aliasing made every body iteration
+            # re-read the init slot -- the carried value never advanced
+            # (hi stayed n_boundaries for the whole search; lo, whose
+            # zeros init never staged, correctly rode its channel).  The
+            # channel head parameter IS the current iteration's value.
             reg = self._need(src, loc)
             self.values[op.results[0].vid] = reg
             if self._names is not None:
@@ -8387,6 +8529,106 @@ class SliceLowering:
         raise self._err(loc, code, "op is not lowered by the vector slice")
 
     # -- reductions (T009) --------------------------------------------------------
+    def _frameless_reduce_accs(self, statements, liveouts, all_merges,
+                               pass_sew) -> Dict[int, tuple]:
+        """The full-block reductions of this pass that spill per chunk
+        with NO frame owning the merge: their liveout slot is written by
+        EVERY chunk's back-edge spill (each overwrite), so the consumer
+        read the LAST chunk's partial alone (gram_jacobi's in-loop
+        ``tl.sum(tl.where(...))``: EVECS stayed the identity matrix).
+
+        The accumulation plan: the slot holds the RUNNING value (each
+        chunk's vred seeds from it -- see _lower_reduce) and is
+        initialised to the identity at the pass preheader.  Registered
+        kinds are the associative vred kinds only (sum/max/min/xor/or);
+        index forms ride the (value, index) candidate machinery and
+        16-bit float sums ride the fp32-lane policy's own accumulator
+        design -- neither accumulates through the element-typed slot.
+
+        Registration requires the operand's declared width to EQUAL the
+        pass SEW: the slot stores the element-typed scalar and the vred
+        rides the pass lane, so a sub-SEW class (the 0/1 bool sums)
+        would need a narrowing seed -- those keep the frame machinery
+        (the corpus's bool sums all carry plan frames).
+        """
+        if not liveouts:
+            return {}
+        slots = {vid: slot for vid, slot in liveouts}
+        owned = {f["vid"] for f in all_merges}
+        owned.update(f["vid"] for f in getattr(self, "_scan_accs", []))
+        out: Dict[int, tuple] = {}
+
+        def walk(stmts):
+            for st in stmts:
+                if isinstance(st, tir.Op):
+                    if st.op == "reduce" and st.results \
+                            and st.results[0].rank == 0 \
+                            and st.results[0].vid in slots \
+                            and st.results[0].vid not in owned \
+                            and st.attrs.get("kind") in (
+                                "sum", "max", "min", "xor_sum",
+                                "reduce_or") \
+                            and not st.attrs.get("return_indices"):
+                        ty = st.operands[0].type
+                        if ty.is_float() and ty.bitwidth() == 16:
+                            continue        # the fp32-lane policy's own path
+                        if ty.bitwidth() != pass_sew:
+                            continue        # sub-SEW classes: the frames own
+                        out[st.results[0].vid] = (slots[st.results[0].vid],
+                                                   st.attrs["kind"], ty,
+                                                   st.loc)
+                elif isinstance(st, tir.If):
+                    walk(st.then.statements)
+                    walk(st.els.statements)
+                elif isinstance(st, tir.Loop):
+                    walk(st.body.statements)
+
+        walk(statements)
+        return out
+
+    def _emit_reduce_acc_inits(self, ctx: _Ctx,
+                               accs: Dict[int, tuple]) -> None:
+        """Initialise every accumulating reduction's liveout slot to its
+        identity, in the pass preheader (bit-level: float identities
+        travel as their IEEE bits, exactly as _splat_const encodes them
+        -- the slot's sload reads the same bits back as a float)."""
+        if not accs:
+            return
+        for vid, (slot, kind, ty, rloc) in accs.items():
+            ident = stages_mod.identity_for(kind, ty)
+            width = ty.bitwidth() if ty.bitwidth() in (8, 16, 32, 64) \
+                else 64
+            if ty.is_float():
+                import struct as _struct
+                if width == 32:
+                    bits = _struct.unpack(
+                        "<I", _struct.pack("<f", float(ident)))[0]
+                elif width == 64:
+                    bits = _struct.unpack(
+                        "<Q", _struct.pack("<d", float(ident)))[0]
+                else:
+                    continue        # unreachable: 16-bit floats excluded
+                sty = mir.ScalarType(width, signed=True, float=False)
+            else:
+                bits = int(ident)
+                sty = mir.ScalarType(width,
+                                     signed=not ty.is_int_unsigned(),
+                                     float=False)
+            ws = self._workspace_private_reg(ctx, rloc)
+            if -2048 <= slot < 2048:
+                base, off = ws, slot
+            else:
+                # the 12-bit immediate cannot reach (the layout staging
+                # regions push the slots far into the workspace)
+                base = ctx.emit(mir.MOp(
+                    "sadd", [ws, ctx.const(slot, mir.I64, rloc)],
+                    [ctx.vreg(mir.I64, hint="rai", loc=rloc)], loc=rloc))
+                off = 0
+            sreg = ctx.const(bits, sty, rloc)
+            ctx.emit0(mir.MOp("sstore", [base, sreg], [],
+                              attrs={"width": width, "offset": off},
+                              loc=rloc))
+
     def _lower_reduce(self, ctx: _Ctx, op: tir.Op, loc) -> None:
         """One TIR reduce op inside the chunk region: the intra-program
         RVV reduction over the operand's current chunk slice (vred* with
@@ -8503,7 +8745,47 @@ class SliceLowering:
                     dst_kind="int")
                 if frame_sew == value.type.bitwidth():
                     red_ty = value.type
-        part = self._vred(ctx, red_reg, vred_kind, loc, tir_type=red_ty)
+        # T045b: a registered frameless in-region reduction seeds its
+        # vred from the liveout slot's RUNNING value -- every chunk then
+        # folds into the accumulator and the back-edge spill writes the
+        # running TOTAL (the consumer, in a later pass or after the
+        # region, reads the merged value instead of the last chunk's
+        # partial).  The slot was initialised to the identity at the
+        # pass preheader (_emit_reduce_acc_inits).
+        seed = None
+        rac = getattr(self, "_reduce_accs", {}).get(op.results[0].vid)
+        if rac is not None and not index_form and not ret_idx:
+            acc_slot, _acc_kind, acc_ty, acc_loc = rac
+            if acc_ty != red_ty:
+                raise self._err(
+                    loc, "reduce",
+                    "an accumulating in-region reduction's slot type "
+                    f"({acc_ty!r}) diverged from its reduction type "
+                    f"({red_ty!r}) -- the registration and the lowering "
+                    "disagree")
+            width = acc_ty.bitwidth() if acc_ty.bitwidth() in (
+                8, 16, 32, 64) else 64
+            sty = mir.ScalarType(width,
+                                 signed=not acc_ty.is_int_unsigned(),
+                                 float=acc_ty.is_float())
+            ws = self._workspace_private_reg(ctx, acc_loc)
+            if -2048 <= acc_slot < 2048:
+                base, off = ws, acc_slot
+            else:
+                base = ctx.emit(mir.MOp(
+                    "sadd", [ws, ctx.const(acc_slot, mir.I64, acc_loc)],
+                    [ctx.vreg(mir.I64, hint="ral", loc=acc_loc)],
+                    loc=acc_loc))
+                off = 0
+            acc_scalar = ctx.emit(mir.MOp(
+                "sload", [base],
+                [ctx.vreg(sty, hint="acc", loc=acc_loc)],
+                attrs={"width": width, "offset": off, "ext": "sext"},
+                loc=acc_loc))
+            self._vregion(ctx, red_reg.type, loc)
+            seed = self._splat_reg(ctx, acc_scalar, red_reg.type, loc)
+        part = self._vred(ctx, red_reg, vred_kind, loc, tir_type=red_ty,
+                          seed=seed)
         if index_form or ret_idx:
             self._vregion(ctx, vreg.type, loc)
             m_scalar = self._scalarize(ctx, part, loc)
@@ -8594,11 +8876,23 @@ class SliceLowering:
                     frame["cand_val"] = partial_scalar
 
     def _vred(self, ctx: _Ctx, vreg: mir.VReg, kind: str,
-              loc, tir_type=None) -> mir.VReg:
+              loc, tir_type=None, seed: Optional[mir.VReg] = None
+              ) -> mir.VReg:
         """One vector reduction of the current chunk slice against the
         per-op-and-dtype identity splat (the identity rides vs1[0]).  The
         vred opens its OWN region at the operand's type: the operand may
-        sit at another SEW than the pass (the multi-width reduce)."""
+        sit at another SEW than the pass (the multi-width reduce).
+
+        ``seed`` replaces the identity splat as vs1: the RUNNING
+        accumulator of a frameless in-region reduction (the vred folds
+        the chunk into it; the liveout spill writes the running total
+        back -- see _frameless_reduce_accs)."""
+        if seed is not None:
+            self._vregion(ctx, vreg.type, loc)
+            return ctx.emit(mir.MOp(
+                "vred", [vreg, seed],
+                [ctx.vreg(vreg.type, hint="vr", loc=loc)],
+                attrs={"kind": kind}, loc=loc))
         ident_ty = tir_type if tir_type is not None \
             else self._tir_type_of(vreg.type)
         ident = stages_mod.identity_for(
@@ -9346,6 +9640,19 @@ class SliceLowering:
                 "matrix")
         if src.is_float() and dst.is_int():
             if sw == dw:
+                if sw == 16 and src.name == "bf16":
+                    # bf16 -> int at equal width: the 16-bit vfcvt reads
+                    # IEEE fp16 bits, so a bf16 operand would be decoded
+                    # as fp16 (bf16(0.5)=0x3F00 reads as fp16 1.5 --
+                    # hardsigmoid's .to(tl.bfloat16).to(tl.int16) turned
+                    # the 0.5 outputs into 1).  General matrix rule: every
+                    # bf16 -> int route goes through the exact fp32
+                    # widening (bf16 IS fp32's high half), converting at
+                    # 32 bits -- the same rule the i32 destination row
+                    # already follows below.
+                    f32 = self._f16_to_f32(ctx, sreg, src, loc)
+                    return self._convert_vector(ctx, f32, tir.FLOAT32,
+                                                dst, loc)
                 op = "fcvt.xf" if dst.is_int_signed() else "fcvt.xuf"
                 self._vregion(ctx, sreg.type, loc)
                 out = ctx.emit(mir.MOp(
