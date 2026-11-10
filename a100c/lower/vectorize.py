@@ -101,6 +101,14 @@ class LowerOptions:
     #: pack loops -- the on/off contrast and rollback path.  Recorded in
     #: the artifact identity when set.
     matrix_scalar_pack: bool = False
+    #: the fp32 transcendental vector-polynomial path (the unified
+    #: optimization round's W1): exp/exp2/log/log2/erf/floor at SEW 32
+    #: emit fitted polynomial MIR sequences instead of the per-element
+    #: libm vmath call.  True forces the libm path -- the on/off
+    #: contrast and rollback.  Recorded in the artifact identity when
+    #: set.  Env route (the A100C_PASS_* switches' pattern):
+    #: A100C_VMATH_LIBM=1.
+    vmath_libm: bool = False
 
     def identity_part(self) -> str:
         parts = []
@@ -114,7 +122,67 @@ class LowerOptions:
             parts.append("native-fp16-lanes")
         if self.matrix_scalar_pack:
             parts.append("matrix-scalar-pack")
+        if self.vmath_libm:
+            parts.append("vmath-libm")
         return ",".join(parts) if parts else "default"
+
+
+# -- W1 (the unified optimization round): the fp32 vector-polynomial -----
+# constants and coefficient tables.  Every table was fitted and validated
+# by tools/profiling/fit_math_coeffs.py -- a host-side strict f32
+# simulation of exactly the op sequences _vmath_poly emits (single-
+# rounding fma for every vfmacc, references computed on the f32-rounded
+# inputs), with the recorded max errors in the elementwise round's
+# DESIGN.md and the re-validated margins in numerics-merged.json.
+_POLY_LOG2E = 1.4426950408889634
+#: the rne magic number MUST be 1.5*2^23 (2^23 alone falls into the
+#: ulp=0.5 region for negative operands -- rounds to half-integers)
+_POLY_MAGIC = 12582912.0
+#: overflow/underflow selects test the ORIGINAL x (the magic number is
+#: invalid for |y| >= 2^22).  The overflow thresholds sit ABOVE the
+#: natural overflow boundary (exp: 88.7228..., exp2: 128) so the halved-
+#: exponent core rounds the boundary itself and the select only catches
+#: the range beyond it -- a conservative threshold below the boundary
+#: would turn finite ~FLT_MAX results into +inf (the exp2f validation's
+#: one mismatched inf point).
+_POLY_EXP_OVER = 89.0
+_POLY_EXP_UNDER = -104.0
+_POLY_EXP2_OVER = 128.5
+_POLY_EXP2_UNDER = -150.0
+#: 2^f = 1 + f*P(f) on [-0.5, 0.5] (max rel err 3.6e-8)
+_POLY_EXP = (0.6931471857326423, 0.2402265086478695,
+             0.055503674298855665, 0.00961806832877608,
+             0.001338565020577674, 0.0001545698671819237)
+_POLY_LN2_HI = 0.693359375          # exactly representable
+_POLY_LN2_LO = -2.12194440e-4
+_POLY_INV_LN2 = 1.4426950408889634
+_POLY_SQRT2 = 1.4142135623730951
+#: the atanh series' odd powers (the *2 the series needs is applied
+#: explicitly -- missing it halves the result)
+_POLY_LOG_SERIES = (1.0 / 3.0, 0.2, 1.0 / 7.0, 1.0 / 9.0)
+_POLY_F32_MIN_NORMAL = 1.1754943508222875e-38
+_POLY_LOG_23_LN2 = 15.942204913308808
+_POLY_2_POW_22 = 4194304.0
+_POLY_2_POW_23 = 8388608.0
+#: erf(t) = t*P(t^2) on |t| < 1 (deg 8, max rel 1.4e-7)
+_POLY_ERF_P = (1.1283791670949297, -0.3761263889320303,
+               0.1128379138964683, -0.026866140194897532,
+               0.005223812641953173, -0.0008543298099749196,
+               0.00011964801459056699, -1.396267464929573e-05,
+               1.0729163118306902e-06)
+#: the erfc tail W(t) with basis t = 1/z (a pure-z basis does not
+#: converge); erfc = e^{-z}*W(1/z)/|x| for 1 <= |x| < 4
+_POLY_ERF_W = (0.5641751233324483, -0.2813598202473231,
+               0.407041793198911, -0.8501695704192889,
+               1.8443547089405885, -3.406454802105437,
+               4.794277470200201, -4.7842971297096035,
+               3.148805865370541, -1.2173561826391135,
+               0.20856641201419582)
+#: the (fn, sew)-structural guard set: which libm names the polynomial
+#: path replaces at SEW 32 (sin/cos/ceil and every other width keep the
+#: vmath form)
+_VMATH_POLY_FNS = frozenset(("expf", "exp2f", "logf", "log2f",
+                             "erff", "floorf"))
 
 
 _VECTOR_KIND = {"float": "float", "int": "int", "uint": "uint"}
@@ -9926,6 +9994,13 @@ class SliceLowering:
             # forms (exp, ...) -- the internal-compute width
             if vtype.sew == 32:
                 fn = fn + "f"
+                # W1 (the unified optimization round): the fp32
+                # vector-polynomial path.  Six functions with fitted
+                # polynomial sequences replace the per-element libm
+                # call; sin/cos/ceil keep vmath.  The guard is (fn, sew)
+                # only -- never an operator/kernel name.
+                if fn in _VMATH_POLY_FNS and not self.options.vmath_libm:
+                    return self._vmath_poly(ctx, fn, operand, vtype, loc)
             vl = min(self._vl, self.target.vlmax(vtype.sew, vtype.lmul))
             return ctx.emit(mir.MOp(
                 "vmath", [operand],
@@ -9934,6 +10009,299 @@ class SliceLowering:
         finally:
             if switched:
                 self._restore_region(ctx, loc)
+
+    # -- W1 (the unified optimization round): fp32 math as vector -------
+    #    polynomials.  Every op below runs inside the region the caller
+    #    opened at (32, lmul, vl): the i32 views share that region (equal
+    #    SEW/LMUL), so a polynomial body emits ZERO vsetvli switches.
+    #    The sequences mirror, op for op, the host simulation in
+    #    tools/profiling/fit_math_coeffs.py (every vfmacc single-
+    #    rounded); that offline validation validates exactly these trees.
+
+    def _pf_bin(self, ctx: _Ctx, a: mir.VReg, b: mir.VReg, op: str,
+                hint: str, loc) -> mir.VReg:
+        """One vbin at the operands' own type and region."""
+        return ctx.emit(mir.MOp(
+            "vbin", [a, b], [ctx.vreg(a.type, hint=hint, loc=loc)],
+            attrs={"op": op}, loc=loc))
+
+    def _pf_fma(self, ctx: _Ctx, x: mir.VReg, y: mir.VReg, z: mir.VReg,
+                hint: str, loc) -> mir.VReg:
+        """vfmacc: x*y + z, single-rounded (the Horner workhorse)."""
+        return ctx.emit(mir.MOp(
+            "vfmacc", [x, y, z], [ctx.vreg(x.type, hint=hint, loc=loc)],
+            loc=loc))
+
+    def _pf_cmp(self, ctx: _Ctx, a: mir.VReg, b: mir.VReg, pred: str,
+                fp: bool, hint: str, loc) -> mir.VReg:
+        return ctx.emit(mir.MOp(
+            "vcmp", [a, b], [ctx.vreg(mir.MaskType(), hint=hint, loc=loc)],
+            attrs={"pred": pred, "fp": fp}, loc=loc))
+
+    def _pf_sel(self, ctx: _Ctx, m: mir.VReg, t: mir.VReg, e: mir.VReg,
+                hint: str, loc) -> mir.VReg:
+        # vsel reads its mask from hardware v0 (the T038 lesson: the
+        # vmovmask is pinned directly at the consumer -- a later select
+        # overwrites v0, so the pin may not be hoisted away)
+        v0 = self._vmovmask_of(ctx, m, loc)
+        return ctx.emit(mir.MOp(
+            "vsel", [v0, t, e], [ctx.vreg(t.type, hint=hint, loc=loc)],
+            loc=loc))
+
+    def _pf_splat(self, ctx: _Ctx, value, vtype: mir.VectorType, loc):
+        return self._splat_const(ctx, value, vtype, loc)
+
+    def _pf_horner(self, ctx: _Ctx, x: mir.VReg, coeffs, hint: str,
+                   loc) -> mir.VReg:
+        """p = c[n]; p = fma(p, x, c) -- the simulated horner_fma."""
+        p = self._pf_splat(ctx, coeffs[-1], x.type, loc)
+        for c in reversed(coeffs[:-1]):
+            p = self._pf_fma(ctx, p, x, self._pf_splat(ctx, c, x.type, loc),
+                             hint, loc)
+        return p
+
+    def _poly_exp2_core(self, ctx: _Ctx, y: mir.VReg, vtype: mir.VectorType,
+                        loc) -> mir.VReg:
+        """2**y (y in log2 units) -- the exp/exp2 shared core.
+
+        The rne magic split gives k and f in [-0.5, 0.5]; 2^f is a
+        polynomial; the scaling goes through a HALVED exponent pair
+        (2^k = 2^k1 * 2^k2) so the subnormal gradual underflow and the
+        k = 128 overflow both come out of the ordinary lane rounding.
+        NaN propagates through two_f (k's garbage integer view cannot
+        poison the product).  The overflow/underflow selects live with
+        the callers: they must test the ORIGINAL x, where the magic
+        number's validity still holds.
+        """
+        f32 = vtype
+        i32 = mir.VectorType(32, vtype.lmul, "int")
+        magic = self._pf_splat(ctx, _POLY_MAGIC, f32, loc)
+        t = self._pf_bin(ctx, y, magic, "add", "exa", loc)
+        k = self._pf_bin(ctx, t, magic, "sub", "exk", loc)
+        f = self._pf_bin(ctx, y, k, "sub", "exf", loc)
+        p = self._pf_horner(ctx, f, _POLY_EXP, "exp", loc)
+        one = self._pf_splat(ctx, 1.0, f32, loc)
+        two_f = self._pf_fma(ctx, f, p, one, "exw", loc)
+        # ki = rtz(k): exact, k is integral inside the magic range
+        ki = ctx.emit(mir.MOp(
+            "vunary", [k], [ctx.vreg(i32, hint="exi", loc=loc)],
+            attrs={"op": "fcvt.xf"}, loc=loc))
+        one_i = self._pf_splat(ctx, 1, i32, loc)
+        k1 = self._pf_bin(ctx, ki, one_i, "sra", "ex1", loc)
+        k2 = self._pf_bin(ctx, ki, k1, "sub", "ex2", loc)
+        bias = self._pf_splat(ctx, 127, i32, loc)
+        shift = self._pf_splat(ctx, 23, i32, loc)
+        k1e = self._pf_bin(ctx, k1, bias, "add", "ex3", loc)
+        k2e = self._pf_bin(ctx, k2, bias, "add", "ex4", loc)
+        s1i = self._pf_bin(ctx, k1e, shift, "sll", "ex5", loc)
+        s2i = self._pf_bin(ctx, k2e, shift, "sll", "ex6", loc)
+        s1 = self._vmovv(ctx, s1i, f32, loc)
+        s2 = self._vmovv(ctx, s2i, f32, loc)
+        r = self._pf_bin(ctx, two_f, s1, "mul", "ex7", loc)
+        return self._pf_bin(ctx, r, s2, "mul", "ex8", loc)
+
+    def _poly_exp(self, ctx: _Ctx, x: mir.VReg, vtype: mir.VectorType,
+                  loc, exp2: bool) -> mir.VReg:
+        """expf (exp2=False, y = x*log2e) or exp2f (y = x).  The domain
+        selects test x itself (the magic number is invalid where they
+        fire)."""
+        if exp2:
+            y = x
+            over, under = _POLY_EXP2_OVER, _POLY_EXP2_UNDER
+        else:
+            y = self._pf_bin(ctx, x, self._pf_splat(ctx, _POLY_LOG2E,
+                                                    vtype, loc),
+                             "mul", "exl", loc)
+            over, under = _POLY_EXP_OVER, _POLY_EXP_UNDER
+        res = self._poly_exp2_core(ctx, y, vtype, loc)
+        inf = self._pf_splat(ctx, float("inf"), vtype, loc)
+        zero = self._pf_splat(ctx, 0.0, vtype, loc)
+        over_m = self._pf_cmp(ctx, x, self._pf_splat(ctx, over, vtype, loc),
+                              "gt", True, "exo", loc)
+        res = self._pf_sel(ctx, over_m, inf, res, "exs", loc)
+        under_m = self._pf_cmp(ctx, x, self._pf_splat(ctx, under, vtype,
+                                                      loc),
+                               "lt", True, "exu", loc)
+        return self._pf_sel(ctx, under_m, zero, res, "ext", loc)
+
+    def _poly_log(self, ctx: _Ctx, x: mir.VReg, vtype: mir.VectorType,
+                  loc, to_log2: bool) -> mir.VReg:
+        """logf (to_log2=False) / log2f, with the domain guards the
+        simulation's where-chain proved necessary (a comparison chain
+        alone falls through to a non-NaN branch on NaN)."""
+        f32 = vtype
+        i32 = mir.VectorType(32, vtype.lmul, "int")
+        zero = self._pf_splat(ctx, 0.0, f32, loc)
+        # subnormal inputs scale up by 2^23 (the correction subtracts
+        # 23*ln2 at the end)
+        pos = self._pf_cmp(ctx, x, zero, "gt", True, "lgp", loc)
+        tiny = self._pf_cmp(
+            ctx, x, self._pf_splat(ctx, _POLY_F32_MIN_NORMAL, f32, loc),
+            "lt", True, "lgt", loc)
+        m_sub = ctx.emit(mir.MOp(
+            "vmand", [pos, tiny],
+            [ctx.vreg(mir.MaskType(), hint="lgs", loc=loc)], loc=loc))
+        scaled = self._pf_bin(ctx, x, self._pf_splat(ctx, 8388608.0, f32,
+                                                     loc),
+                              "mul", "lgx", loc)
+        xs = self._pf_sel(ctx, m_sub, scaled, x, "lgv", loc)
+        # bit decomposition: e = (bits>>23) - 127; bits - (e<<23) IS the
+        # [1,2) mantissa pattern (the signed-e form builds it directly);
+        # garbage lanes (x <= 0) never survive the guards below
+        ix = self._vmovv(ctx, xs, i32, loc)
+        shift = self._pf_splat(ctx, 23, i32, loc)
+        bias = self._pf_splat(ctx, 127, i32, loc)
+        ebits = self._pf_bin(ctx, ix, shift, "sra", "lge", loc)
+        e = self._pf_bin(ctx, ebits, bias, "sub", "lgE", loc)
+        esh = self._pf_bin(ctx, e, shift, "sll", "lgL", loc)
+        iz = self._pf_bin(ctx, ix, esh, "sub", "lgz", loc)
+        z = self._vmovv(ctx, iz, f32, loc)
+        # reduce to [sqrt(2)/2, sqrt(2))
+        mb = self._pf_cmp(ctx, z, self._pf_splat(ctx, _POLY_SQRT2, f32,
+                                                 loc),
+                          "gt", True, "lgm", loc)
+        half_z = self._pf_bin(ctx, z, self._pf_splat(ctx, 0.5, f32, loc),
+                              "mul", "lgh", loc)
+        zh = self._pf_sel(ctx, mb, half_z, z, "lgZ", loc)
+        e1 = self._pf_bin(ctx, e, self._pf_splat(ctx, 1, i32, loc),
+                          "add", "lg1", loc)
+        eh = self._pf_sel(ctx, mb, e1, e, "lgH", loc)
+        # atanh series: log(zh) = 2*(r + r^3*(1/3 + r2*(1/5 + ...)))
+        one = self._pf_splat(ctx, 1.0, f32, loc)
+        rn = self._pf_bin(ctx, zh, one, "sub", "lgn", loc)
+        rd = self._pf_bin(ctx, zh, one, "add", "lgd", loc)
+        r = self._pf_bin(ctx, rn, rd, "fdiv", "lgr", loc)
+        r2 = self._pf_bin(ctx, r, r, "mul", "lgq", loc)
+        h = self._pf_horner(ctx, r2, _POLY_LOG_SERIES, "lgs", loc)
+        r3 = self._pf_bin(ctx, r, r2, "mul", "lg3", loc)
+        s = self._pf_fma(ctx, r3, h, r, "lga", loc)
+        s = self._pf_bin(ctx, s, s, "add", "lg2", loc)
+        # eh -> float is exact; ln2 split hi/lo keeps the product exact
+        ef = ctx.emit(mir.MOp(
+            "vunary", [eh], [ctx.vreg(f32, hint="lgf", loc=loc)],
+            attrs={"op": "fcvt"}, loc=loc))
+        hi = self._pf_bin(ctx, ef, self._pf_splat(ctx, _POLY_LN2_HI, f32,
+                                                  loc),
+                          "mul", "lgu", loc)
+        lo = self._pf_bin(ctx, ef, self._pf_splat(ctx, _POLY_LN2_LO, f32,
+                                                  loc),
+                          "mul", "lgw", loc)
+        sb = self._pf_bin(ctx, s, lo, "add", "lgb", loc)
+        res = self._pf_bin(ctx, hi, sb, "add", "lgR", loc)
+        corr = self._pf_bin(ctx, res, self._pf_splat(ctx, _POLY_LOG_23_LN2,
+                                                     f32, loc),
+                            "sub", "lgc", loc)
+        res = self._pf_sel(ctx, m_sub, corr, res, "lgS", loc)
+        if to_log2:
+            res = self._pf_bin(ctx, res, self._pf_splat(ctx, _POLY_INV_LN2,
+                                                        f32, loc),
+                               "mul", "lgv2", loc)
+        # domain guards: NaN, x < 0 -> NaN, x == 0 -> -inf, +inf -> +inf
+        nan = self._pf_splat(ctx, float("nan"), f32, loc)
+        ninf = self._pf_splat(ctx, float("-inf"), f32, loc)
+        pinf = self._pf_splat(ctx, float("inf"), f32, loc)
+        isn = self._pf_cmp(ctx, x, x, "ne", True, "lgN", loc)
+        neg = self._pf_cmp(ctx, x, zero, "lt", True, "lgg", loc)
+        isz = self._pf_cmp(ctx, x, zero, "eq", True, "lgz", loc)
+        isp = self._pf_cmp(ctx, x, pinf, "eq", True, "lgi", loc)
+        res = self._pf_sel(ctx, isn, nan, res, "lgA", loc)
+        res = self._pf_sel(ctx, neg, nan, res, "lgB", loc)
+        res = self._pf_sel(ctx, isz, ninf, res, "lgC", loc)
+        return self._pf_sel(ctx, isp, pinf, res, "lgD", loc)
+
+    def _poly_floor(self, ctx: _Ctx, x: mir.VReg, vtype: mir.VectorType,
+                    loc) -> mir.VReg:
+        """floorf in three bands (NaN propagates: the compare is false
+        and the magic sum is NaN)."""
+        f32 = vtype
+        i32 = mir.VectorType(32, vtype.lmul, "int")
+        magic = self._pf_splat(ctx, _POLY_MAGIC, f32, loc)
+        one = self._pf_splat(ctx, 1.0, f32, loc)
+        # |x| < 2^22: rne(x) by the magic add, stepping down when the
+        # rounding went up
+        t = self._pf_bin(ctx, x, magic, "add", "flt", loc)
+        r = self._pf_bin(ctx, t, magic, "sub", "flr", loc)
+        adj = self._pf_cmp(ctx, r, x, "gt", True, "fla", loc)
+        rf = self._pf_bin(ctx, r, one, "sub", "fld", loc)
+        res_s = self._pf_sel(ctx, adj, rf, r, "fls", loc)
+        # 2^22 <= |x| < 2^23 (ulp = 0.5): x+x lands on the integer grid
+        # and its parity separates k+0.5 from k -- the 2x odd test the
+        # validation pinned (a higher magic's even grid rounds odd
+        # integers away)
+        w = self._pf_bin(ctx, x, x, "add", "flw", loc)
+        wi = self._vmovv(ctx, w, i32, loc)
+        odd_bits = self._pf_bin(ctx, wi, self._pf_splat(ctx, 1, i32, loc),
+                                "and", "flo", loc)
+        odd = self._pf_cmp(ctx, odd_bits, self._pf_splat(ctx, 0, i32, loc),
+                           "ne", False, "flp", loc)
+        xh = self._pf_bin(ctx, x, self._pf_splat(ctx, 0.5, f32, loc),
+                          "sub", "flx", loc)
+        res_m = self._pf_sel(ctx, odd, xh, x, "flm", loc)
+        ax = ctx.emit(mir.MOp(
+            "vunary", [x], [ctx.vreg(f32, hint="flA", loc=loc)],
+            attrs={"op": "fabs"}, loc=loc))
+        mid = self._pf_cmp(
+            ctx, ax, self._pf_splat(ctx, _POLY_2_POW_22, f32, loc),
+            "ge", True, "flM", loc)
+        res = self._pf_sel(ctx, mid, res_m, res_s, "flR", loc)
+        big = self._pf_cmp(
+            ctx, ax, self._pf_splat(ctx, _POLY_2_POW_23, f32, loc),
+            "ge", True, "flB", loc)
+        return self._pf_sel(ctx, big, x, res, "flF", loc)
+
+    def _poly_erf(self, ctx: _Ctx, x: mir.VReg, vtype: mir.VectorType,
+                  loc) -> mir.VReg:
+        """erf in three bands; the tail's basis is t = 1/z and the NaN
+        guard is mandatory (the compare chain alone falls through to
+        +1)."""
+        f32 = vtype
+        ax = ctx.emit(mir.MOp(
+            "vunary", [x], [ctx.vreg(f32, hint="era", loc=loc)],
+            attrs={"op": "fabs"}, loc=loc))
+        z = self._pf_bin(ctx, ax, ax, "mul", "erz", loc)
+        one = self._pf_splat(ctx, 1.0, f32, loc)
+        # |x| < 1: x * P(x^2)
+        p = self._pf_horner(ctx, z, _POLY_ERF_P, "erp", loc)
+        pa = self._pf_bin(ctx, x, p, "mul", "erP", loc)
+        # 1 <= |x| < 4: sign * (1 - e^{-z} * W(1/z) / |x|); the exp core
+        # needs no domain selects here (|y| <= 23.1 for the live lanes;
+        # the discarded lanes' garbage is overwritten by the selects)
+        ti = self._pf_bin(ctx, one, z, "fdiv", "ert", loc)
+        w = self._pf_horner(ctx, ti, _POLY_ERF_W, "erw", loc)
+        y = self._pf_bin(ctx, z, self._pf_splat(ctx, -_POLY_LOG2E, f32,
+                                                loc),
+                         "mul", "ern", loc)
+        ez = self._poly_exp2_core(ctx, y, vtype, loc)
+        ew = self._pf_bin(ctx, ez, w, "mul", "ere", loc)
+        term = self._pf_bin(ctx, ew, ax, "fdiv", "erT", loc)
+        one_m = self._pf_bin(ctx, one, term, "sub", "ero", loc)
+        neg = self._pf_cmp(ctx, x, self._pf_splat(ctx, 0.0, f32, loc),
+                           "lt", True, "ern2", loc)
+        sgn = self._pf_sel(ctx, neg, self._pf_splat(ctx, -1.0, f32, loc),
+                           self._pf_splat(ctx, 1.0, f32, loc), "ers", loc)
+        pb = self._pf_bin(ctx, sgn, one_m, "mul", "erB", loc)
+        # |x| >= 4: sign (erf(4) already rounds to 1.0 in f32)
+        ge4 = self._pf_cmp(ctx, ax, self._pf_splat(ctx, 4.0, f32, loc),
+                           "ge", True, "er4", loc)
+        ge1 = self._pf_cmp(ctx, ax, one, "ge", True, "er1", loc)
+        res = self._pf_sel(ctx, ge1, pb, pa, "erR", loc)
+        res = self._pf_sel(ctx, ge4, sgn, res, "erF", loc)
+        isn = self._pf_cmp(ctx, x, x, "ne", True, "erN", loc)
+        return self._pf_sel(ctx, isn, self._pf_splat(ctx, float("nan"),
+                                                     f32, loc),
+                            res, "erX", loc)
+
+    def _vmath_poly(self, ctx: _Ctx, fn: str, operand: mir.VReg,
+                    vtype: mir.VectorType, loc) -> mir.VReg:
+        """The fp32 vector-polynomial dispatch (the caller has the
+        (32, lmul, vl) region open; the i32 views share it)."""
+        if fn in ("expf", "exp2f"):
+            return self._poly_exp(ctx, operand, vtype, loc, fn == "exp2f")
+        if fn in ("logf", "log2f"):
+            return self._poly_log(ctx, operand, vtype, loc, fn == "log2f")
+        if fn == "floorf":
+            return self._poly_floor(ctx, operand, vtype, loc)
+        return self._poly_erf(ctx, operand, vtype, loc)
 
     def _vector_abs(self, ctx: _Ctx, code: str, operand: mir.VReg,
                     loc) -> mir.VReg:
