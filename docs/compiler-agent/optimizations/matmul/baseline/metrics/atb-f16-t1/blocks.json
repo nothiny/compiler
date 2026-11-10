@@ -1,0 +1,121 @@
+{
+  "case": "suite/dev/matmul_at_b_kernel_043f2a05.py#[128]#float16",
+  "threads": 1,
+  "per_call_total": 27233774.399995137,
+  "by_class": {
+    "pack-q(inner element copy)": 17432576,
+    "k-loop": 3397632,
+    "pack-b(column outer)": 2359296,
+    "other": 1795654,
+    "chunk-loop": 1558675,
+    "runtime/loader": 657145,
+    "tile-loop": 32796
+  },
+  "by_class_pct": {
+    "pack-q(inner element copy)": 64.0,
+    "k-loop": 12.5,
+    "pack-b(column outer)": 8.7,
+    "other": 6.6,
+    "chunk-loop": 5.7,
+    "runtime/loader": 2.4,
+    "tile-loop": 0.1
+  },
+  "top_labels": [
+    {
+      "label": ".Lpq32.body:  # block pq32.body",
+      "per_call": 14417920,
+      "pct": 52.94
+    },
+    {
+      "label": ".Lmk30.body:  # block mk30.body",
+      "per_call": 2916352,
+      "pct": 10.71
+    },
+    {
+      "label": ".Lpq32.head:  # block pq32.head",
+      "per_call": 2818048,
+      "pct": 10.35
+    },
+    {
+      "label": ".Lpb31.body:  # block pb31.body",
+      "per_call": 2031616,
+      "pct": 7.46
+    },
+    {
+      "label": ".Lbrc3066_true:  # [op3066] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_at_b_kernel_043f2a05.py:84:24",
+      "per_call": 1310720,
+      "pct": 4.81
+    },
+    {
+      "label": ".Lchunk27_body:  # block chunk27_body",
+      "per_call": 602112,
+      "pct": 2.21
+    },
+    {
+      "label": ".Lmk30.exit:  # block mk30.exit",
+      "per_call": 428032,
+      "pct": 1.57
+    },
+    {
+      "label": ".Lchunk44_body:  # block chunk44_body",
+      "per_call": 320512,
+      "pct": 1.18
+    },
+    {
+      "label": ".Lchunk25_body:  # block chunk25_body",
+      "per_call": 306688,
+      "pct": 1.13
+    },
+    {
+      "label": ".Lpb31.head:  # block pb31.head",
+      "per_call": 229376,
+      "pct": 0.84
+    },
+    {
+      "label": ".Lpq32.exit:  # block pq32.exit",
+      "per_call": 196608,
+      "pct": 0.72
+    },
+    {
+      "label": ".Lchunk33_body:  # block chunk33_body",
+      "per_call": 184320,
+      "pct": 0.68
+    }
+  ],
+  "class_x_origin": {
+    "pack-q(inner element copy)|reload": 4063232,
+    "pack-q(inner element copy)|op:sadd": 4063232,
+    "pack-q(inner element copy)|op:vustore16": 3932160,
+    "pack-q(inner element copy)|const-materialization": 2686976,
+    "other|op:sadd": 1431562,
+    "pack-q(inner element copy)|branch": 1310720,
+    "pack-q(inner element copy)|vec-config": 1310720,
+    "k-loop|frame": 972800,
+    "k-loop|const-materialization": 665600,
+    "pack-b(column outer)|frame": 565248,
+    "chunk-loop|const-materialization": 438289,
+    "pack-b(column outer)|op:sadd": 425984,
+    "chunk-loop|vec-arith": 368665,
+    "k-loop|vec-arith": 350208,
+    "pack-b(column outer)|reload": 344064,
+    "pack-b(column outer)|const-materialization": 335872,
+    "k-loop|reload": 274432,
+    "k-loop|op:sadd": 264192,
+    "chunk-loop|vec-config": 255480,
+    "pack-b(column outer)|op:vustore16": 221184,
+    "k-loop|vec-config": 217088,
+    "pack-b(column outer)|vec-config": 196608,
+    "pack-b(column outer)|op:smul": 139264,
+    "chunk-loop|op:sadd": 126300
+  },
+  "asm_join": {
+    "listing_instruction_rows": 4000,
+    "program_instructions": 4000,
+    "affine_offset": 70686,
+    "region": [
+      70686,
+      84304
+    ],
+    "byte_identity": true
+  }
+}

@@ -1,0 +1,671 @@
+{
+  "schema": "a100c-matmul-metrics/v1",
+  "case": "suite/dev/grouped_gemm_kernel.py#[3, 17, 19, 13]#float16",
+  "threads": 1,
+  "seed": 30,
+  "steady_repeats": 5,
+  "artifact": {
+    "key": "563e588fb59b68a77768515e53fec0050e2251d486010632d22f26ca107872b5",
+    "sha256": "4aa601a1eac2cdc46d9add32f9bbd2cca0dc8995adc0f5fc0c606a189c12b065",
+    "identity": "aa148ef5ab575b05",
+    "cache_entry": "/home/i_yinzida/compiler-a100-experiment-001/a100c/cache/563e588fb59b68a77768515e53fec0050e2251d486010632d22f26ca107872b5"
+  },
+  "environment": {
+    "qemu": "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64",
+    "qemu_version": "qemu-riscv64 version 10.0.2",
+    "cpu": "max,vlen=1024,elen=64,vext_spec=v1.0",
+    "plugin": "/home/i_yinzida/compiler-a100-experiment-001/tools/profiling/full_instruction_counts.so"
+  },
+  "asm_join": {
+    "listing_instruction_rows": 4045,
+    "program_instructions": 4045,
+    "affine_offset": 70686,
+    "region": [
+      70686,
+      84882
+    ],
+    "byte_identity": true
+  },
+  "runs": {
+    "r1": {
+      "repeats": 1,
+      "exit_code": 0,
+      "wall_s": 0.147,
+      "command": "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64 -L /home/i_yinzida/.local/opt/a100/toolchain-1.1.2/sysroot -cpu max,vlen=1024,elen=64,vext_spec=v1.0 -plugin /home/i_yinzida/compiler-a100-experiment-001/tools/profiling/full_instruction_counts.so,out=docs/compiler-agent/optimizations/matmul/baseline/metrics/grouped-f16-t1/counts.r1.json /home/i_yinzida/compiler-a100-experiment-001/a100c/cache/563e588fb59b68a77768515e53fec0050e2251d486010632d22f26ca107872b5/operator_exec --bundle /tmp/a100-native-case-1kge3yt8/bundle.bin --threads 1 --repeats 1",
+      "stdout_last_json": {
+        "runtime": "a100rt/v1",
+        "status": "ok",
+        "threads": 1,
+        "repeats": 1,
+        "pool_initializations": 1,
+        "repeats_all_equal": true,
+        "workers": [
+          {
+            "id": 0,
+            "guest_tid": 1946899,
+            "items": 0
+          }
+        ],
+        "bundle_bytes": 10752
+      },
+      "total": 688185,
+      "per_vcpu_totals": [
+        191149,
+        497036,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "categories": {
+        "scalar-arith": 251950,
+        "scalar-load": 127614,
+        "branch": 50302,
+        "scalar-store": 71215,
+        "vec-config": 61500,
+        "vec-mem": 11384,
+        "vec-arith": 113928,
+        "system": 138,
+        "atomic": 154
+      }
+    },
+    "r2": {
+      "repeats": 6,
+      "exit_code": 0,
+      "wall_s": 0.26,
+      "command": "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64 -L /home/i_yinzida/.local/opt/a100/toolchain-1.1.2/sysroot -cpu max,vlen=1024,elen=64,vext_spec=v1.0 -plugin /home/i_yinzida/compiler-a100-experiment-001/tools/profiling/full_instruction_counts.so,out=docs/compiler-agent/optimizations/matmul/baseline/metrics/grouped-f16-t1/counts.r2.json /home/i_yinzida/compiler-a100-experiment-001/a100c/cache/563e588fb59b68a77768515e53fec0050e2251d486010632d22f26ca107872b5/operator_exec --bundle /tmp/a100-native-case-1kge3yt8/bundle.bin --threads 1 --repeats 6",
+      "stdout_last_json": {
+        "runtime": "a100rt/v1",
+        "status": "ok",
+        "threads": 1,
+        "repeats": 6,
+        "pool_initializations": 1,
+        "repeats_all_equal": true,
+        "workers": [
+          {
+            "id": 0,
+            "guest_tid": 1946903,
+            "items": 0
+          }
+        ],
+        "bundle_bytes": 10752
+      },
+      "total": 3241020,
+      "per_vcpu_totals": [
+        277274,
+        2963746,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "categories": {
+        "scalar-arith": 1172780,
+        "scalar-load": 546929,
+        "branch": 140757,
+        "scalar-store": 263425,
+        "vec-config": 368395,
+        "vec-mem": 64774,
+        "vec-arith": 683568,
+        "system": 178,
+        "atomic": 214
+      }
+    }
+  },
+  "steady_state": {
+    "per_call_total": 510567.0,
+    "init_total": 177618.0,
+    "per_call_categories": {
+      "scalar-arith": 197641.40000002348,
+      "scalar-load": 92972.59999999554,
+      "branch": 25165.000000000986,
+      "scalar-store": 46562.999999999236,
+      "vec-config": 61379.0,
+      "vec-mem": 10678.0,
+      "vec-arith": 113928.0,
+      "system": 33.59999999999998,
+      "atomic": 42.600000000000044
+    },
+    "indivisible_pc_deltas": 11912,
+    "note": "per-call = (repeats=1+R minus repeats=1)/R; indivisible deltas indicate run-to-run variation (e.g. barrier spin) and are kept as fractions"
+  },
+  "program_region": {
+    "origins_per_call": {
+      "frame": 78323.0,
+      "scalar-mem": 52070.0,
+      "spill": 1923.0,
+      "reload": 24082.0,
+      "op:swext": 202.0,
+      "const-materialization": 111014.0,
+      "branch": 3150.0,
+      "op:slt": 903.0,
+      "op:smul": 1136.0,
+      "op:sadd": 24160.0,
+      "op:ssub": 577.0,
+      "op:sdivu": 13.0,
+      "op:smove": 828.0,
+      "vec-config": 68006.0,
+      "vec-arith": 106020.0,
+      "vec-mem": 5616.0,
+      "op:ssra": 180.0,
+      "op:sand": 216.0,
+      "op:sxor": 96.0,
+      "op:sdiv": 384.0,
+      "op:sshl": 288.0,
+      "op:vmand": 672.0,
+      "op:vrgather": 384.0,
+      "op:vunit_load": 288.0,
+      "op:vfmacc": 96.0,
+      "op:vunit_store": 96.0
+    },
+    "opcodes_per_call": {
+      "frame": 78323.0,
+      "sload": 23726.0,
+      "sspill": 1923.0,
+      "sreload": 24082.0,
+      "swext": 202.0,
+      "sconst": 111014.0,
+      "br": 2055.0,
+      "slt": 903.0,
+      "brc": 1095.0,
+      "smul": 1136.0,
+      "sadd": 24160.0,
+      "ssub": 577.0,
+      "sdivu": 13.0,
+      "smove": 828.0,
+      "vsetvli": 68006.0,
+      "vid": 6180.0,
+      "vbinx": 12108.0,
+      "vstoreix": 4560.0,
+      "s2v": 9888.0,
+      "vwaddx0": 6588.0,
+      "vmovv": 2496.0,
+      "ssra": 180.0,
+      "sand": 216.0,
+      "sxor": 96.0,
+      "sdiv": 384.0,
+      "sshl": 288.0,
+      "vextract": 29076.0,
+      "sstore": 28344.0,
+      "vloadix": 1056.0,
+      "vbin": 5568.0,
+      "vcmp": 1728.0,
+      "vmovmask": 2208.0,
+      "vsel": 2112.0,
+      "vmand": 672.0,
+      "vrgather": 384.0,
+      "vslidedn": 28068.0,
+      "vunit_load": 288.0,
+      "vfmacc": 96.0,
+      "vunit_store": 96.0
+    },
+    "spill_traffic": {
+      "spill_instructions": 1923.0,
+      "reload_instructions": 24082.0,
+      "spill_bytes_model": 49200.0,
+      "reload_bytes_model": 801832.0,
+      "bytes_model_note": "scalar=8B; vector=VLEN/8*lmul at vlmax"
+    },
+    "vsetvli": {
+      "static": {
+        "e32,m1": 234,
+        "e64,m2": 156,
+        "e16,m1": 208
+      },
+      "dynamic_call": 68006.0
+    },
+    "static": {
+      "instructions": 4045,
+      "frame_bytes": 352,
+      "saved_regs": [
+        "s1",
+        "s2",
+        "s3",
+        "s4",
+        "s5",
+        "s6",
+        "s7",
+        "s8",
+        "s9",
+        "s10",
+        "s11"
+      ],
+      "spill_slots": 29,
+      "spilled_values": 29,
+      "gprs_used": 25,
+      "vector_regs_used": 13,
+      "vector_bytes_used": 1664
+    }
+  },
+  "runtime_region_per_call": {
+    "_PROCEDURE_LINKAGE_TABLE_": 24.0,
+    "main": 93.0,
+    "operator_entry": 12504.0,
+    "a100rt_worker_main": 12.0,
+    "a100rt_pool_call": 25.0
+  },
+  "loader_unknown_per_call": 55022.19999999751,
+  "hot_pcs_per_call": [
+    {
+      "pc": 79168,
+      "per_call": 3264.0,
+      "mnemonic": "bnez",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_gemm_kernel.py:57:25",
+      "text": "bne a2, zero, .Lbrc2235_true  # [op2235] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_gemm_kernel.py:58:35"
+    },
+    {
+      "pc": 79166,
+      "per_call": 3264.0,
+      "mnemonic": "ld",
+      "region": "program",
+      "origin": "frame",
+      "opcode": null,
+      "loc": null,
+      "text": "ld t0, 320(sp)  # [op-1] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_gemm_kernel.py:58:35"
+    },
+    {
+      "pc": 79162,
+      "per_call": 3264.0,
+      "mnemonic": "slt",
+      "region": "program",
+      "origin": "op:sadd",
+      "opcode": "sadd",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_gemm_kernel.py:57:25",
+      "text": "slt a2, t0, a2  # [op2234] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_gemm_kernel.py:58:35"
+    },
+    {
+      "pc": 79160,
+      "per_call": 3264.0,
+      "mnemonic": "addi",
+      "region": "program",
+      "origin": "frame",
+      "opcode": null,
+      "loc": null,
+      "text": "li a2, 16  # [op-1] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_gemm_kernel.py:58:35"
+    },
+    {
+      "pc": 79158,
+      "per_call": 3264.0,
+      "mnemonic": "ld",
+      "region": "program",
+      "origin": "frame",
+      "opcode": null,
+      "loc": null,
+      "text": "ld t0, 320(sp)  # [op-1] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_gemm_kernel.py:58:35"
+    },
+    {
+      "pc": 79156,
+      "per_call": 3264.0,
+      "mnemonic": "sd",
+      "region": "program",
+      "origin": "frame",
+      "opcode": null,
+      "loc": null,
+      "text": "sd t0, 320(sp)  # [op-1] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_gemm_kernel.py:58:35"
+    },
+    {
+      "pc": 79272,
+      "per_call": 3072.0,
+      "mnemonic": "j",
+      "region": "program",
+      "origin": "vec-arith",
+      "opcode": "vextract",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_gemm_kernel.py:57:25",
+      "text": "j .Lvk12.head  # [op2259] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_gemm_kernel.py:58:35"
+    },
+    {
+      "pc": 79270,
+      "per_call": 3072.0,
+      "mnemonic": "add",
+      "region": "program",
+      "origin": "vec-arith",
+      "opcode": "vslidedn",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_gemm_kernel.py:57:25",
+      "text": "add t0, a2, t0  # [op2258] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_gemm_kernel.py:58:35"
+    },
+    {
+      "pc": 79268,
+      "per_call": 3072.0,
+      "mnemonic": "ld",
+      "region": "program",
+      "origin": "frame",
+      "opcode": null,
+      "loc": null,
+      "text": "ld a2, 320(sp)  # [op-1] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_gemm_kernel.py:58:35"
+    },
+    {
+      "pc": 79266,
+      "per_call": 3072.0,
+      "mnemonic": "addi",
+      "region": "program",
+      "origin": "vec-config",
+      "opcode": "vsetvli",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_gemm_kernel.py:57:25",
+      "text": "li t0, 1  # [op2257] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_gemm_kernel.py:58:35"
+    },
+    {
+      "pc": 79262,
+      "per_call": 3072.0,
+      "mnemonic": "vfmacc.vv",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_gemm_kernel.py:57:25",
+      "text": "vfmacc.vv v1, v4, v5  # [op2256] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_gemm_kernel.py:58:35"
+    },
+    {
+      "pc": 79258,
+      "per_call": 3072.0,
+      "mnemonic": "vmv.v.x",
+      "region": "program",
+      "origin": "scalar-mem",
+      "opcode": "sstore",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_gemm_kernel.py:57:25",
+      "text": "vmv.v.x v5, t4  # [op2255] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_gemm_kernel.py:58:35"
+    },
+    {
+      "pc": 79254,
+      "per_call": 3072.0,
+      "mnemonic": "vmerge.vvm",
+      "region": "program",
+      "origin": "scalar-mem",
+      "opcode": "sload",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_gemm_kernel.py:57:25",
+      "text": "vmerge.vvm v4, v2, v4, v0  # [op2254] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_gemm_kernel.py:58:35"
+    },
+    {
+      "pc": 79250,
+      "per_call": 3072.0,
+      "mnemonic": "vle32.v",
+      "region": "program",
+      "origin": "vec-arith",
+      "opcode": "vslidedn",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_gemm_kernel.py:57:25",
+      "text": "vle32.v v4, 0(t0), v0.t  # [op2253] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_gemm_kernel.py:58:35"
+    },
+    {
+      "pc": 79246,
+      "per_call": 3072.0,
+      "mnemonic": "vsetvli",
+      "region": "program",
+      "origin": "scalar-mem",
+      "opcode": "sstore",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_gemm_kernel.py:57:25",
+      "text": "vsetvli a2, a2, e32, m1, ta,ma  # [op2252] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_gemm_kernel.py:58:35"
+    },
+    {
+      "pc": 79244,
+      "per_call": 3072.0,
+      "mnemonic": "addi",
+      "region": "program",
+      "origin": "vec-arith",
+      "opcode": "vextract",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_gemm_kernel.py:57:25",
+      "text": "li a2, 16  # [op2251] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_gemm_kernel.py:58:35"
+    },
+    {
+      "pc": 79242,
+      "per_call": 3072.0,
+      "mnemonic": "add",
+      "region": "program",
+      "origin": "vec-config",
+      "opcode": "vsetvli",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_gemm_kernel.py:57:25",
+      "text": "add t0, t0, a2  # [op2250] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_gemm_kernel.py:58:35"
+    },
+    {
+      "pc": 79238,
+      "per_call": 3072.0,
+      "mnemonic": "mul",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_gemm_kernel.py:57:25",
+      "text": "mul a2, t5, a2  # [op2249] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_gemm_kernel.py:58:35"
+    },
+    {
+      "pc": 79236,
+      "per_call": 3072.0,
+      "mnemonic": "ld",
+      "region": "program",
+      "origin": "frame",
+      "opcode": null,
+      "loc": null,
+      "text": "ld t5, 128(sp)  # [op-1] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_gemm_kernel.py:58:35"
+    },
+    {
+      "pc": 79234,
+      "per_call": 3072.0,
+      "mnemonic": "add",
+      "region": "program",
+      "origin": "op:sadd",
+      "opcode": "sadd",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_gemm_kernel.py:57:25",
+      "text": "add t0, t5, t0  # [op2248] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_gemm_kernel.py:58:35"
+    },
+    {
+      "pc": 79230,
+      "per_call": 3072.0,
+      "mnemonic": "mul",
+      "region": "program",
+      "origin": "reload",
+      "opcode": "sreload",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_gemm_kernel.py:57:25",
+      "text": "mul t0, t6, t0  # [op2247] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_gemm_kernel.py:58:35"
+    },
+    {
+      "pc": 79228,
+      "per_call": 3072.0,
+      "mnemonic": "ld",
+      "region": "program",
+      "origin": "frame",
+      "opcode": null,
+      "loc": null,
+      "text": "ld t6, 320(sp)  # [op-1] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_gemm_kernel.py:58:35"
+    },
+    {
+      "pc": 79226,
+      "per_call": 3072.0,
+      "mnemonic": "add",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_gemm_kernel.py:57:25",
+      "text": "add t5, t6, t5  # [op2246] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_gemm_kernel.py:58:35"
+    },
+    {
+      "pc": 79222,
+      "per_call": 3072.0,
+      "mnemonic": "ld",
+      "region": "program",
+      "origin": "frame",
+      "opcode": null,
+      "loc": null,
+      "text": "ld t6, 16(t6)  # [op-1] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_gemm_kernel.py:58:35"
+    },
+    {
+      "pc": 79220,
+      "per_call": 3072.0,
+      "mnemonic": "ld",
+      "region": "program",
+      "origin": "frame",
+      "opcode": null,
+      "loc": null,
+      "text": "ld t6, 112(sp)  # [op-1] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_gemm_kernel.py:58:35"
+    },
+    {
+      "pc": 79216,
+      "per_call": 3072.0,
+      "mnemonic": "addiw",
+      "region": "operator_entry",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 79214,
+      "per_call": 3072.0,
+      "mnemonic": "lui",
+      "region": "program",
+      "origin": "vec-arith",
+      "opcode": "vextract",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_gemm_kernel.py:57:25",
+      "text": "li t5, 33792  # [op2245] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_gemm_kernel.py:58:35"
+    },
+    {
+      "pc": 79210,
+      "per_call": 3072.0,
+      "mnemonic": "lw",
+      "region": "program",
+      "origin": "vec-arith",
+      "opcode": "vslidedn",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_gemm_kernel.py:57:25",
+      "text": "lw t4, 0(t4)  # [op2244] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_gemm_kernel.py:58:35"
+    },
+    {
+      "pc": 79208,
+      "per_call": 3072.0,
+      "mnemonic": "add",
+      "region": "program",
+      "origin": "vec-config",
+      "opcode": "vsetvli",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_gemm_kernel.py:57:25",
+      "text": "add t4, t4, t5  # [op2243] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_gemm_kernel.py:58:35"
+    },
+    {
+      "pc": 79204,
+      "per_call": 3072.0,
+      "mnemonic": "mul",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_gemm_kernel.py:57:25",
+      "text": "mul t5, t5, a2  # [op2242] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_gemm_kernel.py:58:35"
+    },
+    {
+      "pc": 79202,
+      "per_call": 3072.0,
+      "mnemonic": "ld",
+      "region": "program",
+      "origin": "frame",
+      "opcode": null,
+      "loc": null,
+      "text": "ld t5, 320(sp)  # [op-1] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_gemm_kernel.py:58:35"
+    },
+    {
+      "pc": 79200,
+      "per_call": 3072.0,
+      "mnemonic": "addi",
+      "region": "program",
+      "origin": "scalar-mem",
+      "opcode": "sstore",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_gemm_kernel.py:57:25",
+      "text": "li a2, 4  # [op2241] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_gemm_kernel.py:58:35"
+    },
+    {
+      "pc": 79198,
+      "per_call": 3072.0,
+      "mnemonic": "add",
+      "region": "program",
+      "origin": "scalar-mem",
+      "opcode": "sload",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_gemm_kernel.py:57:25",
+      "text": "add t4, a2, t4  # [op2240] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_gemm_kernel.py:58:35"
+    },
+    {
+      "pc": 79194,
+      "per_call": 3072.0,
+      "mnemonic": "mul",
+      "region": "program",
+      "origin": "vec-arith",
+      "opcode": "vslidedn",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_gemm_kernel.py:57:25",
+      "text": "mul t4, t4, t0  # [op2239] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_gemm_kernel.py:58:35"
+    },
+    {
+      "pc": 79192,
+      "per_call": 3072.0,
+      "mnemonic": "ld",
+      "region": "program",
+      "origin": "frame",
+      "opcode": null,
+      "loc": null,
+      "text": "ld t4, 312(sp)  # [op-1] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_gemm_kernel.py:58:35"
+    },
+    {
+      "pc": 79188,
+      "per_call": 3072.0,
+      "mnemonic": "addi",
+      "region": "program",
+      "origin": "scalar-mem",
+      "opcode": "sstore",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_gemm_kernel.py:57:25",
+      "text": "li t0, 64  # [op2238] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_gemm_kernel.py:58:35"
+    },
+    {
+      "pc": 79186,
+      "per_call": 3072.0,
+      "mnemonic": "add",
+      "region": "program",
+      "origin": "vec-arith",
+      "opcode": "vextract",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_gemm_kernel.py:57:25",
+      "text": "add a2, a2, t0  # [op2237] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_gemm_kernel.py:58:35"
+    },
+    {
+      "pc": 79184,
+      "per_call": 3072.0,
+      "mnemonic": "ld",
+      "region": "program",
+      "origin": "frame",
+      "opcode": null,
+      "loc": null,
+      "text": "ld a2, 16(a2)  # [op-1] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_gemm_kernel.py:58:35"
+    },
+    {
+      "pc": 79182,
+      "per_call": 3072.0,
+      "mnemonic": "ld",
+      "region": "program",
+      "origin": "frame",
+      "opcode": null,
+      "loc": null,
+      "text": "ld a2, 112(sp)  # [op-1] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grouped_gemm_kernel.py:58:35"
+    },
+    {
+      "pc": 79178,
+      "per_call": 3072.0,
+      "mnemonic": "addiw",
+      "region": "operator_entry",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    }
+  ],
+  "problems": []
+}

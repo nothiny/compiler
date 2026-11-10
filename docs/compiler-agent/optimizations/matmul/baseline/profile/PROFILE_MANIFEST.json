@@ -1,0 +1,47 @@
+{
+  "schema": "a100c-matmul-profile-manifest/v1",
+  "identity": {
+    "round": "matmul optimization round (human-guided, proxy-metric judge)",
+    "compiler_revision": "3ed513eee2ddc89eaeee7cc5cef09adb8b38a1f6 (baseline; HEAD of the working tree during collection)",
+    "target": "K3 A100 (RVV 1.0 VLEN=1024/ELEN=64, IME smt.*)",
+    "execution_environment": "QEMU user-mode qemu-riscv64 (jdsk-qemu-10.0.2), -cpu max,vlen=1024,elen=64,vext_spec=v1.0",
+    "adapter": "project-built this round: tools/profiling/ (full_instruction_counts.c plugin + insn_manifest.py + collect_metrics.py + analyze_blocks.py)"
+  },
+  "adapter_status": {
+    "plugin": "collected (per-insn exec callbacks; QEMU plugin API v4; qemu-riscv64 10.0.2)",
+    "calibration": "collected (3 analytically-known programs, exact per-category/per-pc/per-vcpu equality, double-run determinism; see ../../tooling/phase-a/validation.json)",
+    "manifest_join": "collected (program.S [opN] x stage.mir.allocated.txt x as -alh listing x objdump; byte-identity check against the shipped ELF; affine symbol offset verified)",
+    "known_limitations": [
+      "origin/opcode attribution carries adjacent-op sequence noise (an emitted sequence is tagged by its op's index); plugin categories are exact and are the quantitative source",
+      "vector memory byte counts are model values (VLEN/8*lmul at vlmax), labelled as such",
+      "multi-worker runs show barrier-spin nondeterminism: per-pc steady deltas can be indivisible (flagged per run; totals and raw r1/r2 retained)"
+    ]
+  },
+  "observations": [
+    {
+      "scope": "matmul family representative subset, threads=1",
+      "instances": "../metrics/*-t1/metrics.json (16 cases)",
+      "workload": "golden corpus inputs, seed=30, native runtime --repeats 1 and 6, per-call = (r2-r1)/5"
+    },
+    {
+      "scope": "worker-count spread",
+      "instances": "../metrics/{plain-128-f16,batched-f16,fusedgn-f32}-t{1,2,4,8}/metrics.json",
+      "workload": "same, threads as named"
+    },
+    {
+      "scope": "per-loop-nest attribution",
+      "instances": "../metrics/*-t1/blocks.json (analyze_blocks.py)",
+      "workload": "same"
+    }
+  ],
+  "code_attribution": {
+    "mapping": "checked: per-pc -> program.S line ([opN] comments) -> MIR op (renumber order) -> opcode/attrs/loc; enclosing block label -> loop-nest class; runtime pcs -> ELF symbols",
+    "confidence": "operation-level for the program region (byte-identity-checked join); block-level for loop classes; symbol-level for the runtime region",
+    "snapshots": "artifact cache entries recorded per case in metrics.json (stage.tir.txt / stage.mir.*.txt / program.S / operator_exec)"
+  },
+  "pass_catalog_at_collection": {
+    "tir-optimize": "constprop/copyprop/cse/dce/licm/strength_reduction (pass report per case: stage.passes.txt)",
+    "mir": "no pass stage (declared empty)",
+    "prior-round emitter peepholes": "OPT-VLI (vsetvli elimination), li dedup"
+  }
+}

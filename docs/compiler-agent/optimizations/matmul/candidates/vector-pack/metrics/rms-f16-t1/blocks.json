@@ -1,0 +1,119 @@
+{
+  "case": "suite/dev/rms_matmul_rbe.py#[1, 64, 64, 64]#float16",
+  "threads": 1,
+  "per_call_total": 819248.799999792,
+  "by_class": {
+    "chunk-loop": 256260,
+    "k-loop": 220800,
+    "pack-b(column outer)": 172032,
+    "runtime/loader": 91578,
+    "other": 76347,
+    "tile-loop": 2232
+  },
+  "by_class_pct": {
+    "chunk-loop": 31.3,
+    "k-loop": 27.0,
+    "pack-b(column outer)": 21.0,
+    "runtime/loader": 11.2,
+    "other": 9.3,
+    "tile-loop": 0.3
+  },
+  "top_labels": [
+    {
+      "label": ".Lmk17.body:  # block mk17.body",
+      "per_call": 190976,
+      "pct": 23.31
+    },
+    {
+      "label": ".Lpb18.body:  # block pb18.body",
+      "per_call": 151552,
+      "pct": 18.5
+    },
+    {
+      "label": ".Lchunk12_body:  # block chunk12_body",
+      "per_call": 84224,
+      "pct": 10.28
+    },
+    {
+      "label": ".Lchunk15_body:  # block chunk15_body",
+      "per_call": 77312,
+      "pct": 9.44
+    },
+    {
+      "label": ".Lchunk35_body:  # block chunk35_body",
+      "per_call": 40448,
+      "pct": 4.94
+    },
+    {
+      "label": ".Lmk17.exit:  # block mk17.exit",
+      "per_call": 26496,
+      "pct": 3.23
+    },
+    {
+      "label": ".Lpb18.head:  # block pb18.head",
+      "per_call": 14336,
+      "pct": 1.75
+    },
+    {
+      "label": ".Lchunk19_body:  # block chunk19_body",
+      "per_call": 11520,
+      "pct": 1.41
+    },
+    {
+      "label": ".Lstg14_body:  # block stg14_body",
+      "per_call": 8704,
+      "pct": 1.06
+    },
+    {
+      "label": ".Lchunk8_body:  # block chunk8_body",
+      "per_call": 8064,
+      "pct": 0.98
+    },
+    {
+      "label": ".Lchunk27_body:  # block chunk27_body",
+      "per_call": 6528,
+      "pct": 0.8
+    },
+    {
+      "label": ".Lchunk4_body:  # block chunk4_body",
+      "per_call": 6144,
+      "pct": 0.75
+    }
+  ],
+  "class_x_origin": {
+    "chunk-loop|const-materialization": 74628,
+    "k-loop|frame": 70528,
+    "chunk-loop|vec-arith": 50612,
+    "pack-b(column outer)|const-materialization": 37888,
+    "k-loop|const-materialization": 37248,
+    "pack-b(column outer)|frame": 35328,
+    "chunk-loop|vec-config": 30192,
+    "chunk-loop|op:sadd": 27588,
+    "k-loop|vec-arith": 24320,
+    "chunk-loop|scalar-mem": 22612,
+    "pack-b(column outer)|reload": 21504,
+    "k-loop|op:sadd": 20736,
+    "k-loop|scalar-mem": 18944,
+    "other|const-materialization": 18412,
+    "other|vec-arith": 16475,
+    "chunk-loop|reload": 14072,
+    "pack-b(column outer)|vec-arith": 13824,
+    "pack-b(column outer)|op:sadd": 13312,
+    "k-loop|reload": 12928,
+    "pack-b(column outer)|op:ssub": 12288,
+    "chunk-loop|frame": 10184,
+    "other|op:sadd": 9688,
+    "chunk-loop|branch": 8940,
+    "other|vec-config": 8888
+  },
+  "asm_join": {
+    "listing_instruction_rows": 3448,
+    "program_instructions": 3448,
+    "affine_offset": 70686,
+    "region": [
+      70686,
+      82086
+    ],
+    "byte_identity": true
+  }
+}

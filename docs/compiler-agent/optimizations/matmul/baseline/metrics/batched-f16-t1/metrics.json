@@ -1,0 +1,679 @@
+{
+  "schema": "a100c-matmul-metrics/v1",
+  "case": "suite/perf/batched_vecmat_mult.py#[32, 32, 32]#float16",
+  "threads": 1,
+  "seed": 30,
+  "steady_repeats": 5,
+  "artifact": {
+    "key": "ef891628c12159e000304f2e8ce1f3ee53456f577696c8c7d80355d39f6ab4c4",
+    "sha256": "50ff7fa1e645d365ce7e84b474face312802ca71dd6f49c03c017bfa90474b42",
+    "identity": "23341e70a9a83bee",
+    "cache_entry": "/home/i_yinzida/compiler-a100-experiment-001/a100c/cache/ef891628c12159e000304f2e8ce1f3ee53456f577696c8c7d80355d39f6ab4c4"
+  },
+  "environment": {
+    "qemu": "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64",
+    "qemu_version": "qemu-riscv64 version 10.0.2",
+    "cpu": "max,vlen=1024,elen=64,vext_spec=v1.0",
+    "plugin": "/home/i_yinzida/compiler-a100-experiment-001/tools/profiling/full_instruction_counts.so"
+  },
+  "asm_join": {
+    "listing_instruction_rows": 3563,
+    "program_instructions": 3563,
+    "affine_offset": 70686,
+    "region": [
+      70686,
+      82784
+    ],
+    "byte_identity": true
+  },
+  "runs": {
+    "r1": {
+      "repeats": 1,
+      "exit_code": 0,
+      "wall_s": 0.129,
+      "command": "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64 -L /home/i_yinzida/.local/opt/a100/toolchain-1.1.2/sysroot -cpu max,vlen=1024,elen=64,vext_spec=v1.0 -plugin /home/i_yinzida/compiler-a100-experiment-001/tools/profiling/full_instruction_counts.so,out=docs/compiler-agent/optimizations/matmul/baseline/metrics/batched-f16-t1/counts.r1.json /home/i_yinzida/compiler-a100-experiment-001/a100c/cache/ef891628c12159e000304f2e8ce1f3ee53456f577696c8c7d80355d39f6ab4c4/operator_exec --bundle /tmp/a100-native-case-fi0wzaxy/bundle.bin --threads 1 --repeats 1",
+      "stdout_last_json": {
+        "runtime": "a100rt/v1",
+        "status": "ok",
+        "threads": 1,
+        "repeats": 1,
+        "pool_initializations": 1,
+        "repeats_all_equal": true,
+        "workers": [
+          {
+            "id": 0,
+            "guest_tid": 1947841,
+            "items": 4256
+          }
+        ],
+        "bundle_bytes": 6464
+      },
+      "total": 454719,
+      "per_vcpu_totals": [
+        191234,
+        263485,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "categories": {
+        "scalar-arith": 215018,
+        "scalar-load": 71205,
+        "branch": 71888,
+        "scalar-store": 59570,
+        "vec-config": 11020,
+        "vec-mem": 3474,
+        "vec-arith": 22192,
+        "ime": 64,
+        "system": 135,
+        "atomic": 153
+      }
+    },
+    "r2": {
+      "repeats": 6,
+      "exit_code": 0,
+      "wall_s": 0.181,
+      "command": "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64 -L /home/i_yinzida/.local/opt/a100/toolchain-1.1.2/sysroot -cpu max,vlen=1024,elen=64,vext_spec=v1.0 -plugin /home/i_yinzida/compiler-a100-experiment-001/tools/profiling/full_instruction_counts.so,out=docs/compiler-agent/optimizations/matmul/baseline/metrics/batched-f16-t1/counts.r2.json /home/i_yinzida/compiler-a100-experiment-001/a100c/cache/ef891628c12159e000304f2e8ce1f3ee53456f577696c8c7d80355d39f6ab4c4/operator_exec --bundle /tmp/a100-native-case-fi0wzaxy/bundle.bin --threads 1 --repeats 6",
+      "stdout_last_json": {
+        "runtime": "a100rt/v1",
+        "status": "ok",
+        "threads": 1,
+        "repeats": 6,
+        "pool_initializations": 1,
+        "repeats_all_equal": true,
+        "workers": [
+          {
+            "id": 0,
+            "guest_tid": 1947844,
+            "items": 4256
+          }
+        ],
+        "bundle_bytes": 6464
+      },
+      "total": 1836624,
+      "per_vcpu_totals": [
+        274019,
+        1562605,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "categories": {
+        "scalar-arith": 957143,
+        "scalar-load": 206050,
+        "branch": 266128,
+        "scalar-store": 186920,
+        "vec-config": 66045,
+        "vec-mem": 20414,
+        "vec-arith": 133152,
+        "ime": 384,
+        "system": 175,
+        "atomic": 213
+      }
+    }
+  },
+  "steady_state": {
+    "per_call_total": 276381.0,
+    "init_total": 178338.0,
+    "per_call_categories": {
+      "scalar-arith": 161974.80000002368,
+      "scalar-load": 36080.79999999977,
+      "branch": 45998.39999999751,
+      "scalar-store": 34221.19999999977,
+      "vec-config": 11005.0,
+      "vec-mem": 3388.0,
+      "vec-arith": 22192.0,
+      "ime": 64.0,
+      "system": 32.999999999999986,
+      "atomic": 42.40000000000003
+    },
+    "indivisible_pc_deltas": 11856,
+    "note": "per-call = (repeats=1+R minus repeats=1)/R; indivisible deltas indicate run-to-run variation (e.g. barrier spin) and are kept as fractions"
+  },
+  "program_region": {
+    "origins_per_call": {
+      "frame": 15507.0,
+      "spill": 398.0,
+      "reload": 16886.0,
+      "scalar-mem": 8638.0,
+      "op:swext": 10520.0,
+      "const-materialization": 57907.0,
+      "op:ssub": 32731.0,
+      "op:sadd": 19541.0,
+      "op:sdivu": 68.0,
+      "op:smul": 1940.0,
+      "op:smove": 132.0,
+      "branch": 1783.0,
+      "op:slt": 1135.0,
+      "op:sshl": 1.0,
+      "vec-config": 25102.0,
+      "vec-arith": 40888.0,
+      "vec-mem": 1515.0,
+      "op:ssra": 2.0,
+      "op:sand": 20965.0,
+      "op:vfwcvt": 33.0,
+      "op:vmand": 64.0,
+      "op:vfncvt": 128.0,
+      "op:vunit_load": 854.0,
+      "op:vustore16": 976.0,
+      "op:vustore32": 32.0,
+      "op:vunit_store": 66.0,
+      "op:vuload16": 64.0,
+      "op:vfwmadot": 32.0
+    },
+    "opcodes_per_call": {
+      "frame": 15507.0,
+      "sspill": 398.0,
+      "sreload": 16886.0,
+      "sload": 4656.0,
+      "swext": 10520.0,
+      "sconst": 57907.0,
+      "ssub": 32731.0,
+      "sadd": 19541.0,
+      "sdivu": 68.0,
+      "smul": 1940.0,
+      "smove": 132.0,
+      "br": 1196.0,
+      "slt": 1135.0,
+      "brc": 587.0,
+      "sshl": 1.0,
+      "vsetvli": 25102.0,
+      "vid": 1517.0,
+      "vbinx": 2750.0,
+      "vwaddx0": 1485.0,
+      "vstoreix": 585.0,
+      "s2v": 12726.0,
+      "ssra": 2.0,
+      "sand": 20965.0,
+      "vloadix": 930.0,
+      "vcmp": 11333.0,
+      "vmovmask": 1699.0,
+      "vsel": 994.0,
+      "vfwcvt": 33.0,
+      "vmovv": 97.0,
+      "vbin": 902.0,
+      "vmand": 64.0,
+      "vfncvt": 128.0,
+      "vextract": 3566.0,
+      "sstore": 3982.0,
+      "vslidedn": 3819.0,
+      "vunit_load": 854.0,
+      "vustore16": 976.0,
+      "vustore32": 32.0,
+      "vunit_store": 66.0,
+      "vuload16": 64.0,
+      "vfwmadot": 32.0
+    },
+    "spill_traffic": {
+      "spill_instructions": 398.0,
+      "reload_instructions": 16886.0,
+      "spill_bytes_model": 408.0,
+      "reload_bytes_model": 128584.0,
+      "bytes_model_note": "scalar=8B; vector=VLEN/8*lmul at vlmax"
+    },
+    "vsetvli": {
+      "static": {
+        "e32,m1": 236,
+        "e64,m2": 130,
+        "e16,m1": 114,
+        "e32,m2": 2
+      },
+      "dynamic_call": 25102.0
+    },
+    "static": {
+      "instructions": 3563,
+      "frame_bytes": 256,
+      "saved_regs": [
+        "s1",
+        "s2",
+        "s3",
+        "s4",
+        "s5",
+        "s6",
+        "s7",
+        "s8",
+        "s9",
+        "s10",
+        "s11"
+      ],
+      "spill_slots": 18,
+      "spilled_values": 18,
+      "gprs_used": 25,
+      "vector_regs_used": 9,
+      "vector_bytes_used": 1152
+    }
+  },
+  "runtime_region_per_call": {
+    "_PROCEDURE_LINKAGE_TABLE_": 24.0,
+    "main": 65.0,
+    "operator_entry": 1801.0,
+    "a100rt_worker_main": 12.0,
+    "a100rt_pool_call": 25.0
+  },
+  "loader_unknown_per_call": 55164.59999999746,
+  "hot_pcs_per_call": [
+    {
+      "pc": 80494,
+      "per_call": 10752.0,
+      "mnemonic": "bnez",
+      "region": "program",
+      "origin": "op:ssub",
+      "opcode": "ssub",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/batched_vecmat_mult.py:33:16",
+      "text": "bne a6, zero, .Lbrc2753_true  # [op2753] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/batched_vecmat_mult.py:33:16"
+    },
+    {
+      "pc": 80490,
+      "per_call": 10752.0,
+      "mnemonic": "slt",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/batched_vecmat_mult.py:33:16",
+      "text": "slt a6, t2, a2  # [op2752] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/batched_vecmat_mult.py:33:16"
+    },
+    {
+      "pc": 80532,
+      "per_call": 10240.0,
+      "mnemonic": "j",
+      "region": "program",
+      "origin": "vec-arith",
+      "opcode": "vcmp",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/batched_vecmat_mult.py:33:16",
+      "text": "j .Lpq20.head  # [op2764] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/batched_vecmat_mult.py:33:16"
+    },
+    {
+      "pc": 80530,
+      "per_call": 10240.0,
+      "mnemonic": "add",
+      "region": "program",
+      "origin": "vec-arith",
+      "opcode": "s2v",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/batched_vecmat_mult.py:33:16",
+      "text": "add t2, t2, a6  # [op2763] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/batched_vecmat_mult.py:33:16"
+    },
+    {
+      "pc": 80528,
+      "per_call": 10240.0,
+      "mnemonic": "addi",
+      "region": "program",
+      "origin": "vec-config",
+      "opcode": "vsetvli",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/batched_vecmat_mult.py:33:16",
+      "text": "li a6, 1  # [op2762] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/batched_vecmat_mult.py:33:16"
+    },
+    {
+      "pc": 80524,
+      "per_call": 10240.0,
+      "mnemonic": "sh",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/batched_vecmat_mult.py:33:16",
+      "text": "sh a6, 0(a7)  # [op2761] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/batched_vecmat_mult.py:33:16"
+    },
+    {
+      "pc": 80520,
+      "per_call": 10240.0,
+      "mnemonic": "lhu",
+      "region": "program",
+      "origin": "op:swext",
+      "opcode": "swext",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/batched_vecmat_mult.py:33:16",
+      "text": "lhu a6, 0(a6)  # [op2760] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/batched_vecmat_mult.py:33:16"
+    },
+    {
+      "pc": 80518,
+      "per_call": 10240.0,
+      "mnemonic": "add",
+      "region": "program",
+      "origin": "op:sand",
+      "opcode": "sand",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/batched_vecmat_mult.py:33:16",
+      "text": "add a7, a3, a7  # [op2759] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/batched_vecmat_mult.py:33:16"
+    },
+    {
+      "pc": 80514,
+      "per_call": 10240.0,
+      "mnemonic": "mul",
+      "region": "program",
+      "origin": "op:ssub",
+      "opcode": "ssub",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/batched_vecmat_mult.py:33:16",
+      "text": "mul a7, t2, a7  # [op2758] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/batched_vecmat_mult.py:33:16"
+    },
+    {
+      "pc": 80512,
+      "per_call": 10240.0,
+      "mnemonic": "addi",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/batched_vecmat_mult.py:33:16",
+      "text": "li a7, 2  # [op2757] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/batched_vecmat_mult.py:33:16"
+    },
+    {
+      "pc": 80510,
+      "per_call": 10240.0,
+      "mnemonic": "add",
+      "region": "program",
+      "origin": "op:sadd",
+      "opcode": "sadd",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/batched_vecmat_mult.py:33:16",
+      "text": "add a6, a1, a6  # [op2756] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/batched_vecmat_mult.py:33:16"
+    },
+    {
+      "pc": 80506,
+      "per_call": 10240.0,
+      "mnemonic": "mul",
+      "region": "program",
+      "origin": "reload",
+      "opcode": "sreload",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/batched_vecmat_mult.py:33:16",
+      "text": "mul a6, t2, a6  # [op2755] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/batched_vecmat_mult.py:33:16"
+    },
+    {
+      "pc": 80502,
+      "per_call": 10240.0,
+      "mnemonic": "addi",
+      "region": "program",
+      "origin": "op:sand",
+      "opcode": "sand",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/batched_vecmat_mult.py:33:16",
+      "text": "li a6, 64  # [op2754] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/batched_vecmat_mult.py:33:16"
+    },
+    {
+      "pc": 80500,
+      "per_call": 10240.0,
+      "mnemonic": "j",
+      "region": "program",
+      "origin": "op:ssub",
+      "opcode": "ssub",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/batched_vecmat_mult.py:33:16",
+      "text": "j .Lpq20.body  # [op2753] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/batched_vecmat_mult.py:33:16"
+    },
+    {
+      "pc": 128689388540100,
+      "per_call": 1715.0,
+      "mnemonic": "bgtu",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 128689388540096,
+      "per_call": 1715.0,
+      "mnemonic": "addi",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 128689388540094,
+      "per_call": 1715.0,
+      "mnemonic": "sd",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 128689388540092,
+      "per_call": 1715.0,
+      "mnemonic": "sd",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 128689388540090,
+      "per_call": 1715.0,
+      "mnemonic": "sd",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 128689388540088,
+      "per_call": 1715.0,
+      "mnemonic": "sd",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 128689388540086,
+      "per_call": 1715.0,
+      "mnemonic": "sd",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 128689388540084,
+      "per_call": 1715.0,
+      "mnemonic": "sd",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 128689388540082,
+      "per_call": 1715.0,
+      "mnemonic": "sd",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 128689388540080,
+      "per_call": 1715.0,
+      "mnemonic": "sd",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 80356,
+      "per_call": 576.0,
+      "mnemonic": "bnez",
+      "region": "program",
+      "origin": "vec-config",
+      "opcode": "vsetvli",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/batched_vecmat_mult.py:33:16",
+      "text": "bne t2, zero, .Lbrc2719_true  # [op2719] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/batched_vecmat_mult.py:33:16"
+    },
+    {
+      "pc": 80352,
+      "per_call": 576.0,
+      "mnemonic": "slt",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/batched_vecmat_mult.py:33:16",
+      "text": "slt t2, t0, t2  # [op2718] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/batched_vecmat_mult.py:33:16"
+    },
+    {
+      "pc": 80350,
+      "per_call": 576.0,
+      "mnemonic": "addi",
+      "region": "program",
+      "origin": "frame",
+      "opcode": null,
+      "loc": null,
+      "text": "li t2, 8  # [op-1] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/batched_vecmat_mult.py:33:16"
+    },
+    {
+      "pc": 80538,
+      "per_call": 512.0,
+      "mnemonic": "j",
+      "region": "program",
+      "origin": "scalar-mem",
+      "opcode": "sload",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/batched_vecmat_mult.py:33:16",
+      "text": "j .Lpb19.head  # [op2767] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/batched_vecmat_mult.py:33:16"
+    },
+    {
+      "pc": 80536,
+      "per_call": 512.0,
+      "mnemonic": "add",
+      "region": "program",
+      "origin": "reload",
+      "opcode": "sreload",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/batched_vecmat_mult.py:33:16",
+      "text": "add t0, t0, t2  # [op2766] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/batched_vecmat_mult.py:33:16"
+    },
+    {
+      "pc": 80534,
+      "per_call": 512.0,
+      "mnemonic": "addi",
+      "region": "program",
+      "origin": "vec-arith",
+      "opcode": "vmovmask",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/batched_vecmat_mult.py:33:16",
+      "text": "li t2, 1  # [op2765] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/batched_vecmat_mult.py:33:16"
+    },
+    {
+      "pc": 80498,
+      "per_call": 512.0,
+      "mnemonic": "j",
+      "region": "program",
+      "origin": "op:ssub",
+      "opcode": "ssub",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/batched_vecmat_mult.py:33:16",
+      "text": "j .Lpq20.exit  # [op2753] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/batched_vecmat_mult.py:33:16"
+    },
+    {
+      "pc": 80454,
+      "per_call": 512.0,
+      "mnemonic": "j",
+      "region": "program",
+      "origin": "op:sadd",
+      "opcode": "sadd",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/batched_vecmat_mult.py:33:16",
+      "text": "j .Lpq20.head  # [op2743] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/batched_vecmat_mult.py:33:16"
+    },
+    {
+      "pc": 80452,
+      "per_call": 512.0,
+      "mnemonic": "add",
+      "region": "program",
+      "origin": "reload",
+      "opcode": "sreload",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/batched_vecmat_mult.py:33:16",
+      "text": "add a3, t1, a3  # [op2742] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/batched_vecmat_mult.py:33:16"
+    },
+    {
+      "pc": 80448,
+      "per_call": 512.0,
+      "mnemonic": "mul",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/batched_vecmat_mult.py:33:16",
+      "text": "mul a3, t0, a3  # [op2741] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/batched_vecmat_mult.py:33:16"
+    },
+    {
+      "pc": 80446,
+      "per_call": 512.0,
+      "mnemonic": "addi",
+      "region": "program",
+      "origin": "op:vustore16",
+      "opcode": "vustore16",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/batched_vecmat_mult.py:33:16",
+      "text": "li a3, 16  # [op2740] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/batched_vecmat_mult.py:33:16"
+    },
+    {
+      "pc": 80444,
+      "per_call": 512.0,
+      "mnemonic": "add",
+      "region": "program",
+      "origin": "vec-config",
+      "opcode": "vsetvli",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/batched_vecmat_mult.py:33:16",
+      "text": "add a1, a3, a1  # [op2739] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/batched_vecmat_mult.py:33:16"
+    },
+    {
+      "pc": 80440,
+      "per_call": 512.0,
+      "mnemonic": "mul",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/batched_vecmat_mult.py:33:16",
+      "text": "mul a1, a1, a6  # [op2738] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/batched_vecmat_mult.py:33:16"
+    },
+    {
+      "pc": 80438,
+      "per_call": 512.0,
+      "mnemonic": "addi",
+      "region": "program",
+      "origin": "op:sadd",
+      "opcode": "sadd",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/batched_vecmat_mult.py:33:16",
+      "text": "li a6, 2  # [op2737] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/batched_vecmat_mult.py:33:16"
+    },
+    {
+      "pc": 80436,
+      "per_call": 512.0,
+      "mnemonic": "add",
+      "region": "program",
+      "origin": "reload",
+      "opcode": "sreload",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/batched_vecmat_mult.py:33:16",
+      "text": "add a3, a3, a6  # [op2736] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/batched_vecmat_mult.py:33:16"
+    },
+    {
+      "pc": 80432,
+      "per_call": 512.0,
+      "mnemonic": "mul",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/batched_vecmat_mult.py:33:16",
+      "text": "mul a6, a7, a6  # [op2735] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/batched_vecmat_mult.py:33:16"
+    }
+  ],
+  "problems": []
+}

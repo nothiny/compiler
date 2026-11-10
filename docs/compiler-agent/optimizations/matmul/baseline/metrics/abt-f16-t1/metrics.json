@@ -1,0 +1,683 @@
+{
+  "schema": "a100c-matmul-metrics/v1",
+  "case": "suite/dev/matmul_abt_kernel.py#[128, 96, 100]#float16",
+  "threads": 1,
+  "seed": 30,
+  "steady_repeats": 5,
+  "artifact": {
+    "key": "434d39a2fe427ef7583c4f67c5f0460b4b1db0e065be8c6fbf3f7e355ec2e639",
+    "sha256": "aa7211262118b6bfd371f4a4839279aab61603e554294a17cecf8fcc9d6ce51c",
+    "identity": "30890799bcb8dfa6",
+    "cache_entry": "/home/i_yinzida/compiler-a100-experiment-001/a100c/cache/434d39a2fe427ef7583c4f67c5f0460b4b1db0e065be8c6fbf3f7e355ec2e639"
+  },
+  "environment": {
+    "qemu": "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64",
+    "qemu_version": "qemu-riscv64 version 10.0.2",
+    "cpu": "max,vlen=1024,elen=64,vext_spec=v1.0",
+    "plugin": "/home/i_yinzida/compiler-a100-experiment-001/tools/profiling/full_instruction_counts.so"
+  },
+  "asm_join": {
+    "listing_instruction_rows": 9625,
+    "program_instructions": 9625,
+    "affine_offset": 70686,
+    "region": [
+      70686,
+      103784
+    ],
+    "byte_identity": true
+  },
+  "runs": {
+    "r1": {
+      "repeats": 1,
+      "exit_code": 0,
+      "wall_s": 0.543,
+      "command": "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64 -L /home/i_yinzida/.local/opt/a100/toolchain-1.1.2/sysroot -cpu max,vlen=1024,elen=64,vext_spec=v1.0 -plugin /home/i_yinzida/compiler-a100-experiment-001/tools/profiling/full_instruction_counts.so,out=docs/compiler-agent/optimizations/matmul/baseline/metrics/abt-f16-t1/counts.r1.json /home/i_yinzida/compiler-a100-experiment-001/a100c/cache/434d39a2fe427ef7583c4f67c5f0460b4b1db0e065be8c6fbf3f7e355ec2e639/operator_exec --bundle /tmp/a100-native-case-zrxnzgoj/bundle.bin --threads 1 --repeats 1",
+      "stdout_last_json": {
+        "runtime": "a100rt/v1",
+        "status": "ok",
+        "threads": 1,
+        "repeats": 1,
+        "pool_initializations": 1,
+        "repeats_all_equal": true,
+        "workers": [
+          {
+            "id": 0,
+            "guest_tid": 1946382,
+            "items": 0
+          }
+        ],
+        "bundle_bytes": 69632
+      },
+      "total": 11789452,
+      "per_vcpu_totals": [
+        275456,
+        11513996,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "categories": {
+        "scalar-arith": 6695914,
+        "scalar-load": 1110158,
+        "branch": 1695843,
+        "scalar-store": 815743,
+        "vec-config": 479472,
+        "vec-mem": 150488,
+        "vec-arith": 838464,
+        "ime": 3072,
+        "system": 141,
+        "atomic": 157
+      }
+    },
+    "r2": {
+      "repeats": 6,
+      "exit_code": 0,
+      "wall_s": 2.508,
+      "command": "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64 -L /home/i_yinzida/.local/opt/a100/toolchain-1.1.2/sysroot -cpu max,vlen=1024,elen=64,vext_spec=v1.0 -plugin /home/i_yinzida/compiler-a100-experiment-001/tools/profiling/full_instruction_counts.so,out=docs/compiler-agent/optimizations/matmul/baseline/metrics/abt-f16-t1/counts.r2.json /home/i_yinzida/compiler-a100-experiment-001/a100c/cache/434d39a2fe427ef7583c4f67c5f0460b4b1db0e065be8c6fbf3f7e355ec2e639/operator_exec --bundle /tmp/a100-native-case-zrxnzgoj/bundle.bin --threads 1 --repeats 6",
+      "stdout_last_json": {
+        "runtime": "a100rt/v1",
+        "status": "ok",
+        "threads": 1,
+        "repeats": 6,
+        "pool_initializations": 1,
+        "repeats_all_equal": true,
+        "workers": [
+          {
+            "id": 0,
+            "guest_tid": 1946403,
+            "items": 0
+          }
+        ],
+        "bundle_bytes": 69632
+      },
+      "total": 69832020,
+      "per_vcpu_totals": [
+        766367,
+        69065653,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "categories": {
+        "scalar-arith": 39850444,
+        "scalar-load": 6518832,
+        "branch": 10077591,
+        "scalar-store": 4557203,
+        "vec-config": 2876452,
+        "vec-mem": 901888,
+        "vec-arith": 5030784,
+        "ime": 18432,
+        "system": 178,
+        "atomic": 216
+      }
+    }
+  },
+  "steady_state": {
+    "per_call_total": 11608513.6,
+    "init_total": 180938.40000000037,
+    "per_call_categories": {
+      "scalar-arith": 6646129.200000542,
+      "scalar-load": 1090845.3999999284,
+      "branch": 1685170.5999999463,
+      "scalar-store": 770388.5999999632,
+      "vec-config": 479396.0,
+      "vec-mem": 150280.0,
+      "vec-arith": 838464.0,
+      "ime": 3072.0,
+      "system": 33.59999999999999,
+      "atomic": 43.00000000000006
+    },
+    "indivisible_pc_deltas": 12032,
+    "note": "per-call = (repeats=1+R minus repeats=1)/R; indivisible deltas indicate run-to-run variation (e.g. barrier spin) and are kept as fractions"
+  },
+  "program_region": {
+    "origins_per_call": {
+      "frame": 470314.0,
+      "spill": 11382.0,
+      "reload": 1400301.0,
+      "scalar-mem": 529325.0,
+      "const-materialization": 1941497.0,
+      "op:sadd": 1567982.0,
+      "op:ssub": 726637.0,
+      "op:sdivu": 7309.0,
+      "op:smul": 511260.0,
+      "op:smove": 8664.0,
+      "branch": 30576.0,
+      "op:slt": 440892.0,
+      "op:swext": 308976.0,
+      "op:sshl": 84.0,
+      "op:ssra": 24.0,
+      "op:sand": 437796.0,
+      "op:sxor": 12.0,
+      "vec-arith": 1627800.0,
+      "vec-config": 1050036.0,
+      "vec-mem": 27264.0,
+      "op:vmand": 2880.0,
+      "op:vfwcvt": 384.0,
+      "op:vunit_load": 295104.0,
+      "op:vustore16": 27468.0,
+      "op:vunit_store": 37836.0,
+      "op:vuload32": 1728.0,
+      "op:vustore32": 612.0,
+      "op:vuload16": 1920.0,
+      "op:vfncvt": 1152.0,
+      "op:vfwmadot": 768.0
+    },
+    "opcodes_per_call": {
+      "frame": 470314.0,
+      "sspill": 11382.0,
+      "sreload": 1400301.0,
+      "sload": 329789.0,
+      "sconst": 1941497.0,
+      "sadd": 1567982.0,
+      "ssub": 726637.0,
+      "sdivu": 7309.0,
+      "smul": 511260.0,
+      "smove": 8664.0,
+      "br": 18648.0,
+      "slt": 440892.0,
+      "brc": 11928.0,
+      "swext": 308976.0,
+      "sshl": 84.0,
+      "ssra": 24.0,
+      "sand": 437796.0,
+      "sxor": 12.0,
+      "vid": 31680.0,
+      "vsetvli": 1050036.0,
+      "s2v": 328980.0,
+      "vwaddx0": 30336.0,
+      "vbinx": 60096.0,
+      "vstoreix": 19392.0,
+      "vbin": 12480.0,
+      "vcmp": 297048.0,
+      "vmovmask": 302652.0,
+      "vsel": 167808.0,
+      "vmand": 2880.0,
+      "vfwcvt": 384.0,
+      "vmovv": 1536.0,
+      "vextract": 198384.0,
+      "sstore": 199536.0,
+      "vslidedn": 196800.0,
+      "vunit_load": 295104.0,
+      "vustore16": 27468.0,
+      "vunit_store": 37836.0,
+      "vuload32": 1728.0,
+      "vustore32": 612.0,
+      "vuload16": 1920.0,
+      "vloadix": 7872.0,
+      "vfncvt": 1152.0,
+      "vfwmadot": 768.0
+    },
+    "spill_traffic": {
+      "spill_instructions": 11382.0,
+      "reload_instructions": 1400301.0,
+      "spill_bytes_model": 345624.0,
+      "reload_bytes_model": 4881432.0,
+      "bytes_model_note": "scalar=8B; vector=VLEN/8*lmul at vlmax"
+    },
+    "vsetvli": {
+      "static": {
+        "e32,m1": 475,
+        "e16,m1": 455,
+        "e64,m2": 352,
+        "e32,m2": 8
+      },
+      "dynamic_call": 1050036.0
+    },
+    "static": {
+      "instructions": 9625,
+      "frame_bytes": 320,
+      "saved_regs": [
+        "s1",
+        "s2",
+        "s3",
+        "s4",
+        "s5",
+        "s6",
+        "s7",
+        "s8",
+        "s9",
+        "s10",
+        "s11"
+      ],
+      "spill_slots": 26,
+      "spilled_values": 26,
+      "gprs_used": 25,
+      "vector_regs_used": 12,
+      "vector_bytes_used": 1536
+    }
+  },
+  "runtime_region_per_call": {
+    "_PROCEDURE_LINKAGE_TABLE_": 24.0,
+    "main": 492.0,
+    "operator_entry": 42240.0,
+    "a100rt_worker_main": 12.0,
+    "a100rt_pool_call": 25.0
+  },
+  "loader_unknown_per_call": 153046.40000001047,
+  "hot_pcs_per_call": [
+    {
+      "pc": 101870,
+      "per_call": 129024.0,
+      "mnemonic": "bnez",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15",
+      "text": "bne s4, zero, .Lbrc8822_true  # [op8822] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15"
+    },
+    {
+      "pc": 101866,
+      "per_call": 129024.0,
+      "mnemonic": "slt",
+      "region": "program",
+      "origin": "op:sadd",
+      "opcode": "sadd",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15",
+      "text": "slt s4, a2, a5  # [op8821] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15"
+    },
+    {
+      "pc": 94318,
+      "per_call": 129024.0,
+      "mnemonic": "bnez",
+      "region": "program",
+      "origin": "op:smul",
+      "opcode": "smul",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15",
+      "text": "bne s4, zero, .Lbrc6691_true  # [op6691] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15"
+    },
+    {
+      "pc": 94314,
+      "per_call": 129024.0,
+      "mnemonic": "slt",
+      "region": "program",
+      "origin": "op:sadd",
+      "opcode": "sadd",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15",
+      "text": "slt s4, a2, a5  # [op6690] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15"
+    },
+    {
+      "pc": 86758,
+      "per_call": 129024.0,
+      "mnemonic": "bnez",
+      "region": "program",
+      "origin": "op:sadd",
+      "opcode": "sadd",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15",
+      "text": "bne s4, zero, .Lbrc4556_true  # [op4556] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15"
+    },
+    {
+      "pc": 86754,
+      "per_call": 129024.0,
+      "mnemonic": "slt",
+      "region": "program",
+      "origin": "reload",
+      "opcode": "sreload",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15",
+      "text": "slt s4, a2, a5  # [op4555] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15"
+    },
+    {
+      "pc": 79198,
+      "per_call": 129024.0,
+      "mnemonic": "bnez",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15",
+      "text": "bne s4, zero, .Lbrc2420_true  # [op2420] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15"
+    },
+    {
+      "pc": 79194,
+      "per_call": 129024.0,
+      "mnemonic": "slt",
+      "region": "program",
+      "origin": "op:swext",
+      "opcode": "swext",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15",
+      "text": "slt s4, a2, a5  # [op2419] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15"
+    },
+    {
+      "pc": 101908,
+      "per_call": 122880.0,
+      "mnemonic": "j",
+      "region": "program",
+      "origin": "vec-arith",
+      "opcode": "vmovmask",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15",
+      "text": "j .Lpq21.head  # [op8833] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15"
+    },
+    {
+      "pc": 101906,
+      "per_call": 122880.0,
+      "mnemonic": "add",
+      "region": "program",
+      "origin": "vec-arith",
+      "opcode": "vcmp",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15",
+      "text": "add a2, a2, s4  # [op8832] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15"
+    },
+    {
+      "pc": 101904,
+      "per_call": 122880.0,
+      "mnemonic": "addi",
+      "region": "program",
+      "origin": "vec-arith",
+      "opcode": "s2v",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15",
+      "text": "li s4, 1  # [op8831] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15"
+    },
+    {
+      "pc": 101900,
+      "per_call": 122880.0,
+      "mnemonic": "sh",
+      "region": "program",
+      "origin": "vec-config",
+      "opcode": "vsetvli",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15",
+      "text": "sh s4, 0(s5)  # [op8830] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15"
+    },
+    {
+      "pc": 101896,
+      "per_call": 122880.0,
+      "mnemonic": "lhu",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15",
+      "text": "lhu s4, 0(s4)  # [op8829] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15"
+    },
+    {
+      "pc": 101894,
+      "per_call": 122880.0,
+      "mnemonic": "add",
+      "region": "program",
+      "origin": "op:swext",
+      "opcode": "swext",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15",
+      "text": "add s5, a6, s5  # [op8828] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15"
+    },
+    {
+      "pc": 101890,
+      "per_call": 122880.0,
+      "mnemonic": "mul",
+      "region": "program",
+      "origin": "op:sand",
+      "opcode": "sand",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15",
+      "text": "mul s5, a2, s5  # [op8827] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15"
+    },
+    {
+      "pc": 101888,
+      "per_call": 122880.0,
+      "mnemonic": "addi",
+      "region": "program",
+      "origin": "op:ssub",
+      "opcode": "ssub",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15",
+      "text": "li s5, 2  # [op8826] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15"
+    },
+    {
+      "pc": 101886,
+      "per_call": 122880.0,
+      "mnemonic": "add",
+      "region": "program",
+      "origin": "op:ssub",
+      "opcode": "ssub",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15",
+      "text": "add s4, a4, s4  # [op8825] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15"
+    },
+    {
+      "pc": 101882,
+      "per_call": 122880.0,
+      "mnemonic": "mul",
+      "region": "program",
+      "origin": "reload",
+      "opcode": "sreload",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15",
+      "text": "mul s4, a2, s4  # [op8824] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15"
+    },
+    {
+      "pc": 101878,
+      "per_call": 122880.0,
+      "mnemonic": "addi",
+      "region": "program",
+      "origin": "op:slt",
+      "opcode": "slt",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15",
+      "text": "li s4, 64  # [op8823] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15"
+    },
+    {
+      "pc": 101876,
+      "per_call": 122880.0,
+      "mnemonic": "j",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15",
+      "text": "j .Lpq21.body  # [op8822] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15"
+    },
+    {
+      "pc": 94356,
+      "per_call": 122880.0,
+      "mnemonic": "j",
+      "region": "program",
+      "origin": "op:sadd",
+      "opcode": "sadd",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15",
+      "text": "j .Lpq16.head  # [op6702] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15"
+    },
+    {
+      "pc": 94354,
+      "per_call": 122880.0,
+      "mnemonic": "add",
+      "region": "program",
+      "origin": "reload",
+      "opcode": "sreload",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15",
+      "text": "add a2, a2, s4  # [op6701] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15"
+    },
+    {
+      "pc": 94352,
+      "per_call": 122880.0,
+      "mnemonic": "addi",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15",
+      "text": "li s4, 1  # [op6700] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15"
+    },
+    {
+      "pc": 94348,
+      "per_call": 122880.0,
+      "mnemonic": "sh",
+      "region": "program",
+      "origin": "vec-arith",
+      "opcode": "vsel",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15",
+      "text": "sh s4, 0(s5)  # [op6699] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15"
+    },
+    {
+      "pc": 94344,
+      "per_call": 122880.0,
+      "mnemonic": "lhu",
+      "region": "program",
+      "origin": "op:vunit_load",
+      "opcode": "vunit_load",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15",
+      "text": "lhu s4, 0(s4)  # [op6698] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15"
+    },
+    {
+      "pc": 94342,
+      "per_call": 122880.0,
+      "mnemonic": "add",
+      "region": "program",
+      "origin": "vec-config",
+      "opcode": "vsetvli",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15",
+      "text": "add s5, a6, s5  # [op6697] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15"
+    },
+    {
+      "pc": 94338,
+      "per_call": 122880.0,
+      "mnemonic": "mul",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15",
+      "text": "mul s5, a2, s5  # [op6696] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15"
+    },
+    {
+      "pc": 94336,
+      "per_call": 122880.0,
+      "mnemonic": "addi",
+      "region": "program",
+      "origin": "op:sadd",
+      "opcode": "sadd",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15",
+      "text": "li s5, 2  # [op6695] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15"
+    },
+    {
+      "pc": 94334,
+      "per_call": 122880.0,
+      "mnemonic": "add",
+      "region": "program",
+      "origin": "op:smul",
+      "opcode": "smul",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15",
+      "text": "add s4, a4, s4  # [op6694] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15"
+    },
+    {
+      "pc": 94330,
+      "per_call": 122880.0,
+      "mnemonic": "mul",
+      "region": "program",
+      "origin": "reload",
+      "opcode": "sreload",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15",
+      "text": "mul s4, a2, s4  # [op6693] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15"
+    },
+    {
+      "pc": 94326,
+      "per_call": 122880.0,
+      "mnemonic": "addi",
+      "region": "program",
+      "origin": "op:sadd",
+      "opcode": "sadd",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15",
+      "text": "li s4, 64  # [op6692] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15"
+    },
+    {
+      "pc": 94324,
+      "per_call": 122880.0,
+      "mnemonic": "j",
+      "region": "program",
+      "origin": "op:smul",
+      "opcode": "smul",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15",
+      "text": "j .Lpq16.body  # [op6691] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15"
+    },
+    {
+      "pc": 86796,
+      "per_call": 122880.0,
+      "mnemonic": "j",
+      "region": "program",
+      "origin": "op:sand",
+      "opcode": "sand",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15",
+      "text": "j .Lpq11.head  # [op4567] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15"
+    },
+    {
+      "pc": 86794,
+      "per_call": 122880.0,
+      "mnemonic": "add",
+      "region": "program",
+      "origin": "op:ssub",
+      "opcode": "ssub",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15",
+      "text": "add a2, a2, s4  # [op4566] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15"
+    },
+    {
+      "pc": 86792,
+      "per_call": 122880.0,
+      "mnemonic": "addi",
+      "region": "program",
+      "origin": "op:sadd",
+      "opcode": "sadd",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15",
+      "text": "li s4, 1  # [op4565] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15"
+    },
+    {
+      "pc": 86788,
+      "per_call": 122880.0,
+      "mnemonic": "sh",
+      "region": "program",
+      "origin": "reload",
+      "opcode": "sreload",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15",
+      "text": "sh s4, 0(s5)  # [op4564] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15"
+    },
+    {
+      "pc": 86784,
+      "per_call": 122880.0,
+      "mnemonic": "lhu",
+      "region": "program",
+      "origin": "op:sand",
+      "opcode": "sand",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15",
+      "text": "lhu s4, 0(s4)  # [op4563] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15"
+    },
+    {
+      "pc": 86782,
+      "per_call": 122880.0,
+      "mnemonic": "add",
+      "region": "program",
+      "origin": "op:ssub",
+      "opcode": "ssub",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15",
+      "text": "add s5, a6, s5  # [op4562] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15"
+    },
+    {
+      "pc": 86778,
+      "per_call": 122880.0,
+      "mnemonic": "mul",
+      "region": "program",
+      "origin": "reload",
+      "opcode": "sreload",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15",
+      "text": "mul s5, a2, s5  # [op4561] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15"
+    },
+    {
+      "pc": 86776,
+      "per_call": 122880.0,
+      "mnemonic": "addi",
+      "region": "program",
+      "origin": "op:ssub",
+      "opcode": "ssub",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15",
+      "text": "li s5, 2  # [op4560] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/matmul_abt_kernel.py:43:15"
+    }
+  ],
+  "problems": []
+}

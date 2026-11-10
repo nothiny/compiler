@@ -155,7 +155,18 @@ _MEM_OPCODES: Dict[str, Tuple[int, int, bool, bool]] = {
     "vustore32": (32, 2, False, True),
 }
 
-IME_OPCODES = frozenset(_TILE_OPCODES) | frozenset(_MEM_OPCODES)
+#: strided vector load: opcode -> (sew, lmul) -- the B-operand pack's
+#: column gather (the matmul optimization round).  Probe-verified under
+#: the pinned QEMU (docs/compiler-agent/optimizations/matmul/tooling/
+#: probe-strided.S); the recorded indexed-form emulator defect (e64
+#: index + sub-32-bit data SEGFAULT) does not cover strided forms.
+_STRIDE_MEM_OPCODES: Dict[str, Tuple[int, int]] = {
+    "vloads8": (8, 1),
+    "vloads16": (16, 1),
+}
+
+IME_OPCODES = frozenset(_TILE_OPCODES) | frozenset(_MEM_OPCODES) | \
+    frozenset(_STRIDE_MEM_OPCODES)
 
 #: region (sew, lmul) each tile op requires (the ISA's LMUL=1 constraint)
 _TILE_REGION = {"i8": (8, 1), "fp16": (16, 1)}
@@ -214,6 +225,17 @@ def ime_repertoire_rows() -> List[InstructionEntry]:
                        "lanes; undisturbed lanes are merged by a vsel)"
                        if masked else
                        "unit-stride load of one full tile register")))
+    for opcode, (sew, lmul) in sorted(_STRIDE_MEM_OPCODES.items()):
+        rows.append(InstructionEntry(
+            f"vlse{sew}.v", opcode, (),
+            f"vlse{sew}.v {{vd}}, 0({{rs1}}), {{rs2}}",
+            evidence="RVV 1.0 VLEN=1024; probe-verified under the pinned "
+                     "QEMU (matmul round: docs/compiler-agent/optimizations"
+                     "/matmul/tooling/probe-strided.S -- the pack shapes, "
+                     "the region transition and avl 0)",
+            notes="strided load of one staging column: lane l reads "
+                  "rs1 + l*rs2 bytes; rs2 is the byte stride (N*esz), the "
+                  "region's vl is the guarded element count"))
     return rows
 
 
@@ -366,6 +388,35 @@ def _ime_op_errors(op: mir.MOp, region) -> List[mir.MirError]:
                 return err(IMEInvariant.IME_SHAPE,
                            f"'{code}' result must be (sew={sew}, "
                            f"lmul={lmul}), got {res.type!r}")
+        if region is None:
+            return err(IMEInvariant.IME_REGION,
+                       f"'{code}' executes outside any vsetvli region")
+        if (region[0], region[1]) != (sew, lmul):
+            return err(IMEInvariant.IME_REGION,
+                       f"'{code}' executes in region e{region[0]}"
+                       f"m{region[1]}; its value is (e{sew}, m{lmul})")
+        return errors
+
+    if code in _STRIDE_MEM_OPCODES:
+        sew, lmul = _STRIDE_MEM_OPCODES[code]
+        if len(op.operands) != 2 or len(op.results) != 1:
+            return err(IMEInvariant.IME_SHAPE,
+                       f"'{code}' takes (base, stride) and produces the "
+                       "loaded vector")
+        base, stride = op.operands
+        if base.type != mir.I64:
+            return err(IMEInvariant.IME_SHAPE,
+                       f"'{code}' base must be i64, got {base.type!r}")
+        if stride.type != mir.I64:
+            return err(IMEInvariant.IME_SHAPE,
+                       f"'{code}' stride must be i64 (bytes), got "
+                       f"{stride.type!r}")
+        res = op.results[0]
+        if not res.is_vector() or (res.type.sew, res.type.lmul) != \
+                (sew, lmul):
+            return err(IMEInvariant.IME_SHAPE,
+                       f"'{code}' result must be (sew={sew}, lmul={lmul}), "
+                       f"got {res.type!r}")
         if region is None:
             return err(IMEInvariant.IME_REGION,
                        f"'{code}' executes outside any vsetvli region")
@@ -1625,6 +1676,11 @@ class _Composed:
         self.plan = spec.plan
         fam = plan = self.plan
         self.ime = plan.path == "ime"
+        # the composed lane honours the lowering switch (CompileOptions /
+        # LowerOptions matrix_scalar_pack): True forces the scalar pack
+        lowering_options = getattr(iface.sl, "options", None)
+        self.pack_vector = not getattr(lowering_options,
+                                       "matrix_scalar_pack", False)
         if self.ime:
             fam = plan.family
             self.tm, self.tn, self.tk = fam.tile_m, fam.tile_n, fam.tile_k
@@ -1972,9 +2028,14 @@ class _Composed:
 
     def _pack_b_columns(self, ws, b_rec, b_stag, n0, kb, krem, zero_b):
         """The B tile: 8 columns of tk elements packed from the row-major
-        (K, N) region by guarded scalar copies (the slice's proven pack
-        form -- the strided column read has no safe vector form at the
-        native widths)."""
+        (K, N) region.  The default packs each column with ONE strided
+        vector load (vlse, byte stride N*esz, vl = the guarded count) and
+        one unit store -- probe-verified under the pinned QEMU (the
+        matmul round's tooling/probe-strided.S; the pinned QEMU's
+        recorded indexed-form defect does not cover strided forms).  The
+        guarded scalar per-element loops remain as the fallback: any
+        other family width, or the lowering option matrix_scalar_pack
+        (the on/off contrast and rollback path)."""
         loc = self.spec.loc
         esz = b_rec["esz"]
         ebits = self.in_sew
@@ -1994,7 +2055,6 @@ class _Composed:
         guard = self._slt(nj, self._k(self.N), "png")
         kmin = self._smin(krem, self._k(self.tk), "pkb")
         rem = self._guard(guard, kmin, "pbr")
-        # the inner loop over the K prefix
         src0 = self._sadd(ws, self._k(b_rec["offset"]), "psb")
         src0 = self._sadd(src0, self._smul(kb, self._k(self.N * esz),
                                            "psk"), "psr")
@@ -2002,17 +2062,41 @@ class _Composed:
                           "psc")
         dst0 = self._sadd(b_stag, self._smul(j, self._k(self.row_bytes),
                                              "pdj"), "pds")
-        qf = self.if_.loop(self._k(0), rem, [], loc, self.if_.tag("pq"))
-        q = qf.params[0]
-        src = self._sadd(src0, self._smul(q, self._k(self.N * esz), "pqw"),
-                         "pqs")
-        dst = self._sadd(dst0, self._smul(q, self._k(esz), "pqs2"), "pqd")
-        val = self._sload(src, 0, ebits, "zext", "pv")
-        self.if_.emit0(mir.MOp(
-            "sstore", [dst, val], [],
-            attrs={"width": ebits, "offset": 0}, loc=loc))
-        q2 = self._sadd(q, self._k(1), "pq2")
-        self.if_.close(qf, [q2], loc)
+        if self.pack_vector and self.in_sew in (8, 16):
+            # one strided gather + one unit store per column.  rem <= tk
+            # <= vlmax, so the runtime-AVL vsetvli sets vl = rem exactly;
+            # rem == 0 (a guarded-out column) makes both no-ops
+            # (probe-verified).  Lanes past rem keep the zero fill above
+            # -- identical to the scalar prefix copy.
+            rem32 = self._narrow32(rem, "pq32")
+            self.if_.emit0(mir.MOp(
+                "vsetvli", [rem32],
+                [self.if_.vreg(mir.I32, hint="pqg", loc=loc)],
+                attrs={"sew": self.in_sew, "lmul": 1,
+                       "policy": "ta,ma"}, loc=loc))
+            stride = self._k(self.N * esz)
+            gathered = self.if_.emit(mir.MOp(
+                f"vloads{self.in_sew}", [src0, stride],
+                [self.if_.vreg(self.inb_type, hint="pqv", loc=loc)],
+                loc=loc))
+            self.if_.emit0(mir.MOp(
+                "vustore8" if self.in_sew == 8 else "vustore16",
+                [dst0, gathered], [], loc=loc))
+        else:
+            # the scalar fallback: the guarded per-element copy loop
+            qf = self.if_.loop(self._k(0), rem, [], loc,
+                               self.if_.tag("pq"))
+            q = qf.params[0]
+            src = self._sadd(src0, self._smul(q, self._k(self.N * esz),
+                                               "pqw"), "pqs")
+            dst = self._sadd(dst0, self._smul(q, self._k(esz), "pqs2"),
+                             "pqd")
+            val = self._sload(src, 0, ebits, "zext", "pv")
+            self.if_.emit0(mir.MOp(
+                "sstore", [dst, val], [],
+                attrs={"width": ebits, "offset": 0}, loc=loc))
+            q2 = self._sadd(q, self._k(1), "pq2")
+            self.if_.close(qf, [q2], loc)
         j2 = self._sadd(j, self._k(1), "pj2")
         self.if_.close(jf, [j2], loc)
 

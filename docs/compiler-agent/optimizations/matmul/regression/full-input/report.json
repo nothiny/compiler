@@ -1,0 +1,394 @@
+{
+  "schema": "input-regression/v1",
+  "run_id": null,
+  "command": "tools/run_scan.py run --report docs/compiler-agent/optimizations/matmul/regression/full-input/report.json --journal docs/compiler-agent/optimizations/matmul/regression/full-input/journal.jsonl --threads 1 --resume --retry-failed --operator suite/dev/complex_svd_pick_orthonormal_v_kernel.py --operator suite/dev/deconv3d_fwd_kernel.py --operator suite/dev/chunk_gdn2_fwd_kernel_intra_token_parallel.py",
+  "partial": false,
+  "missing_case_ids": [],
+  "cases": [
+    {
+      "id": "suite/dev/chunk_gdn2_fwd_kernel_intra_token_parallel.py#[2, 17, 5, 7, 8, 4]#float32",
+      "group": "suite/dev",
+      "operator": "suite/dev/chunk_gdn2_fwd_kernel_intra_token_parallel.py",
+      "shape": [
+        2,
+        17,
+        5,
+        7,
+        8,
+        4
+      ],
+      "dtype": "float32",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": false,
+      "status": "MISMATCH",
+      "detail": "Akk: not close to tolerance rtol=0.0001, atol=0.0001; first bad flat indices [20, 24, 36, 40, 41, 44, 45, 56], e.g. output=np.float32(0.12709343) vs reference=np.float32(0.0047418065)",
+      "threads": 1,
+      "identity": "1047477d912e",
+      "artifact_sha256": "c676bbcf89e6f8b78166ab12aa6f032b8b43f98fa732dbd6ccf515c4b7e97fb5",
+      "artifact_key": "55461085a01e0b6b0dcb331d0abff630d068ad4451814b782fccaef4657a9d53",
+      "cache_hit": false,
+      "launch_seconds": 0.064,
+      "seconds": 3.403
+    },
+    {
+      "id": "suite/dev/chunk_gdn2_fwd_kernel_intra_token_parallel.py#[2, 17, 5, 7, 8, 4]#float16",
+      "group": "suite/dev",
+      "operator": "suite/dev/chunk_gdn2_fwd_kernel_intra_token_parallel.py",
+      "shape": [
+        2,
+        17,
+        5,
+        7,
+        8,
+        4
+      ],
+      "dtype": "float16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "ad4faa650130",
+      "artifact_sha256": "95ce326080163f56146461d711b35bf2dad8bcffe7528c92376deb2937256419",
+      "artifact_key": "4e22de19b13d4fd77e560b6a10ae1ae0f4c885e5ee1dd8b4cd02e9b2e40dfe81",
+      "cache_hit": true,
+      "launch_seconds": 0.078,
+      "max_abs_error": {
+        "Akk": 9.1552734375e-05,
+        "Aqk": 6.103515625e-05
+      },
+      "seconds": 0.093
+    },
+    {
+      "id": "suite/dev/chunk_gdn2_fwd_kernel_intra_token_parallel.py#[2, 17, 5, 7, 8, 4]#bfloat16",
+      "group": "suite/dev",
+      "operator": "suite/dev/chunk_gdn2_fwd_kernel_intra_token_parallel.py",
+      "shape": [
+        2,
+        17,
+        5,
+        7,
+        8,
+        4
+      ],
+      "dtype": "bfloat16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "2415ee34a3bd",
+      "artifact_sha256": "a97b7a5859e318e9f8b2b4f2f02aefc62168f9e9143abb13df8484dc249ce432",
+      "artifact_key": "af0ddb688baaab1398afe90f6a71a4dfec06f1b6716c3cc19e51f462ec7a428e",
+      "cache_hit": true,
+      "launch_seconds": 0.075,
+      "max_abs_error": {
+        "Akk": 0.0001288875937461853,
+        "Aqk": 0.0003108978271484375
+      },
+      "seconds": 0.083
+    },
+    {
+      "id": "suite/dev/chunk_gdn2_fwd_kernel_intra_token_parallel.py#[3, 17, 5, 7, 8, 4]#float32",
+      "group": "suite/dev",
+      "operator": "suite/dev/chunk_gdn2_fwd_kernel_intra_token_parallel.py",
+      "shape": [
+        3,
+        17,
+        5,
+        7,
+        8,
+        4
+      ],
+      "dtype": "float32",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": false,
+      "status": "MISMATCH",
+      "detail": "Akk: not close to tolerance rtol=0.0001, atol=0.0001; first bad flat indices [20, 24, 36, 40, 41, 44, 45, 56], e.g. output=np.float32(-0.0038947966) vs reference=np.float32(-0.0015499212)",
+      "threads": 1,
+      "identity": "1047477d912e",
+      "artifact_sha256": "c676bbcf89e6f8b78166ab12aa6f032b8b43f98fa732dbd6ccf515c4b7e97fb5",
+      "artifact_key": "55461085a01e0b6b0dcb331d0abff630d068ad4451814b782fccaef4657a9d53",
+      "cache_hit": true,
+      "launch_seconds": 0.065,
+      "seconds": 0.073
+    },
+    {
+      "id": "suite/dev/chunk_gdn2_fwd_kernel_intra_token_parallel.py#[3, 17, 5, 7, 8, 4]#float16",
+      "group": "suite/dev",
+      "operator": "suite/dev/chunk_gdn2_fwd_kernel_intra_token_parallel.py",
+      "shape": [
+        3,
+        17,
+        5,
+        7,
+        8,
+        4
+      ],
+      "dtype": "float16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "ad4faa650130",
+      "artifact_sha256": "95ce326080163f56146461d711b35bf2dad8bcffe7528c92376deb2937256419",
+      "artifact_key": "4e22de19b13d4fd77e560b6a10ae1ae0f4c885e5ee1dd8b4cd02e9b2e40dfe81",
+      "cache_hit": true,
+      "launch_seconds": 0.083,
+      "max_abs_error": {
+        "Akk": 7.62939453125e-05,
+        "Aqk": 0.0001220703125
+      },
+      "seconds": 0.091
+    },
+    {
+      "id": "suite/dev/chunk_gdn2_fwd_kernel_intra_token_parallel.py#[3, 17, 5, 7, 8, 4]#bfloat16",
+      "group": "suite/dev",
+      "operator": "suite/dev/chunk_gdn2_fwd_kernel_intra_token_parallel.py",
+      "shape": [
+        3,
+        17,
+        5,
+        7,
+        8,
+        4
+      ],
+      "dtype": "bfloat16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "2415ee34a3bd",
+      "artifact_sha256": "a97b7a5859e318e9f8b2b4f2f02aefc62168f9e9143abb13df8484dc249ce432",
+      "artifact_key": "af0ddb688baaab1398afe90f6a71a4dfec06f1b6716c3cc19e51f462ec7a428e",
+      "cache_hit": true,
+      "launch_seconds": 0.084,
+      "max_abs_error": {
+        "Akk": 0.000461772084236145,
+        "Aqk": 0.00048738718032836914
+      },
+      "seconds": 0.091
+    },
+    {
+      "id": "suite/dev/complex_svd_pick_orthonormal_v_kernel.py#[17]#float32",
+      "group": "suite/dev",
+      "operator": "suite/dev/complex_svd_pick_orthonormal_v_kernel.py",
+      "shape": [
+        17
+      ],
+      "dtype": "float32",
+      "compiled": false,
+      "executed": false,
+      "compared": false,
+      "passed": false,
+      "status": "TIMEOUT",
+      "detail": "stage: case budget exceeded",
+      "threads": 1,
+      "identity": "42c31d18b3a2",
+      "seconds": 185.058
+    },
+    {
+      "id": "suite/dev/complex_svd_pick_orthonormal_v_kernel.py#[17]#float16",
+      "group": "suite/dev",
+      "operator": "suite/dev/complex_svd_pick_orthonormal_v_kernel.py",
+      "shape": [
+        17
+      ],
+      "dtype": "float16",
+      "compiled": false,
+      "executed": false,
+      "compared": false,
+      "passed": false,
+      "status": "TIMEOUT",
+      "detail": "stage: case budget exceeded",
+      "threads": 1,
+      "identity": "4c67086b459f",
+      "seconds": 185.046
+    },
+    {
+      "id": "suite/dev/complex_svd_pick_orthonormal_v_kernel.py#[17]#bfloat16",
+      "group": "suite/dev",
+      "operator": "suite/dev/complex_svd_pick_orthonormal_v_kernel.py",
+      "shape": [
+        17
+      ],
+      "dtype": "bfloat16",
+      "compiled": false,
+      "executed": false,
+      "compared": false,
+      "passed": false,
+      "status": "TIMEOUT",
+      "detail": "stage: case budget exceeded",
+      "threads": 1,
+      "identity": "66c459b8d141",
+      "seconds": 185.054
+    },
+    {
+      "id": "suite/dev/deconv3d_fwd_kernel.py#[1, 4, 8, 8, 8]#float32",
+      "group": "suite/dev",
+      "operator": "suite/dev/deconv3d_fwd_kernel.py",
+      "shape": [
+        1,
+        4,
+        8,
+        8,
+        8
+      ],
+      "dtype": "float32",
+      "compiled": false,
+      "executed": false,
+      "compared": false,
+      "passed": false,
+      "status": "TIMEOUT",
+      "detail": "stage: case budget exceeded",
+      "threads": 1,
+      "identity": "89848c088381",
+      "seconds": 185.008
+    },
+    {
+      "id": "suite/dev/deconv3d_fwd_kernel.py#[1, 4, 8, 8, 8]#float16",
+      "group": "suite/dev",
+      "operator": "suite/dev/deconv3d_fwd_kernel.py",
+      "shape": [
+        1,
+        4,
+        8,
+        8,
+        8
+      ],
+      "dtype": "float16",
+      "compiled": false,
+      "executed": false,
+      "compared": false,
+      "passed": false,
+      "status": "TIMEOUT",
+      "detail": "stage: case budget exceeded",
+      "threads": 1,
+      "identity": "ad23a1d9532f",
+      "seconds": 185.002
+    },
+    {
+      "id": "suite/dev/deconv3d_fwd_kernel.py#[1, 4, 8, 8, 8]#bfloat16",
+      "group": "suite/dev",
+      "operator": "suite/dev/deconv3d_fwd_kernel.py",
+      "shape": [
+        1,
+        4,
+        8,
+        8,
+        8
+      ],
+      "dtype": "bfloat16",
+      "compiled": false,
+      "executed": false,
+      "compared": false,
+      "passed": false,
+      "status": "TIMEOUT",
+      "detail": "stage: case budget exceeded",
+      "threads": 1,
+      "identity": "c020e9cbd6a4",
+      "seconds": 185.01
+    },
+    {
+      "id": "suite/dev/deconv3d_fwd_kernel.py#[1, 1, 1, 1, 1]#float32",
+      "group": "suite/dev",
+      "operator": "suite/dev/deconv3d_fwd_kernel.py",
+      "shape": [
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "dtype": "float32",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "e4898eb67436",
+      "artifact_sha256": "c6c58a23aa80af209e912d8877c820fdcded25680240eae5b34d5b7484f08b49",
+      "artifact_key": "2e977a483d939870db257fff486f39f253e1cb49b37164325c231010d65e46af",
+      "cache_hit": true,
+      "launch_seconds": 0.052,
+      "max_abs_error": {
+        "y_ptr": 0.0
+      },
+      "seconds": 0.066
+    },
+    {
+      "id": "suite/dev/deconv3d_fwd_kernel.py#[1, 1, 1, 1, 1]#float16",
+      "group": "suite/dev",
+      "operator": "suite/dev/deconv3d_fwd_kernel.py",
+      "shape": [
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "dtype": "float16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "b187cab9b556",
+      "artifact_sha256": "fbd1cc3e28a32c8962a56555552cf2f242f7093a9888a261fc951d891fbe652d",
+      "artifact_key": "d0fdecbcbbeb5e882d8a1772845fb5ee8dd870f9e5a21f2abc160fd5867a80fb",
+      "cache_hit": true,
+      "launch_seconds": 0.051,
+      "max_abs_error": {
+        "y_ptr": 0.0
+      },
+      "seconds": 0.058
+    },
+    {
+      "id": "suite/dev/deconv3d_fwd_kernel.py#[1, 1, 1, 1, 1]#bfloat16",
+      "group": "suite/dev",
+      "operator": "suite/dev/deconv3d_fwd_kernel.py",
+      "shape": [
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "dtype": "bfloat16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "457fbe837e66",
+      "artifact_sha256": "cc758e4862ee85280fc54428d7bfd9f58a7b6f1cef744650cf3a01624603d503",
+      "artifact_key": "d512660ff89f2f93f337a890261dba26bb1e37906976ccfc7422532945f5a95b",
+      "cache_hit": true,
+      "launch_seconds": 0.054,
+      "max_abs_error": {
+        "y_ptr": 0.0
+      },
+      "seconds": 0.061
+    }
+  ]
+}

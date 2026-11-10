@@ -478,6 +478,80 @@ def check_refuse_matrix_kept():
               "IME" in str(exc) and "LMUL=1" in str(exc), str(exc)[:80])
 
 
+def check_strided_pack():
+    """The strided staging-pack opcodes (the matmul optimization round):
+    the repertoire rows as data, selection finds the vlse form, and the
+    IME contract accepts the pack's own shape while rejecting a wrong
+    region, a non-i64 stride and a wrong result width."""
+    rows = {r.mnemonic: r for r in matrix_mod.ime_repertoire_rows()}
+    for m in ("vlse8.v", "vlse16.v"):
+        check(f"strided-row-{m}",
+              m in rows and "{rs2}" in rows[m].form and "{rs1}" in
+              rows[m].form,
+              rows[m].form if m in rows else "missing")
+    check("strided-opcodes-in-ime-set",
+          {"vloads8", "vloads16"} <= matrix_mod.IME_OPCODES)
+
+    def build(op, params=()):
+        fn = mir.MFunction("f", list(params))
+        entry = mir.Block("entry")
+        fn.blocks.append(entry)
+        mod = mir.MModule("probe", "<probe>")
+        mod.functions.append(fn)
+        entry.ops.append(op)
+        entry.ops.append(mir.MOp("ret", [], [], loc="probe"))
+        return mod
+
+    def with_region(mod, sew, lmul):
+        avl = mir.VReg(mir.I32, name="avl")
+        mod.functions[0].blocks[0].ops.insert(0, mir.MOp(
+            "vsetvli", [avl], [mir.VReg(mir.I32, name="vl")],
+            attrs={"sew": sew, "lmul": lmul, "policy": "ta,ma"},
+            loc="probe"))
+        mod.functions[0].blocks[0].ops.insert(0, mir.MOp(
+            "sconst", [], [avl], attrs={"value": 8}, loc="probe"))
+
+    base = mir.VReg(mir.I64, name="base")
+    stride = mir.VReg(mir.I64, name="stride")
+    out16 = mir.VReg(mir.VectorType(16, 1, "float"), name="v")
+
+    mod = build(mir.MOp("vloads16", [base, stride], [out16], loc="probe"),
+                (base, stride, out16))
+    with_region(mod, 16, 1)
+    errs = matrix_mod.verify_module(mod)
+    check("strided-pack-accepted", not errs, str(errs[:1]))
+    legal_mod.legalize(mod)
+    selection = select_mod.select(mod)
+    check("strided-pack-selected-vlse16",
+          "vlse16.v" in {s.mnemonic for s in selection.values()})
+
+    mod = build(mir.MOp("vloads16", [base, stride], [out16], loc="probe"),
+                (base, stride, out16))
+    with_region(mod, 32, 1)
+    errs = matrix_mod.verify_module(mod)
+    check("strided-wrong-region-rejected",
+          len(errs) == 1 and errs[0].invariant ==
+          matrix_mod.IMEInvariant.IME_REGION, str(errs[:1]))
+
+    stride32 = mir.VReg(mir.I32, name="stride32")
+    mod = build(mir.MOp("vloads16", [base, stride32], [out16],
+                        loc="probe"), (base, stride32, out16))
+    with_region(mod, 16, 1)
+    errs = matrix_mod.verify_module(mod)
+    check("strided-non-i64-stride-rejected",
+          len(errs) == 1 and errs[0].invariant ==
+          matrix_mod.IMEInvariant.IME_SHAPE, str(errs[:1]))
+
+    out8 = mir.VReg(mir.VectorType(8, 1, "uint"), name="v8")
+    mod = build(mir.MOp("vloads16", [base, stride], [out8], loc="probe"),
+                (base, stride, out8))
+    with_region(mod, 16, 1)
+    errs = matrix_mod.verify_module(mod)
+    check("strided-wrong-result-width-rejected",
+          len(errs) == 1 and errs[0].invariant ==
+          matrix_mod.IMEInvariant.IME_SHAPE, str(errs[:1]))
+
+
 def main() -> int:
     check_plan_families()
     check_plan_refusals()
@@ -485,6 +559,7 @@ def main() -> int:
     check_ime_illegal_forms()
     check_allocator()
     check_selection()
+    check_strided_pack()
     check_refuse_matrix_kept()
     if FAILURES:
         print(f"FAILED: {len(FAILURES)} check(s)")
