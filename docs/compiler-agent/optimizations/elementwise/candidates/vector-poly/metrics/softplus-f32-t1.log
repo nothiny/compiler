@@ -1,0 +1,14 @@
+Traceback (most recent call last):
+  File "/home/i_yinzida/compiler-a100-experiment-001/tools/profiling/collect_metrics.py", line 360, in <module>
+    sys.exit(main())
+  File "/home/i_yinzida/compiler-a100-experiment-001/tools/profiling/collect_metrics.py", line 135, in main
+    row = find_row(scan, args.operator, shape, args.dtype)
+  File "/home/i_yinzida/compiler-a100-experiment-001/tools/profiling/collect_metrics.py", line 73, in find_row
+    rows = list(scan.enumerated_rows(
+  File "/home/i_yinzida/compiler-a100-experiment-001/tools/run_scan.py", line 184, in enumerated_rows
+    operator_keys = {resolve_operator_path(op) for op in operators} \
+  File "/home/i_yinzida/compiler-a100-experiment-001/tools/run_scan.py", line 184, in <setcomp>
+    operator_keys = {resolve_operator_path(op) for op in operators} \
+  File "/home/i_yinzida/compiler-a100-experiment-001/tools/run_scan.py", line 156, in resolve_operator_path
+    raise FileNotFoundError(f"operator file not found: {raw}")
+FileNotFoundError: operator file not found: suite/perf/softplus.py
