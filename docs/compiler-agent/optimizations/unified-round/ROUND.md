@@ -66,3 +66,50 @@ recorded as follow-up work.
   walk was no longer the cost there (the pre-W1 profile's estimate).
   The 2D-affine forms (two vector terms) need a chunk/row-alignment
   analysis before they can take even the strided form -- future work.
+
+## Addendum: the second roadmap pass (P1 + the runtime floor)
+
+The user's follow-up roadmap (the add_value#[4] assembly evidence: 1,989
+instructions for 4 elements) landed two more items:
+
+| commit | item | measured effect |
+|---|---|---|
+| b652bef | [opt] P1: chunk-loop live-element clamp | add_value[4] 2,007 -> 765 (-61.9%); gelu[128] 8,769 -> 2,259 (-74.2%); sigmoid -63.5%, selu -66.3%, pow -70.1% -- cumulative vs the round's original baselines all at **-96.6..-96.8% (~31x)** |
+| 1ba05bc | [opt] runtime: the repeat loop restores/compares the writable span, word-wide | add_value[4] 765 -> 613 (-20%); gelu/sigmoid ~-2%; the whole-image byte loops were the small-case floor |
+
+The clamp: when the whole function's memory ops share ONE prefix mask
+`cmp.lt(arange + scalars, S)` (the standard elementwise mask) and
+nothing lane-consuming can observe the masked lanes, the chunk loop's
+bound is the mask's own `min(BLOCK, S - block_base)` -- the [4]-in-1024
+tail chunks (31 of 32 fully masked, each running the complete body)
+were pure waste.
+
+The runtime: the --repeats protocol memcpy'd/memcmp'd the WHOLE bundle
+image per repeat through byte-wise loops; only the storage-union span
+is writable post-patch, and it now moves word-wide.
+
+### The floor after both
+
+Small cases are now dispatch-bound: gelu[128] = 2,216 per call with the
+chunk loop at ~2% -- the remaining ~600 is the pool dispatch
+(wake/handoff/atomics), a shared surface with diminishing returns (not
+pursued; the earlier "don't touch the <10% dispatch" guidance inverted
+once the kernel work collapsed, and the byte-loop fix was the cheap
+9/10 of it).
+
+### P3 analyzed and skipped (the instruction-count criterion)
+
+The block-boundary join relays (`sd/mv/ld` through the stack scratch)
+become `mv/mv/mv` through a free GPR -- the SAME three instructions for
+a 2-cycle swap.  A real-hardware win (register vs memory), a zero under
+the dynamic-instruction criterion.  Skipped and recorded; the real fix
+is allocator phi-coalescing (the moves exist because block params and
+their incoming args get different physical registers).
+
+### Next by the roadmap (not yet implemented)
+
+P2 (prefix mask -> exact vl, the ~9-op mask chains), P4 (pointer
+recursion + chunk-invariant hoisting), P5 (LMUL m2 -- the mid/large
+cases' remaining per-chunk overhead halves; the 6 hardcoded lmul sites
+plus the derived regions), P6 (fp16/bf16 masked narrow accesses), P7
+(sin/cos polynomials).
