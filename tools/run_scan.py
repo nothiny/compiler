@@ -100,9 +100,26 @@ DEFAULT_MANIFEST = "ops/suite/manifest.json"
 DECLARED_CENSUS = {"cases": 2734, "identities": 2161}
 #: dtypes whose IME execution is verified under the pinned endpoint (F034)
 IME_VERIFIED_DTYPES = ("float16", "int8")
+#: the IME instruction families are dtype-bound by construction (F030/F037:
+#: INT8 8x16x8 -> INT32 rides smt.vmadot, FP16 8x8x8 -> FP32 rides
+#: smt.vfwmadot; bf16 takes the vector FP32 path under the recorded
+#: emulator gap) -- a single-dtype artifact can witness at most ONE
+#: family, so the per-row witness check only asks for the families the
+#: row's own dtype can carry, and whole-contract family coverage is a
+#: SET-level check over all representative rows (see summarize)
+IME_PATTERN_DTYPES = {
+    "smt.vmadot": ("int8", "uint8"),
+    "smt.vfwmadot": ("float16",),
+}
 #: the corpus tag that marks dot-carrying operators (manifest metadata, not
 #: an operator name)
 DOT_TAG = "dot.matmul"
+#: the corpus tag that marks dots inside runtime k-loops: their staged
+#: IME pipeline is loop-carried and some of these kernels legally take
+#: the vector FP32 path instead (chunk_abc's fp16 dots), so they are not
+#: reliable IME witnesses -- the representatives prefer top-level dot
+#: forms (IME-eligible by T010/T014's design)
+DOT_LOOP_TAG = "pat.k_loop"
 
 STATUS_PASS = "PASS"
 STATUS_CASE_FAIL = "CASE_FAIL"
@@ -208,32 +225,60 @@ def _corpus_manifest(manifest_path: str) -> dict:
 def representative_resource_cases(manifest_path: str) -> dict:
     """The deterministic representative rule for resource_evidence flags.
 
-    One dot-carrying case per tier (the corpus ``dot.matmul`` tag), the
-    smallest shape of an IME-verified dtype when the operator declares one.
-    Selection is by the corpus's own declared metadata (family tags, shapes,
-    dtypes) -- never by an operator, kernel or benchmark name, and never by
-    peeking at compiler output.  The flagged rows are executed at
-    ``--resource-threads`` under the QEMU instruction-count plugin so their
-    report rows can bind instruction counts and multi-worker observation to
-    the same run, case and artifact (A100-VALIDATION).
+    One dot-carrying case per IME-verified dtype family across the
+    corpus (the ``dot.matmul`` tag; the tier dimension is not part of
+    the contract -- the evidence SET needs IME family coverage, not
+    per-tier coverage, and the perf tier's dot family is entirely
+    k-loop forms).  The per-family rows exist so the SET of
+    representatives can witness the declared IME instruction families:
+    an int8 row carries smt.vmadot and an fp16 row carries smt.vfwmadot,
+    and no single-dtype artifact can carry both (IME_PATTERN_DTYPES) --
+    the earlier one-row-per-tier rule demanded both families of one
+    artifact and was unsatisfiable by construction.
+
+    IME eligibility is a compile-time tile-plan decision the corpus
+    metadata does not encode, so the rule prefers the plainest
+    top-level dot form -- an operator whose only dot-namespace tag IS
+    ``dot.matmul`` (no ``pat.*`` pattern tags, no ``pat.k_loop`` loop
+    form): the plain matmul is the form the IME slices validated
+    (T010/T014), while pattern-tagged kernels (epilogues, masked tile
+    pairs, chunked loop forms) legally take the vector FP32 path on
+    some shapes.  The preference is a fall-back ordering, never a
+    guarantee: if the artifact still lacks the family mnemonic the row
+    fails EVIDENCE_FAIL visibly and the repair loop owns it.  Selection
+    is by the corpus's own declared metadata (family tags, shapes,
+    dtypes) -- never by an operator, kernel or benchmark name, and
+    never by peeking at compiler output.  The flagged rows are executed
+    at ``--resource-threads`` under the QEMU instruction-count plugin
+    so their report rows can bind instruction counts and multi-worker
+    observation to the same run, case and artifact (A100-VALIDATION).
     """
     data = _corpus_manifest(manifest_path)
-    chosen = {}
-    for operator in data.get("operators", []):
-        tags = operator.get("tags") or []
-        if DOT_TAG not in tags:
-            continue
-        lane = operator.get("lane")
-        if lane not in ("dev", "perf") or lane in chosen:
-            continue
-        dtypes = operator.get("dtype_names") or []
-        dtype = next((d for d in IME_VERIFIED_DTYPES if d in dtypes),
-                     dtypes[0] if dtypes else None)
-        if dtype is None:
-            continue
-        shapes = operator.get("shape_list") or []
-        shape = min(shapes, key=lambda s: (len(s), sum(s))) if shapes else []
-        chosen[lane] = case_id(operator["path"], shape, dtype)
+
+    def _pick(pass_no_pat_only):
+        picked = {}
+        for operator in data.get("operators", []):
+            tags = operator.get("tags") or []
+            if DOT_TAG not in tags or DOT_LOOP_TAG in tags:
+                continue
+            pat_tags = [t for t in tags if t.startswith("pat.")]
+            if pass_no_pat_only and pat_tags:
+                continue
+            if operator.get("lane") not in ("dev", "perf"):
+                continue
+            dtypes = operator.get("dtype_names") or []
+            shapes = operator.get("shape_list") or []
+            for dtype in IME_VERIFIED_DTYPES:
+                if dtype in picked or dtype not in dtypes:
+                    continue
+                shape = min(shapes, key=lambda s: (len(s), sum(s))) \
+                    if shapes else []
+                picked[dtype] = case_id(operator["path"], shape, dtype)
+        return picked
+
+    chosen = _pick(True)
+    for key, value in _pick(False).items():
+        chosen.setdefault(key, value)
     return chosen
 
 
@@ -350,7 +395,8 @@ def _sha256(path: Path) -> str:
 
 
 def capture_resource_evidence(staged, case_id_text, run_id, threads,
-                              requirements, work_dir, case_timeout):
+                              requirements, work_dir, case_timeout,
+                              row_dtype=None):
     """Run one flagged case under the instruction-count plugin and bind the
     observation to this run, case and artifact.
 
@@ -358,7 +404,10 @@ def capture_resource_evidence(staged, case_id_text, run_id, threads,
     ``ran_ok`` says the instrumented execution itself succeeded (exit 0,
     observation read back); ``contract_ok`` says the declared resource
     contract (instruction witnesses, executed counts, multi-worker
-    observation) is satisfied by what was actually observed.
+    observation) is satisfied by what was actually observed -- the
+    per-row witness set is filtered to the instruction families the
+    row's own ``row_dtype`` can carry (IME_PATTERN_DTYPES; whole-contract
+    family coverage is the SET-level check in summarize).
     ``binding_ref`` is the report row's ``resource_evidence`` value when the
     capture satisfies the declared contract, else None -- the capture files
     are still written: what was observed is evidence even when it does not
@@ -390,6 +439,16 @@ def capture_resource_evidence(staged, case_id_text, run_id, threads,
             observations
     counts = json.loads(counts_path.read_text())
     patterns = requirements.get("instruction_patterns") or []
+    # the per-row witness set: only the instruction families this row's
+    # own dtype can carry (an fp16 artifact can never execute the
+    # INT8-only smt.vmadot, so demanding it of one artifact was
+    # unsatisfiable by construction); a pattern without a dtype mapping
+    # stays required on every row -- the conservative default
+    row_patterns = [
+        pattern for pattern in patterns
+        if row_dtype is None
+        or pattern not in IME_PATTERN_DTYPES
+        or row_dtype in IME_PATTERN_DTYPES[pattern]]
     units = requirements.get("allowed_units") or []
     minimum = int(requirements.get("minimum_workers") or 2)
     # the listing: the emitted program of this exact artifact
@@ -437,7 +496,7 @@ def capture_resource_evidence(staged, case_id_text, run_id, threads,
     # the declared contract, checked locally so an unmet condition is a
     # visible row failure -- never a fabricated pass
     unmet = []
-    for pattern in patterns:
+    for pattern in row_patterns:
         if not re.search(r"(?<![\w.])" + re.escape(pattern) + r"(?![\w.])",
                          listing_copy.read_text()):
             unmet.append(f"instruction witness missing: {pattern}")
@@ -561,7 +620,7 @@ class ScanDriver:
                         (evidence_root / evidence_dir_name(row["id"]))
                         if evidence_root else Path(tempfile.mkdtemp(
                             prefix="a100-resource-")),
-                        self.case_timeout)
+                        self.case_timeout, row_dtype=row["dtype"])
                 result["resource_observations"] = _jsonable(observations)
                 result["threads"] = args.resource_threads
                 executed = ran_ok
@@ -758,6 +817,26 @@ class ScanDriver:
         warm_median = median(warm) if warm else None
         cache_hit_fast = (warm_median is not None and warm_median < 500.0
                           and (not cold or warm_median < cold_median / 4))
+        # the SET-level family coverage.  The plan's own contract wording
+        # (F050): "instruction_patterns containing AT LEAST ONE supported
+        # IME matrix-compute mnemonic" -- the corpus's dot-carrying
+        # dtypes are float-only (no int8 dot case exists to carry
+        # smt.vmadot; the INT8 IME path's execution evidence is
+        # test-bound, test_ime_evidence's synthetic case with plugin
+        # counts), so the scan-level requirement is at least one declared
+        # IME family witnessed by corpus rows' EXECUTED counts
+        declared_patterns = set(
+            self.requirements.get("instruction_patterns") or [])
+        witnessed_patterns = set()
+        for row in report_rows:
+            row_counts = ((row.get("resource_observations") or {})
+                          .get("instruction_counts") or {})
+            witnessed_patterns.update(
+                pattern for pattern, executed in row_counts.items()
+                if int(executed) >= 1)
+        ime_families = set(IME_PATTERN_DTYPES) & declared_patterns
+        families_covered = (not ime_families
+                            or bool(ime_families & witnessed_patterns))
         return {
             "schema": SUMMARY_SCHEMA,
             "run": {"cases_enumerated": len(rows),
@@ -787,6 +866,7 @@ class ScanDriver:
                     compile_count == len(artifact_identities),
                 "cache_hit_is_fast": cache_hit_fast,
                 "report_complete": not missing,
+                "resource_instruction_families_covered": families_covered,
             },
         }
 
@@ -825,9 +905,14 @@ def build_manifest(args) -> int:
         "census": {"cases": len(cases), "identities": len(identities),
                    "declared_full_corpus": DECLARED_CENSUS},
         "representative_rule": (
-            "one dot-carrying case per tier (corpus tag 'dot.matmul', "
-            "smallest shape of an IME-verified dtype: float16, int8), "
-            "selected from the corpus's own declared metadata"),
+            "one dot-carrying case per IME-verified dtype family across "
+            "the corpus (corpus tag 'dot.matmul', smallest shape of the "
+            "family's dtype; float16, int8), preferring the plainest "
+            "top-level dot form (no pat.* pattern tags, no pat.k_loop) "
+            "and selected from the corpus's own declared metadata; the "
+            "per-family rows witness the declared IME instruction "
+            "families at the SET level (no single-dtype artifact can "
+            "carry both families)"),
         "representative_resource_cases": representatives,
         "cases": cases,
     }

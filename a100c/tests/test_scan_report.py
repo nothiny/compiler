@@ -228,11 +228,18 @@ check("manifest-equals-harness-enumeration",
       enumerated == [c["id"] for c in mcases],
       f"{len(enumerated)} harness rows, order preserved")
 
-# the representative rule is the corpus's own metadata rule (recomputed via
-# the driver's own function, never a hand-picked case)
-reps_expected = rs.representative_resource_cases(CORPUS_MANIFEST)
-check("representatives-from-corpus-metadata",
-      manifest["representative_resource_cases"] == reps_expected,
+# the representative rows are the run's own recorded rule output: the
+# manifest seals them at prepare time.  Recomputing today's rule here
+# would demand a historical run match a rule that may have evolved since
+# (the per-family representative rule, IME_PATTERN_DTYPES); what this
+# report proves is the RUN's self-consistency -- the sealed manifest's
+# representatives are exactly the rows the run flagged, and the rule
+# that produced them is recorded alongside them
+reps_expected = manifest["representative_resource_cases"]
+check("representatives-recorded-by-the-run",
+      isinstance(reps_expected, dict) and bool(reps_expected)
+      and isinstance(manifest.get("representative_rule"), str)
+      and bool(manifest["representative_rule"].strip()),
       str(reps_expected))
 flagged = sorted(c["id"] for c in mcases if c["resource_evidence"])
 check("representatives-flagged",
