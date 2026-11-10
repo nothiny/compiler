@@ -1,0 +1,48 @@
+{
+  "schema": "a100c-matmul-optimization-recommendation/v1",
+  "question": "what should be optimized for the matmul family under the round's proxy-metric judge (guest dynamic instruction overhead, spill/reload traffic, redundant memory traffic)?",
+  "recommendation": {
+    "mechanism": "Vectorize the IME B-operand staging pack: replace the per-element guarded scalar copy loops (block classes pb/pq) with one strided vector load (vlse{8,16}.v, byte stride N*esz, vl = the guarded count rem) plus one unit-stride store per staged column. The zero-fill of all staging columns is unchanged, so lanes past rem keep zero exactly as the scalar prefix copy left them.",
+    "scope": "lowering",
+    "why_not_an_existing_pass": "The pack loops do not exist at TIR level (no TIR pass can see them: LICM fired=0 on the flagship case); MIR has no pass stage in the declared pipeline (mir/v1 passes list is empty); the emitter cannot restructure loops. The cost is produced by the matrix lowering's own packing decision inside the declared responsibility of a100c/lower/matrix.py ('IME matrix lowering: tile mapping, packing decisions'), so the fix belongs in the lowering, as an evidence-backed exception per the methodology.",
+    "structural_properties": [
+      "the pack's source access is a uniform byte stride (N*esz) over the row-major (K,N) region with a guarded count rem <= tk <= vlmax",
+      "the destination staging column is contiguous and pre-zeroed for the full tk lanes",
+      "the family width is 8 or 16 bits (int4's nibble pack and any other width keep the scalar fallback)"
+    ],
+    "legality": [
+      "element alignment: src0 and the stride are multiples of esz (workspace base + offset + kb*N*esz + nj*esz), so every vlse element address is esz-aligned (probe-verified shapes)",
+      "rem == 0 (a guarded-out column) makes the runtime-vl vsetvli set vl=0 and the vlse/vse no-ops (probe-verified)",
+      "the region contract: the pack's ops run at (sew=in_sew, lmul=1); the verifier's region check is extended to the new opcodes",
+      "emulator gate: vlse/vsse at the pack's shapes, the e64m2->e16m1 region transition and avl 0 all PASS under the pinned QEMU (tooling/probe-strided.S, run twice); the recorded indexed-form defect does not cover strided forms"
+    ],
+    "fallback_and_rollback": [
+      "structural guard: in_width in (8, 16) and not matrix_scalar_pack -> vector pack; otherwise the original scalar loops (kept verbatim)",
+      "switch: A100C_MATRIX_PACK=scalar (CompileOptions.matrix_scalar_pack, recorded in the artifact identity 'matrix-scalar-pack', so the contrast compiles to distinct cache entries; verified: 6/6 PASS with pq loops restored)",
+      "rollback: revert the matrix.py change; the switch alone also restores the scalar path at the same revision"
+    ],
+    "expected_benefit": "the pack's per-element ~14 scalar instructions collapse to ~3 vector instructions per staged column; on the flagship case the pack class is 73.7% of 13.3M per-call instructions -- the expected reduction is the dominant term of the round's target metric (dynamic instruction overhead), plus the corresponding scalar-load/store and branch traffic inside those loops",
+    "risks": [
+      "the pinned QEMU's memory-op quirks (recorded: indexed narrow-data SEGFAULT; NEW: vmv at e64m2 SIGILL) -- mitigated by the probe evidence and by the strided form never overlapping the recorded defect classes",
+      "register pressure: the gather holds one more live vector register inside the pb loop -- the flagship case had 9/32 vector registers used; the allocator verifies legality and can spill (spill traffic is measured, not assumed)"
+    ],
+    "confidence": "high",
+    "next_experiment": "matmul-family 312-case scan at the candidate revision, then the same-scope metric re-sweep (identical cases/threads/repeats/seed) for the per-case before/after table, then the full-input regression"
+  },
+  "alternatives_considered": [
+    {
+      "alternative": "indexed gather with the existing vluxei64.v (zero new opcodes)",
+      "rejected_because": "the pinned QEMU SEGFAULTs on e64-index memory forms with sub-32-bit data (recorded defect, vectorize.py:2579) -- exactly the fp16/int8 pack shapes"
+    },
+    {
+      "alternative": "new MIR-level LICM / induction-variable strength-reduction pass",
+      "rejected_because": "MIR has no pass stage in the reviewed architecture contract (a semantic contract change requiring DesignIssue + replan + fresh review); the dominant cost is the pack's structure, not general loop materialization"
+    },
+    {
+      "alternative": "optimize the scalar loop body only (address recurrence + hoisted constants)",
+      "rejected_because": "bounded win (~1.5x on the pack class) while the vector form removes the class; kept as the fallback path"
+    }
+  ],
+  "bottleneck_record": "../BOTTLENECKS.json",
+  "profile_manifest": "./PROFILE_MANIFEST.json"
+}

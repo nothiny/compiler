@@ -101,6 +101,17 @@ class CompileOptions:
     #: out-of-range lanes touch a poisoned guard region; recorded in the
     #: artifact identity when set
     witness_drop_atomic_masks: bool = False
+    #: the B-operand staging pack rides the vector strided load (vlse,
+    #: the matmul optimization round); True forces the scalar per-element
+    #: pack loops -- the on/off contrast and rollback path.  Recorded in
+    #: the artifact identity when set.  Env route (the A100C_PASS_*
+    #: switches' pattern): A100C_MATRIX_PACK=scalar.
+    matrix_scalar_pack: bool = False
+
+    def __post_init__(self):
+        if os.environ.get("A100C_MATRIX_PACK", "").strip().lower() in \
+                ("scalar", "1", "true", "yes"):
+            self.matrix_scalar_pack = True
 
     def identity_part(self) -> str:
         parts = []
@@ -110,6 +121,8 @@ class CompileOptions:
             parts.append("witness-drop-stage-barrier")
         if self.witness_drop_atomic_masks:
             parts.append("witness-drop-atomic-masks")
+        if self.matrix_scalar_pack:
+            parts.append("matrix-scalar-pack")
         if not self.dumps:
             parts.append("no-dumps")      # dumps do not affect the ELF
         return ",".join(parts) if parts else "default"

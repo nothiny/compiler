@@ -96,6 +96,11 @@ class LowerOptions:
     #: fp16 native lanes exist (probed) and the switch selects the
     #: single-rounding policy.  Recorded in the artifact identity.
     fp16_bf16_fp32_lanes: bool = True
+    #: the B-operand staging pack rides the vector strided load (vlse,
+    #: the matmul optimization round); True forces the scalar per-element
+    #: pack loops -- the on/off contrast and rollback path.  Recorded in
+    #: the artifact identity when set.
+    matrix_scalar_pack: bool = False
 
     def identity_part(self) -> str:
         parts = []
@@ -107,6 +112,8 @@ class LowerOptions:
             parts.append("witness-drop-atomic-masks")
         if not self.fp16_bf16_fp32_lanes:
             parts.append("native-fp16-lanes")
+        if self.matrix_scalar_pack:
+            parts.append("matrix-scalar-pack")
         return ",".join(parts) if parts else "default"
 
 

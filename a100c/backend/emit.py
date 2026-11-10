@@ -612,7 +612,7 @@ class _Emitter:
     _SCHED_FIXED = {'vsetvli', 'br', 'brc', 'callbarrier', 'ret',
                     'sfence', 'sspill', 'sreload', 'vspill', 'vreload'}
     _SCHED_LOADS = {'sload', 'vloadix', 'vuload8', 'vuload16',
-                    'vunit_load'}
+                    'vloads8', 'vloads16', 'vunit_load'}
 
     def _schedule_block(self, ops):
         return ops  # TEMP-DISABLED (load hoisting has memory-dependency edge cases)

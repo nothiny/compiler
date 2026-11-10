@@ -1,0 +1,40 @@
+/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/triton_linear_activation.py:141: RuntimeWarning: scipy.special is unavailable; mathref falls back to the slow np.vectorize(math.*) path
+  return original_ref(convert_float_arrays(args, requested), meta)
+{
+ "case": "suite/perf/triton_linear_activation.py#[32, 32, 32]#float16",
+ "threads": 1,
+ "per_call_total": 325822.0,
+ "init_total": 173695.0,
+ "categories": {
+  "atomic": 42.8,
+  "branch": 32500.6,
+  "ime": 64.0,
+  "scalar-arith": 192060.2,
+  "scalar-load": 67076.0,
+  "scalar-store": 31221.6,
+  "system": 34.2,
+  "vec-arith": 38640.0,
+  "vec-config": 20203.0,
+  "vec-mem": 5798.0
+ },
+ "top_origins": {
+  "const-materialization": 54520.0,
+  "vec-arith": 33604.0,
+  "vec-config": 23664.0,
+  "op:sadd": 15445.0,
+  "frame": 13452.0,
+  "scalar-mem": 11423.0
+ },
+ "spill": {
+  "spill_instructions": 358.0,
+  "reload_instructions": 6346.0,
+  "spill_bytes_model": 16388.0,
+  "reload_bytes_model": 225972.0
+ },
+ "runtime_top": {
+  "operator_entry": 8894.0,
+  "_PROCEDURE_LINKAGE_TABLE_": 3096.0,
+  "main": 65.0,
+  "a100rt_pool_call": 25.0
+ }
+}

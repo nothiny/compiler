@@ -1,0 +1,59 @@
+{
+  "run_id": null,
+  "case_id": "suite/dev/matmul_k32_fast_kernel_f2eeb00c.py#[128]#float16",
+  "artifact_sha256": "ba3c662de532157b184c432ca76ea19b39115b3380291581855a961fc2404a0e",
+  "variant": "threads-4",
+  "instruction_counts": {
+    "smt.vmadot": 0,
+    "smt.vfwmadot": 4096
+  },
+  "workers": [
+    {
+      "worker": "worker-0",
+      "unit": "a100-compute-worker-slot-0",
+      "observed_units": [
+        "a100-compute-worker-slot-0"
+      ],
+      "completed_units": 123872,
+      "start": 3894104.821371526,
+      "end": 3894104.975268411
+    },
+    {
+      "worker": "worker-1",
+      "unit": "a100-compute-worker-slot-1",
+      "observed_units": [
+        "a100-compute-worker-slot-1"
+      ],
+      "completed_units": 123872,
+      "start": 3894104.821371526,
+      "end": 3894104.975268411
+    },
+    {
+      "worker": "worker-2",
+      "unit": "a100-compute-worker-slot-2",
+      "observed_units": [
+        "a100-compute-worker-slot-2"
+      ],
+      "completed_units": 0,
+      "start": 3894104.821371526,
+      "end": 3894104.975268411
+    },
+    {
+      "worker": "worker-3",
+      "unit": "a100-compute-worker-slot-3",
+      "observed_units": [
+        "a100-compute-worker-slot-3"
+      ],
+      "completed_units": 0,
+      "start": 3894104.821371526,
+      "end": 3894104.975268411
+    }
+  ],
+  "guest_tids": [
+    1260683,
+    1260684,
+    1260685,
+    1260686
+  ],
+  "command": "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64 -L /home/i_yinzida/.local/opt/a100/toolchain-1.1.2/sysroot -cpu max,vlen=1024,elen=64,vext_spec=v1.0 -plugin /home/i_yinzida/compiler-a100-experiment-001/a100_support/build/instruction_counts.so,out=/home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/optimizations/matmul/baseline/scan/resource-evidence/suite__dev__matmul_k32_fast_kernel_f2eeb00c.py#[128]#float16/counts.json /home/i_yinzida/compiler-a100-experiment-001/a100c/cache/e9e80472f9c450b2bcc04ada59bdf1431a7033f3e5f2e83e5a05c8b14fe0123f/operator_exec --bundle /tmp/a100-native-case-3vfxb432/bundle.bin --threads 4"
+}

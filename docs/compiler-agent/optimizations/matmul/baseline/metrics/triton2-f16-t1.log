@@ -1,0 +1,38 @@
+{
+ "case": "suite/perf/matmul_triton2.py#[32, 32, 32]#float16",
+ "threads": 1,
+ "per_call_total": 324447.8,
+ "init_total": 171726.2,
+ "categories": {
+  "atomic": 47.0,
+  "branch": 46930.4,
+  "ime": 64.0,
+  "scalar-arith": 182381.6,
+  "scalar-load": 38411.6,
+  "scalar-store": 31318.6,
+  "system": 35.4,
+  "vec-arith": 37552.0,
+  "vec-config": 19247.0,
+  "vec-mem": 4538.0
+ },
+ "top_origins": {
+  "const-materialization": 75705.0,
+  "op:sadd": 54640.0,
+  "vec-arith": 43440.0,
+  "vec-config": 32696.0,
+  "reload": 30548.0,
+  "op:smul": 21648.0
+ },
+ "spill": {
+  "spill_instructions": 482.0,
+  "reload_instructions": 30548.0,
+  "spill_bytes_model": 17412.0,
+  "reload_bytes_model": 232708.0
+ },
+ "runtime_top": {
+  "operator_entry": 2708.0,
+  "main": 65.0,
+  "_PROCEDURE_LINKAGE_TABLE_": 26.2,
+  "a100rt_pool_call": 25.0
+ }
+}

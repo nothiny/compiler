@@ -1,0 +1,310 @@
+{
+  "schema": "a100c-profiling-phase-a-validation/v1",
+  "qemu": "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64",
+  "qemu_version": "qemu-riscv64 version 10.0.2",
+  "cross_prefix": "/home/i_yinzida/.local/opt/a100/toolchain-1.1.2/bin/riscv64-unknown-linux-gnu-",
+  "cpu": "max,vlen=1024,elen=64,vext_spec=v1.0",
+  "note": "counts are guest dynamic instruction executions (per-insn exec callbacks); expectations hand-computed from the sources and cross-checked against objdump",
+  "straight": {
+    "command": "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64 -L /home/i_yinzida/.local/opt/a100/toolchain-1.1.2/sysroot -cpu max,vlen=1024,elen=64,vext_spec=v1.0 -plugin /home/i_yinzida/compiler-a100-experiment-001/tools/profiling/full_instruction_counts.so,out=/home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/optimizations/matmul/tooling/phase-a/straight.counts2.json /home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/optimizations/matmul/tooling/phase-a/straight",
+    "runs": [
+      {
+        "attempt": 1,
+        "returncode": 0,
+        "stderr_tail": "",
+        "stdout_tail": ""
+      },
+      {
+        "attempt": 2,
+        "returncode": 0,
+        "stderr_tail": "",
+        "stdout_tail": ""
+      }
+    ],
+    "static_listing": [
+      [
+        65712,
+        "li"
+      ],
+      [
+        65716,
+        "li"
+      ],
+      [
+        65718,
+        "addi"
+      ],
+      [
+        65720,
+        "ld"
+      ],
+      [
+        65722,
+        "sd"
+      ],
+      [
+        65724,
+        "add"
+      ],
+      [
+        65726,
+        "vsetvli"
+      ],
+      [
+        65730,
+        "vmv.v.i"
+      ],
+      [
+        65734,
+        "beqz"
+      ],
+      [
+        65738,
+        "addi"
+      ],
+      [
+        65742,
+        "li"
+      ],
+      [
+        65744,
+        "ecall"
+      ]
+    ],
+    "actual_total": 12,
+    "actual_categories": {
+      "ime": 0,
+      "vec-config": 1,
+      "vec-mem": 0,
+      "vec-arith": 1,
+      "scalar-load": 1,
+      "scalar-store": 1,
+      "atomic": 0,
+      "scalar-arith": 6,
+      "branch": 1,
+      "system": 1
+    },
+    "expected_total": 12,
+    "expected_categories": {
+      "ime": 0,
+      "vec-config": 1,
+      "vec-mem": 0,
+      "vec-arith": 1,
+      "scalar-load": 1,
+      "scalar-store": 1,
+      "atomic": 0,
+      "scalar-arith": 6,
+      "branch": 1,
+      "system": 1
+    },
+    "problems": [],
+    "verdict": "PASS"
+  },
+  "loop": {
+    "command": "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64 -L /home/i_yinzida/.local/opt/a100/toolchain-1.1.2/sysroot -cpu max,vlen=1024,elen=64,vext_spec=v1.0 -plugin /home/i_yinzida/compiler-a100-experiment-001/tools/profiling/full_instruction_counts.so,out=/home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/optimizations/matmul/tooling/phase-a/loop.counts2.json /home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/optimizations/matmul/tooling/phase-a/loop",
+    "runs": [
+      {
+        "attempt": 1,
+        "returncode": 0,
+        "stderr_tail": "",
+        "stdout_tail": ""
+      },
+      {
+        "attempt": 2,
+        "returncode": 0,
+        "stderr_tail": "",
+        "stdout_tail": ""
+      }
+    ],
+    "static_listing": [
+      [
+        65712,
+        "li"
+      ],
+      [
+        65716,
+        "li"
+      ],
+      [
+        65720,
+        "li"
+      ],
+      [
+        65722,
+        "addi"
+      ],
+      [
+        65724,
+        "addi"
+      ],
+      [
+        65726,
+        "ld"
+      ],
+      [
+        65728,
+        "sd"
+      ],
+      [
+        65730,
+        "add"
+      ],
+      [
+        65732,
+        "vsetvli"
+      ],
+      [
+        65736,
+        "vmv.v.i"
+      ],
+      [
+        65740,
+        "addi"
+      ],
+      [
+        65742,
+        "bnez"
+      ],
+      [
+        65746,
+        "li"
+      ],
+      [
+        65748,
+        "ecall"
+      ]
+    ],
+    "actual_total": 8006,
+    "actual_categories": {
+      "ime": 0,
+      "vec-config": 1000,
+      "vec-mem": 0,
+      "vec-arith": 1000,
+      "scalar-load": 1000,
+      "scalar-store": 1000,
+      "atomic": 0,
+      "scalar-arith": 3005,
+      "branch": 1000,
+      "system": 1
+    },
+    "expected_total": 8006,
+    "expected_categories": {
+      "ime": 0,
+      "vec-config": 1000,
+      "vec-mem": 0,
+      "vec-arith": 1000,
+      "scalar-load": 1000,
+      "scalar-store": 1000,
+      "atomic": 0,
+      "scalar-arith": 3005,
+      "branch": 1000,
+      "system": 1
+    },
+    "problems": [],
+    "verdict": "PASS"
+  },
+  "vendor": {
+    "command": "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64 -L /home/i_yinzida/.local/opt/a100/toolchain-1.1.2/sysroot -cpu max,vlen=1024,elen=64,vext_spec=v1.0 -plugin /home/i_yinzida/compiler-a100-experiment-001/tools/profiling/full_instruction_counts.so,out=/home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/optimizations/matmul/tooling/phase-a/vendor.counts2.json /home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/optimizations/matmul/tooling/phase-a/vendor",
+    "runs": [
+      {
+        "attempt": 1,
+        "returncode": 0,
+        "stderr_tail": "",
+        "stdout_tail": ""
+      },
+      {
+        "attempt": 2,
+        "returncode": 0,
+        "stderr_tail": "",
+        "stdout_tail": ""
+      }
+    ],
+    "static_listing": [
+      [
+        65712,
+        "li"
+      ],
+      [
+        65716,
+        "li"
+      ],
+      [
+        65718,
+        "addi"
+      ],
+      [
+        65720,
+        "addi"
+      ],
+      [
+        65722,
+        "addi"
+      ],
+      [
+        65724,
+        "vsetvli"
+      ],
+      [
+        65728,
+        "vmv.v.i"
+      ],
+      [
+        65732,
+        "vsetvli"
+      ],
+      [
+        65736,
+        "vle8.v"
+      ],
+      [
+        65740,
+        "vle8.v"
+      ],
+      [
+        65744,
+        "smt.vmadot"
+      ],
+      [
+        65748,
+        "vsetvli"
+      ],
+      [
+        65752,
+        "vse32.v"
+      ],
+      [
+        65756,
+        "ecall"
+      ]
+    ],
+    "actual_total": 14,
+    "actual_categories": {
+      "ime": 1,
+      "vec-config": 3,
+      "vec-mem": 3,
+      "vec-arith": 1,
+      "scalar-load": 0,
+      "scalar-store": 0,
+      "atomic": 0,
+      "scalar-arith": 5,
+      "branch": 0,
+      "system": 1
+    },
+    "expected_total": 14,
+    "expected_categories": {
+      "ime": 1,
+      "vec-config": 3,
+      "vec-mem": 3,
+      "vec-arith": 1,
+      "scalar-load": 0,
+      "scalar-store": 0,
+      "atomic": 0,
+      "scalar-arith": 5,
+      "branch": 0,
+      "system": 1
+    },
+    "problems": [],
+    "verdict": "PASS"
+  },
+  "verdict": "PASS"
+}

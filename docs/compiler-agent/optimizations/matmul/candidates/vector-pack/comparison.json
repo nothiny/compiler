@@ -1,0 +1,711 @@
+{
+  "schema": "a100c-matmul-comparison/v1",
+  "baseline_root": "docs/compiler-agent/optimizations/matmul/baseline/metrics",
+  "candidate_root": "docs/compiler-agent/optimizations/matmul/candidates/vector-pack/metrics",
+  "rows": [
+    {
+      "run": "abt-f16-t1",
+      "base_total": 11608513.6,
+      "cand_total": 4727233.6,
+      "total_change": -0.5927787343936953,
+      "base_pack_pct": 63.1,
+      "cand_pack_pct": 20.4,
+      "base_reload": 1400301.0,
+      "cand_reload": 297021.0,
+      "base_categories": {
+        "scalar-arith": 6646129.200000542,
+        "scalar-load": 1090845.3999999284,
+        "branch": 1685170.5999999463,
+        "scalar-store": 770388.5999999632,
+        "vec-config": 479396.0,
+        "vec-mem": 150280.0,
+        "vec-arith": 838464.0,
+        "ime": 3072.0,
+        "system": 33.59999999999999,
+        "atomic": 43.00000000000006
+      },
+      "cand_categories": {
+        "scalar-arith": 2222449.2000003876,
+        "scalar-load": 599325.3999999593,
+        "branch": 136882.60000000102,
+        "scalar-store": 278868.60000001383,
+        "vec-config": 503972.0,
+        "vec-mem": 199432.0,
+        "vec-arith": 838464.0,
+        "ime": 3072.0,
+        "system": 33.59999999999999,
+        "atomic": 43.00000000000006
+      }
+    },
+    {
+      "run": "atb-f16-t1",
+      "base_total": 27087391.4,
+      "cand_total": 8737294.6,
+      "total_change": -0.6774405305045357,
+      "base_pack_pct": 72.7,
+      "cand_pack_pct": 31.0,
+      "base_reload": 4783029.0,
+      "cand_reload": 853424.0,
+      "base_categories": {
+        "scalar-arith": 16648474.599998478,
+        "scalar-load": 2605085.2000001576,
+        "branch": 4546984.8000002075,
+        "scalar-store": 1793599.5999999451,
+        "vec-config": 435618.0,
+        "vec-mem": 306335.0,
+        "vec-arith": 889406.0,
+        "ime": 8192.0,
+        "system": 34.79999999999998,
+        "atomic": 44.40000000000007
+      },
+      "cand_categories": {
+        "scalar-arith": 4851989.6000005,
+        "scalar-load": 1294364.9999999315,
+        "branch": 418214.4000000128,
+        "scalar-store": 482879.600000014,
+        "vec-config": 501154.0,
+        "vec-mem": 437407.0,
+        "vec-arith": 889406.0,
+        "ime": 8192.0,
+        "system": 34.19999999999999,
+        "atomic": 44.20000000000005
+      }
+    },
+    {
+      "run": "batched-f16-t1",
+      "base_total": 276381.0,
+      "cand_total": 133021.0,
+      "total_change": -0.5187042524630854,
+      "base_pack_pct": 49.0,
+      "cand_pack_pct": 12.5,
+      "base_reload": 16886.0,
+      "cand_reload": 6683.0,
+      "base_categories": {
+        "scalar-arith": 161974.80000002368,
+        "scalar-load": 36080.79999999977,
+        "branch": 45998.39999999751,
+        "scalar-store": 34221.19999999977,
+        "vec-config": 11005.0,
+        "vec-mem": 3388.0,
+        "vec-arith": 22192.0,
+        "ime": 64.0,
+        "system": 32.999999999999986,
+        "atomic": 42.40000000000003
+      },
+      "cand_categories": {
+        "scalar-arith": 69819.79999999407,
+        "scalar-load": 25841.000000001164,
+        "branch": 13744.800000000025,
+        "scalar-store": 23981.200000000495,
+        "vec-config": 11517.0,
+        "vec-mem": 4412.0,
+        "vec-arith": 22192.0,
+        "ime": 64.0,
+        "system": 33.59999999999998,
+        "atomic": 42.600000000000044
+      }
+    },
+    {
+      "run": "batched-f16-t2",
+      "note": "problems present",
+      "base_problems": [
+        "pc 69104: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69108: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69112: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69116: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69120: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69124: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69128: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69132: repeats=1 run executed MORE than repeats=6 (nondeterminism)"
+      ],
+      "cand_problems": [
+        "pc 69104: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69108: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69112: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69116: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69120: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69124: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69128: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69132: repeats=1 run executed MORE than repeats=6 (nondeterminism)"
+      ]
+    },
+    {
+      "run": "batched-f16-t4",
+      "note": "problems present",
+      "base_problems": [
+        "pc 69104: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69108: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69112: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69116: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69120: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69124: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69128: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69132: repeats=1 run executed MORE than repeats=6 (nondeterminism)"
+      ],
+      "cand_problems": []
+    },
+    {
+      "run": "batched-f16-t8",
+      "note": "problems present",
+      "base_problems": [],
+      "cand_problems": [
+        "pc 69104: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69108: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69112: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69116: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69120: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69124: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69128: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69132: repeats=1 run executed MORE than repeats=6 (nondeterminism)"
+      ]
+    },
+    {
+      "run": "batched-tail-f16-t1",
+      "base_total": 2017793.4,
+      "cand_total": 870905.0,
+      "total_change": -0.5683874275731103,
+      "base_pack_pct": 60.1,
+      "cand_pack_pct": 18.9,
+      "base_reload": 130425.0,
+      "cand_reload": 48789.0,
+      "base_categories": {
+        "scalar-arith": 1158247.399999866,
+        "scalar-load": 204015.20000001023,
+        "branch": 293275.8000000143,
+        "scalar-store": 139490.40000000288,
+        "vec-config": 79891.0,
+        "vec-mem": 25014.0,
+        "vec-arith": 155892.0,
+        "ime": 512.0,
+        "system": 33.59999999999998,
+        "atomic": 42.600000000000044
+      },
+      "cand_categories": {
+        "scalar-arith": 420967.4000000335,
+        "scalar-load": 122095.1999999955,
+        "branch": 35227.799999999836,
+        "scalar-store": 57570.39999999772,
+        "vec-config": 83987.0,
+        "vec-mem": 33206.0,
+        "vec-arith": 155892.0,
+        "ime": 512.0,
+        "system": 33.59999999999998,
+        "atomic": 42.600000000000044
+      }
+    },
+    {
+      "run": "fusedgn-f32-t1",
+      "base_total": 1355011.0,
+      "cand_total": 1355011.0,
+      "total_change": 0.0,
+      "base_pack_pct": 0,
+      "cand_pack_pct": 0,
+      "base_reload": 57004.0,
+      "cand_reload": 57004.0,
+      "base_categories": {
+        "scalar-arith": 605990.5999999038,
+        "scalar-load": 287830.80000001786,
+        "branch": 135396.6000000008,
+        "scalar-store": 82269.19999999656,
+        "vec-config": 76141.0,
+        "vec-mem": 41778.0,
+        "vec-arith": 173412.0,
+        "atomic": 299.19999999999965,
+        "system": 34.19999999999999
+      },
+      "cand_categories": {
+        "scalar-arith": 605990.5999999038,
+        "scalar-load": 287830.80000001786,
+        "branch": 135396.6000000008,
+        "scalar-store": 82269.19999999656,
+        "vec-config": 76141.0,
+        "vec-mem": 41778.0,
+        "vec-arith": 173412.0,
+        "atomic": 299.19999999999965,
+        "system": 34.19999999999999
+      }
+    },
+    {
+      "run": "fusedgn-f32-t2",
+      "note": "problems present",
+      "base_problems": [
+        "pc 69152: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69156: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69160: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 81658: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 81662: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 81664: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 81666: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 81670: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 81674: repeats=1 run executed MORE than repeats=6 (nondeterminism)"
+      ],
+      "cand_problems": [
+        "pc 69104: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69108: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69112: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69116: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69120: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69124: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69128: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69132: repeats=1 run executed MORE than repeats=6 (nondeterminism)"
+      ]
+    },
+    {
+      "run": "fusedgn-f32-t4",
+      "note": "problems present",
+      "base_problems": [
+        "pc 69152: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69156: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69160: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 81658: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 81662: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 81664: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 81666: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 81670: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 81674: repeats=1 run executed MORE than repeats=6 (nondeterminism)"
+      ],
+      "cand_problems": []
+    },
+    {
+      "run": "fusedgn-f32-t8",
+      "note": "problems present",
+      "base_problems": [
+        "pc 69152: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69156: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69160: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 81658: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 81662: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 81664: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 81666: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 81670: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 81674: repeats=1 run executed MORE than repeats=6 (nondeterminism)"
+      ],
+      "cand_problems": [
+        "pc 69104: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69108: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69112: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69116: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69120: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69124: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69128: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69132: repeats=1 run executed MORE than repeats=6 (nondeterminism)"
+      ]
+    },
+    {
+      "run": "grouped-f16-t1",
+      "base_total": 510567.0,
+      "cand_total": 510558.6,
+      "total_change": -1.6452297152035448e-05,
+      "base_pack_pct": 0,
+      "cand_pack_pct": 0,
+      "base_reload": 24082.0,
+      "cand_reload": 24082.0,
+      "base_categories": {
+        "scalar-arith": 197641.40000002348,
+        "scalar-load": 92972.59999999554,
+        "branch": 25165.000000000986,
+        "scalar-store": 46562.999999999236,
+        "vec-config": 61379.0,
+        "vec-mem": 10678.0,
+        "vec-arith": 113928.0,
+        "system": 33.59999999999998,
+        "atomic": 42.600000000000044
+      },
+      "cand_categories": {
+        "scalar-arith": 197636.4000000234,
+        "scalar-load": 92972.39999999554,
+        "branch": 25162.60000000098,
+        "scalar-store": 46562.999999999236,
+        "vec-config": 61379.0,
+        "vec-mem": 10678.0,
+        "vec-arith": 113928.0,
+        "system": 32.999999999999986,
+        "atomic": 42.40000000000003
+      }
+    },
+    {
+      "run": "k64-f16-t1",
+      "base_total": 41735575.6,
+      "cand_total": 8705448.4,
+      "total_change": -0.7914142005986855,
+      "base_pack_pct": 79.7,
+      "cand_pack_pct": 30.3,
+      "base_reload": 2727185.0,
+      "cand_reload": 425217.0,
+      "base_categories": {
+        "scalar-arith": 26158996.799998,
+        "scalar-load": 3429941.0000001574,
+        "branch": 7682547.600000205,
+        "scalar-store": 2737372.200000146,
+        "vec-config": 480965.0,
+        "vec-mem": 290394.0,
+        "vec-arith": 1040512.0,
+        "ime": 8192.0,
+        "system": 34.19999999999999,
+        "atomic": 44.20000000000005
+      },
+      "cand_categories": {
+        "scalar-arith": 4925337.800000505,
+        "scalar-load": 1070645.1999999268,
+        "branch": 408054.000000013,
+        "scalar-store": 378076.2000000141,
+        "vec-config": 546501.0,
+        "vec-mem": 421466.0,
+        "vec-arith": 1040512.0,
+        "ime": 8192.0,
+        "system": 34.79999999999998,
+        "atomic": 44.40000000000007
+      }
+    },
+    {
+      "run": "linact-f16-t1",
+      "base_total": 469182.0,
+      "cand_total": 325822.0,
+      "total_change": -0.3055530689583147,
+      "base_pack_pct": 28.900000000000002,
+      "cand_pack_pct": 5.3,
+      "base_reload": 26614.0,
+      "cand_reload": 6346.0,
+      "base_categories": {
+        "scalar-arith": 284220.20000003825,
+        "scalar-load": 77315.99999999642,
+        "branch": 64756.59999999759,
+        "scalar-store": 41461.59999999971,
+        "vec-config": 19691.0,
+        "vec-mem": 4774.0,
+        "vec-arith": 38640.0,
+        "ime": 64.0,
+        "system": 34.19999999999998,
+        "atomic": 42.80000000000004
+      },
+      "cand_categories": {
+        "scalar-arith": 192060.20000000417,
+        "scalar-load": 67075.99999999933,
+        "branch": 32500.60000000099,
+        "scalar-store": 31221.60000000092,
+        "vec-config": 20203.0,
+        "vec-mem": 5798.0,
+        "vec-arith": 38640.0,
+        "ime": 64.0,
+        "system": 34.19999999999998,
+        "atomic": 42.80000000000004
+      }
+    },
+    {
+      "run": "plain-128-bf16-t1",
+      "base_total": 2256653.0,
+      "cand_total": 2256653.0,
+      "total_change": 0.0,
+      "base_pack_pct": 0,
+      "cand_pack_pct": 0,
+      "base_reload": 22704.0,
+      "cand_reload": 22704.0,
+      "base_categories": {
+        "scalar-arith": 1109846.399999864,
+        "scalar-load": 323939.0000000179,
+        "branch": 173814.20000001034,
+        "scalar-store": 150584.60000000295,
+        "vec-config": 113073.0,
+        "vec-mem": 55102.0,
+        "vec-arith": 386724.0,
+        "system": 33.59999999999999,
+        "atomic": 43.00000000000006
+      },
+      "cand_categories": {
+        "scalar-arith": 1109851.3999998628,
+        "scalar-load": 323939.20000001794,
+        "branch": 173816.6000000104,
+        "scalar-store": 150584.60000000295,
+        "vec-config": 113073.0,
+        "vec-mem": 55102.0,
+        "vec-arith": 386724.0,
+        "system": 34.19999999999999,
+        "atomic": 43.200000000000074
+      }
+    },
+    {
+      "run": "plain-128-f16-t1",
+      "base_total": 13281439.2,
+      "cand_total": 4106419.0,
+      "total_change": -0.6908152092432874,
+      "base_pack_pct": 73.7,
+      "cand_pack_pct": 31.2,
+      "base_reload": 2155502.0,
+      "cand_reload": 329244.0,
+      "base_categories": {
+        "scalar-arith": 8217391.40000054,
+        "scalar-load": 1307074.3999999287,
+        "branch": 2255921.6000001673,
+        "scalar-store": 806479.7999999633,
+        "vec-config": 141761.0,
+        "vec-mem": 161598.0,
+        "vec-arith": 441540.0,
+        "ime": 4096.0,
+        "system": 33.79999999999998,
+        "atomic": 42.400000000000055
+      },
+      "cand_categories": {
+        "scalar-arith": 2319156.800000388,
+        "scalar-load": 651715.9999999594,
+        "branch": 191540.60000001034,
+        "scalar-store": 151120.8000000029,
+        "vec-config": 174529.0,
+        "vec-mem": 227134.0,
+        "vec-arith": 441540.0,
+        "ime": 4096.0,
+        "system": 33.59999999999999,
+        "atomic": 43.00000000000006
+      }
+    },
+    {
+      "run": "plain-128-f16-t2",
+      "note": "problems present",
+      "base_problems": [],
+      "cand_problems": [
+        "pc 69104: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69108: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69112: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69116: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69120: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69124: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69128: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69132: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69152: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69156: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69160: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 96512: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 96516: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 96518: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 96520: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 96524: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 96528: repeats=1 run executed MORE than repeats=6 (nondeterminism)"
+      ]
+    },
+    {
+      "run": "plain-128-f16-t4",
+      "base_total": 13438287.8,
+      "cand_total": 4262677.0,
+      "total_change": -0.6827961222857573,
+      "base_pack_pct": null,
+      "cand_pack_pct": null,
+      "base_reload": 2155544.0,
+      "cand_reload": 329328.0,
+      "base_categories": {
+        "scalar-arith": 8241122.20000042,
+        "scalar-load": 1308041.9999999509,
+        "branch": 2278463.800000125,
+        "scalar-store": 981173.7999999744,
+        "vec-config": 141761.0,
+        "vec-mem": 161598.0,
+        "vec-arith": 441540.0,
+        "ime": 4096.0,
+        "system": 71.80000000000003,
+        "atomic": 89.19999999999999
+      },
+      "cand_categories": {
+        "scalar-arith": 2342711.600000298,
+        "scalar-load": 652554.7999999715,
+        "branch": 214014.20000000764,
+        "scalar-store": 325750.2000000063,
+        "vec-config": 174529.0,
+        "vec-mem": 227134.0,
+        "vec-arith": 441540.0,
+        "ime": 4096.0,
+        "system": 71.20000000000003,
+        "atomic": 88.6
+      }
+    },
+    {
+      "run": "plain-128-f16-t8",
+      "note": "problems present",
+      "base_problems": [
+        "pc 69104: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69108: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69112: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69116: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69120: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69124: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69128: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69132: repeats=1 run executed MORE than repeats=6 (nondeterminism)"
+      ],
+      "cand_problems": [
+        "pc 69104: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69108: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69112: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69116: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69120: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69124: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69128: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+        "pc 69132: repeats=1 run executed MORE than repeats=6 (nondeterminism)"
+      ]
+    },
+    {
+      "run": "plain-128-f32-t1",
+      "base_total": 1729367.0,
+      "cand_total": 1729367.0,
+      "total_change": 0.0,
+      "base_pack_pct": 0,
+      "cand_pack_pct": 0,
+      "base_reload": 37760.0,
+      "cand_reload": 37760.0,
+      "base_categories": {
+        "scalar-arith": 921636.5999999049,
+        "scalar-load": 261452.20000000985,
+        "branch": 201529.80000001003,
+        "scalar-store": 68613.59999999861,
+        "vec-config": 81937.0,
+        "vec-mem": 55294.0,
+        "vec-arith": 195236.0,
+        "system": 34.79999999999998,
+        "atomic": 44.40000000000007
+      },
+      "cand_categories": {
+        "scalar-arith": 921636.5999999049,
+        "scalar-load": 261452.20000000985,
+        "branch": 201529.80000001003,
+        "scalar-store": 68613.59999999861,
+        "vec-config": 81937.0,
+        "vec-mem": 55294.0,
+        "vec-arith": 195236.0,
+        "system": 34.79999999999998,
+        "atomic": 44.40000000000007
+      }
+    },
+    {
+      "run": "plain-ragged-f16-t1",
+      "base_total": 3635839.4,
+      "cand_total": 1342071.0,
+      "total_change": -0.6308772604202485,
+      "base_pack_pct": 66.2,
+      "cand_pack_pct": 23.0,
+      "base_reload": 229970.0,
+      "cand_reload": 71306.0,
+      "base_categories": {
+        "scalar-arith": 2166528.000000394,
+        "scalar-load": 339147.8000000185,
+        "branch": 581702.9999999583,
+        "scalar-store": 314464.4000000143,
+        "vec-config": 83733.0,
+        "vec-mem": 44744.0,
+        "vec-arith": 176418.0,
+        "ime": 1024.0,
+        "system": 33.999999999999986,
+        "atomic": 43.200000000000074
+      },
+      "cand_categories": {
+        "scalar-arith": 691967.9999999015,
+        "scalar-load": 175307.80000001035,
+        "branch": 65606.9999999974,
+        "scalar-store": 150624.40000000293,
+        "vec-config": 91925.0,
+        "vec-mem": 61128.0,
+        "vec-arith": 176418.0,
+        "ime": 1024.0,
+        "system": 33.999999999999986,
+        "atomic": 43.200000000000074
+      }
+    },
+    {
+      "run": "rms-f16-t1",
+      "base_total": 1924420.6,
+      "cand_total": 777549.0,
+      "total_change": -0.5959568298115288,
+      "base_pack_pct": 62.9,
+      "cand_pack_pct": 21.0,
+      "base_reload": 140422.0,
+      "cand_reload": 53498.0,
+      "base_categories": {
+        "scalar-arith": 1143371.9999998645,
+        "scalar-load": 202266.20000000976,
+        "branch": 303004.4000000142,
+        "scalar-store": 132175.20000000077,
+        "vec-config": 45789.0,
+        "vec-mem": 26118.0,
+        "vec-arith": 112808.0,
+        "ime": 512.0,
+        "system": 33.19999999999998,
+        "atomic": 42.40000000000003
+      },
+      "cand_categories": {
+        "scalar-arith": 406097.00000003417,
+        "scalar-load": 120346.39999999544,
+        "branch": 44958.79999999918,
+        "scalar-store": 50255.1999999993,
+        "vec-config": 49885.0,
+        "vec-mem": 34310.0,
+        "vec-arith": 112808.0,
+        "ime": 512.0,
+        "system": 33.79999999999998,
+        "atomic": 42.600000000000044
+      }
+    },
+    {
+      "run": "tril-f16-t1",
+      "base_total": 14235399.4,
+      "cand_total": 5060351.0,
+      "total_change": -0.644523426578393,
+      "base_pack_pct": 69.0,
+      "cand_pack_pct": 27.1,
+      "base_reload": 1661795.0,
+      "cand_reload": 349016.0,
+      "base_categories": {
+        "scalar-arith": 8521728.19999843,
+        "scalar-load": 1463185.9999999283,
+        "branch": 2316924.0000001667,
+        "scalar-store": 1054776.1999999443,
+        "vec-config": 274739.0,
+        "vec-mem": 171569.0,
+        "vec-arith": 568184.0,
+        "ime": 4096.0,
+        "system": 34.19999999999999,
+        "atomic": 43.200000000000074
+      },
+      "cand_categories": {
+        "scalar-arith": 2623483.200000391,
+        "scalar-load": 807825.7999999593,
+        "branch": 252537.60000001037,
+        "scalar-store": 399416.20000000746,
+        "vec-config": 307507.0,
+        "vec-mem": 237105.0,
+        "vec-arith": 568184.0,
+        "ime": 4096.0,
+        "system": 33.59999999999999,
+        "atomic": 43.00000000000006
+      }
+    },
+    {
+      "run": "triton2-f16-t1",
+      "base_total": 324447.8,
+      "cand_total": 180822.4,
+      "total_change": -0.4426764490312463,
+      "base_pack_pct": 42.8,
+      "cand_pack_pct": 9.7,
+      "base_reload": 30548.0,
+      "cand_reload": 9168.0,
+      "base_categories": {
+        "scalar-arith": 182381.60000002428,
+        "scalar-load": 38411.59999999985,
+        "branch": 46930.39999999744,
+        "scalar-store": 31318.60000000097,
+        "vec-config": 19247.0,
+        "vec-mem": 4538.0,
+        "vec-arith": 37552.0,
+        "ime": 64.0,
+        "system": 35.39999999999997,
+        "atomic": 47.00000000000009
+      },
+      "cand_categories": {
+        "scalar-arith": 90095.99999999168,
+        "scalar-load": 28113.000000001117,
+        "branch": 14628.800000000203,
+        "scalar-store": 21049.20000000089,
+        "vec-config": 19759.0,
+        "vec-mem": 5562.0,
+        "vec-arith": 37552.0,
+        "ime": 64.0,
+        "system": 33.59999999999998,
+        "atomic": 42.600000000000044
+      }
+    }
+  ]
+}

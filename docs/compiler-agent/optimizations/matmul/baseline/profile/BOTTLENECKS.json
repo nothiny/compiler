@@ -1,0 +1,57 @@
+{
+  "schema": "a100c-matmul-bottlenecks/v1",
+  "round": "matmul optimization round (human-guided, proxy-metric)",
+  "workload_identity": {
+    "family": "matmul (OPERATOR_INVENTORY.md, 57 operators / 312 cases)",
+    "representative_subset": "16 cases at threads=1 + 3 cases at 1/2/4/8 (see ../metrics/)",
+    "compiler_revision_baseline": "3ed513eee2ddc89eaeee7cc5cef09adb8b38a1f6",
+    "artifact_selection": "identity-matched per case (artifact.cache_entry recorded in every metrics.json)",
+    "launch_config": "native runtime --bundle/--threads/--repeats under the pinned QEMU (jdsk-qemu-10.0.2, -cpu max,vlen=1024,elen=64,vext_spec=v1.0), golden inputs seed=30",
+    "metric": "guest dynamic instruction executions per steady-state operator call (per-insn exec callbacks; calibrated by phase-a validation)"
+  },
+  "bottlenecks": [
+    {
+      "id": "B1-ime-b-pack-scalar",
+      "observed": {
+        "symptom": "IME-path fp16 cases spend 29-80% of per-call dynamic instructions inside the B-operand staging pack loops (block classes pb/pq): per 16-bit element ~14 scalar instructions (3 li constants, 2 mul address recomputations, lhu/sh, IV update, bound predicate slt+bne, 3 jumps)",
+        "evidence": [
+          "../metrics/plain-128-f16-t1/blocks.json (pack-q 65.4%, pack-b 8.3%)",
+          "../metrics/*/blocks.json (16-case table in ROUND.md)",
+          "hot-pcs table: all top sites map to the pb/pq loops at the dot's source location"
+        ],
+        "scope": "every IME-path case (fp16/int8 dot families); vector-fp32 path (fp32/bf16 dots) unaffected (0% pb/pq)"
+      },
+      "candidate_causes": [
+        "a100c/lower/matrix.py:_pack_b_columns lowers the column-major B pack as guarded scalar per-element copy loops -- the module comment records 'the strided column read has no safe vector form at the native widths'",
+        "the recorded constraint behind that comment is the pinned QEMU's INDEXED-form defect (e64 index + sub-32-bit data SEGFAULT, vectorize.py:2579); a strided form was never probed"
+      ],
+      "contradictions": [
+        "not a register-pressure or spill problem: the flagship case has zero dynamic spill instructions inside the pack; the reload storm (2.16M/call) is a separate, smaller cost class concentrated in the same loops",
+        "not an emitter/peephole problem: the prior round's OPT-VLI/li-dedup removed static duplicates; the dynamic cost is per-iteration re-execution of loop-body materialization"
+      ],
+      "unknowns": [
+        "whether vlse/vsse (never probed) execute correctly under the pinned QEMU -- resolved by the gate probe (tooling/probe-strided.S: ALL PASS, including the region-transition and avl-0 shapes); additionally recorded: vmv.v.i AND vmv.v.x at e64/m2 SIGILL (tooling/probe-e64m2.S), a new emulator constraint"
+      ],
+      "discriminating_experiment": "probe-strided.S under the pinned QEMU (executed; PASS)",
+      "action_layer": "lowering",
+      "confidence": "high (per-block attribution across 16 cases + code-level producer located + emulator gate probe)"
+    },
+    {
+      "id": "B2-loop-scalar-materialization",
+      "observed": {
+        "symptom": "scalar categories are 66-85% of every case's dynamic instructions (scalar-arith up to 62% alone): per-iteration constant materialization (sconst 2.8M/call on the flagship case), per-use reloads (2.16M/call, allocator split policy), vsetvli re-establishment (141K/call)",
+        "evidence": ["../metrics/*/metrics.json steady_state.per_call_categories"]
+      },
+      "candidate_causes": [
+        "lowering rematerializes pure scalar trees at every use (vectorize.py:436/566, a deliberate register-pressure policy)",
+        "the allocator's split policy reloads before every use",
+        "TIR-level LICM cannot see these: they are introduced during/after lowering (licm fired=0 on the flagship case)"
+      ],
+      "contradictions": [],
+      "unknowns": ["how much of this class survives after B1 (much of it lives inside the pack loop bodies)"],
+      "discriminating_experiment": "re-measure after the B1 fix (the round's after-sweep quantifies the residual)",
+      "action_layer": "lowering (post-lowering loop-invariant hoisting) -- NOT selected this round",
+      "confidence": "high for the observation, medium for the residual share"
+    }
+  ]
+}

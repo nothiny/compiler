@@ -1,0 +1,119 @@
+{
+  "case": "suite/perf/matmul_triton2.py#[32, 32, 32]#float16",
+  "threads": 1,
+  "per_call_total": 216900.20000005394,
+  "by_class": {
+    "chunk-loop": 103840,
+    "runtime/loader": 49196,
+    "k-loop": 27040,
+    "pack-b(column outer)": 20992,
+    "other": 15532,
+    "tile-loop": 300
+  },
+  "by_class_pct": {
+    "chunk-loop": 47.9,
+    "runtime/loader": 22.7,
+    "k-loop": 12.5,
+    "pack-b(column outer)": 9.7,
+    "other": 7.2,
+    "tile-loop": 0.1
+  },
+  "top_labels": [
+    {
+      "label": ".Lchunk25_body:  # block chunk25_body",
+      "per_call": 39104,
+      "pct": 18.03
+    },
+    {
+      "label": ".Lchunk20_body:  # block chunk20_body",
+      "per_call": 38848,
+      "pct": 17.91
+    },
+    {
+      "label": ".Lmk27.body:  # block mk27.body",
+      "per_call": 23296,
+      "pct": 10.74
+    },
+    {
+      "label": ".Lpb28.body:  # block pb28.body",
+      "per_call": 18432,
+      "pct": 8.5
+    },
+    {
+      "label": ".Lchunk35_body:  # block chunk35_body",
+      "per_call": 10784,
+      "pct": 4.97
+    },
+    {
+      "label": ".Lmk27.exit:  # block mk27.exit",
+      "per_call": 3328,
+      "pct": 1.53
+    },
+    {
+      "label": ".Lstg14_body:  # block stg14_body",
+      "per_call": 2432,
+      "pct": 1.12
+    },
+    {
+      "label": ".Lstg24_body:  # block stg24_body",
+      "per_call": 2432,
+      "pct": 1.12
+    },
+    {
+      "label": ".Lstg13_body:  # block stg13_body",
+      "per_call": 2304,
+      "pct": 1.06
+    },
+    {
+      "label": ".Lstg19_body:  # block stg19_body",
+      "per_call": 2304,
+      "pct": 1.06
+    },
+    {
+      "label": ".Lpb28.head:  # block pb28.head",
+      "per_call": 1792,
+      "pct": 0.83
+    },
+    {
+      "label": ".Lchunk9_body:  # block chunk9_body",
+      "per_call": 1728,
+      "pct": 0.8
+    }
+  ],
+  "class_x_origin": {
+    "chunk-loop|const-materialization": 30616,
+    "chunk-loop|vec-arith": 26472,
+    "chunk-loop|vec-config": 17900,
+    "chunk-loop|scalar-mem": 8840,
+    "k-loop|frame": 8240,
+    "chunk-loop|op:sadd": 6992,
+    "other|const-materialization": 4781,
+    "k-loop|const-materialization": 4720,
+    "pack-b(column outer)|const-materialization": 4672,
+    "pack-b(column outer)|frame": 4416,
+    "chunk-loop|reload": 3828,
+    "k-loop|vec-arith": 3104,
+    "other|vec-arith": 2908,
+    "pack-b(column outer)|reload": 2688,
+    "chunk-loop|frame": 2668,
+    "chunk-loop|vec-mem": 2176,
+    "other|vec-config": 2164,
+    "k-loop|op:sadd": 2048,
+    "chunk-loop|branch": 1936,
+    "k-loop|vec-config": 1856,
+    "k-loop|scalar-mem": 1728,
+    "k-loop|reload": 1680,
+    "pack-b(column outer)|op:sadd": 1664,
+    "pack-b(column outer)|op:ssub": 1536
+  },
+  "asm_join": {
+    "listing_instruction_rows": 3755,
+    "program_instructions": 3755,
+    "affine_offset": 70686,
+    "region": [
+      70686,
+      83166
+    ],
+    "byte_identity": true
+  }
+}
