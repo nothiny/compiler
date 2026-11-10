@@ -109,6 +109,7 @@ re-render, never this block.
 - `a100c/passes/copyprop.py` — copy propagation under dominance, control-flow joins, value identity and pointer semantics
 - `a100c/passes/strength_reduction.py` — strength reduction with equivalent integer/index behavior and the declared floating policy
 - `a100c/passes/licm.py` — loop-invariant code motion under invariance, effects, aliasing, masks and zero-trip safety
+- `a100c/passes/mir_optimize.py` — MIR-CFG loop analysis (natural loops, dominators, per-point region state) and the mir-optimize passes: loop-invariant motion under speculation and region-consistency legality, affine-induction strength reduction, counted-loop predicate resolution, region-consistent vsetvli hoisting
 - `a100c/plan/partition.py` — work partition for 1/2/4/8 workers: strided program-instance ranges (default), contiguous output-tile chunks when repartitioning is legal, tails and coverage
 - `a100c/plan/stages.py` — stage/synchronization/merge planning for cross-worker dependencies; workspace ownership, visibility and lifetime
 - `a100c/plan/tiles.py` — dot tiling to IME tiles (8x16x8 INT8, 8x8x8 FP16), packing decisions, zero-padded staging for tails, vector-file-budget-bounded chunking with an ordinary path retained
@@ -135,7 +136,7 @@ re-render, never this block.
 ## IR layers (2–3 persistent representations)
 
 1. **TIR** (`tir/v1`): `a100c/ir/tir.py`; properties: typed block-tensor dataflow; element width and signedness carried as separate type components, value conversion and bit-level reinterpretation are distinct operations and never fold into each other, mask semantics with a per-operation declared disabled-position default (load other / store none / atomic none), shapes with per-axis extents and broadcast extents distinguished from real extents, reductions carry operation, axes, keep_dims, per-op-and-dtype identity and index tie-break, dot carries operand dtypes, accumulation type, out_dtype and the ieee/tolerance numeric class, index arithmetic typed with declared wrap semantics; addresses formed in i64, launch geometry (grid extents) remains runtime-symbolic, structured control flow with explicit join parameters for loop-carried values, RNG ops (philox family) are bit-exact semantic operations; passes: cse, dce, const-fold-propagate, copy-propagate, strength-reduction, licm; tests: `a100c/tests/test_tir_verifier.py`
-2. **MIR** (`mir/v1`): `a100c/ir/mir.py`; properties: virtual-register dataflow over RVV/IME/scalar operations with an explicit CFG (blocks, branches, block parameters as joins), vsetvli regions carrying SEW/LMUL/vl and tail policy; region consistency is a verifier invariant, masked vector memory operations with inactive-position semantics (no access, declared default), IME tile operations carrying the sourced operand contract: LMUL=1, vs1 row-major A, vs2 column-major B, vd even-numbered when MUL_C=2, no destination/source overlap, family operand format, worker partition structure: per-worker entry, range loops, stage barriers, merge operations, workspace addresses with ownership, address materialization in i64 as whole trees, spill slots in the frame, restored before use, storage not reused while live; passes: ; tests: `a100c/tests/test_mir_verifier.py`
+2. **MIR** (`mir/v1`): `a100c/ir/mir.py`; properties: virtual-register dataflow over RVV/IME/scalar operations with an explicit CFG (blocks, branches, block parameters as joins), vsetvli regions carrying SEW/LMUL/vl and tail policy; region consistency is a verifier invariant, masked vector memory operations with inactive-position semantics (no access, declared default), IME tile operations carrying the sourced operand contract: LMUL=1, vs1 row-major A, vs2 column-major B, vd even-numbered when MUL_C=2, no destination/source overlap, family operand format, worker partition structure: per-worker entry, range loops, stage barriers, merge operations, workspace addresses with ownership, address materialization in i64 as whole trees, spill slots in the frame, restored before use, storage not reused while live; passes: mir-licm, mir-strength-reduction, mir-loop-predicate, mir-vsetvli-hoist; tests: `a100c/tests/test_mir_verifier.py`
 
 Further transformations belong to lowering or pass stages; do not add a fourth persistent IR layer.
 
@@ -145,6 +146,7 @@ Further transformations belong to lowering or pass stages; do not add a fourth p
 - **tir-optimize`**: `a100c/passes/pipeline.py`; tir/v1 → tir/v1; tests: `a100c/tests/test_passes_basic.py`
 - **planning`**: `a100c/plan/partition.py`; tir/v1 → tir/v1; tests: `a100c/tests/test_partition.py`, `a100c/tests/test_stage_plan.py`
 - **lowering`**: `a100c/lower/vectorize.py`; tir/v1 → mir/v1; tests: `a100c/tests/test_lower_vector.py`, `a100c/tests/test_lower_scalar.py`, `a100c/tests/test_lower_matrix.py`, `a100c/tests/test_control_flow.py`, `a100c/tests/test_reductions.py`, `a100c/tests/test_memory_forms.py`, `a100c/tests/test_atomics.py`, `a100c/tests/test_layout_ops.py`, `a100c/tests/test_conversions.py`, `a100c/tests/test_math_ops.py`, `a100c/tests/test_rng.py`, `a100c/tests/test_matrix_breadth.py`
+- **mir-optimize`**: `a100c/passes/mir_optimize.py`; mir/v1 → mir/v1; tests: `a100c/tests/test_mir_passes.py`
 - **legalisation`**: `a100c/backend/legalize.py`; mir/v1 → mir/v1; tests: `a100c/tests/test_legalize.py`
 - **selection`**: `a100c/backend/select.py`; mir/v1 → mir/v1; tests: `a100c/tests/test_select.py`
 - **allocation`**: `a100c/backend/allocate.py`; mir/v1 → mir/v1; tests: `a100c/tests/test_allocate.py`
@@ -176,6 +178,7 @@ Further transformations belong to lowering or pass stages; do not add a fourth p
 - **rng-bit-exact**: `a100c/tests/test_rng.py`
 - **allocation-completeness**: `a100c/tests/test_allocate.py`
 - **mir-verifier-rejects-illegal-ime**: `a100c/tests/test_mir_verifier.py`
+- **mir-passes-legality-and-results**: `a100c/tests/test_mir_passes.py`
 - **runtime-transport-and-pool**: `a100c/tests/test_runtime_smoke.py`
 - **artifact-cache-identity**: `a100c/tests/test_driver_cache.py`
 - **end-to-end-slice-comparison**: `a100c/tests/test_e2e_slice.py`
@@ -247,6 +250,42 @@ Further transformations belong to lowering or pass stages; do not add a fourth p
   - trace_counter: pass.licm.hoisted
   - profitability: hoists invariant pure expressions only; masked or trapping accesses are never hoisted; zero-trip loop safety preserved
   - tests: ['a100c/tests/test_passes_basic.py']
+- **mir-licm**
+  - module: a100c/passes/mir_optimize.py
+  - ir: mir/v1
+  - stage: mir-optimize
+  - optional: False
+  - switch: A100C_MIRPASS_LICM=off
+  - trace_counter: pass.mir.licm.hoisted
+  - profitability: hoists loop-invariant scalar and sconst rematerializations out of MIR natural loops; only speculatable non-trapping integer/scalar operations move (RISC-V integer add/mul/div do not trap); memory accesses are never hoisted; the same correctness obligation as the TIR passes: the full-input regression must pass with the pass enabled
+  - tests: ['a100c/tests/test_mir_passes.py']
+- **mir-strength-reduction**
+  - module: a100c/passes/mir_optimize.py
+  - ir: mir/v1
+  - stage: mir-optimize
+  - optional: False
+  - switch: A100C_MIRPASS_SR=off
+  - trace_counter: pass.mir.sr.rewrites
+  - profitability: rewrites affine induction variables on back-edges (i = i + c, counted-loop bounds known) into block-parameter pointer recursions (p += S), replacing per-iteration base + i*S address multiply trees with equivalent addressing; the induction variable stays maintained when it has uses besides the address
+  - tests: ['a100c/tests/test_mir_passes.py']
+- **mir-loop-predicate**
+  - module: a100c/passes/mir_optimize.py
+  - ir: mir/v1
+  - stage: mir-optimize
+  - optional: False
+  - switch: A100C_MIRPASS_PRED=off
+  - trace_counter: pass.mir.predicate.resolved
+  - profitability: resolves the per-iteration slt+bne predicate of counted loops whose trip count is known at the loop head (one test per loop instead of one per iteration, zero-trip safety preserved by the rotated guard)
+  - tests: ['a100c/tests/test_mir_passes.py']
+- **mir-vsetvli-hoist**
+  - module: a100c/passes/mir_optimize.py
+  - ir: mir/v1
+  - stage: mir-optimize
+  - optional: False
+  - switch: A100C_MIRPASS_VSETVLI=off
+  - trace_counter: pass.mir.vsetvli.hoisted
+  - profitability: hoists a vsetvli whose (SEW, LMUL, vl) region is invariant across a loop body and unopposed by any region-switching operation inside it; region consistency is a MIR verifier invariant and the pass models the region state per program point
+  - tests: ['a100c/tests/test_mir_passes.py']
 
 ## Declared verification
 

@@ -84,6 +84,10 @@
       "responsibility": "loop-invariant code motion under invariance, effects, aliasing, masks and zero-trip safety"
     },
     {
+      "path": "a100c/passes/mir_optimize.py",
+      "responsibility": "MIR-CFG loop analysis (natural loops, dominators, per-point region state) and the mir-optimize passes: loop-invariant motion under speculation and region-consistency legality, affine-induction strength reduction, counted-loop predicate resolution, region-consistent vsetvli hoisting"
+    },
+    {
       "path": "a100c/plan/partition.py",
       "responsibility": "work partition for 1/2/4/8 workers: strided program-instance ranges (default), contiguous output-tile chunks when repartitioning is legal, tails and coverage"
     },
@@ -227,6 +231,15 @@
       ]
     },
     {
+      "name": "mir-optimize",
+      "module": "a100c/passes/mir_optimize.py",
+      "input": "mir/v1",
+      "output": "mir/v1",
+      "tests": [
+        "a100c/tests/test_mir_passes.py"
+      ]
+    },
+    {
       "name": "legalisation",
       "module": "a100c/backend/legalize.py",
       "input": "mir/v1",
@@ -328,6 +341,12 @@
         "worker partition structure: per-worker entry, range loops, stage barriers, merge operations, workspace addresses with ownership",
         "address materialization in i64 as whole trees",
         "spill slots in the frame, restored before use, storage not reused while live"
+      ],
+      "passes": [
+        "mir-licm",
+        "mir-strength-reduction",
+        "mir-loop-predicate",
+        "mir-vsetvli-hoist"
       ],
       "verification_tests": [
         "a100c/tests/test_mir_verifier.py"
@@ -441,6 +460,58 @@
       "tests": [
         "a100c/tests/test_passes_basic.py"
       ]
+    },
+    {
+      "name": "mir-licm",
+      "module": "a100c/passes/mir_optimize.py",
+      "ir": "mir/v1",
+      "stage": "mir-optimize",
+      "optional": false,
+      "switch": "A100C_MIRPASS_LICM=off",
+      "trace_counter": "pass.mir.licm.hoisted",
+      "profitability": "hoists loop-invariant scalar and sconst rematerializations out of MIR natural loops; only speculatable non-trapping integer/scalar operations move (RISC-V integer add/mul/div do not trap); memory accesses are never hoisted; the same correctness obligation as the TIR passes: the full-input regression must pass with the pass enabled",
+      "tests": [
+        "a100c/tests/test_mir_passes.py"
+      ]
+    },
+    {
+      "name": "mir-strength-reduction",
+      "module": "a100c/passes/mir_optimize.py",
+      "ir": "mir/v1",
+      "stage": "mir-optimize",
+      "optional": false,
+      "switch": "A100C_MIRPASS_SR=off",
+      "trace_counter": "pass.mir.sr.rewrites",
+      "profitability": "rewrites affine induction variables on back-edges (i = i + c, counted-loop bounds known) into block-parameter pointer recursions (p += S), replacing per-iteration base + i*S address multiply trees with equivalent addressing; the induction variable stays maintained when it has uses besides the address",
+      "tests": [
+        "a100c/tests/test_mir_passes.py"
+      ]
+    },
+    {
+      "name": "mir-loop-predicate",
+      "module": "a100c/passes/mir_optimize.py",
+      "ir": "mir/v1",
+      "stage": "mir-optimize",
+      "optional": false,
+      "switch": "A100C_MIRPASS_PRED=off",
+      "trace_counter": "pass.mir.predicate.resolved",
+      "profitability": "resolves the per-iteration slt+bne predicate of counted loops whose trip count is known at the loop head (one test per loop instead of one per iteration, zero-trip safety preserved by the rotated guard)",
+      "tests": [
+        "a100c/tests/test_mir_passes.py"
+      ]
+    },
+    {
+      "name": "mir-vsetvli-hoist",
+      "module": "a100c/passes/mir_optimize.py",
+      "ir": "mir/v1",
+      "stage": "mir-optimize",
+      "optional": false,
+      "switch": "A100C_MIRPASS_VSETVLI=off",
+      "trace_counter": "pass.mir.vsetvli.hoisted",
+      "profitability": "hoists a vsetvli whose (SEW, LMUL, vl) region is invariant across a loop body and unopposed by any region-switching operation inside it; region consistency is a MIR verifier invariant and the pass models the region state per program point",
+      "tests": [
+        "a100c/tests/test_mir_passes.py"
+      ]
     }
   ],
   "behaviour": [
@@ -534,6 +605,10 @@
     {
       "name": "mir-verifier-rejects-illegal-ime",
       "test": "a100c/tests/test_mir_verifier.py"
+    },
+    {
+      "name": "mir-passes-legality-and-results",
+      "test": "a100c/tests/test_mir_passes.py"
     },
     {
       "name": "runtime-transport-and-pool",
