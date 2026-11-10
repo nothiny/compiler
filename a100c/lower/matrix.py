@@ -88,6 +88,7 @@ from typing import Dict, List, Optional, Sequence, Tuple
 
 from a100c.backend.repertoire import DEFAULT_REPERTOIRE, InstructionEntry
 from a100c.ir import mir
+from a100c.lower import scalar as scalar_mod
 from a100c.plan import tiles as tiles_mod
 from a100c.plan.tiles import DotPlan
 from a100c.target import TargetModel
@@ -2035,7 +2036,67 @@ class _Composed:
         recorded indexed-form defect does not cover strided forms).  The
         guarded scalar per-element loops remain as the fallback: any
         other family width, or the lowering option matrix_scalar_pack
-        (the on/off contrast and rollback path)."""
+        (the on/off contrast and rollback path).
+
+        W2-P1 (the unified optimization round): when every column is in
+        bounds (n0 + tn <= N) and the whole K prefix is present (krem >=
+        tk) -- the full-tile case, the dominant one on the perf shapes --
+        a straight-line unguarded peel replaces the guarded loop: one
+        constant-vl vsetvli, one strided load + one unit store per
+        column, incrementing addresses, no zero fill (every lane is
+        overwritten).  The hand-verified transform measured -28% on the
+        128^3 fp16 flagship (/tmp/a100c-opt2's replay); the tail tiles
+        keep the guarded path below."""
+        loc = self.spec.loc
+        if self.pack_vector and self.in_sew in (8, 16):
+            # n0 + tn <= N  <=>  n0 + tn < N + 1;  krem >= tk  <=>
+            # tk < krem + 1 (the slt forms; no sle/sge in the repertoire)
+            n_end = self._sadd(n0, self._k(self.tn), "pfn")
+            full_n = self._slt(n_end, self._k(self.N + 1), "pfl")
+            full_k = self._slt(self._k(self.tk),
+                               self._sadd(krem, self._k(1), "pfkr"), "pfk")
+            both = self._sand(full_n, full_k, "pfa")
+            tag = self.if_.tag("pbf")
+            frame = scalar_mod.begin_if(self.if_.ctx, both, loc, tag)
+            # -- the fast arm: the unguarded straight-line pack ----------
+            self.if_.ctx.switch(frame.then_block)
+            esz = b_rec["esz"]
+            self.if_.region(self.in_sew, 1, self.tk, loc)
+            stride = self._k(self.N * esz)
+            src = self._sadd(ws, self._k(b_rec["offset"]), "pfs")
+            src = self._sadd(src, self._smul(kb, stride, "pfkb"), "pfr")
+            src = self._sadd(src, self._smul(n0, self._k(esz), "pfnz"),
+                             "pfc")
+            dst = b_stag
+            for j in range(self.tn):
+                gathered = self.if_.emit(mir.MOp(
+                    f"vloads{self.in_sew}", [src, stride],
+                    [self.if_.vreg(self.inb_type, hint=f"pfv{j}",
+                                   loc=loc)], loc=loc))
+                self.if_.emit0(mir.MOp(
+                    "vustore8" if self.in_sew == 8 else "vustore16",
+                    [dst, gathered], [], loc=loc))
+                if j + 1 < self.tn:
+                    src = self._sadd(src, self._k(esz), f"pfs{j}")
+                    dst = self._sadd(dst, self._k(self.row_bytes),
+                                     f"pfd{j}")
+            scalar_mod.close_arm(self.if_.ctx, frame, f"{tag}.join", [])
+            # -- the slow arm: the guarded pack (tails, ragged shapes) ---
+            self.if_.ctx.switch(frame.else_block)
+            self._pack_b_columns_guarded(ws, b_rec, b_stag, n0, kb, krem,
+                                         zero_b)
+            scalar_mod.close_arm(self.if_.ctx, frame, f"{tag}.join", [])
+            scalar_mod.join_if(self.if_.ctx, frame, f"{tag}.join", [[], []],
+                               loc)
+            self.if_.ctx.switch(self.if_.ctx.blocks[f"{tag}.join"])
+            return
+        self._pack_b_columns_guarded(ws, b_rec, b_stag, n0, kb, krem, zero_b)
+
+    def _pack_b_columns_guarded(self, ws, b_rec, b_stag, n0, kb, krem,
+                                zero_b):
+        """The guarded B pack: the zero fill plus the per-column guard /
+        rem chain and the strided (or scalar) copy -- the tail-tile path
+        and the rollback form."""
         loc = self.spec.loc
         esz = b_rec["esz"]
         ebits = self.in_sew
