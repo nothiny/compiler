@@ -2030,6 +2030,128 @@ def prove_wide_access(sl, ptr: "tir.Value", vl: int) -> Optional[WideProof]:
 
 
 # ---------------------------------------------------------------------------
+# the strided-access proof (W2-C8: the narrow-data strided load/store)
+# ---------------------------------------------------------------------------
+
+class StridedProof:
+    """A proven uniformly-strided access: the vector offset is
+    ``stride_mult * arange + scalar terms`` where ``stride_mult`` is the
+    product of a constexpr multiplier and an optional runtime rank-0
+    multiplier (the byte stride is ``esz * stride_mult``; the strided
+    forms take it in a register, so a runtime multiplier is fine)."""
+
+    __slots__ = ("scalar_terms", "mult", "stride_value")
+
+    def __init__(self, scalar_terms, mult: int, stride_value):
+        self.scalar_terms = scalar_terms
+        self.mult = mult
+        self.stride_value = stride_value
+
+
+def _split_arange_strided(value: "tir.Value"):
+    """``_split_arange_sum``'s form with a RUNTIME rank-0 multiplier
+    carried as the stride value instead of declining: returns
+    ``(scalar terms, constexpr mult, stride value or None, arange op)``.
+
+    Follows add / mul / hint / broadcast-of-arange producers; the
+    contiguous form (mult == 1, no runtime stride) is returned too -- the
+    caller decides which proof owns it."""
+    scalars: List["tir.Value"] = []
+    mult = 1
+    stride_value = None
+    node = value
+    while True:
+        prod = node.producer
+        if prod is None:
+            return None
+        if prod.op == "hint":
+            node = prod.operands[0]
+            continue
+        if prod.op == "broadcast" and prod.operands[0].producer is not None \
+                and prod.operands[0].producer.op == "arange":
+            return scalars, mult, stride_value, prod.operands[0].producer
+        if prod.op == "arange":
+            return scalars, mult, stride_value, prod
+        if prod.op == "arith.add":
+            lhs, rhs = prod.operands
+
+            def _bare_scalar(v):
+                if v.rank == 0:
+                    return v
+                p = v.producer
+                if p is not None and p.op == "broadcast" \
+                        and p.operands[0].rank == 0:
+                    return p.operands[0]
+                return None
+
+            ls, rs = _bare_scalar(lhs), _bare_scalar(rhs)
+            if ls is not None and rs is None:
+                scalars.append(ls)
+                node = rhs
+                continue
+            if rs is not None and ls is None:
+                scalars.append(rs)
+                node = lhs
+                continue
+            return None
+        if prod.op == "arith.mul":
+            lhs, rhs = prod.operands
+            for vec, other in ((lhs, rhs), (rhs, lhs)):
+                if vec.rank > 0 and other.rank == 0:
+                    if other.producer is not None \
+                            and other.producer.op == "const":
+                        mult *= int(other.producer.attrs["value"])
+                        node = vec
+                        break
+                    # W2-C8: the runtime rank-0 multiplier is the strided
+                    # form's stride (the strided instructions take the
+                    # byte stride in a register); one runtime multiplier
+                    # only -- a product of two runtime values declines
+                    if stride_value is None:
+                        stride_value = other
+                        node = vec
+                        break
+                    return None
+            else:
+                return None
+            continue
+        return None
+
+
+def prove_strided_access(sl, ptr: "tir.Value", vl: int) -> Optional[StridedProof]:
+    """Prove one access UNIFORMLY STRIDED for the strided load/store
+    forms: the vector offset is ``mult * arange + scalars`` with
+    ``(mult, stride_value) != (1, None)`` (mult == 1 and no runtime
+    stride is the contiguous case the wide proof owns).
+
+    Declines exactly like the wide proof otherwise: never a guessed
+    stride."""
+    base_node, offsets = _flatten_ptradd(ptr)
+    if base_node.producer is not None \
+            and base_node.producer.op != "select.where":
+        return None
+    scalar_terms: List["tir.Value"] = []
+    vector_term = None
+    for off in offsets:
+        if off.rank == 0:
+            scalar_terms.append(off)
+            continue
+        if vector_term is not None:
+            return None
+        vector_term = off
+    if vector_term is None:
+        return None
+    split = _split_arange_strided(vector_term)
+    if split is None:
+        return None
+    terms, mult, stride_value, _arange = split
+    scalar_terms.extend(terms)
+    if mult == 1 and stride_value is None:
+        return None          # contiguous: prove_wide_access's case
+    return StridedProof(tuple(scalar_terms), mult, stride_value)
+
+
+# ---------------------------------------------------------------------------
 # tl.gather (the register permute)
 # ---------------------------------------------------------------------------
 

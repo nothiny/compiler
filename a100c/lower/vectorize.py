@@ -11168,6 +11168,69 @@ class SliceLowering:
                 {"op": "load", "source": wide.source,
                  "detail": wide.detail, "loc": str(loc)})
         elif self._sew < 32:
+            # W2-C8: a proven UNIFORMLY-STRIDED narrow load is ONE
+            # strided vector load (the matmul round's probe-verified
+            # vlse form -- the recorded indexed-form emulator defect
+            # does not cover strided forms); the masked form performs no
+            # access at disabled lanes and the common tail's select
+            # writes the declared ``other`` there.  The per-lane walk
+            # below remains for the unproven forms.
+            strided = scalar_mod.prove_strided_access(self, ptr, self._vl)
+            rtype = self._vtype(op.results[0].type)
+            if strided is not None and rtype.lmul == 1:
+                sbase = self._unit_stride_base(ctx, strided, base_reg,
+                                               pointee, loc)
+                adjust = self._recurrence_byte_adjust(ctx, ptr, pointee,
+                                                      loc)
+                if adjust is not None:
+                    sbase = ctx.emit(mir.MOp(
+                        "sadd", [sbase, adjust],
+                        [ctx.vreg(mir.I64, hint="c8b", loc=loc)], loc=loc))
+                stride = self._strided_byte_stride(ctx, strided, pointee,
+                                                   loc)
+                self._vregion(ctx, rtype, loc)
+                operands = [sbase, stride]
+                attrs = {"sew": rtype.sew}
+                opcode = f"vloads{rtype.sew}"
+                if mreg is not None \
+                        and not self.options.witness_drop_tail_predicates:
+                    v0 = ctx.emit(mir.MOp(
+                        "vmovmask", [mreg],
+                        [ctx.vreg(mir.MaskType(), hint="c80", loc=loc,
+                                  fixed_phys="v0")], loc=loc))
+                    operands.append(v0)
+                    attrs["default"] = "undef"
+                    opcode = opcode + "m"
+                reg = ctx.emit(mir.MOp(
+                    opcode, operands,
+                    [ctx.vreg(rtype, hint="c8l", loc=loc)], attrs=attrs,
+                    loc=loc))
+                self._wide_selections.append(
+                    {"op": "load", "source": "strided",
+                     "detail": f"offset = arange * "
+                               f"{'runtime' if strided.stride_value is not None else 'const'}"
+                               f" stride (x{strided.mult})"
+                               f" + {len(strided.scalar_terms)} scalar term(s)",
+                     "loc": str(loc)})
+                self._bind_result(op, reg)
+                # fall through to the common other-default select below
+                # (the masked strided load leaves disabled lanes
+                # undisturbed; the select writes ``other`` there)
+                if other is not None \
+                        or default == tir.MaskedDefault.VALUE:
+                    oreg = self._need(other, loc)
+                    if not oreg.is_vector():
+                        oreg = self._splat_reg(ctx, oreg, reg.type, loc)
+                    v0 = ctx.emit(mir.MOp(
+                        "vmovmask", [mreg],
+                        [ctx.vreg(mir.MaskType(), hint="c8o", loc=loc,
+                                  fixed_phys="v0")], loc=loc))
+                    reg = ctx.emit(mir.MOp(
+                        "vsel", [v0, reg, oreg],
+                        [ctx.vreg(reg.type, hint="c8d", loc=loc)],
+                        loc=loc))
+                self._bind_result(op, reg)
+                return
             # T014: the narrow-data fallback -- an unproven-contiguous
             # sub-32-bit block load lowers as a per-lane scalar loop
             # through the workspace (every indexed form with sub-32-bit
@@ -11306,6 +11369,24 @@ class SliceLowering:
             loc=loc))
         self._restore_region(ctx, loc)
         return out
+
+    def _strided_byte_stride(self, ctx: _Ctx, strided, pointee: tir.Type,
+                             loc) -> mir.VReg:
+        """The byte stride of one proven uniformly-strided access:
+        ``esz * mult * [runtime stride]`` as an i64 register (the
+        strided instructions take the stride in a register, so a runtime
+        multiplier needs no constant folding)."""
+        esz = 1 if pointee.is_bool() else pointee.bitwidth() // 8
+        total = esz * strided.mult
+        if strided.stride_value is None:
+            return ctx.const(total, mir.I64, loc)
+        sreg = self._need(strided.stride_value, loc)
+        s64 = scalar_mod.widen_to(ctx, sreg, 64, loc)
+        if total != 1:
+            return ctx.emit(mir.MOp(
+                "smul", [s64, ctx.const(total, mir.I64, loc)],
+                [ctx.vreg(mir.I64, hint="c8s", loc=loc)], loc=loc))
+        return s64
 
     def _lower_load_narrow(self, ctx: _Ctx, op: tir.Op, base_reg: mir.VReg,
                            offset_reg: mir.VReg, pointee: tir.Type,
@@ -11764,6 +11845,46 @@ class SliceLowering:
                  "detail": wide.detail, "loc": str(loc)})
             return mask_reg
         if self._sew < 32:
+            # W2-C8: a proven UNIFORMLY-STRIDED narrow store is ONE
+            # strided vector store (no access at the disabled lanes);
+            # the per-lane walk below remains for the unproven forms
+            strided = scalar_mod.prove_strided_access(self, ptr, self._vl)
+            stype = vreg.type if vreg.is_vector() else \
+                self._vtype(op.operands[1].type)
+            if strided is not None and stype.lmul == 1:
+                sbase = self._unit_stride_base(ctx, strided, base_reg,
+                                               pointee, loc)
+                adjust = self._recurrence_byte_adjust(ctx, ptr, pointee,
+                                                      loc)
+                if adjust is not None:
+                    sbase = ctx.emit(mir.MOp(
+                        "sadd", [sbase, adjust],
+                        [ctx.vreg(mir.I64, hint="c8t", loc=loc)], loc=loc))
+                stride = self._strided_byte_stride(ctx, strided, pointee,
+                                                   loc)
+                self._vregion(ctx, stype, loc)
+                operands = [sbase, stride, vreg]
+                attrs = {"sew": stype.sew}
+                opcode = f"vstores{stype.sew}"
+                if mask_reg is not None \
+                        and not self.options.witness_drop_tail_predicates:
+                    v0 = ctx.emit(mir.MOp(
+                        "vmovmask", [mask_reg],
+                        [ctx.vreg(mir.MaskType(), hint="c8u", loc=loc,
+                                  fixed_phys="v0")], loc=loc))
+                    operands.append(v0)
+                    attrs["default"] = "no-access"
+                    opcode = opcode + "m"
+                ctx.emit0(mir.MOp(opcode, operands, [], attrs=attrs,
+                                  loc=loc))
+                self._wide_selections.append(
+                    {"op": "store", "source": "strided",
+                     "detail": f"offset = arange * "
+                               f"{'runtime' if strided.stride_value is not None else 'const'}"
+                               f" stride (x{strided.mult})"
+                               f" + {len(strided.scalar_terms)} scalar term(s)",
+                     "loc": str(loc)})
+                return mask_reg
             # T014: the narrow-data fallback (the store half): the value
             # goes to the workspace scratch, then per-lane scalar stores
             # perform the writes the indexed form cannot (no access at
