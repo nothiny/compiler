@@ -1,0 +1,124 @@
+{
+  "schema": "a100-manual-sharded-regression-summary/v1",
+  "cases": 2734,
+  "unique_case_ids": 2734,
+  "statuses": {
+    "PASS": 2734
+  },
+  "raw_reports": [
+    {
+      "path": "/home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/full-input-final/shard-0/report.json",
+      "sha256": "7ca36713b3a65d13cfc3f84291dc7f0bcc31fd5f1822f1b52283a12bc71f8b81"
+    },
+    {
+      "path": "/home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/full-input-final/shard-1/report.json",
+      "sha256": "600eb82ebe0ffcecf92f6f95f6fe52f291e2c92e0e950c702458523c51f15756"
+    },
+    {
+      "path": "/home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/full-input-final/shard-2/report.json",
+      "sha256": "53973b4661bd53e0b0f76d9b9a71fc50b0011576a02a74b4d3e4b0e34b9119b1"
+    },
+    {
+      "path": "/home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/full-input-final/shard-3/report.json",
+      "sha256": "2221bcf7df7164aa11eab2724596bbe9b38136c98df8e4aeabd56618feed6b29"
+    }
+  ],
+  "source_unchanged": true,
+  "every_pass_compiled_executed_compared": true,
+  "all_original_cases_pass": true,
+  "per_group": {
+    "suite/dev": {
+      "PASS": 2192
+    },
+    "suite/perf": {
+      "PASS": 542
+    }
+  },
+  "failures": [],
+  "scope": "Independent human-guided full-input evidence, not engine G8/G9 acceptance",
+  "resource_rows": [
+    {
+      "id": "suite/dev/matmul_k32_fast_kernel_f2eeb00c.py#[128]#float16",
+      "group": "suite/dev",
+      "operator": "suite/dev/matmul_k32_fast_kernel_f2eeb00c.py",
+      "shape": [
+        128
+      ],
+      "dtype": "float16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 4,
+      "identity": "51085539a556",
+      "artifact_sha256": "b92989ac44a2de084a81f2f0d5d4f68d4d82d83b9dab6069d79be6910060d59f",
+      "artifact_key": "f7dc41a449f20df8672ccab89d7e5689d04bb5250f405422f168ab81fdb7fc1e",
+      "cache_hit": false,
+      "resource_observations": {
+        "exit_code": 0,
+        "command": "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64 -L /home/i_yinzida/.local/opt/a100/toolchain-1.1.2/sysroot -cpu max,vlen=1024,elen=64,vext_spec=v1.0 -plugin /tmp/a100-k3-final-frozen-xg9tlcpp/a100_support/build/instruction_counts.so,out=/home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/full-input-final/shard-1/resource-evidence/suite__dev__matmul_k32_fast_kernel_f2eeb00c.py#[128]#float16/counts.json /tmp/a100-k3-full-regression-caches-5ewflkby/shard-1/f7dc41a449f20df8672ccab89d7e5689d04bb5250f405422f168ab81fdb7fc1e/operator_exec --bundle /tmp/a100-native-case-wu2lydsd/bundle.bin --threads 4",
+        "interval_s": [
+          3977877.777460416,
+          3977877.924762238
+        ],
+        "instruction_counts": {
+          "smt.vmadot": 0,
+          "smt.vfwmadot": 4096
+        },
+        "workers": [
+          {
+            "worker": "worker-0",
+            "unit": "a100-compute-worker-slot-0",
+            "observed_units": [
+              "a100-compute-worker-slot-0"
+            ],
+            "completed_units": 123872,
+            "start": 3977877.777460416,
+            "end": 3977877.924762238
+          },
+          {
+            "worker": "worker-1",
+            "unit": "a100-compute-worker-slot-1",
+            "observed_units": [
+              "a100-compute-worker-slot-1"
+            ],
+            "completed_units": 123872,
+            "start": 3977877.777460416,
+            "end": 3977877.924762238
+          },
+          {
+            "worker": "worker-2",
+            "unit": "a100-compute-worker-slot-2",
+            "observed_units": [
+              "a100-compute-worker-slot-2"
+            ],
+            "completed_units": 0,
+            "start": 3977877.777460416,
+            "end": 3977877.924762238
+          },
+          {
+            "worker": "worker-3",
+            "unit": "a100-compute-worker-slot-3",
+            "observed_units": [
+              "a100-compute-worker-slot-3"
+            ],
+            "completed_units": 0,
+            "start": 3977877.777460416,
+            "end": 3977877.924762238
+          }
+        ]
+      },
+      "launch_seconds": 0.157,
+      "max_abs_error": {
+        "C_ptr": 0.0077915191650390625
+      },
+      "resource_evidence": {
+        "path": "/home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/full-input-final/shard-1/resource-evidence/suite__dev__matmul_k32_fast_kernel_f2eeb00c.py#[128]#float16/binding.json",
+        "sha256": "6381d86df7642ca602373db3a98bb5d31fb92f7c9685010e5d530581ae1944ce"
+      },
+      "seconds": 1.504
+    }
+  ]
+}

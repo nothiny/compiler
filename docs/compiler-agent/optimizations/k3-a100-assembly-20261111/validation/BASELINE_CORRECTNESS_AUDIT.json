@@ -1,0 +1,76 @@
+{
+  "scope": "historical independently parsed report, not a new execution",
+  "source": "docs/compiler-agent/optimizations/unified-round/full-input/report.json",
+  "compiler_git": "834d1a2",
+  "report_git": "c8ade47",
+  "rows": 2734,
+  "unique_ids": 2734,
+  "partial": false,
+  "missing_case_ids": [],
+  "statuses": {
+    "PASS": 2732,
+    "TIMEOUT": 2
+  },
+  "failures": [
+    {
+      "id": "suite/dev/deconv3d_fwd_kernel.py#[1, 4, 8, 8, 8]#float16",
+      "group": "suite/dev",
+      "operator": "suite/dev/deconv3d_fwd_kernel.py",
+      "shape": [
+        1,
+        4,
+        8,
+        8,
+        8
+      ],
+      "dtype": "float16",
+      "compiled": false,
+      "executed": false,
+      "compared": false,
+      "passed": false,
+      "status": "TIMEOUT",
+      "detail": "stage: case budget exceeded",
+      "threads": 1,
+      "identity": "ad23a1d9532f",
+      "seconds": 365.29
+    },
+    {
+      "id": "suite/dev/deconv3d_fwd_kernel.py#[1, 4, 8, 8, 8]#bfloat16",
+      "group": "suite/dev",
+      "operator": "suite/dev/deconv3d_fwd_kernel.py",
+      "shape": [
+        1,
+        4,
+        8,
+        8,
+        8
+      ],
+      "dtype": "bfloat16",
+      "compiled": false,
+      "executed": false,
+      "compared": false,
+      "passed": false,
+      "status": "TIMEOUT",
+      "detail": "stage: case budget exceeded",
+      "threads": 1,
+      "identity": "c020e9cbd6a4",
+      "seconds": 365.274
+    }
+  ],
+  "per_group": {
+    "suite/dev": {
+      "PASS": 2190,
+      "TIMEOUT": 2
+    },
+    "suite/perf": {
+      "PASS": 542
+    }
+  },
+  "sum_case_seconds": 6039.347,
+  "timeout_scope": "Separate case-build and staging deadline contexts use case_timeout*1.5+5=365s. These failures explicitly say stage; native launch is bounded separately. compiled=false means no completed artifact was reported, not proof of the exact internal compilation phase.",
+  "commands": {
+    "existing_report": "tools/run_scan.py run --report docs/compiler-agent/optimizations/unified-round/full-input/report.json --journal docs/compiler-agent/optimizations/unified-round/full-input/journal.jsonl --threads 1 --resource-threads 4 --case-timeout 240",
+    "full_regression": "python3 -B tools/run_scan.py run --threads 1 --resource-threads 4 --case-timeout 600 --report <fresh-dir>/report.json --journal <fresh-dir>/journal.jsonl",
+    "validation_rule": "Freeze final candidate first. No --resume; every input case must execute and compare. Preserve resource binding. Record timeouts honestly; no full PASS claim with either remaining."
+  }
+}
