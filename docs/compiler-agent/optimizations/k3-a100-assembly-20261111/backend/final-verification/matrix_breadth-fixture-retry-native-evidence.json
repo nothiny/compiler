@@ -1,0 +1,199 @@
+{
+  "schema": "a100c-matrix-breadth/v1",
+  "endpoint": "qemu-functional (jdsk-qemu 10.0.2, -cpu max,vlen=1024,elen=64,vext_spec=v1.0)",
+  "cases": [
+    {
+      "form": "int8-basic",
+      "compare": "PASS"
+    },
+    {
+      "form": "int8-acc",
+      "compare": "PASS"
+    },
+    {
+      "form": "uint8-basic",
+      "compare": "PASS"
+    },
+    {
+      "form": "uint8-acc",
+      "compare": "PASS"
+    },
+    {
+      "form": "fp16-basic",
+      "compare": "PASS"
+    },
+    {
+      "form": "fp16-acc",
+      "compare": "PASS"
+    },
+    {
+      "form": "fp16-out-dtype",
+      "compare": "PASS"
+    },
+    {
+      "form": "fp16-masked",
+      "compare": "PASS"
+    },
+    {
+      "form": "fp32-basic",
+      "compare": "PASS"
+    },
+    {
+      "form": "fp32-acc",
+      "compare": "PASS"
+    },
+    {
+      "form": "fp32-masked",
+      "compare": "PASS"
+    },
+    {
+      "form": "bf16-basic",
+      "compare": "PASS"
+    },
+    {
+      "form": "bf16-acc",
+      "compare": "PASS"
+    },
+    {
+      "form": "bf16-masked",
+      "compare": "PASS"
+    },
+    {
+      "form": "fp32-ieee-bitexact",
+      "compare": "PASS"
+    },
+    {
+      "form": "bf16-16x16x16-vectorfp32",
+      "compare": "PASS",
+      "ime_executions": 0,
+      "gap": "the pinned QEMU emulator's BF16 IME format selection has not passed (F010: the bf16 matrix probe fails while its executed smt.vfwmadot selects the MCPM float16 format; F034); BF16 IME execution is not claimable and FP16 or vector success never proves it -- BF16 dot lowers to the vector FP32 path (BF16->FP32 conversion is exact) and the gap is recorded separately"
+    },
+    {
+      "form": "int8-16x16x16-threads2",
+      "artifact_sha256": "fefb1d31ff56ad906868d0b6eef17f39be9f881702b9274e8a34dabb2ed9826d",
+      "mnemonic": "smt.vmadot",
+      "executed": 4,
+      "model": 4,
+      "compare": "exact PASS"
+    },
+    {
+      "form": "fp16-16x16x16-threads4",
+      "artifact_sha256": "cf8ec93ce3431ee1277ada6a05656408f4b56fda092751227e96bf7f3583a100",
+      "mnemonic": "smt.vfwmadot",
+      "executed": 8,
+      "model": 8,
+      "compare": "allclose PASS"
+    },
+    {
+      "form": "while-carried-pointer-block",
+      "compare": "PASS",
+      "note": "the uniform pointer-recurrence repair (T014)"
+    },
+    {
+      "form": "kloop-runtime-bound-1iter",
+      "artifact_sha256": "cbd4e9967f652a27dc80debfba50f86ab2a7db7a61038751d98354527f0d383a",
+      "compare": "PASS"
+    },
+    {
+      "form": "kloop-multi-8x8x32-bk16",
+      "artifact_sha256": "c38e5b42ec4e6f903c4592205a726cc9fa9c59a396a322fc0ec3f1daf817ab3d",
+      "threads": 1,
+      "compare": "PASS"
+    },
+    {
+      "form": "kloop-multi-8x8x48-bk16",
+      "artifact_sha256": "c38e5b42ec4e6f903c4592205a726cc9fa9c59a396a322fc0ec3f1daf817ab3d",
+      "threads": 1,
+      "compare": "PASS"
+    },
+    {
+      "form": "kloop-multi-16x8x56-bk16",
+      "artifact_sha256": "31469b72d4e7bcffc800efdde41ef9408ad9f2f82ecf22f982f6145ed1ff46f8",
+      "threads": 1,
+      "compare": "PASS"
+    },
+    {
+      "form": "kloop-multi-8x16x64-bk8",
+      "artifact_sha256": "f12d72e2f4e43433795627e36897eb77c0a19b6f7559b7c84251d072e3d49262",
+      "threads": 4,
+      "compare": "PASS"
+    },
+    {
+      "form": "kloop-ime-int8-8x8x32",
+      "artifact_sha256": "8c61e7b965d2765e86e4c800dc4e4d1419f81dabce45721722065ddb6aef08f7",
+      "mnemonic": "smt.vmadot",
+      "executed": 2,
+      "model": 2,
+      "compare": "PASS"
+    },
+    {
+      "form": "kloop-ime-fp16-8x8x32",
+      "artifact_sha256": "307f2c0d8d6cc7aadbd12d1f36beddc9de22b0c8059b0762b4b36a70c2ff67b8",
+      "mnemonic": "smt.vfwmadot",
+      "executed": 4,
+      "model": 4,
+      "compare": "PASS"
+    }
+  ],
+  "census": [
+    {
+      "file": "matmul_kernel.py",
+      "family": "matmul",
+      "outcome": "RUN-ERROR ValueError operands could not be broadcast together with shapes (128,128) (16384,) "
+    },
+    {
+      "file": "matmul_kernel_2d_8e70c631.py",
+      "family": "matmul",
+      "outcome": "PASS"
+    },
+    {
+      "file": "gemm_smallk_kernel_5ee47e3f.py",
+      "family": "matmul",
+      "outcome": "PASS"
+    },
+    {
+      "file": "matmul_abt_kernel.py",
+      "family": "matmul",
+      "outcome": "RUN-ERROR ValueError operands could not be broadcast together with shapes (128,96) (12288,) "
+    },
+    {
+      "file": "flash_varlen_fwd_kernel.py",
+      "family": "attention",
+      "outcome": "PASS"
+    },
+    {
+      "file": "gqa.py",
+      "family": "attention",
+      "outcome": "PASS"
+    },
+    {
+      "file": "conv1x1_pool_fc_kernel.py",
+      "family": "conv_pool",
+      "outcome": "PASS"
+    },
+    {
+      "file": "implicit_conv2d.py",
+      "family": "conv_pool",
+      "outcome": "PASS"
+    },
+    {
+      "file": "grouped_gemm_kernel.py",
+      "family": "matmul",
+      "outcome": "PASS"
+    },
+    {
+      "file": "matmul_k32_splitn4_paired_kernel_6f1c91c8.py",
+      "family": "matmul",
+      "outcome": "PASS"
+    }
+  ],
+  "kloop_reproduction": {
+    "shape": [
+      8,
+      8,
+      16
+    ],
+    "bad_elements": 0,
+    "note": "the T030 repair regression (was 30/64 wrong at this exact probe before the back-edge copy fix)"
+  }
+}

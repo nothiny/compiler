@@ -36,3 +36,28 @@ for vector-spill correctness, dynamic-AVL support and reliable evidence/cache
 identity; it is not presented as a measured performance improvement. Scalar
 spill traffic and immediate selection are separate opportunities, not part of
 this commit. There is no new engine optimization phase or G9 assertion.
+
+Final component verification at source commit `51f3c61` is recorded under
+`final-verification/`; use `SEMANTIC_SUMMARY.json` for the interpreted result,
+and retain `RESULTS.json` as the initial exit-only history. Twenty-two explicit
+standalone commands completed with exit zero against a private hard copy,
+including the affected lowering/backend/build/cache suites, the new native
+tests, MIR rejection checks and T029 spill regressions. All 183 parent-snapshot
+files still match their recorded SHA256s. The matrix breadth suite's first
+attempt lacked its fixed-location prepared counter plugin; the same-SHA plugin
+was copied only into the private verification root and the suite was actually
+rerun, passing 24 checks including its dynamic IME observations. Both attempts
+are retained. Its two internal census shape/comparator errors remain explicit
+diagnostics and are not counted as passed cases; the full corpus scanner owns
+their original-case comparisons.
+
+The no-name normal check passes and its witness actually catches the injected
+name branch/file literal; the numeric-policy witness actually catches widened
+tolerance. Normal masked-tail and stage-barrier checks pass, including 16
+repeats at each 1/2/4/8 worker count for the latter. Their advisory limitations
+remain: the masked-tail mutant corrupts the guard but the CLI returns zero;
+the stage-barrier mutant remains correct, so this witness is vacuous despite
+returning one. One actual c8ade47 baseline execution of the identical barrier
+script reproduces that vacuity. This is not recorded as a successful witness
+or a new output regression. No production source, corpus, harness, engine
+policy or reference was changed by this final verification task.
