@@ -1,0 +1,1094 @@
+{
+  "schema": "board-perf-pack/v1",
+  "created": "2026-11-10T11:46:57+0800",
+  "seed": 30,
+  "runtime_cli": "operator_exec --bundle <b> --threads <1|2|4|8> [--repeats <k>]",
+  "board_cpus": "8-15 (A100 AI cores; 0-7 are the system cores)",
+  "cases": [
+    {
+      "name": "matmul_f16",
+      "operator": "suite/perf/matmul.py",
+      "shape": [
+        256,
+        256,
+        256
+      ],
+      "dtype": "float16",
+      "board_repeats": 30,
+      "artifact": {
+        "cache_id": "47e7237ff90556d5417cd120db3f7355c4167657d8972cf29e3d313e768791e1",
+        "sha256": "0be360cf96ef30696c4cd8b12400c8087c7c8d1293a792571b0c44b0cc633ff2",
+        "fresh_compile": false,
+        "arguments": [
+          "--bundle",
+          "{bundle}",
+          "--threads",
+          "{threads}"
+        ]
+      },
+      "bundle_bytes": 393536,
+      "smoke": {
+        "threads_1": {
+          "ok": true,
+          "qemu_seconds": 2.1,
+          "max_abs_error": {
+            "y_ptr": 0.0066471099853515625
+          }
+        },
+        "threads_8": {
+          "ok": true,
+          "qemu_seconds": 0.3,
+          "max_abs_error": {
+            "y_ptr": 0.0066471099853515625
+          }
+        }
+      }
+    },
+    {
+      "name": "matmul_bf16",
+      "operator": "suite/perf/matmul.py",
+      "shape": [
+        256,
+        256,
+        256
+      ],
+      "dtype": "bfloat16",
+      "board_repeats": 30,
+      "artifact": {
+        "cache_id": "9ad2b012467156f6550e99206a133bcdee4e77d3fb47549e6caa083739fc04bd",
+        "sha256": "689acde56aea616797261b357bf8cdad73a13cec0c8a76ccb2dde985ba444b94",
+        "fresh_compile": false,
+        "arguments": [
+          "--bundle",
+          "{bundle}",
+          "--threads",
+          "{threads}"
+        ]
+      },
+      "bundle_bytes": 393536,
+      "smoke": {
+        "threads_1": {
+          "ok": true,
+          "qemu_seconds": 4.1,
+          "max_abs_error": {
+            "y_ptr": 0.05153465270996094
+          }
+        },
+        "threads_8": {
+          "ok": true,
+          "qemu_seconds": 0.6,
+          "max_abs_error": {
+            "y_ptr": 0.05153465270996094
+          }
+        }
+      }
+    },
+    {
+      "name": "matmul_f32",
+      "operator": "suite/perf/matmul.py",
+      "shape": [
+        256,
+        256,
+        256
+      ],
+      "dtype": "float32",
+      "board_repeats": 30,
+      "artifact": {
+        "cache_id": "ad23f69232a32f268df647f554badbcca4a1d4f4c67c81b3e0970c1c4abf56b2",
+        "sha256": "475f48b5cabe4070bd2093d63eadc52d2b74d060e4d211f28026e6b1719c12be",
+        "fresh_compile": false,
+        "arguments": [
+          "--bundle",
+          "{bundle}",
+          "--threads",
+          "{threads}"
+        ]
+      },
+      "bundle_bytes": 786752,
+      "smoke": {
+        "threads_1": {
+          "ok": true,
+          "qemu_seconds": 3.6,
+          "max_abs_error": {
+            "y_ptr": 1.049041748046875e-05
+          }
+        },
+        "threads_8": {
+          "ok": true,
+          "qemu_seconds": 0.6,
+          "max_abs_error": {
+            "y_ptr": 1.049041748046875e-05
+          }
+        }
+      }
+    },
+    {
+      "name": "matmul_t2_bf16",
+      "operator": "suite/perf/matmul_triton2.py",
+      "shape": [
+        256,
+        256,
+        256
+      ],
+      "dtype": "bfloat16",
+      "board_repeats": 30,
+      "artifact": {
+        "cache_id": "b59694cbb9ef1c9f4125e9bd582bbaa9180de2cb3583f7556c731efc76a0a959",
+        "sha256": "5add24f5c7f5707928ad49ccbd340214d683969403430f48e53b266452b14446",
+        "fresh_compile": false,
+        "arguments": [
+          "--bundle",
+          "{bundle}",
+          "--threads",
+          "{threads}"
+        ]
+      },
+      "bundle_bytes": 393664,
+      "smoke": {
+        "threads_1": {
+          "ok": true,
+          "qemu_seconds": 4.2,
+          "max_abs_error": {
+            "c_ptr": 0.20613861083984375
+          }
+        },
+        "threads_8": {
+          "ok": true,
+          "qemu_seconds": 0.6,
+          "max_abs_error": {
+            "c_ptr": 0.20613861083984375
+          }
+        }
+      }
+    },
+    {
+      "name": "dq_matmul_bf16",
+      "operator": "suite/perf/dequantize_matmul.py",
+      "shape": [
+        256,
+        32
+      ],
+      "dtype": "bfloat16",
+      "board_repeats": 200,
+      "artifact": {
+        "cache_id": "4647121b1d04968b1ce926b662ddb77c86662bb60a62c1c4468b58ad34f4a65d",
+        "sha256": "55210fa57872683ea0e987cd3a260ae8b0f620958e8448d2985cd93b51726a43",
+        "fresh_compile": true,
+        "arguments": [
+          "--bundle",
+          "{bundle}",
+          "--threads",
+          "{threads}"
+        ]
+      },
+      "bundle_bytes": 25024,
+      "smoke": {
+        "threads_1": {
+          "ok": true,
+          "qemu_seconds": 0.1,
+          "max_abs_error": {
+            "fpb_ptr": 0.25
+          }
+        },
+        "threads_8": {
+          "ok": true,
+          "qemu_seconds": 0.1,
+          "max_abs_error": {
+            "fpb_ptr": 0.25
+          }
+        }
+      }
+    },
+    {
+      "name": "attn_causal_bf16",
+      "operator": "suite/perf/attn_fwd_causal.py",
+      "shape": [
+        1,
+        8,
+        256,
+        64
+      ],
+      "dtype": "bfloat16",
+      "board_repeats": 100,
+      "artifact": {
+        "cache_id": "d4814747e08dff56c5a4eac7dd51282274603dc3dbbdda891eb1a648374cc7e4",
+        "sha256": "465f343680146ca2b224c38c0deac4ed8559c96855a9bf9bde26d643e4bfc065",
+        "fresh_compile": true,
+        "arguments": [
+          "--bundle",
+          "{bundle}",
+          "--threads",
+          "{threads}"
+        ]
+      },
+      "bundle_bytes": 1049344,
+      "smoke": {
+        "threads_1": {
+          "ok": true,
+          "qemu_seconds": 41.6,
+          "max_abs_error": {
+            "out_ptr": 0.00298309326171875
+          }
+        },
+        "threads_8": {
+          "ok": true,
+          "qemu_seconds": 5.4,
+          "max_abs_error": {
+            "out_ptr": 0.00298309326171875
+          }
+        }
+      }
+    },
+    {
+      "name": "flash_dec_bf16",
+      "operator": "suite/perf/flash_decode.py",
+      "shape": [
+        1,
+        8,
+        256,
+        64
+      ],
+      "dtype": "bfloat16",
+      "board_repeats": 100,
+      "artifact": {
+        "cache_id": "e71468e7706e15c4c8ca4b2983de78812066ae4d055c2a0236ca20f89ea03fe7",
+        "sha256": "5f62907690374f9e32b33a067551fcf30463e437c60d64aa2f8dcf4ad5626de8",
+        "fresh_compile": true,
+        "arguments": [
+          "--bundle",
+          "{bundle}",
+          "--threads",
+          "{threads}"
+        ]
+      },
+      "bundle_bytes": 526976,
+      "smoke": {
+        "threads_1": {
+          "ok": true,
+          "qemu_seconds": 0.2,
+          "max_abs_error": {
+            "Out": 0.0015161633491516113
+          }
+        },
+        "threads_8": {
+          "ok": true,
+          "qemu_seconds": 0.1,
+          "max_abs_error": {
+            "Out": 0.0015161633491516113
+          }
+        }
+      }
+    },
+    {
+      "name": "chunk_ret_bf16",
+      "operator": "suite/perf/chunk_retention.py",
+      "shape": [
+        8,
+        2,
+        16,
+        32,
+        32
+      ],
+      "dtype": "bfloat16",
+      "board_repeats": 100,
+      "artifact": {
+        "cache_id": "7953adb5762a19d81d2a81036233aa29db171cd93d2d738a6ccd1e20e09b6f2f",
+        "sha256": "e1f041c0b4fb7944594e62ba9c1d16c1e8d3cefc7b9345acb3771d2823753a1e",
+        "fresh_compile": true,
+        "arguments": [
+          "--bundle",
+          "{bundle}",
+          "--threads",
+          "{threads}"
+        ]
+      },
+      "bundle_bytes": 67008,
+      "smoke": {
+        "threads_1": {
+          "ok": true,
+          "qemu_seconds": 0.3,
+          "max_abs_error": {
+            "o_ptr": 0.003207266330718994
+          }
+        },
+        "threads_8": {
+          "ok": true,
+          "qemu_seconds": 0.1,
+          "max_abs_error": {
+            "o_ptr": 0.003207266330718994
+          }
+        }
+      }
+    },
+    {
+      "name": "conv_gelu_bf16",
+      "operator": "suite/perf/gelu_conv2d.py",
+      "shape": [
+        512
+      ],
+      "dtype": "bfloat16",
+      "board_repeats": 1000,
+      "artifact": {
+        "cache_id": "f71e1a60b3f9865a600695f34730489a8dc2afe617a7770e6f7b4c873244c1d0",
+        "sha256": "c5cb8039faa8209ee55db04ff3984b527ae6ae261237f259d9f037f4b51c2477",
+        "fresh_compile": true,
+        "arguments": [
+          "--bundle",
+          "{bundle}",
+          "--threads",
+          "{threads}"
+        ]
+      },
+      "bundle_bytes": 2609920,
+      "smoke": {
+        "threads_1": {
+          "ok": true,
+          "qemu_seconds": 81.6,
+          "max_abs_error": {
+            "y_ptr": 0.017024993896484375
+          }
+        },
+        "threads_8": {
+          "ok": true,
+          "qemu_seconds": 10.3,
+          "max_abs_error": {
+            "y_ptr": 0.017024993896484375
+          }
+        }
+      }
+    },
+    {
+      "name": "gelu_f32",
+      "operator": "suite/perf/gelu.py",
+      "shape": [
+        262144
+      ],
+      "dtype": "float32",
+      "board_repeats": 500,
+      "artifact": {
+        "cache_id": "a994bfbb7e4f8cfe9b354af62778e28036b797b5de2c0a8c1586eb465de92ef7",
+        "sha256": "afb992267987fdf336bd404b53e7269bf47e874dddd9253f61ea545b71088d80",
+        "fresh_compile": false,
+        "arguments": [
+          "--bundle",
+          "{bundle}",
+          "--threads",
+          "{threads}"
+        ]
+      },
+      "bundle_bytes": 2097344,
+      "smoke": {
+        "threads_1": {
+          "ok": true,
+          "qemu_seconds": 1.0,
+          "max_abs_error": {
+            "y_ptr": 4.76837158203125e-07
+          }
+        },
+        "threads_8": {
+          "ok": true,
+          "qemu_seconds": 0.2,
+          "max_abs_error": {
+            "y_ptr": 4.76837158203125e-07
+          }
+        }
+      }
+    },
+    {
+      "name": "tanh_bf16",
+      "operator": "suite/perf/tanh.py",
+      "shape": [
+        262144
+      ],
+      "dtype": "bfloat16",
+      "board_repeats": 500,
+      "artifact": {
+        "cache_id": "e33aaf76b3545061e20bd15e3bcc4e63056e5421d9e7bd57066e430848c20a06",
+        "sha256": "675a0ec0a7cbd7de50c8b221096e85751818a10a66b3310d7d9bed23407e5f02",
+        "fresh_compile": true,
+        "arguments": [
+          "--bundle",
+          "{bundle}",
+          "--threads",
+          "{threads}"
+        ]
+      },
+      "bundle_bytes": 1048768,
+      "smoke": {
+        "threads_1": {
+          "ok": true,
+          "qemu_seconds": 0.3,
+          "max_abs_error": {
+            "y_ptr": 0.0019394755363464355
+          }
+        },
+        "threads_8": {
+          "ok": true,
+          "qemu_seconds": 0.1,
+          "max_abs_error": {
+            "y_ptr": 0.0019394755363464355
+          }
+        }
+      }
+    },
+    {
+      "name": "add_gelu_f16",
+      "operator": "suite/perf/add_gelu.py",
+      "shape": [
+        262144
+      ],
+      "dtype": "float16",
+      "board_repeats": 500,
+      "artifact": {
+        "cache_id": "bd89b9c62a8e949b48de8abd0c1048235f637cb83cd6ded650892d9b6d110566",
+        "sha256": "49161af5408b9bb12e6b7697b1de60946a7bfc9ae944f0c3b98bf6d242e849f1",
+        "fresh_compile": false,
+        "arguments": [
+          "--bundle",
+          "{bundle}",
+          "--threads",
+          "{threads}"
+        ]
+      },
+      "bundle_bytes": 1573120,
+      "smoke": {
+        "threads_1": {
+          "ok": true,
+          "qemu_seconds": 1.1,
+          "max_abs_error": {
+            "y_ptr": 0.00390625
+          }
+        },
+        "threads_8": {
+          "ok": true,
+          "qemu_seconds": 0.2,
+          "max_abs_error": {
+            "y_ptr": 0.00390625
+          }
+        }
+      }
+    },
+    {
+      "name": "swiglu_bf16",
+      "operator": "suite/perf/swiglu_fwd.py",
+      "shape": [
+        4096,
+        64
+      ],
+      "dtype": "bfloat16",
+      "board_repeats": 500,
+      "artifact": {
+        "cache_id": "602320d6942bbd9b2d0165c1a5f0b6ebc85ea7f4b6a0419534c733defb8f9fe9",
+        "sha256": "c96bfefc5671f068d585e7570c48c00dde8c0e2aa1904fa22730a43b4ead37cf",
+        "fresh_compile": false,
+        "arguments": [
+          "--bundle",
+          "{bundle}",
+          "--threads",
+          "{threads}"
+        ]
+      },
+      "bundle_bytes": 1573184,
+      "smoke": {
+        "threads_1": {
+          "ok": true,
+          "qemu_seconds": 0.4,
+          "max_abs_error": {
+            "OUT": 0.02759552001953125
+          }
+        },
+        "threads_8": {
+          "ok": true,
+          "qemu_seconds": 0.1,
+          "max_abs_error": {
+            "OUT": 0.02759552001953125
+          }
+        }
+      }
+    },
+    {
+      "name": "relu_strided_bf16",
+      "operator": "suite/perf/relu_strided_buffer.py",
+      "shape": [
+        262144
+      ],
+      "dtype": "bfloat16",
+      "board_repeats": 500,
+      "artifact": {
+        "cache_id": "51573d57a0385b5a7bb17bc28f69bbec49799dc3b77aa6ad00da707ec11d7031",
+        "sha256": "083af296a160b27acc3fed82cb981e0e56b0f087d780af1f61d86632e98c0d8e",
+        "fresh_compile": true,
+        "arguments": [
+          "--bundle",
+          "{bundle}",
+          "--threads",
+          "{threads}"
+        ]
+      },
+      "bundle_bytes": 1048768,
+      "smoke": {
+        "threads_1": {
+          "ok": true,
+          "qemu_seconds": 0.1,
+          "max_abs_error": {
+            "out_ptr": 0.0
+          }
+        },
+        "threads_8": {
+          "ok": true,
+          "qemu_seconds": 0.1,
+          "max_abs_error": {
+            "out_ptr": 0.0
+          }
+        }
+      }
+    },
+    {
+      "name": "gather_i8",
+      "operator": "suite/perf/gather_1d.py",
+      "shape": [
+        32768,
+        8
+      ],
+      "dtype": "int8",
+      "board_repeats": 500,
+      "artifact": {
+        "cache_id": "9a983ffe077421f5115288dc3cb4a2799ae911729e6cb4a9e12c7e3ca1c0d65a",
+        "sha256": "a0970f8e1632b534de14e811cb82294a69b9232e107e9810709bb6c80850e20f",
+        "fresh_compile": true,
+        "arguments": [
+          "--bundle",
+          "{bundle}",
+          "--threads",
+          "{threads}"
+        ]
+      },
+      "bundle_bytes": 164160,
+      "smoke": {
+        "threads_1": {
+          "ok": true,
+          "qemu_seconds": 0.1,
+          "max_abs_error": {
+            "out_ptr": 0.0
+          }
+        },
+        "threads_8": {
+          "ok": true,
+          "qemu_seconds": 0.1,
+          "max_abs_error": {
+            "out_ptr": 0.0
+          }
+        }
+      }
+    },
+    {
+      "name": "gather_i32",
+      "operator": "suite/perf/gather_1d.py",
+      "shape": [
+        32768,
+        8
+      ],
+      "dtype": "int32",
+      "board_repeats": 500,
+      "artifact": {
+        "cache_id": "643a6970b49c9e118fed7d610c1ca6ee8f2ea83c39a30086e0ea1fb06e24708e",
+        "sha256": "faf1434a597cd1fac67313e39ed9e086a120d8a3260410b7d52500c63742057c",
+        "fresh_compile": true,
+        "arguments": [
+          "--bundle",
+          "{bundle}",
+          "--threads",
+          "{threads}"
+        ]
+      },
+      "bundle_bytes": 262464,
+      "smoke": {
+        "threads_1": {
+          "ok": true,
+          "qemu_seconds": 0.1,
+          "max_abs_error": {
+            "out_ptr": 0.0
+          }
+        },
+        "threads_8": {
+          "ok": true,
+          "qemu_seconds": 0.1,
+          "max_abs_error": {
+            "out_ptr": 0.0
+          }
+        }
+      }
+    },
+    {
+      "name": "gather_i64",
+      "operator": "suite/perf/gather_1d.py",
+      "shape": [
+        32768,
+        8
+      ],
+      "dtype": "int64",
+      "board_repeats": 500,
+      "artifact": {
+        "cache_id": "9e79bcb1df6125ce89400ec37bd529a7746a852b850b98d178edb5e63eb88b1c",
+        "sha256": "7a572f8fe2d6d334a445a321ab2d3b19a4998c7ee9d87118cb32df1de854945e",
+        "fresh_compile": true,
+        "arguments": [
+          "--bundle",
+          "{bundle}",
+          "--threads",
+          "{threads}"
+        ]
+      },
+      "bundle_bytes": 393536,
+      "smoke": {
+        "threads_1": {
+          "ok": true,
+          "qemu_seconds": 0.1,
+          "max_abs_error": {
+            "out_ptr": 0.0
+          }
+        },
+        "threads_8": {
+          "ok": true,
+          "qemu_seconds": 0.1,
+          "max_abs_error": {
+            "out_ptr": 0.0
+          }
+        }
+      }
+    },
+    {
+      "name": "signbit_i32",
+      "operator": "suite/perf/signbit_bitwise_and.py",
+      "shape": [
+        262144
+      ],
+      "dtype": "int32",
+      "board_repeats": 500,
+      "artifact": {
+        "cache_id": "c1148b8b1d69f3880b5f9198460f3c1c65e6a5ff40508e473cd2dcac132957fe",
+        "sha256": "933967cc6f43487a98b226de4c5ae790b40111db0576adcc9d808af49dcd58f8",
+        "fresh_compile": false,
+        "arguments": [
+          "--bundle",
+          "{bundle}",
+          "--threads",
+          "{threads}"
+        ]
+      },
+      "bundle_bytes": 3408192,
+      "smoke": {
+        "threads_1": {
+          "ok": true,
+          "qemu_seconds": 0.1,
+          "max_abs_error": {
+            "y0_ptr": 0.0,
+            "y1_ptr": 0.0
+          }
+        },
+        "threads_8": {
+          "ok": true,
+          "qemu_seconds": 0.1,
+          "max_abs_error": {
+            "y0_ptr": 0.0,
+            "y1_ptr": 0.0
+          }
+        }
+      }
+    },
+    {
+      "name": "rmsnorm_bf16",
+      "operator": "suite/perf/fast_rms_layernorm.py",
+      "shape": [
+        64,
+        1024
+      ],
+      "dtype": "bfloat16",
+      "board_repeats": 1000,
+      "artifact": {
+        "cache_id": "5ea9270835a80437052353418fb737ba15ae9e1b8053541a24f6a854460f9cca",
+        "sha256": "b554831dc7fb068059b659ee98d888e5e6f37044de0510b6af9ea6bb5513c000",
+        "fresh_compile": false,
+        "arguments": [
+          "--bundle",
+          "{bundle}",
+          "--threads",
+          "{threads}"
+        ]
+      },
+      "bundle_bytes": 264704,
+      "smoke": {
+        "threads_1": {
+          "ok": true,
+          "qemu_seconds": 0.1,
+          "max_abs_error": {
+            "Y": 0.015624523162841797,
+            "r": 0.00741887092590332
+          }
+        },
+        "threads_8": {
+          "ok": true,
+          "qemu_seconds": 0.1,
+          "max_abs_error": {
+            "Y": 0.015624523162841797,
+            "r": 0.00741887092590332
+          }
+        }
+      }
+    },
+    {
+      "name": "argmax_bf16",
+      "operator": "suite/perf/argmax.py",
+      "shape": [
+        64,
+        1024
+      ],
+      "dtype": "bfloat16",
+      "board_repeats": 1000,
+      "artifact": {
+        "cache_id": "ee8c1d2e5bfbf22287281253a5fe11374eba56718d959c5e2e355ec69bda4e37",
+        "sha256": "d48a34a3b294b866e8a40e1c7b9f2b3346441610502b796b6885e3491abe82ff",
+        "fresh_compile": false,
+        "arguments": [
+          "--bundle",
+          "{bundle}",
+          "--threads",
+          "{threads}"
+        ]
+      },
+      "bundle_bytes": 131520,
+      "smoke": {
+        "threads_1": {
+          "ok": true,
+          "qemu_seconds": 0.1,
+          "max_abs_error": {
+            "y_ptr": 0.0
+          }
+        },
+        "threads_8": {
+          "ok": true,
+          "qemu_seconds": 0.1,
+          "max_abs_error": {
+            "y_ptr": 0.0
+          }
+        }
+      }
+    },
+    {
+      "name": "max_f16",
+      "operator": "suite/perf/max.py",
+      "shape": [
+        64,
+        1024
+      ],
+      "dtype": "float16",
+      "board_repeats": 1000,
+      "artifact": {
+        "cache_id": "1766ef29981dc43f5c322b59b70f5aa49fc727fd0becf42388ad7925a1aad024",
+        "sha256": "64085b0fc9314e473497bbf4882e9944e9cec010187c6d7443f730107f876bba",
+        "fresh_compile": false,
+        "arguments": [
+          "--bundle",
+          "{bundle}",
+          "--threads",
+          "{threads}"
+        ]
+      },
+      "bundle_bytes": 131712,
+      "smoke": {
+        "threads_1": {
+          "ok": true,
+          "qemu_seconds": 0.1,
+          "max_abs_error": {
+            "i_ptr": 0.0,
+            "y_ptr": 0.0
+          }
+        },
+        "threads_8": {
+          "ok": true,
+          "qemu_seconds": 0.1,
+          "max_abs_error": {
+            "i_ptr": 0.0,
+            "y_ptr": 0.0
+          }
+        }
+      }
+    },
+    {
+      "name": "mean_f32",
+      "operator": "suite/perf/mean.py",
+      "shape": [
+        64,
+        1024
+      ],
+      "dtype": "float32",
+      "board_repeats": 1000,
+      "artifact": {
+        "cache_id": "ea35f1134de1e7ce8105fc8705951a18e542712fff2226f40810248d6ae66fc5",
+        "sha256": "8aadf0c942b1be6a0c40fdf90d2bc25d7785a17b1fcfc65eba2aca573efa402b",
+        "fresh_compile": false,
+        "arguments": [
+          "--bundle",
+          "{bundle}",
+          "--threads",
+          "{threads}"
+        ]
+      },
+      "bundle_bytes": 262592,
+      "smoke": {
+        "threads_1": {
+          "ok": true,
+          "qemu_seconds": 0.0,
+          "max_abs_error": {
+            "y_ptr": 1.30385160446167e-08
+          }
+        },
+        "threads_8": {
+          "ok": true,
+          "qemu_seconds": 0.1,
+          "max_abs_error": {
+            "y_ptr": 1.30385160446167e-08
+          }
+        }
+      }
+    },
+    {
+      "name": "softmax_bf16",
+      "operator": "suite/perf/softmax.py",
+      "shape": [
+        64,
+        1024
+      ],
+      "dtype": "bfloat16",
+      "board_repeats": 1000,
+      "artifact": {
+        "cache_id": "7aee6d6b376b70418378d5a3dfd68fe0e3a7e52373dea5a5ee98a9d16f114193",
+        "sha256": "427d96b4007ed73c4c0eda1c6986934269fab1d68c34831b2915068cf74201f6",
+        "fresh_compile": false,
+        "arguments": [
+          "--bundle",
+          "{bundle}",
+          "--threads",
+          "{threads}"
+        ]
+      },
+      "bundle_bytes": 262336,
+      "smoke": {
+        "threads_1": {
+          "ok": true,
+          "qemu_seconds": 0.1,
+          "max_abs_error": {
+            "y_ptr": 0.0009662508964538574
+          }
+        },
+        "threads_8": {
+          "ok": true,
+          "qemu_seconds": 0.1,
+          "max_abs_error": {
+            "y_ptr": 0.0009662508964538574
+          }
+        }
+      }
+    },
+    {
+      "name": "logsumexp_f32",
+      "operator": "suite/perf/logsumexp.py",
+      "shape": [
+        64,
+        1024
+      ],
+      "dtype": "float32",
+      "board_repeats": 1000,
+      "artifact": {
+        "cache_id": "8ec069bebe78d726583834b0d3785882966a31dd3728a25ba8d01dc9ef3d07d7",
+        "sha256": "1690f6d82391a89bace7b7121fc46ef2ba569883ac45f152e8275c31b948348d",
+        "fresh_compile": false,
+        "arguments": [
+          "--bundle",
+          "{bundle}",
+          "--threads",
+          "{threads}"
+        ]
+      },
+      "bundle_bytes": 262592,
+      "smoke": {
+        "threads_1": {
+          "ok": true,
+          "qemu_seconds": 0.2,
+          "max_abs_error": {
+            "y_ptr": 9.5367431640625e-07
+          }
+        },
+        "threads_8": {
+          "ok": true,
+          "qemu_seconds": 0.1,
+          "max_abs_error": {
+            "y_ptr": 9.5367431640625e-07
+          }
+        }
+      }
+    },
+    {
+      "name": "l2norm_f16",
+      "operator": "suite/perf/l2_norm_triton2.py",
+      "shape": [
+        64,
+        1024
+      ],
+      "dtype": "float16",
+      "board_repeats": 1000,
+      "artifact": {
+        "cache_id": "566c7e08be186b1df67a6aa890c8eea3720f9618c9ba3564b35a83ea23951eb3",
+        "sha256": "107d52e2a7786e322515a5998b39a396d122e8874616a3d34a449778041cb52e",
+        "fresh_compile": true,
+        "arguments": [
+          "--bundle",
+          "{bundle}",
+          "--threads",
+          "{threads}"
+        ]
+      },
+      "bundle_bytes": 262400,
+      "smoke": {
+        "threads_1": {
+          "ok": true,
+          "qemu_seconds": 0.1,
+          "max_abs_error": {
+            "Y": 1.52587890625e-05
+          }
+        },
+        "threads_8": {
+          "ok": true,
+          "qemu_seconds": 0.1,
+          "max_abs_error": {
+            "Y": 1.52587890625e-05
+          }
+        }
+      }
+    },
+    {
+      "name": "hardsig_i16",
+      "operator": "suite/dev/hardsigmoid_kernel_2.py",
+      "shape": [
+        97
+      ],
+      "dtype": "int16",
+      "board_repeats": 2000,
+      "artifact": {
+        "cache_id": "97e87834940b84f0056c45668cbd82173e3e682138622d1e8a10e514585e2796",
+        "sha256": "537edd0fff224402e539725afcccdfa6a518d192bc511bd896bcdcaffff0e20b",
+        "fresh_compile": false,
+        "arguments": [
+          "--bundle",
+          "{bundle}",
+          "--threads",
+          "{threads}"
+        ]
+      },
+      "bundle_bytes": 704,
+      "smoke": {
+        "threads_1": {
+          "ok": true,
+          "qemu_seconds": 0.0,
+          "max_abs_error": {
+            "out_ptr": 0.0
+          }
+        },
+        "threads_8": {
+          "ok": true,
+          "qemu_seconds": 0.1,
+          "max_abs_error": {
+            "out_ptr": 0.0
+          }
+        }
+      }
+    },
+    {
+      "name": "any_bool",
+      "operator": "suite/dev/any_kernel_2.py",
+      "shape": [
+        126
+      ],
+      "dtype": "bool",
+      "board_repeats": 2000,
+      "artifact": {
+        "cache_id": "2aea8b38a4e1377ae7a88122c3b2bf7560944aa697f7ef2c15ea7cd7fb1b614b",
+        "sha256": "f9037635864994aa440960d40f2a9780f0ce30d006e79db73302947ca34b7ae0",
+        "fresh_compile": false,
+        "arguments": [
+          "--bundle",
+          "{bundle}",
+          "--threads",
+          "{threads}"
+        ]
+      },
+      "bundle_bytes": 320,
+      "smoke": {
+        "threads_1": {
+          "ok": true,
+          "qemu_seconds": 0.0,
+          "max_abs_error": {
+            "out": 0.0
+          }
+        },
+        "threads_8": {
+          "ok": true,
+          "qemu_seconds": 0.1,
+          "max_abs_error": {
+            "out": 0.0
+          }
+        }
+      }
+    },
+    {
+      "name": "atomic_bitmap_i32",
+      "operator": "suite/dev/atomic_bitmap.py",
+      "shape": [
+        16,
+        128
+      ],
+      "dtype": "int32",
+      "board_repeats": 1000,
+      "artifact": {
+        "cache_id": "3b6d121dce96b3be28aa3ccd25de1eb74b7b9fb8c4b5cc045a88eb68d196faf8",
+        "sha256": "b61a41e2a62b1325d07dee1b69644e7d44a49b4b1f728d55b2576f449f29c3fb",
+        "fresh_compile": false,
+        "arguments": [
+          "--bundle",
+          "{bundle}",
+          "--threads",
+          "{threads}"
+        ]
+      },
+      "bundle_bytes": 25856,
+      "smoke": {
+        "threads_1": {
+          "ok": true,
+          "qemu_seconds": 0.1,
+          "max_abs_error": {
+            "And": 0.0,
+            "Claim": 0.0,
+            "Old": 0.0,
+            "Or": 0.0,
+            "Published": 0.0,
+            "Stats": 0.0,
+            "Xor": 0.0
+          }
+        },
+        "threads_8": {
+          "ok": true,
+          "qemu_seconds": 0.1,
+          "max_abs_error": {
+            "And": 0.0,
+            "Claim": 0.0,
+            "Old": 0.0,
+            "Or": 0.0,
+            "Published": 0.0,
+            "Stats": 0.0,
+            "Xor": 0.0
+          }
+        }
+      }
+    }
+  ]
+}

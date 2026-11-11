@@ -1,0 +1,148 @@
+{
+  "case": "suite/perf/softmax.py#[4, 97]#float16",
+  "threads": 1,
+  "per_call_total": 308099.00000004127,
+  "by_class": {
+    "runtime/loader": 234061,
+    "other": 46870,
+    "chunk-loop": 27168
+  },
+  "by_class_pct": {
+    "runtime/loader": 76.0,
+    "other": 15.2,
+    "chunk-loop": 8.8
+  },
+  "top_labels": [
+    {
+      "label": ".Lvmath209_loop:  # [op209] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/softmax.py:28:24",
+      "per_call": 41344,
+      "pct": 13.42
+    },
+    {
+      "label": ".Lchunk1_body:  # block chunk1_body",
+      "per_call": 14720,
+      "pct": 4.78
+    },
+    {
+      "label": ".Lchunk3_body:  # block chunk3_body",
+      "per_call": 8324,
+      "pct": 2.7
+    },
+    {
+      "label": ".Lvmath209_done:  # [op209] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/softmax.py:28:24",
+      "per_call": 5124,
+      "pct": 1.66
+    },
+    {
+      "label": ".Lchunk2_body:  # block chunk2_body",
+      "per_call": 2688,
+      "pct": 0.87
+    },
+    {
+      "label": ".Lchunk1_head:  # block chunk1_head",
+      "per_call": 408,
+      "pct": 0.13
+    },
+    {
+      "label": ".Lchunk2_head:  # block chunk2_head",
+      "per_call": 408,
+      "pct": 0.13
+    },
+    {
+      "label": ".Lchunk3_head:  # block chunk3_head",
+      "per_call": 404,
+      "pct": 0.13
+    },
+    {
+      "label": ".Lchunk3_exit:  # block chunk3_exit",
+      "per_call": 132,
+      "pct": 0.04
+    },
+    {
+      "label": ".Lbrc32_true:  # [op32] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/softmax.py:21:1",
+      "per_call": 128,
+      "pct": 0.04
+    },
+    {
+      "label": ".Lbrc181_true:  # [op181] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/softmax.py:21:1",
+      "per_call": 128,
+      "pct": 0.04
+    },
+    {
+      "label": ".Lprog_body:  # block prog_body",
+      "per_call": 64,
+      "pct": 0.02
+    },
+    {
+      "label": ".Lchunk1_exit:  # block chunk1_exit",
+      "per_call": 52,
+      "pct": 0.02
+    },
+    {
+      "label": ".Lchunk2_exit:  # block chunk2_exit",
+      "per_call": 32,
+      "pct": 0.01
+    },
+    {
+      "label": ".Lentry:  # block entry",
+      "per_call": 24,
+      "pct": 0.01
+    },
+    {
+      "label": "operator_entry:  # fn operator_entry",
+      "per_call": 14,
+      "pct": 0.0
+    },
+    {
+      "label": ".Lprog_head:  # block prog_head",
+      "per_call": 14,
+      "pct": 0.0
+    },
+    {
+      "label": ".Lprog_exit:  # block prog_exit",
+      "per_call": 13,
+      "pct": 0.0
+    }
+  ],
+  "class_x_origin": {
+    "other|vec-arith": 43276,
+    "chunk-loop|const-materialization": 8376,
+    "chunk-loop|vec-arith": 6292,
+    "chunk-loop|vec-config": 6036,
+    "other|const-materialization": 1554,
+    "chunk-loop|op:sadd": 1300,
+    "chunk-loop|frame": 1284,
+    "chunk-loop|reload": 1156,
+    "other|vec-config": 897,
+    "chunk-loop|vec-mem": 644,
+    "chunk-loop|branch": 520,
+    "chunk-loop|scalar-mem": 400,
+    "other|reload": 392,
+    "other|frame": 288,
+    "chunk-loop|op:smove": 256,
+    "chunk-loop|op:vfwcvt": 256,
+    "other|op:sadd": 256,
+    "other|scalar-mem": 155,
+    "chunk-loop|spill": 132,
+    "chunk-loop|op:slt": 132,
+    "chunk-loop|op:smul": 128,
+    "chunk-loop|op:vunit_load": 128,
+    "chunk-loop|op:vfncvt": 128,
+    "other|op:smul": 21,
+    "other|op:swext": 9,
+    "other|op:smove": 8,
+    "other|branch": 8,
+    "other|op:slt": 4,
+    "other|spill": 2
+  },
+  "asm_join": {
+    "listing_instruction_rows": 403,
+    "program_instructions": 403,
+    "affine_offset": 70878,
+    "region": [
+      70878,
+      72178
+    ],
+    "byte_identity": true
+  }
+}

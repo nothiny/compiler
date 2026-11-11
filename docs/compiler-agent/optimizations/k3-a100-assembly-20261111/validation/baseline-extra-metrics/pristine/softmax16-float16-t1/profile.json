@@ -1,0 +1,447 @@
+{
+  "schema": "a100-isolated-profile/v1",
+  "case": {
+    "name": "softmax16-float16",
+    "operator": "suite/perf/softmax.py",
+    "shape": [
+      4,
+      16
+    ],
+    "dtype": "float16",
+    "declared_shape": true
+  },
+  "variant": "pristine",
+  "compiler_revision": "fc3ccea383db5f55",
+  "threads": 1,
+  "repeat_delta": 1,
+  "artifact": "/tmp/a100-k3-baseline-review-gcdf_716/annotated-cache/7fd053e82c4414d5e3f5cb9492c62a51815418d874982d44118d67abb5717ef3",
+  "artifact_sha256": "0b52643af59bf4a6a220ab7f838a2e7b59655b39fd4fd21055e5d1dccef5dcda",
+  "diagnostic_note": "Only emitted assembly comments are annotated at runtime; compiler files unchanged.",
+  "adapter_sha256": "f256fd99c88f1ce5606fd8fb8fce9f87595e6a5bbfac0082ab108d480ef0b464",
+  "prototype_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "plugin_sha256": "f600c8cf2f470151c1ff7d55f7b804ffce8e6dadbad96bd1b3817320c15693c6",
+  "asm_join": {
+    "listing_instruction_rows": 446,
+    "program_instructions": 446,
+    "affine_offset": 70918,
+    "region": [
+      70918,
+      72500
+    ],
+    "byte_identity": true,
+    "actual_instruction_starts": 462,
+    "source_start_rows": 446,
+    "uid_mapping": "live MIR object identity captured before emission; no positional inference"
+  },
+  "allocation": {
+    "frame_bytes": 16,
+    "gprs_used": 17,
+    "spill_rounds_bound": 64,
+    "spill_slots": 0,
+    "spilled_values": 0,
+    "vector_bytes_used": 1024,
+    "vector_file_bytes": 4096,
+    "vector_regs_used": 8
+  },
+  "measurements": [
+    {
+      "pair": 0,
+      "total_process_guest_instructions_per_call": 49287.0,
+      "aggregate_categories_per_call": {
+        "scalar-arith": 20102.0,
+        "system": 5.0,
+        "vec-mem": 1410.0,
+        "vec-config": 7181.0,
+        "branch": 1603.0,
+        "vec-arith": 16536.0,
+        "atomic": 11.0,
+        "scalar-store": 2300.0,
+        "scalar-load": 139.0
+      },
+      "program_guest_instructions_per_call": 46129.0,
+      "outside_program_guest_instructions_per_call": 3158.0,
+      "program_origins_per_call": {
+        "frame/service": 10.0,
+        "scalar-mem": 152.0,
+        "op:swext": 9.0,
+        "const-materialization": 15674.0,
+        "op:smul": 385.0,
+        "op:smove": 514.0,
+        "branch": 1418.0,
+        "op:slt": 401.0,
+        "vec-config": 7180.0,
+        "vec-arith": 14992.0,
+        "op:sadd": 2568.0,
+        "vec-mem": 1152.0,
+        "op:vunit_load": 128.0,
+        "op:vfwcvt": 256.0,
+        "op:vfmacc": 896.0,
+        "op:vfncvt": 128.0,
+        "op:vunit_store": 128.0,
+        "op:vpopc": 128.0,
+        "control": 10.0
+      },
+      "program_blocks_per_call": {
+        "program-services": 10.0,
+        "entry": 18.0,
+        "prog_head": 22.0,
+        "prog_body": 56.0,
+        "chunk1_head": 536.0,
+        "chunk1_exit": 60.0,
+        "chunk1_body": 16640.0,
+        "chunk2_head": 540.0,
+        "chunk2_exit": 32.0,
+        "chunk2_body": 16512.0,
+        "chunk3_head": 536.0,
+        "chunk3_exit": 12.0,
+        "chunk3_body": 11136.0,
+        "prog_next": 8.0,
+        "prog_exit": 11.0
+      },
+      "program_mnemonics_per_call": {
+        "addi": 10011.0,
+        "sd": 22.0,
+        "mv": 1605.0,
+        "ld": 38.0,
+        "lwu": 2.0,
+        "sext.w": 9.0,
+        "mul": 257.0,
+        "j": 806.0,
+        "slt": 401.0,
+        "bnez": 401.0,
+        "vsetvli": 7180.0,
+        "addiw": 1544.0,
+        "slli": 260.0,
+        "vmv.v.x": 3848.0,
+        "vmv.x.s": 264.0,
+        "lui": 2820.0,
+        "add": 2184.0,
+        "lw": 4.0,
+        "vmv1r.v": 1288.0,
+        "vid.v": 1280.0,
+        "vadd.vx": 1536.0,
+        "vwadd.vx": 1152.0,
+        "vmul.vx": 1152.0,
+        "vsuxei64.v": 512.0,
+        "vmslt.vv": 128.0,
+        "vmerge.vvm": 896.0,
+        "mulw": 128.0,
+        "vle16.v": 128.0,
+        "vfwcvt.f.f.v": 256.0,
+        "vmv.v.v": 768.0,
+        "vfredmax.vs": 128.0,
+        "addw": 384.0,
+        "vmflt.vv": 384.0,
+        "sw": 128.0,
+        "vluxei64.v": 640.0,
+        "vfsub.vv": 384.0,
+        "vfmul.vv": 384.0,
+        "vfadd.vv": 256.0,
+        "vfmacc.vv": 768.0,
+        "vfcvt.rtz.x.f.v": 128.0,
+        "vsra.vv": 128.0,
+        "vsub.vv": 128.0,
+        "vadd.vv": 256.0,
+        "vsll.vv": 256.0,
+        "vmsne.vv": 256.0,
+        "vfredusum.vs": 128.0,
+        "vfdiv.vv": 128.0,
+        "vfncvt.f.f.w": 128.0,
+        "vse16.v": 128.0,
+        "vcpop.m": 128.0,
+        "ret": 1.0
+      },
+      "negative_program_deltas": [],
+      "raw_runs": [
+        {
+          "command": [
+            "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64",
+            "-L",
+            "/home/i_yinzida/.local/opt/a100/toolchain-1.1.2/sysroot",
+            "-cpu",
+            "max,vlen=1024,elen=64,vext_spec=v1.0",
+            "-plugin",
+            "/tmp/a100-k3-baseline-review-gcdf_716/tools/profiling/full_instruction_counts.so,out=/home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/baseline-extra-metrics/pristine/softmax16-float16-t1/pair-0/r1/counts.json",
+            "/tmp/a100-k3-baseline-review-gcdf_716/annotated-cache/7fd053e82c4414d5e3f5cb9492c62a51815418d874982d44118d67abb5717ef3/operator_exec",
+            "--bundle",
+            "/home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/baseline-extra-metrics/pristine/softmax16-float16-t1/pair-0/r1/bundle/bundle.bin",
+            "--threads",
+            "1",
+            "--repeats",
+            "1"
+          ],
+          "raw_sha256": "343f067d3dc071be3dbe6d6902f6aff64f9335636df3ec3408ba4eda0be2293a",
+          "raw_path": "/home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/baseline-extra-metrics/pristine/softmax16-float16-t1/pair-0/r1/counts.json",
+          "runtime": {
+            "runtime": "a100rt/v1",
+            "status": "ok",
+            "threads": 1,
+            "repeats": 1,
+            "pool_initializations": 1,
+            "repeats_all_equal": true,
+            "workers": [
+              {
+                "id": 0,
+                "guest_tid": 1845759,
+                "items": 8256
+              }
+            ],
+            "bundle_bytes": 448
+          },
+          "comparison": {
+            "status": "PASS",
+            "max_abs_error": {
+              "y_ptr": 0.00012981891632080078
+            }
+          },
+          "elapsed_qemu_wall_s_auxiliary_only": 0.10926237003877759,
+          "repeats": 1
+        },
+        {
+          "command": [
+            "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64",
+            "-L",
+            "/home/i_yinzida/.local/opt/a100/toolchain-1.1.2/sysroot",
+            "-cpu",
+            "max,vlen=1024,elen=64,vext_spec=v1.0",
+            "-plugin",
+            "/tmp/a100-k3-baseline-review-gcdf_716/tools/profiling/full_instruction_counts.so,out=/home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/baseline-extra-metrics/pristine/softmax16-float16-t1/pair-0/r2/counts.json",
+            "/tmp/a100-k3-baseline-review-gcdf_716/annotated-cache/7fd053e82c4414d5e3f5cb9492c62a51815418d874982d44118d67abb5717ef3/operator_exec",
+            "--bundle",
+            "/home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/baseline-extra-metrics/pristine/softmax16-float16-t1/pair-0/r2/bundle/bundle.bin",
+            "--threads",
+            "1",
+            "--repeats",
+            "2"
+          ],
+          "raw_sha256": "c63f4844bc931023ea087ae29606fc1e3347f5a7452a85645672592a958a7d1a",
+          "raw_path": "/home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/baseline-extra-metrics/pristine/softmax16-float16-t1/pair-0/r2/counts.json",
+          "runtime": {
+            "runtime": "a100rt/v1",
+            "status": "ok",
+            "threads": 1,
+            "repeats": 2,
+            "pool_initializations": 1,
+            "repeats_all_equal": true,
+            "workers": [
+              {
+                "id": 0,
+                "guest_tid": 1845767,
+                "items": 8256
+              }
+            ],
+            "bundle_bytes": 448
+          },
+          "comparison": {
+            "status": "PASS",
+            "max_abs_error": {
+              "y_ptr": 0.00012981891632080078
+            }
+          },
+          "elapsed_qemu_wall_s_auxiliary_only": 0.11923826206475496,
+          "repeats": 2
+        }
+      ]
+    },
+    {
+      "pair": 1,
+      "total_process_guest_instructions_per_call": 49327.0,
+      "aggregate_categories_per_call": {
+        "scalar-arith": 20126.0,
+        "system": 8.0,
+        "vec-mem": 1410.0,
+        "vec-config": 7181.0,
+        "branch": 1614.0,
+        "vec-arith": 16536.0,
+        "atomic": 12.0,
+        "scalar-store": 2300.0,
+        "scalar-load": 140.0
+      },
+      "program_guest_instructions_per_call": 46129.0,
+      "outside_program_guest_instructions_per_call": 3198.0,
+      "program_origins_per_call": {
+        "frame/service": 10.0,
+        "scalar-mem": 152.0,
+        "op:swext": 9.0,
+        "const-materialization": 15674.0,
+        "op:smul": 385.0,
+        "op:smove": 514.0,
+        "branch": 1418.0,
+        "op:slt": 401.0,
+        "vec-config": 7180.0,
+        "vec-arith": 14992.0,
+        "op:sadd": 2568.0,
+        "vec-mem": 1152.0,
+        "op:vunit_load": 128.0,
+        "op:vfwcvt": 256.0,
+        "op:vfmacc": 896.0,
+        "op:vfncvt": 128.0,
+        "op:vunit_store": 128.0,
+        "op:vpopc": 128.0,
+        "control": 10.0
+      },
+      "program_blocks_per_call": {
+        "program-services": 10.0,
+        "entry": 18.0,
+        "prog_head": 22.0,
+        "prog_body": 56.0,
+        "chunk1_head": 536.0,
+        "chunk1_exit": 60.0,
+        "chunk1_body": 16640.0,
+        "chunk2_head": 540.0,
+        "chunk2_exit": 32.0,
+        "chunk2_body": 16512.0,
+        "chunk3_head": 536.0,
+        "chunk3_exit": 12.0,
+        "chunk3_body": 11136.0,
+        "prog_next": 8.0,
+        "prog_exit": 11.0
+      },
+      "program_mnemonics_per_call": {
+        "addi": 10011.0,
+        "sd": 22.0,
+        "mv": 1605.0,
+        "ld": 38.0,
+        "lwu": 2.0,
+        "sext.w": 9.0,
+        "mul": 257.0,
+        "j": 806.0,
+        "slt": 401.0,
+        "bnez": 401.0,
+        "vsetvli": 7180.0,
+        "addiw": 1544.0,
+        "slli": 260.0,
+        "vmv.v.x": 3848.0,
+        "vmv.x.s": 264.0,
+        "lui": 2820.0,
+        "add": 2184.0,
+        "lw": 4.0,
+        "vmv1r.v": 1288.0,
+        "vid.v": 1280.0,
+        "vadd.vx": 1536.0,
+        "vwadd.vx": 1152.0,
+        "vmul.vx": 1152.0,
+        "vsuxei64.v": 512.0,
+        "vmslt.vv": 128.0,
+        "vmerge.vvm": 896.0,
+        "mulw": 128.0,
+        "vle16.v": 128.0,
+        "vfwcvt.f.f.v": 256.0,
+        "vmv.v.v": 768.0,
+        "vfredmax.vs": 128.0,
+        "addw": 384.0,
+        "vmflt.vv": 384.0,
+        "sw": 128.0,
+        "vluxei64.v": 640.0,
+        "vfsub.vv": 384.0,
+        "vfmul.vv": 384.0,
+        "vfadd.vv": 256.0,
+        "vfmacc.vv": 768.0,
+        "vfcvt.rtz.x.f.v": 128.0,
+        "vsra.vv": 128.0,
+        "vsub.vv": 128.0,
+        "vadd.vv": 256.0,
+        "vsll.vv": 256.0,
+        "vmsne.vv": 256.0,
+        "vfredusum.vs": 128.0,
+        "vfdiv.vv": 128.0,
+        "vfncvt.f.f.w": 128.0,
+        "vse16.v": 128.0,
+        "vcpop.m": 128.0,
+        "ret": 1.0
+      },
+      "negative_program_deltas": [],
+      "raw_runs": [
+        {
+          "command": [
+            "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64",
+            "-L",
+            "/home/i_yinzida/.local/opt/a100/toolchain-1.1.2/sysroot",
+            "-cpu",
+            "max,vlen=1024,elen=64,vext_spec=v1.0",
+            "-plugin",
+            "/tmp/a100-k3-baseline-review-gcdf_716/tools/profiling/full_instruction_counts.so,out=/home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/baseline-extra-metrics/pristine/softmax16-float16-t1/pair-1/r1/counts.json",
+            "/tmp/a100-k3-baseline-review-gcdf_716/annotated-cache/7fd053e82c4414d5e3f5cb9492c62a51815418d874982d44118d67abb5717ef3/operator_exec",
+            "--bundle",
+            "/home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/baseline-extra-metrics/pristine/softmax16-float16-t1/pair-1/r1/bundle/bundle.bin",
+            "--threads",
+            "1",
+            "--repeats",
+            "1"
+          ],
+          "raw_sha256": "6726b1bcd106edb80befca1feeba1f7500878d5fbd19d76d43f44a2df36c03e2",
+          "raw_path": "/home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/baseline-extra-metrics/pristine/softmax16-float16-t1/pair-1/r1/counts.json",
+          "runtime": {
+            "runtime": "a100rt/v1",
+            "status": "ok",
+            "threads": 1,
+            "repeats": 1,
+            "pool_initializations": 1,
+            "repeats_all_equal": true,
+            "workers": [
+              {
+                "id": 0,
+                "guest_tid": 1845774,
+                "items": 8256
+              }
+            ],
+            "bundle_bytes": 448
+          },
+          "comparison": {
+            "status": "PASS",
+            "max_abs_error": {
+              "y_ptr": 0.00012981891632080078
+            }
+          },
+          "elapsed_qemu_wall_s_auxiliary_only": 0.10842208284884691,
+          "repeats": 1
+        },
+        {
+          "command": [
+            "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64",
+            "-L",
+            "/home/i_yinzida/.local/opt/a100/toolchain-1.1.2/sysroot",
+            "-cpu",
+            "max,vlen=1024,elen=64,vext_spec=v1.0",
+            "-plugin",
+            "/tmp/a100-k3-baseline-review-gcdf_716/tools/profiling/full_instruction_counts.so,out=/home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/baseline-extra-metrics/pristine/softmax16-float16-t1/pair-1/r2/counts.json",
+            "/tmp/a100-k3-baseline-review-gcdf_716/annotated-cache/7fd053e82c4414d5e3f5cb9492c62a51815418d874982d44118d67abb5717ef3/operator_exec",
+            "--bundle",
+            "/home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/baseline-extra-metrics/pristine/softmax16-float16-t1/pair-1/r2/bundle/bundle.bin",
+            "--threads",
+            "1",
+            "--repeats",
+            "2"
+          ],
+          "raw_sha256": "9d44236dc3c5eeecc1e46cb99487135c7b00076d775039b59cfcc73c7850b7ab",
+          "raw_path": "/home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/baseline-extra-metrics/pristine/softmax16-float16-t1/pair-1/r2/counts.json",
+          "runtime": {
+            "runtime": "a100rt/v1",
+            "status": "ok",
+            "threads": 1,
+            "repeats": 2,
+            "pool_initializations": 1,
+            "repeats_all_equal": true,
+            "workers": [
+              {
+                "id": 0,
+                "guest_tid": 1845777,
+                "items": 8256
+              }
+            ],
+            "bundle_bytes": 448
+          },
+          "comparison": {
+            "status": "PASS",
+            "max_abs_error": {
+              "y_ptr": 0.00012981891632080078
+            }
+          },
+          "elapsed_qemu_wall_s_auxiliary_only": 0.11653666198253632,
+          "repeats": 2
+        }
+      ]
+    }
+  ],
+  "scope": "Current compiler baseline c8ade47 frozen at the manifest root; comment-only MIR attribution and diagnostic cache tag; no prototype imports; QEMU counts are not board timing."
+}

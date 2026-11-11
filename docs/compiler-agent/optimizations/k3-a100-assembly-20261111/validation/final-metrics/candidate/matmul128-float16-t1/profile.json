@@ -1,0 +1,882 @@
+{
+  "schema": "a100-isolated-profile/v1",
+  "case": {
+    "name": "matmul128-float16",
+    "operator": "suite/perf/matmul.py",
+    "shape": [
+      128,
+      128,
+      128
+    ],
+    "dtype": "float16",
+    "declared_shape": false
+  },
+  "variant": "candidate",
+  "compiler_revision": "92fa8b4b706f0a76",
+  "threads": 1,
+  "repeat_delta": 1,
+  "artifact": "/tmp/a100-k3-final-frozen-xg9tlcpp/annotated-cache/0fb49b8397ea668e79b144b9ef7feb01662250d0ba541ab80c736be533aa1765",
+  "artifact_sha256": "df35f3279f32e1705c1d36bf054e32656ffd55bc1ab6e67ad5ef9fd8b711c24a",
+  "diagnostic_note": "Only emitted assembly comments are annotated at runtime; compiler files unchanged.",
+  "source_frozen_root": "/tmp/a100-k3-final-frozen-xg9tlcpp",
+  "actual_import_provenance": {
+    "a100c": {
+      "file": "/tmp/a100-k3-final-frozen-xg9tlcpp/a100c/__init__.py",
+      "sha256": "f157c357cdaed871327876e934255dfa80a702a05b50b13a6080ec1d2ac1d4c3"
+    },
+    "a100c.backend": {
+      "file": "/tmp/a100-k3-final-frozen-xg9tlcpp/a100c/backend/__init__.py",
+      "sha256": "f8ac6163111a19dfe233c42a744d02d9e3c6075a4d9386e08baad2f1a50f963a"
+    },
+    "a100c.ir.mir": {
+      "file": "/tmp/a100-k3-final-frozen-xg9tlcpp/a100c/ir/mir.py",
+      "sha256": "fd371bb0ca804ea6cf147ad1021972f61f52548d5a7b9edcdcf2b440028dca5e"
+    },
+    "a100c.target": {
+      "file": "/tmp/a100-k3-final-frozen-xg9tlcpp/a100c/target.py",
+      "sha256": "c165a9d2c1f77452c35d2d6357afc25772c85f7c6b1ad9281eb04d5417badbc6"
+    },
+    "a100c.backend.allocate": {
+      "file": "/tmp/a100-k3-final-frozen-xg9tlcpp/a100c/backend/allocate.py",
+      "sha256": "9adad8eeb5bb3abc002d32ce7605038793d95c5be7fa6ea798ce3e45f85140fe"
+    },
+    "a100c.backend.repertoire": {
+      "file": "/tmp/a100-k3-final-frozen-xg9tlcpp/a100c/backend/repertoire.py",
+      "sha256": "8d40c51fb4828901d46d3f215bbde9cbace9bc558ff84611e49b17d01ecff039"
+    },
+    "a100c.backend.select": {
+      "file": "/tmp/a100-k3-final-frozen-xg9tlcpp/a100c/backend/select.py",
+      "sha256": "e3e8061872cb782529125f033c5d9a9338e75d6ca95567d71d0c1d0d2a781922"
+    },
+    "a100c.backend.emit": {
+      "file": "/tmp/a100-k3-final-frozen-xg9tlcpp/a100c/backend/emit.py",
+      "sha256": "8ea53cf8323943f0136dd67663d962956252c544d26b3ab99ac12f57df8369bd"
+    },
+    "a100c.backend.legalize": {
+      "file": "/tmp/a100-k3-final-frozen-xg9tlcpp/a100c/backend/legalize.py",
+      "sha256": "736140944d6179920e6b0f29ff3c5097be9000cdbc9c0a695e556807d5b07dc1"
+    },
+    "a100c.frontend": {
+      "file": "/tmp/a100-k3-final-frozen-xg9tlcpp/a100c/frontend/__init__.py",
+      "sha256": "514492f37fec0355a15f72b3802571ebdd9237c4927aabba6ba6b85135749df0"
+    },
+    "a100c.ir.tir": {
+      "file": "/tmp/a100-k3-final-frozen-xg9tlcpp/a100c/ir/tir.py",
+      "sha256": "60ef340d23f974a54edb84baca35f4b8c3be432dd2ff300f1040541859ec46c1"
+    },
+    "a100c.frontend.shapes": {
+      "file": "/tmp/a100-k3-final-frozen-xg9tlcpp/a100c/frontend/shapes.py",
+      "sha256": "d3f93ad44baf66a154a082923ef4fd6f931c927f6bdd2a54345f4bbfe244f413"
+    },
+    "a100c.frontend.types": {
+      "file": "/tmp/a100-k3-final-frozen-xg9tlcpp/a100c/frontend/types.py",
+      "sha256": "0b3fbe7f66ae97e1bb2f7f459f51715341b897670cd59b198990fa8638fc72c0"
+    },
+    "a100c.frontend.source": {
+      "file": "/tmp/a100-k3-final-frozen-xg9tlcpp/a100c/frontend/source.py",
+      "sha256": "24047b53a1ed29309d8dcbc26c30e516e532e135ceee2290f595b4d34d1ff0c7"
+    },
+    "a100c.frontend.specialize": {
+      "file": "/tmp/a100-k3-final-frozen-xg9tlcpp/a100c/frontend/specialize.py",
+      "sha256": "d1fad95cb6b7d0fdec38ee816b1eedb196551d1013b6fd9f2d706990232b0c85"
+    },
+    "a100c.frontend.surface": {
+      "file": "/tmp/a100-k3-final-frozen-xg9tlcpp/a100c/frontend/surface.py",
+      "sha256": "1f8867b5568cab6156ed6ebe4d87f0ad298ece3371e81d2d66809a4bb30dfc8e"
+    },
+    "a100c.frontend.lower_tir": {
+      "file": "/tmp/a100-k3-final-frozen-xg9tlcpp/a100c/frontend/lower_tir.py",
+      "sha256": "3826701ccb4a67aa9c339ac197bb9b3a0ca6b7590699d909745596c18d9263b6"
+    },
+    "a100c.ir.dump": {
+      "file": "/tmp/a100-k3-final-frozen-xg9tlcpp/a100c/ir/dump.py",
+      "sha256": "5a29eb5ccccfacab25bd79354eb8ecc9c8bb03e0c2582f8ddb4c77c462d0699c"
+    },
+    "a100c.lower": {
+      "file": "/tmp/a100-k3-final-frozen-xg9tlcpp/a100c/lower/__init__.py",
+      "sha256": "7856990abfc146711b8c9f8560032184d780e10a86dcc822d073d22a353fd388"
+    },
+    "a100c.lower.binding": {
+      "file": "/tmp/a100-k3-final-frozen-xg9tlcpp/a100c/lower/binding.py",
+      "sha256": "dc3b79499479588bc77e1ce7572a7bbc70b0c78d128bf978523fcba7302dde4b"
+    },
+    "a100c.lower.addresses": {
+      "file": "/tmp/a100-k3-final-frozen-xg9tlcpp/a100c/lower/addresses.py",
+      "sha256": "e138d3cbd5e5993070b2529efd46ebf141668541478c69a00a3e6aa9e68fc906"
+    },
+    "a100c.lower.scalar": {
+      "file": "/tmp/a100-k3-final-frozen-xg9tlcpp/a100c/lower/scalar.py",
+      "sha256": "930dbf25d3f60b3cdd6c0dc0d6c457311f6a24486f095f4cc086c63f64bf7f4d"
+    },
+    "a100c.frontend.gridmodel": {
+      "file": "/tmp/a100-k3-final-frozen-xg9tlcpp/a100c/frontend/gridmodel.py",
+      "sha256": "5ee18c8c47a86322648e2c92eabe65b958cb78c2d53aa8d03e3f626dc604cbff"
+    },
+    "a100c.plan": {
+      "file": "/tmp/a100-k3-final-frozen-xg9tlcpp/a100c/plan/__init__.py",
+      "sha256": "cf250ff3ee3951d5f89d38667f20de33381474d963fd769556bdaa04d0d5eab2"
+    },
+    "a100c.plan.stages": {
+      "file": "/tmp/a100-k3-final-frozen-xg9tlcpp/a100c/plan/stages.py",
+      "sha256": "3551fb59428058376ebea6284032473530fb79390c6a147d2be54b2db8351376"
+    },
+    "a100c.plan.partition": {
+      "file": "/tmp/a100-k3-final-frozen-xg9tlcpp/a100c/plan/partition.py",
+      "sha256": "fbb119158a53d334c4a8e2d333f8f36608a57dff3e34b66ecd83b62c79a909c4"
+    },
+    "a100c.lower.vectorize": {
+      "file": "/tmp/a100-k3-final-frozen-xg9tlcpp/a100c/lower/vectorize.py",
+      "sha256": "49eff04122634921b7d3f638aade6694621686a47ebe4621b079d43f3f2cae20"
+    },
+    "a100c.plan.grid": {
+      "file": "/tmp/a100-k3-final-frozen-xg9tlcpp/a100c/plan/grid.py",
+      "sha256": "c0b8a3a385831759ef95d7b814ecdbbc7b83220f85e04b4611133d6e6897fb27"
+    },
+    "a100c.driver": {
+      "file": "/tmp/a100-k3-final-frozen-xg9tlcpp/a100c/driver.py",
+      "sha256": "b278c2aa476366f98cb8dc43525dc25be9af7fc44de83ed5d7c74bbedf28d41e"
+    },
+    "a100c.passes.analyses": {
+      "file": "/tmp/a100-k3-final-frozen-xg9tlcpp/a100c/passes/analyses.py",
+      "sha256": "005608251c5004adf896030df18843d0321abb5c8025f7e3ef65546fca326e23"
+    },
+    "a100c.passes.rewrite": {
+      "file": "/tmp/a100-k3-final-frozen-xg9tlcpp/a100c/passes/rewrite.py",
+      "sha256": "76535bfc5dbc475c088a88f64f068fea27e0af178a7277f89c630db9835265e6"
+    },
+    "a100c.passes.cse": {
+      "file": "/tmp/a100-k3-final-frozen-xg9tlcpp/a100c/passes/cse.py",
+      "sha256": "8ab780f05f2595d5887fee7c094a864eb464a5b1a71af4abce2c72574a4fc6c8"
+    },
+    "a100c.passes.constprop": {
+      "file": "/tmp/a100-k3-final-frozen-xg9tlcpp/a100c/passes/constprop.py",
+      "sha256": "845452f125b5c66cc8eaf8b166664e2d3fccde6bf807a1433f42afcb3877592e"
+    },
+    "a100c.passes.copyprop": {
+      "file": "/tmp/a100-k3-final-frozen-xg9tlcpp/a100c/passes/copyprop.py",
+      "sha256": "df8c89274f2ef32df046cee00d8d2329451c3cda17e339144237013f460c73ba"
+    },
+    "a100c.passes.dce": {
+      "file": "/tmp/a100-k3-final-frozen-xg9tlcpp/a100c/passes/dce.py",
+      "sha256": "ed4a64ef52c2d9b6174ddd7ecbf923ebb501347809d290e92773221461126345"
+    },
+    "a100c.passes.licm": {
+      "file": "/tmp/a100-k3-final-frozen-xg9tlcpp/a100c/passes/licm.py",
+      "sha256": "30b1d477a7a651130a9c789753aba2216434a43e5588dda3bf2a2cf636f353b0"
+    },
+    "a100c.passes.strength_reduction": {
+      "file": "/tmp/a100-k3-final-frozen-xg9tlcpp/a100c/passes/strength_reduction.py",
+      "sha256": "ef6f5358793b02a7e7afbcaff51a416b5b704d957804e18e951394e21520ed1d"
+    },
+    "a100c.passes.pipeline": {
+      "file": "/tmp/a100-k3-final-frozen-xg9tlcpp/a100c/passes/pipeline.py",
+      "sha256": "238fa45a8b3fd3be8ae31c67e2895a5336968ef03a28c09a989de9977a352c5e"
+    },
+    "a100c.passes": {
+      "file": "/tmp/a100-k3-final-frozen-xg9tlcpp/a100c/passes/__init__.py",
+      "sha256": "16ff652b34f28b61dac97c66feec21cd703a080c6869055729cdea94b02dfa74"
+    },
+    "a100c.factory": {
+      "file": "/tmp/a100-k3-final-frozen-xg9tlcpp/a100c/factory.py",
+      "sha256": "b19a3162b69f0a849543066eb2381c3b369083888aa9df218b85db4cb6d3d7e1"
+    },
+    "a100_support": {
+      "file": "/tmp/a100-k3-final-frozen-xg9tlcpp/a100_support/__init__.py",
+      "sha256": "23800c8dec76f57d62f9fe9572f1552194c1007af8554ae710aa263073197168"
+    },
+    "a100_support.reference_device": {
+      "file": "/tmp/a100-k3-final-frozen-xg9tlcpp/a100_support/reference_device.py",
+      "sha256": "f36dec7663068e8777cb5f512dd0e6f9d87097e2aabb00931ebcbabb0ee2b99a"
+    },
+    "a100_support.native_io": {
+      "file": "/tmp/a100-k3-final-frozen-xg9tlcpp/a100_support/native_io.py",
+      "sha256": "9f481d8479eb696ffec50af064b5636febffb7ced1c24fdfa6122fcbddd1e104"
+    },
+    "a100_support.native_device": {
+      "file": "/tmp/a100-k3-final-frozen-xg9tlcpp/a100_support/native_device.py",
+      "sha256": "1aef9f4ecfa2b95cf82110bb17bbc847c0929d0511796027481095694b860dd3"
+    },
+    "a100c.passes.mir_optimize": {
+      "file": "/tmp/a100-k3-final-frozen-xg9tlcpp/a100c/passes/mir_optimize.py",
+      "sha256": "57826dd3c1be83d71bebaefc26798f6da836d4c6d08a65194e97a31fdcf2f99f"
+    },
+    "a100c.plan.tiles": {
+      "file": "/tmp/a100-k3-final-frozen-xg9tlcpp/a100c/plan/tiles.py",
+      "sha256": "142c8851040376d525ef367796c96f54653315dc22270d80d2c7a48b4a923198"
+    },
+    "a100c.lower.matrix": {
+      "file": "/tmp/a100-k3-final-frozen-xg9tlcpp/a100c/lower/matrix.py",
+      "sha256": "a4d1016a18b8de8762ec9286e84989e427c85533a1f2484615f398394ad9bd48"
+    },
+    "a100c.lower.vector_width": {
+      "file": "/tmp/a100-k3-final-frozen-xg9tlcpp/a100c/lower/vector_width.py",
+      "sha256": "ed23ce76c3106a4313e17791dfa530c38c9448a4f8a4a69ccdabacd9f3b0b481"
+    },
+    "a100c.lower.narrow_access": {
+      "file": "/tmp/a100-k3-final-frozen-xg9tlcpp/a100c/lower/narrow_access.py",
+      "sha256": "54a84fd8bbe97a6f4031a0860acb9c0630484ead5d8101766013802ae4eb46a7"
+    }
+  },
+  "resolved_compile_options": {
+    "cache_dir": "/tmp/a100-k3-final-frozen-xg9tlcpp/annotated-cache",
+    "dumps": true,
+    "witness_drop_tail_predicates": false,
+    "witness_drop_stage_barrier": false,
+    "witness_drop_atomic_masks": false,
+    "matrix_scalar_pack": false,
+    "vmath_libm": false,
+    "kept_axis_reduction": true,
+    "neutral_reduction_trim": true,
+    "matrix_row_reuse": true,
+    "guarded_narrow_access": true,
+    "elementwise_width": true
+  },
+  "resolved_pass_configuration": "passes=default",
+  "adapter_sha256": "f3f45a082cbc2a31047034780321445d56dbe2a4d93aa14831d6d5e56999e565",
+  "prototype_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "plugin_sha256": "f600c8cf2f470151c1ff7d55f7b804ffce8e6dadbad96bd1b3817320c15693c6",
+  "asm_join": {
+    "listing_instruction_rows": 4396,
+    "program_instructions": 4396,
+    "affine_offset": 70918,
+    "region": [
+      70918,
+      85526
+    ],
+    "byte_identity": true,
+    "actual_instruction_starts": 4455,
+    "source_start_rows": 4396,
+    "uid_mapping": "live MIR object identity captured before emission; no positional inference"
+  },
+  "allocation": {
+    "frame_bytes": 112,
+    "gprs_used": 25,
+    "spill_rounds_bound": 64,
+    "spill_slots": 12,
+    "spilled_values": 12,
+    "vector_bytes_used": 1536,
+    "vector_file_bytes": 4096,
+    "vector_regs_used": 12
+  },
+  "measurements": [
+    {
+      "pair": 0,
+      "total_process_guest_instructions_per_call": 4669754.0,
+      "aggregate_categories_per_call": {
+        "scalar-arith": 2088163.0,
+        "system": 10.0,
+        "vec-arith": 1102016.0,
+        "scalar-load": 406799.0,
+        "branch": 213381.0,
+        "ime": 4096.0,
+        "atomic": 16.0,
+        "scalar-store": 13065.0,
+        "vec-mem": 326528.0,
+        "vec-config": 515680.0
+      },
+      "program_guest_instructions_per_call": 4589206.0,
+      "outside_program_guest_instructions_per_call": 80548.0,
+      "program_origins_per_call": {
+        "frame/service": 4110.0,
+        "spill": 6408.0,
+        "reload": 236749.0,
+        "scalar-mem": 143373.0,
+        "op:swext": 16643.0,
+        "const-materialization": 1327174.0,
+        "op:sadd": 478210.0,
+        "op:sdivu": 1218.0,
+        "op:smul": 60674.0,
+        "op:smove": 8194.0,
+        "branch": 221254.0,
+        "op:slt": 78529.0,
+        "op:ssub": 38016.0,
+        "op:sshl": 128.0,
+        "vec-config": 511488.0,
+        "vec-arith": 1012928.0,
+        "vec-mem": 134848.0,
+        "op:vfwcvt": 2048.0,
+        "op:vmand": 26112.0,
+        "op:vfncvt": 8704.0,
+        "op:vpopc": 17408.0,
+        "op:vrgather": 34816.0,
+        "op:vunit_load": 73728.0,
+        "op:vunit_store": 33792.0,
+        "op:vustore16": 73728.0,
+        "op:sand": 24576.0,
+        "op:vuload32": 1024.0,
+        "op:vustore32": 1024.0,
+        "op:vuload16": 8192.0,
+        "op:vfwmadot": 4096.0,
+        "control": 14.0
+      },
+      "program_blocks_per_call": {
+        "program-services": 4110.0,
+        "entry": 50.0,
+        "prog_head": 326.0,
+        "prog_body": 1856.0,
+        "chunk1_head": 640.0,
+        "chunk1_exit": 320.0,
+        "chunk1_body": 2688.0,
+        "chunk2_head": 640.0,
+        "chunk2_exit": 320.0,
+        "chunk2_body": 1408.0,
+        "chunk3_head": 2432.0,
+        "chunk3_exit": 320.0,
+        "chunk3_body": 12800.0,
+        "chunk4_head": 640.0,
+        "chunk4_exit": 320.0,
+        "chunk4_body": 2496.0,
+        "chunk5_head": 640.0,
+        "chunk5_exit": 320.0,
+        "chunk5_body": 2752.0,
+        "chunk6_head": 640.0,
+        "chunk6_exit": 320.0,
+        "chunk6_body": 384.0,
+        "chunk7_head": 640.0,
+        "chunk7_exit": 320.0,
+        "chunk7_body": 1472.0,
+        "chunk8_head": 640.0,
+        "chunk8_exit": 320.0,
+        "chunk8_body": 6656.0,
+        "chunk9_head": 4480.0,
+        "chunk9_exit": 320.0,
+        "chunk9_body": 32768.0,
+        "chunk10_head": 640.0,
+        "chunk10_exit": 320.0,
+        "chunk10_body": 3648.0,
+        "chunk11_head": 4480.0,
+        "chunk11_exit": 320.0,
+        "chunk11_body": 32768.0,
+        "chunk12_head": 640.0,
+        "chunk12_exit": 128.0,
+        "chunk12_body": 384.0,
+        "stg13_head": 4352.0,
+        "stg13_body": 41984.0,
+        "stg13_exit": 128.0,
+        "stg14_head": 4352.0,
+        "stg14_body": 43008.0,
+        "stg14_exit": 256.0,
+        "mloop15.head": 1344.0,
+        "mloop15.body": 768.0,
+        "mloop15.exit": 192.0,
+        "chunk16_head": 2560.0,
+        "chunk16_exit": 1280.0,
+        "chunk16_body": 12800.0,
+        "chunk17_head": 17920.0,
+        "chunk17_exit": 1280.0,
+        "chunk17_body": 94208.0,
+        "chunk18_head": 2304.0,
+        "chunk18_exit": 512.0,
+        "chunk18_body": 14592.0,
+        "stg19_head": 17408.0,
+        "stg19_body": 167936.0,
+        "stg19_exit": 1024.0,
+        "chunk20_head": 17920.0,
+        "chunk20_exit": 1280.0,
+        "chunk20_body": 913408.0,
+        "ngl.t1": 184320.0,
+        "ngl.j1": 81920.0,
+        "chunk21_head": 2560.0,
+        "chunk21_exit": 1280.0,
+        "chunk21_body": 13056.0,
+        "chunk22_head": 17920.0,
+        "chunk22_exit": 1280.0,
+        "chunk22_body": 106496.0,
+        "chunk23_head": 2304.0,
+        "chunk23_exit": 512.0,
+        "chunk23_body": 14336.0,
+        "stg24_head": 17408.0,
+        "stg24_body": 172032.0,
+        "stg24_exit": 1024.0,
+        "chunk25_head": 17920.0,
+        "chunk25_exit": 5888.0,
+        "chunk25_body": 925696.0,
+        "ngl.t2": 184320.0,
+        "ngl.j2": 81920.0,
+        "mtile26.head": 4096.0,
+        "mtile26.body": 253952.0,
+        "mtile26.exit": 2048.0,
+        "mk27.head": 15360.0,
+        "mk27.body": 61440.0,
+        "mk27.exit": 238592.0,
+        "taf28.then": 188416.0,
+        "taf28.join": 49152.0,
+        "pbf29.then": 188416.0,
+        "pbf29.join": 32768.0,
+        "mcarry31.head": 6912.0,
+        "mcarry31.body": 47104.0,
+        "mcarry31.exit": 512.0,
+        "chunk32_head": 640.0,
+        "chunk32_exit": 320.0,
+        "chunk32_body": 2496.0,
+        "chunk33_head": 2368.0,
+        "chunk33_exit": 128.0,
+        "chunk33_body": 13312.0,
+        "stg34_head": 2304.0,
+        "stg34_body": 20480.0,
+        "stg34_exit": 128.0,
+        "stg35_head": 2304.0,
+        "stg35_body": 20480.0,
+        "stg35_exit": 256.0,
+        "chunk36_head": 2432.0,
+        "chunk36_exit": 192.0,
+        "chunk36_body": 91648.0,
+        "ngs.t3": 14336.0,
+        "ngs.j3": 4096.0,
+        "prog_next": 128.0,
+        "prog_exit": 16.0
+      },
+      "program_mnemonics_per_call": {
+        "addi": 1013767.0,
+        "sd": 8470.0,
+        "mv": 142917.0,
+        "ld": 382180.0,
+        "lwu": 2.0,
+        "sext.w": 16643.0,
+        "add": 443010.0,
+        "divu": 1218.0,
+        "mul": 60674.0,
+        "j": 125378.0,
+        "slt": 78529.0,
+        "bnez": 62657.0,
+        "sub": 38016.0,
+        "sllw": 128.0,
+        "vsetvli": 515584.0,
+        "vid.v": 141632.0,
+        "vadd.vx": 141120.0,
+        "vmv.v.x": 184896.0,
+        "vadd.vv": 9088.0,
+        "vwadd.vx": 108736.0,
+        "vmul.vx": 126144.0,
+        "vsuxei64.v": 34368.0,
+        "addw": 35200.0,
+        "lui": 104064.0,
+        "addiw": 103744.0,
+        "vluxei64.v": 67712.0,
+        "vmul.vv": 384.0,
+        "vmslt.vv": 17024.0,
+        "vmv1r.v": 75904.0,
+        "vmerge.vvm": 50304.0,
+        "vfwcvt.f.f.v": 2048.0,
+        "vmv.v.v": 10752.0,
+        "vdiv.vv": 28672.0,
+        "vrem.vv": 31232.0,
+        "vmsne.vv": 69632.0,
+        "vmand.mm": 26112.0,
+        "vfncvt.f.f.w": 8704.0,
+        "vmv.x.s": 17408.0,
+        "vcpop.m": 17408.0,
+        "vrgather.vv": 34816.0,
+        "vle16.v": 65536.0,
+        "vse16.v": 91136.0,
+        "and": 24576.0,
+        "vle32.v": 17408.0,
+        "vse32.v": 17408.0,
+        "vlse16.v": 32768.0,
+        "smt.vfwmadot": 4096.0,
+        "ret": 1.0
+      },
+      "negative_program_deltas": [],
+      "raw_runs": [
+        {
+          "command": [
+            "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64",
+            "-L",
+            "/home/i_yinzida/.local/opt/a100/toolchain-1.1.2/sysroot",
+            "-cpu",
+            "max,vlen=1024,elen=64,vext_spec=v1.0",
+            "-plugin",
+            "/tmp/a100-k3-final-frozen-xg9tlcpp/tools/profiling/full_instruction_counts.so,out=/home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/final-metrics/candidate/matmul128-float16-t1/pair-0/r1/counts.json",
+            "/tmp/a100-k3-final-frozen-xg9tlcpp/annotated-cache/0fb49b8397ea668e79b144b9ef7feb01662250d0ba541ab80c736be533aa1765/operator_exec",
+            "--bundle",
+            "/home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/final-metrics/candidate/matmul128-float16-t1/pair-0/r1/bundle/bundle.bin",
+            "--threads",
+            "1",
+            "--repeats",
+            "1"
+          ],
+          "raw_sha256": "06229f7c7fb97d17731f6bea9887e5afab137c1b9b5ce8b543db8a94aaf2b69f",
+          "raw_path": "/home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/final-metrics/candidate/matmul128-float16-t1/pair-0/r1/counts.json",
+          "runtime": {
+            "runtime": "a100rt/v1",
+            "status": "ok",
+            "threads": 1,
+            "repeats": 1,
+            "pool_initializations": 1,
+            "repeats_all_equal": true,
+            "workers": [
+              {
+                "id": 0,
+                "guest_tid": 2167741,
+                "items": 128000
+              }
+            ],
+            "bundle_bytes": 98624
+          },
+          "comparison": {
+            "status": "PASS",
+            "max_abs_error": {
+              "y_ptr": 0.003879547119140625
+            }
+          },
+          "elapsed_qemu_wall_s_auxiliary_only": 0.4205285469070077,
+          "repeats": 1
+        },
+        {
+          "command": [
+            "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64",
+            "-L",
+            "/home/i_yinzida/.local/opt/a100/toolchain-1.1.2/sysroot",
+            "-cpu",
+            "max,vlen=1024,elen=64,vext_spec=v1.0",
+            "-plugin",
+            "/tmp/a100-k3-final-frozen-xg9tlcpp/tools/profiling/full_instruction_counts.so,out=/home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/final-metrics/candidate/matmul128-float16-t1/pair-0/r2/counts.json",
+            "/tmp/a100-k3-final-frozen-xg9tlcpp/annotated-cache/0fb49b8397ea668e79b144b9ef7feb01662250d0ba541ab80c736be533aa1765/operator_exec",
+            "--bundle",
+            "/home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/final-metrics/candidate/matmul128-float16-t1/pair-0/r2/bundle/bundle.bin",
+            "--threads",
+            "1",
+            "--repeats",
+            "2"
+          ],
+          "raw_sha256": "4142d90f60ae7e76842a2f7e1ce1c3235552b53218e33c84d686f1c5c64ef0d1",
+          "raw_path": "/home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/final-metrics/candidate/matmul128-float16-t1/pair-0/r2/counts.json",
+          "runtime": {
+            "runtime": "a100rt/v1",
+            "status": "ok",
+            "threads": 1,
+            "repeats": 2,
+            "pool_initializations": 1,
+            "repeats_all_equal": true,
+            "workers": [
+              {
+                "id": 0,
+                "guest_tid": 2167747,
+                "items": 128000
+              }
+            ],
+            "bundle_bytes": 98624
+          },
+          "comparison": {
+            "status": "PASS",
+            "max_abs_error": {
+              "y_ptr": 0.003879547119140625
+            }
+          },
+          "elapsed_qemu_wall_s_auxiliary_only": 0.7196873081848025,
+          "repeats": 2
+        }
+      ]
+    },
+    {
+      "pair": 1,
+      "total_process_guest_instructions_per_call": 4669655.0,
+      "aggregate_categories_per_call": {
+        "scalar-arith": 2088111.0,
+        "system": 8.0,
+        "vec-arith": 1102016.0,
+        "scalar-load": 406790.0,
+        "branch": 213354.0,
+        "ime": 4096.0,
+        "atomic": 12.0,
+        "scalar-store": 13060.0,
+        "vec-mem": 326528.0,
+        "vec-config": 515680.0
+      },
+      "program_guest_instructions_per_call": 4589206.0,
+      "outside_program_guest_instructions_per_call": 80449.0,
+      "program_origins_per_call": {
+        "frame/service": 4110.0,
+        "spill": 6408.0,
+        "reload": 236749.0,
+        "scalar-mem": 143373.0,
+        "op:swext": 16643.0,
+        "const-materialization": 1327174.0,
+        "op:sadd": 478210.0,
+        "op:sdivu": 1218.0,
+        "op:smul": 60674.0,
+        "op:smove": 8194.0,
+        "branch": 221254.0,
+        "op:slt": 78529.0,
+        "op:ssub": 38016.0,
+        "op:sshl": 128.0,
+        "vec-config": 511488.0,
+        "vec-arith": 1012928.0,
+        "vec-mem": 134848.0,
+        "op:vfwcvt": 2048.0,
+        "op:vmand": 26112.0,
+        "op:vfncvt": 8704.0,
+        "op:vpopc": 17408.0,
+        "op:vrgather": 34816.0,
+        "op:vunit_load": 73728.0,
+        "op:vunit_store": 33792.0,
+        "op:vustore16": 73728.0,
+        "op:sand": 24576.0,
+        "op:vuload32": 1024.0,
+        "op:vustore32": 1024.0,
+        "op:vuload16": 8192.0,
+        "op:vfwmadot": 4096.0,
+        "control": 14.0
+      },
+      "program_blocks_per_call": {
+        "program-services": 4110.0,
+        "entry": 50.0,
+        "prog_head": 326.0,
+        "prog_body": 1856.0,
+        "chunk1_head": 640.0,
+        "chunk1_exit": 320.0,
+        "chunk1_body": 2688.0,
+        "chunk2_head": 640.0,
+        "chunk2_exit": 320.0,
+        "chunk2_body": 1408.0,
+        "chunk3_head": 2432.0,
+        "chunk3_exit": 320.0,
+        "chunk3_body": 12800.0,
+        "chunk4_head": 640.0,
+        "chunk4_exit": 320.0,
+        "chunk4_body": 2496.0,
+        "chunk5_head": 640.0,
+        "chunk5_exit": 320.0,
+        "chunk5_body": 2752.0,
+        "chunk6_head": 640.0,
+        "chunk6_exit": 320.0,
+        "chunk6_body": 384.0,
+        "chunk7_head": 640.0,
+        "chunk7_exit": 320.0,
+        "chunk7_body": 1472.0,
+        "chunk8_head": 640.0,
+        "chunk8_exit": 320.0,
+        "chunk8_body": 6656.0,
+        "chunk9_head": 4480.0,
+        "chunk9_exit": 320.0,
+        "chunk9_body": 32768.0,
+        "chunk10_head": 640.0,
+        "chunk10_exit": 320.0,
+        "chunk10_body": 3648.0,
+        "chunk11_head": 4480.0,
+        "chunk11_exit": 320.0,
+        "chunk11_body": 32768.0,
+        "chunk12_head": 640.0,
+        "chunk12_exit": 128.0,
+        "chunk12_body": 384.0,
+        "stg13_head": 4352.0,
+        "stg13_body": 41984.0,
+        "stg13_exit": 128.0,
+        "stg14_head": 4352.0,
+        "stg14_body": 43008.0,
+        "stg14_exit": 256.0,
+        "mloop15.head": 1344.0,
+        "mloop15.body": 768.0,
+        "mloop15.exit": 192.0,
+        "chunk16_head": 2560.0,
+        "chunk16_exit": 1280.0,
+        "chunk16_body": 12800.0,
+        "chunk17_head": 17920.0,
+        "chunk17_exit": 1280.0,
+        "chunk17_body": 94208.0,
+        "chunk18_head": 2304.0,
+        "chunk18_exit": 512.0,
+        "chunk18_body": 14592.0,
+        "stg19_head": 17408.0,
+        "stg19_body": 167936.0,
+        "stg19_exit": 1024.0,
+        "chunk20_head": 17920.0,
+        "chunk20_exit": 1280.0,
+        "chunk20_body": 913408.0,
+        "ngl.t1": 184320.0,
+        "ngl.j1": 81920.0,
+        "chunk21_head": 2560.0,
+        "chunk21_exit": 1280.0,
+        "chunk21_body": 13056.0,
+        "chunk22_head": 17920.0,
+        "chunk22_exit": 1280.0,
+        "chunk22_body": 106496.0,
+        "chunk23_head": 2304.0,
+        "chunk23_exit": 512.0,
+        "chunk23_body": 14336.0,
+        "stg24_head": 17408.0,
+        "stg24_body": 172032.0,
+        "stg24_exit": 1024.0,
+        "chunk25_head": 17920.0,
+        "chunk25_exit": 5888.0,
+        "chunk25_body": 925696.0,
+        "ngl.t2": 184320.0,
+        "ngl.j2": 81920.0,
+        "mtile26.head": 4096.0,
+        "mtile26.body": 253952.0,
+        "mtile26.exit": 2048.0,
+        "mk27.head": 15360.0,
+        "mk27.body": 61440.0,
+        "mk27.exit": 238592.0,
+        "taf28.then": 188416.0,
+        "taf28.join": 49152.0,
+        "pbf29.then": 188416.0,
+        "pbf29.join": 32768.0,
+        "mcarry31.head": 6912.0,
+        "mcarry31.body": 47104.0,
+        "mcarry31.exit": 512.0,
+        "chunk32_head": 640.0,
+        "chunk32_exit": 320.0,
+        "chunk32_body": 2496.0,
+        "chunk33_head": 2368.0,
+        "chunk33_exit": 128.0,
+        "chunk33_body": 13312.0,
+        "stg34_head": 2304.0,
+        "stg34_body": 20480.0,
+        "stg34_exit": 128.0,
+        "stg35_head": 2304.0,
+        "stg35_body": 20480.0,
+        "stg35_exit": 256.0,
+        "chunk36_head": 2432.0,
+        "chunk36_exit": 192.0,
+        "chunk36_body": 91648.0,
+        "ngs.t3": 14336.0,
+        "ngs.j3": 4096.0,
+        "prog_next": 128.0,
+        "prog_exit": 16.0
+      },
+      "program_mnemonics_per_call": {
+        "addi": 1013767.0,
+        "sd": 8470.0,
+        "mv": 142917.0,
+        "ld": 382180.0,
+        "lwu": 2.0,
+        "sext.w": 16643.0,
+        "add": 443010.0,
+        "divu": 1218.0,
+        "mul": 60674.0,
+        "j": 125378.0,
+        "slt": 78529.0,
+        "bnez": 62657.0,
+        "sub": 38016.0,
+        "sllw": 128.0,
+        "vsetvli": 515584.0,
+        "vid.v": 141632.0,
+        "vadd.vx": 141120.0,
+        "vmv.v.x": 184896.0,
+        "vadd.vv": 9088.0,
+        "vwadd.vx": 108736.0,
+        "vmul.vx": 126144.0,
+        "vsuxei64.v": 34368.0,
+        "addw": 35200.0,
+        "lui": 104064.0,
+        "addiw": 103744.0,
+        "vluxei64.v": 67712.0,
+        "vmul.vv": 384.0,
+        "vmslt.vv": 17024.0,
+        "vmv1r.v": 75904.0,
+        "vmerge.vvm": 50304.0,
+        "vfwcvt.f.f.v": 2048.0,
+        "vmv.v.v": 10752.0,
+        "vdiv.vv": 28672.0,
+        "vrem.vv": 31232.0,
+        "vmsne.vv": 69632.0,
+        "vmand.mm": 26112.0,
+        "vfncvt.f.f.w": 8704.0,
+        "vmv.x.s": 17408.0,
+        "vcpop.m": 17408.0,
+        "vrgather.vv": 34816.0,
+        "vle16.v": 65536.0,
+        "vse16.v": 91136.0,
+        "and": 24576.0,
+        "vle32.v": 17408.0,
+        "vse32.v": 17408.0,
+        "vlse16.v": 32768.0,
+        "smt.vfwmadot": 4096.0,
+        "ret": 1.0
+      },
+      "negative_program_deltas": [],
+      "raw_runs": [
+        {
+          "command": [
+            "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64",
+            "-L",
+            "/home/i_yinzida/.local/opt/a100/toolchain-1.1.2/sysroot",
+            "-cpu",
+            "max,vlen=1024,elen=64,vext_spec=v1.0",
+            "-plugin",
+            "/tmp/a100-k3-final-frozen-xg9tlcpp/tools/profiling/full_instruction_counts.so,out=/home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/final-metrics/candidate/matmul128-float16-t1/pair-1/r1/counts.json",
+            "/tmp/a100-k3-final-frozen-xg9tlcpp/annotated-cache/0fb49b8397ea668e79b144b9ef7feb01662250d0ba541ab80c736be533aa1765/operator_exec",
+            "--bundle",
+            "/home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/final-metrics/candidate/matmul128-float16-t1/pair-1/r1/bundle/bundle.bin",
+            "--threads",
+            "1",
+            "--repeats",
+            "1"
+          ],
+          "raw_sha256": "633f13cfa41e2fabc52e8a4d003ab99e8b951d74d33379849c6a390fa528ae70",
+          "raw_path": "/home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/final-metrics/candidate/matmul128-float16-t1/pair-1/r1/counts.json",
+          "runtime": {
+            "runtime": "a100rt/v1",
+            "status": "ok",
+            "threads": 1,
+            "repeats": 1,
+            "pool_initializations": 1,
+            "repeats_all_equal": true,
+            "workers": [
+              {
+                "id": 0,
+                "guest_tid": 2167760,
+                "items": 128000
+              }
+            ],
+            "bundle_bytes": 98624
+          },
+          "comparison": {
+            "status": "PASS",
+            "max_abs_error": {
+              "y_ptr": 0.003879547119140625
+            }
+          },
+          "elapsed_qemu_wall_s_auxiliary_only": 0.4195441040210426,
+          "repeats": 1
+        },
+        {
+          "command": [
+            "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64",
+            "-L",
+            "/home/i_yinzida/.local/opt/a100/toolchain-1.1.2/sysroot",
+            "-cpu",
+            "max,vlen=1024,elen=64,vext_spec=v1.0",
+            "-plugin",
+            "/tmp/a100-k3-final-frozen-xg9tlcpp/tools/profiling/full_instruction_counts.so,out=/home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/final-metrics/candidate/matmul128-float16-t1/pair-1/r2/counts.json",
+            "/tmp/a100-k3-final-frozen-xg9tlcpp/annotated-cache/0fb49b8397ea668e79b144b9ef7feb01662250d0ba541ab80c736be533aa1765/operator_exec",
+            "--bundle",
+            "/home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/final-metrics/candidate/matmul128-float16-t1/pair-1/r2/bundle/bundle.bin",
+            "--threads",
+            "1",
+            "--repeats",
+            "2"
+          ],
+          "raw_sha256": "1f295aa8ab202e149c8dcb084bb81aab3f2c8ecacd5a17bcf71fb9e6e30bc708",
+          "raw_path": "/home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/final-metrics/candidate/matmul128-float16-t1/pair-1/r2/counts.json",
+          "runtime": {
+            "runtime": "a100rt/v1",
+            "status": "ok",
+            "threads": 1,
+            "repeats": 2,
+            "pool_initializations": 1,
+            "repeats_all_equal": true,
+            "workers": [
+              {
+                "id": 0,
+                "guest_tid": 2167774,
+                "items": 128000
+              }
+            ],
+            "bundle_bytes": 98624
+          },
+          "comparison": {
+            "status": "PASS",
+            "max_abs_error": {
+              "y_ptr": 0.003879547119140625
+            }
+          },
+          "elapsed_qemu_wall_s_auxiliary_only": 0.7186707542277873,
+          "repeats": 2
+        }
+      ]
+    }
+  ],
+  "scope": "Final composed production candidate at Git 51f3c61; frozen root bound by FINAL_SOURCE_SNAPSHOT.json; comment-only MIR attribution and diagnostic cache tag; no prototype imports; QEMU counts are not board timing."
+}

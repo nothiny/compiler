@@ -1,0 +1,44 @@
+{
+  "command": [
+    "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64",
+    "-L",
+    "/home/i_yinzida/.local/opt/a100/toolchain-1.1.2/sysroot",
+    "-cpu",
+    "max,vlen=1024,elen=64,vext_spec=v1.0",
+    "-plugin",
+    "/tmp/a100-k3-baseline-review-gcdf_716/tools/profiling/full_instruction_counts.so,out=/home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/baseline-metrics/pristine/matmul128-float32-t1/pair-1/r2/counts.json",
+    "/tmp/a100-k3-baseline-review-gcdf_716/annotated-cache/a3edc8a4d3ef2b301bd269bb6fecdcca22bee78702e1c58f07d1b325abeb0577/operator_exec",
+    "--bundle",
+    "/home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/baseline-metrics/pristine/matmul128-float32-t1/pair-1/r2/bundle/bundle.bin",
+    "--threads",
+    "1",
+    "--repeats",
+    "2"
+  ],
+  "raw_sha256": "894ffe39dbb9097901468b07092039e9feaea27097a5e1cb44969f62497959f7",
+  "raw_path": "/home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/baseline-metrics/pristine/matmul128-float32-t1/pair-1/r2/counts.json",
+  "runtime": {
+    "runtime": "a100rt/v1",
+    "status": "ok",
+    "threads": 1,
+    "repeats": 2,
+    "pool_initializations": 1,
+    "repeats_all_equal": true,
+    "workers": [
+      {
+        "id": 0,
+        "guest_tid": 1603526,
+        "items": 128000
+      }
+    ],
+    "bundle_bytes": 196928
+  },
+  "comparison": {
+    "status": "PASS",
+    "max_abs_error": {
+      "y_ptr": 3.814697265625e-06
+    }
+  },
+  "elapsed_qemu_wall_s_auxiliary_only": 1.3131884830072522,
+  "repeats": 2
+}

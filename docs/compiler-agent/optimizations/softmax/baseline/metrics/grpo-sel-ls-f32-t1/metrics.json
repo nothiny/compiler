@@ -1,0 +1,666 @@
+{
+  "schema": "a100c-matmul-metrics/v1",
+  "case": "suite/dev/grpo_loss__selective_log_softmax_kernel.py#[3, 11, 67]#float32",
+  "threads": 1,
+  "seed": 30,
+  "steady_repeats": 5,
+  "artifact": {
+    "key": "341e2f39e8b88ea0770c58e50bc7d5e7dca09df4fe63fc640c22b437cd74d3d6",
+    "sha256": "46ed2229b9e8b1247760f304433413aad3b88c998ce09ff43911d802cabe737b",
+    "identity": "ba0daa11f629dd1c",
+    "cache_entry": "/home/i_yinzida/compiler-a100-experiment-001/a100c/cache/341e2f39e8b88ea0770c58e50bc7d5e7dca09df4fe63fc640c22b437cd74d3d6"
+  },
+  "environment": {
+    "qemu": "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64",
+    "qemu_version": "qemu-riscv64 version 10.0.2",
+    "cpu": "max,vlen=1024,elen=64,vext_spec=v1.0",
+    "plugin": "/home/i_yinzida/compiler-a100-experiment-001/tools/profiling/full_instruction_counts.so"
+  },
+  "asm_join": {
+    "listing_instruction_rows": 693,
+    "program_instructions": 693,
+    "affine_offset": 70958,
+    "region": [
+      70958,
+      73146
+    ],
+    "byte_identity": true
+  },
+  "runs": {
+    "r1": {
+      "repeats": 1,
+      "exit_code": 0,
+      "wall_s": 0.115,
+      "command": "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64 -L /home/i_yinzida/.local/opt/a100/toolchain-1.1.2/sysroot -cpu max,vlen=1024,elen=64,vext_spec=v1.0 -plugin /home/i_yinzida/compiler-a100-experiment-001/tools/profiling/full_instruction_counts.so,out=docs/compiler-agent/optimizations/softmax/baseline/metrics/grpo-sel-ls-f32-t1/counts.r1.json /home/i_yinzida/compiler-a100-experiment-001/a100c/cache/341e2f39e8b88ea0770c58e50bc7d5e7dca09df4fe63fc640c22b437cd74d3d6/operator_exec --bundle /tmp/a100-native-case-69q1rnbd/bundle.bin --threads 1 --repeats 1",
+      "stdout_last_json": {
+        "runtime": "a100rt/v1",
+        "status": "ok",
+        "threads": 1,
+        "repeats": 1,
+        "pool_initializations": 1,
+        "repeats_all_equal": true,
+        "workers": [
+          {
+            "id": 0,
+            "guest_tid": 832399,
+            "items": 0
+          }
+        ],
+        "bundle_bytes": 10496
+      },
+      "total": 435236,
+      "per_vcpu_totals": [
+        169798,
+        265438,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "categories": {
+        "scalar-arith": 198703,
+        "scalar-load": 106183,
+        "branch": 71458,
+        "scalar-store": 42470,
+        "vec-config": 3578,
+        "vec-mem": 2008,
+        "vec-arith": 10536,
+        "system": 143,
+        "atomic": 157
+      }
+    },
+    "r2": {
+      "repeats": 6,
+      "exit_code": 0,
+      "wall_s": 0.167,
+      "command": "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64 -L /home/i_yinzida/.local/opt/a100/toolchain-1.1.2/sysroot -cpu max,vlen=1024,elen=64,vext_spec=v1.0 -plugin /home/i_yinzida/compiler-a100-experiment-001/tools/profiling/full_instruction_counts.so,out=docs/compiler-agent/optimizations/softmax/baseline/metrics/grpo-sel-ls-f32-t1/counts.r2.json /home/i_yinzida/compiler-a100-experiment-001/a100c/cache/341e2f39e8b88ea0770c58e50bc7d5e7dca09df4fe63fc640c22b437cd74d3d6/operator_exec --bundle /tmp/a100-native-case-69q1rnbd/bundle.bin --threads 1 --repeats 6",
+      "stdout_last_json": {
+        "runtime": "a100rt/v1",
+        "status": "ok",
+        "threads": 1,
+        "repeats": 6,
+        "pool_initializations": 1,
+        "repeats_all_equal": true,
+        "workers": [
+          {
+            "id": 0,
+            "guest_tid": 832584,
+            "items": 0
+          }
+        ],
+        "bundle_bytes": 10496
+      },
+      "total": 1773043,
+      "per_vcpu_totals": [
+        207523,
+        1565520,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "categories": {
+        "scalar-arith": 858948,
+        "scalar-load": 416822,
+        "branch": 272099,
+        "scalar-store": 128719,
+        "vec-config": 21363,
+        "vec-mem": 11478,
+        "vec-arith": 63216,
+        "system": 182,
+        "atomic": 216
+      }
+    }
+  },
+  "steady_state": {
+    "per_call_total": 267561.4,
+    "init_total": 167674.59999999998,
+    "per_call_categories": {
+      "scalar-arith": 165325.60000000874,
+      "scalar-load": 75792.99999999539,
+      "branch": 49670.39999999945,
+      "scalar-store": 22368.80000000085,
+      "vec-config": 3557.0,
+      "vec-mem": 1894.0,
+      "vec-arith": 10536.0,
+      "system": 34.399999999999984,
+      "atomic": 43.00000000000004
+    },
+    "indivisible_pc_deltas": 11929,
+    "note": "per-call = (repeats=1+R minus repeats=1)/R; indivisible deltas indicate run-to-run variation (e.g. barrier spin) and are kept as fractions"
+  },
+  "program_region": {
+    "origins_per_call": {
+      "frame": 3561.0,
+      "reload": 2440.0,
+      "scalar-mem": 1536.0,
+      "spill": 265.0,
+      "op:swext": 166.0,
+      "const-materialization": 19374.0,
+      "op:smul": 582.0,
+      "op:smove": 258.0,
+      "branch": 579.0,
+      "op:slt": 225.0,
+      "op:sdivu": 99.0,
+      "op:ssub": 114.0,
+      "op:sshl": 81.0,
+      "op:sadd": 1368.0,
+      "op:sltu": 96.0,
+      "vec-config": 10873.0,
+      "vec-arith": 25523.0,
+      "vec-mem": 672.0,
+      "op:vmath": 96.0,
+      "op:vunit_load": 144.0
+    },
+    "opcodes_per_call": {
+      "frame": 3561.0,
+      "sreload": 2440.0,
+      "sload": 1536.0,
+      "sspill": 265.0,
+      "swext": 166.0,
+      "sconst": 19374.0,
+      "smul": 582.0,
+      "smove": 258.0,
+      "br": 321.0,
+      "slt": 225.0,
+      "brc": 258.0,
+      "sdivu": 99.0,
+      "ssub": 114.0,
+      "sshl": 81.0,
+      "sadd": 1368.0,
+      "sltu": 96.0,
+      "vsetvli": 10873.0,
+      "s2v": 1634.0,
+      "vsel": 336.0,
+      "vextract": 721.0,
+      "vbinx": 20496.0,
+      "vid": 336.0,
+      "vwaddx0": 936.0,
+      "vstoreix": 480.0,
+      "vmath": 96.0,
+      "vbin": 296.0,
+      "vcmp": 288.0,
+      "vmovmask": 384.0,
+      "vunit_load": 144.0,
+      "vloadix": 192.0,
+      "vred": 96.0
+    },
+    "spill_traffic": {
+      "spill_instructions": 265.0,
+      "reload_instructions": 2440.0,
+      "spill_bytes_model": 0.0,
+      "reload_bytes_model": 12320.0,
+      "bytes_model_note": "scalar=8B; vector=VLEN/8*lmul at vlmax"
+    },
+    "vsetvli": {
+      "static": {
+        "e64,m1": 1,
+        "e32,m1": 57,
+        "e64,m2": 14
+      },
+      "dynamic_call": 10873.0
+    },
+    "static": {
+      "instructions": 693,
+      "frame_bytes": 352,
+      "saved_regs": [
+        "s1",
+        "s2",
+        "s3",
+        "s4",
+        "s5",
+        "s6",
+        "s7",
+        "s8",
+        "s9",
+        "s10",
+        "s11"
+      ],
+      "spill_slots": 12,
+      "spilled_values": 12,
+      "gprs_used": 18,
+      "vector_regs_used": 8,
+      "vector_bytes_used": 1024
+    }
+  },
+  "runtime_region_per_call": {
+    "_PROCEDURE_LINKAGE_TABLE_": 16152.0,
+    "main": 93.0,
+    "operator_entry": 40627.0,
+    "a100rt_worker_main": 12.0,
+    "a100rt_pool_call": 25.0
+  },
+  "loader_unknown_per_call": 204261.20000002102,
+  "hot_pcs_per_call": [
+    {
+      "pc": 139348808012482,
+      "per_call": 5529.6,
+      "mnemonic": "bgtu",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 139348808012478,
+      "per_call": 5529.6,
+      "mnemonic": "sext.w",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 139348808012474,
+      "per_call": 5529.6,
+      "mnemonic": "andi",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 139348808012470,
+      "per_call": 5529.6,
+      "mnemonic": "srliw",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 139348808012466,
+      "per_call": 5529.6,
+      "mnemonic": "fcvt.d.s",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 139348808012462,
+      "per_call": 5529.6,
+      "mnemonic": "addi",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 139348808012458,
+      "per_call": 5529.6,
+      "mnemonic": "fmv.x.s",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 69528,
+      "per_call": 4608.0,
+      "mnemonic": "jalr",
+      "region": "_PROCEDURE_LINKAGE_TABLE_",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 69524,
+      "per_call": 4608.0,
+      "mnemonic": "ld",
+      "region": "_PROCEDURE_LINKAGE_TABLE_",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 69520,
+      "per_call": 4608.0,
+      "mnemonic": "auipc",
+      "region": "_PROCEDURE_LINKAGE_TABLE_",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 72962,
+      "per_call": 3168.0,
+      "mnemonic": "beqz",
+      "region": "operator_entry",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 72960,
+      "per_call": 3168.0,
+      "mnemonic": "ld",
+      "region": "program",
+      "origin": "vec-arith",
+      "opcode": "vbinx",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grpo_loss__selective_log_softmax_kernel.py:26:18",
+      "text": "vse32.v v2, (t0)  # [op507] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grpo_loss__selective_log_softmax_kernel.py:29:36"
+    },
+    {
+      "pc": 72992,
+      "per_call": 3072.0,
+      "mnemonic": "j",
+      "region": "operator_entry",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 72990,
+      "per_call": 3072.0,
+      "mnemonic": "sd",
+      "region": "program",
+      "origin": "vec-arith",
+      "opcode": "vbinx",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grpo_loss__selective_log_softmax_kernel.py:26:18",
+      "text": "fsw fa0, 0(t0)  # [op507] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grpo_loss__selective_log_softmax_kernel.py:29:36"
+    },
+    {
+      "pc": 72988,
+      "per_call": 3072.0,
+      "mnemonic": "addi",
+      "region": "program",
+      "origin": "vec-arith",
+      "opcode": "vbinx",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grpo_loss__selective_log_softmax_kernel.py:26:18",
+      "text": "ld t0, 240(sp)  # [op507] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grpo_loss__selective_log_softmax_kernel.py:29:36"
+    },
+    {
+      "pc": 72986,
+      "per_call": 3072.0,
+      "mnemonic": "ld",
+      "region": "operator_entry",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 72984,
+      "per_call": 3072.0,
+      "mnemonic": "sd",
+      "region": "operator_entry",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 72982,
+      "per_call": 3072.0,
+      "mnemonic": "addi",
+      "region": "operator_entry",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 72978,
+      "per_call": 3072.0,
+      "mnemonic": "fsw",
+      "region": "operator_entry",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 72976,
+      "per_call": 3072.0,
+      "mnemonic": "ld",
+      "region": "program",
+      "origin": "vec-arith",
+      "opcode": "vbinx",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grpo_loss__selective_log_softmax_kernel.py:26:18",
+      "text": "flw fa0, 0(t0)  # [op507] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grpo_loss__selective_log_softmax_kernel.py:29:36"
+    },
+    {
+      "pc": 72972,
+      "per_call": 3072.0,
+      "mnemonic": "jal",
+      "region": "operator_entry",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 72968,
+      "per_call": 3072.0,
+      "mnemonic": "flw",
+      "region": "program",
+      "origin": "vec-arith",
+      "opcode": "vbinx",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grpo_loss__selective_log_softmax_kernel.py:26:18",
+      "text": "ld t1, 248(sp)  # [op507] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grpo_loss__selective_log_softmax_kernel.py:29:36"
+    },
+    {
+      "pc": 72966,
+      "per_call": 3072.0,
+      "mnemonic": "ld",
+      "region": "program",
+      "origin": "vec-arith",
+      "opcode": "vbinx",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grpo_loss__selective_log_softmax_kernel.py:26:18",
+      "text": "sd t1, 248(sp)  # [op507] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/grpo_loss__selective_log_softmax_kernel.py:29:36"
+    },
+    {
+      "pc": 139348808012584,
+      "per_call": 2851.2,
+      "mnemonic": "ret",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 139348808012580,
+      "per_call": 2851.2,
+      "mnemonic": "fcvt.s.d",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 139348808012576,
+      "per_call": 2851.2,
+      "mnemonic": "fmul.d",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 139348808012572,
+      "per_call": 2851.2,
+      "mnemonic": "fmv.d.x",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 139348808012568,
+      "per_call": 2851.2,
+      "mnemonic": "fmadd.d",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 139348808012564,
+      "per_call": 2851.2,
+      "mnemonic": "fmul.d",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 139348808012560,
+      "per_call": 2851.2,
+      "mnemonic": "fmadd.d",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 139348808012556,
+      "per_call": 2851.2,
+      "mnemonic": "fmadd.d",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 139348808012552,
+      "per_call": 2851.2,
+      "mnemonic": "fmsub.d",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 139348808012550,
+      "per_call": 2851.2,
+      "mnemonic": "add",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 139348808012548,
+      "per_call": 2851.2,
+      "mnemonic": "slli",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 139348808012546,
+      "per_call": 2851.2,
+      "mnemonic": "ld",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 139348808012542,
+      "per_call": 2851.2,
+      "mnemonic": "fsub.d",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 139348808012538,
+      "per_call": 2851.2,
+      "mnemonic": "sh3add",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 139348808012534,
+      "per_call": 2851.2,
+      "mnemonic": "andi",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 139348808012530,
+      "per_call": 2851.2,
+      "mnemonic": "fmv.d.x",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 139348808012526,
+      "per_call": 2851.2,
+      "mnemonic": "fld",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    }
+  ],
+  "problems": [
+    "pc 69344: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+    "pc 69348: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+    "pc 69352: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+    "pc 69356: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+    "pc 69360: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+    "pc 69364: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+    "pc 69368: repeats=1 run executed MORE than repeats=6 (nondeterminism)",
+    "pc 69372: repeats=1 run executed MORE than repeats=6 (nondeterminism)"
+  ]
+}

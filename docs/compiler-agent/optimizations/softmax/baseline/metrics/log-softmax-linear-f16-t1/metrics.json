@@ -1,0 +1,658 @@
+{
+  "schema": "a100c-matmul-metrics/v1",
+  "case": "suite/perf/log_softmax_linear.py#[17, 33]#float16",
+  "threads": 1,
+  "seed": 30,
+  "steady_repeats": 5,
+  "artifact": {
+    "key": "8d5daa0f2e7502e1f5dcafda3be977af7a77b299d8bad0cea9ddc222dfc3d70f",
+    "sha256": "dbbf46cb718a3128437639c8fb5d32737ca957f079e7c302487ad816a93adb75",
+    "identity": "7adbd6a099e231cb",
+    "cache_entry": "/home/i_yinzida/compiler-a100-experiment-001/a100c/cache/8d5daa0f2e7502e1f5dcafda3be977af7a77b299d8bad0cea9ddc222dfc3d70f"
+  },
+  "environment": {
+    "qemu": "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64",
+    "qemu_version": "qemu-riscv64 version 10.0.2",
+    "cpu": "max,vlen=1024,elen=64,vext_spec=v1.0",
+    "plugin": "/home/i_yinzida/compiler-a100-experiment-001/tools/profiling/full_instruction_counts.so"
+  },
+  "asm_join": {
+    "listing_instruction_rows": 1902,
+    "program_instructions": 1902,
+    "affine_offset": 70958,
+    "region": [
+      70958,
+      77528
+    ],
+    "byte_identity": true
+  },
+  "runs": {
+    "r1": {
+      "repeats": 1,
+      "exit_code": 0,
+      "wall_s": 0.198,
+      "command": "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64 -L /home/i_yinzida/.local/opt/a100/toolchain-1.1.2/sysroot -cpu max,vlen=1024,elen=64,vext_spec=v1.0 -plugin /home/i_yinzida/compiler-a100-experiment-001/tools/profiling/full_instruction_counts.so,out=docs/compiler-agent/optimizations/softmax/baseline/metrics/log-softmax-linear-f16-t1/counts.r1.json /home/i_yinzida/compiler-a100-experiment-001/a100c/cache/8d5daa0f2e7502e1f5dcafda3be977af7a77b299d8bad0cea9ddc222dfc3d70f/operator_exec --bundle /tmp/a100-native-case-z1j0c0im/bundle.bin --threads 1 --repeats 1",
+      "stdout_last_json": {
+        "runtime": "a100rt/v1",
+        "status": "ok",
+        "threads": 1,
+        "repeats": 1,
+        "pool_initializations": 1,
+        "repeats_all_equal": true,
+        "workers": [
+          {
+            "id": 0,
+            "guest_tid": 802325,
+            "items": 42840
+          }
+        ],
+        "bundle_bytes": 3904
+      },
+      "total": 2254418,
+      "per_vcpu_totals": [
+        192023,
+        2062395,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "categories": {
+        "scalar-arith": 815841,
+        "scalar-load": 179510,
+        "branch": 109113,
+        "scalar-store": 191109,
+        "vec-config": 331992,
+        "vec-mem": 43897,
+        "vec-arith": 582658,
+        "system": 142,
+        "atomic": 156
+      }
+    },
+    "r2": {
+      "repeats": 6,
+      "exit_code": 0,
+      "wall_s": 0.588,
+      "command": "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64 -L /home/i_yinzida/.local/opt/a100/toolchain-1.1.2/sysroot -cpu max,vlen=1024,elen=64,vext_spec=v1.0 -plugin /home/i_yinzida/compiler-a100-experiment-001/tools/profiling/full_instruction_counts.so,out=docs/compiler-agent/optimizations/softmax/baseline/metrics/log-softmax-linear-f16-t1/counts.r2.json /home/i_yinzida/compiler-a100-experiment-001/a100c/cache/8d5daa0f2e7502e1f5dcafda3be977af7a77b299d8bad0cea9ddc222dfc3d70f/operator_exec --bundle /tmp/a100-native-case-z1j0c0im/bundle.bin --threads 1 --repeats 6",
+      "stdout_last_json": {
+        "runtime": "a100rt/v1",
+        "status": "ok",
+        "threads": 1,
+        "repeats": 6,
+        "pool_initializations": 1,
+        "repeats_all_equal": true,
+        "workers": [
+          {
+            "id": 0,
+            "guest_tid": 802476,
+            "items": 42840
+          }
+        ],
+        "bundle_bytes": 3904
+      },
+      "total": 12615733,
+      "per_vcpu_totals": [
+        267503,
+        12348230,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "categories": {
+        "scalar-arith": 4555936,
+        "scalar-load": 850105,
+        "branch": 484088,
+        "scalar-store": 974384,
+        "vec-config": 1991892,
+        "vec-mem": 262982,
+        "vec-arith": 3495948,
+        "system": 182,
+        "atomic": 216
+      }
+    }
+  },
+  "steady_state": {
+    "per_call_total": 2072263.0,
+    "init_total": 182155.0,
+    "per_call_categories": {
+      "scalar-arith": 770366.3999999049,
+      "scalar-load": 145618.4000000025,
+      "branch": 82982.99999999632,
+      "scalar-store": 165502.60000000938,
+      "vec-config": 331980.0,
+      "vec-mem": 43817.0,
+      "vec-arith": 582658.0,
+      "system": 34.399999999999984,
+      "atomic": 43.00000000000004
+    },
+    "indivisible_pc_deltas": 11929,
+    "note": "per-call = (repeats=1+R minus repeats=1)/R; indivisible deltas indicate run-to-run variation (e.g. barrier spin) and are kept as fractions"
+  },
+  "program_region": {
+    "origins_per_call": {
+      "frame": 41915.0,
+      "spill": 111.0,
+      "reload": 41520.0,
+      "scalar-mem": 202922.0,
+      "op:swext": 2.0,
+      "const-materialization": 573854.0,
+      "op:smul": 221.0,
+      "op:smove": 289.0,
+      "branch": 45441.0,
+      "op:slt": 11611.0,
+      "vec-config": 348170.0,
+      "vec-arith": 491844.0,
+      "op:sadd": 129405.0,
+      "vec-mem": 28475.0,
+      "op:vfwcvt": 8891.0,
+      "op:vunit_load": 2278.0,
+      "op:vfncvt": 10948.0,
+      "op:vmand": 2176.0,
+      "op:vmath": 68.0
+    },
+    "opcodes_per_call": {
+      "frame": 41915.0,
+      "sspill": 111.0,
+      "sreload": 41520.0,
+      "sload": 67653.0,
+      "swext": 2.0,
+      "sconst": 573854.0,
+      "smul": 221.0,
+      "smove": 289.0,
+      "br": 26316.0,
+      "slt": 11611.0,
+      "brc": 19125.0,
+      "vsetvli": 348170.0,
+      "vid": 24854.0,
+      "vbinx": 70465.0,
+      "vwaddx0": 30005.0,
+      "sadd": 129405.0,
+      "vstoreix": 12801.0,
+      "s2v": 38862.0,
+      "vcmp": 4454.0,
+      "vmovmask": 8806.0,
+      "sstore": 135269.0,
+      "vfwcvt": 8891.0,
+      "vmovv": 15504.0,
+      "vloadix": 15674.0,
+      "vbin": 30651.0,
+      "vsel": 6630.0,
+      "vunit_load": 2278.0,
+      "vfncvt": 10948.0,
+      "vmand": 2176.0,
+      "vextract": 130849.0,
+      "vslidedn": 130696.0,
+      "vred": 68.0,
+      "vmath": 68.0
+    },
+    "spill_traffic": {
+      "spill_instructions": 111.0,
+      "reload_instructions": 41520.0,
+      "spill_bytes_model": 32.0,
+      "reload_bytes_model": 2291632.0,
+      "bytes_model_note": "scalar=8B; vector=VLEN/8*lmul at vlmax"
+    },
+    "vsetvli": {
+      "static": {
+        "e32,m1": 201,
+        "e64,m2": 72,
+        "e16,m1": 73
+      },
+      "dynamic_call": 348170.0
+    },
+    "static": {
+      "instructions": 1902,
+      "frame_bytes": 304,
+      "saved_regs": [
+        "s1",
+        "s2",
+        "s3",
+        "s4",
+        "s5",
+        "s6",
+        "s7",
+        "s8",
+        "s9",
+        "s10",
+        "s11"
+      ],
+      "spill_slots": 6,
+      "spilled_values": 6,
+      "gprs_used": 22,
+      "vector_regs_used": 8,
+      "vector_bytes_used": 1024
+    }
+  },
+  "runtime_region_per_call": {
+    "_PROCEDURE_LINKAGE_TABLE_": 4920.0,
+    "main": 44.0,
+    "operator_entry": 53807.0,
+    "a100rt_worker_main": 12.0,
+    "a100rt_pool_call": 25.0
+  },
+  "loader_unknown_per_call": 124053.79999998787,
+  "hot_pcs_per_call": [
+    {
+      "pc": 76160,
+      "per_call": 4352.0,
+      "mnemonic": "bnez",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/log_softmax_linear.py:32:28",
+      "text": "bne s11, zero, .Lbrc1544_true  # [op1544] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/log_softmax_linear.py:32:21"
+    },
+    {
+      "pc": 76156,
+      "per_call": 4352.0,
+      "mnemonic": "slt",
+      "region": "program",
+      "origin": "vec-arith",
+      "opcode": "vmovv",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/log_softmax_linear.py:32:28",
+      "text": "slt s11, t1, t2  # [op1543] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/log_softmax_linear.py:32:21"
+    },
+    {
+      "pc": 76122,
+      "per_call": 2210.0,
+      "mnemonic": "bnez",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/log_softmax_linear.py:32:28",
+      "text": "bne t1, zero, .Lbrc1533_true  # [op1533] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/log_softmax_linear.py:32:21"
+    },
+    {
+      "pc": 76118,
+      "per_call": 2210.0,
+      "mnemonic": "slt",
+      "region": "program",
+      "origin": "vec-config",
+      "opcode": "vsetvli",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/log_softmax_linear.py:32:28",
+      "text": "slt t1, t0, s2  # [op1532] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/log_softmax_linear.py:32:21"
+    },
+    {
+      "pc": 75814,
+      "per_call": 2210.0,
+      "mnemonic": "bnez",
+      "region": "program",
+      "origin": "branch",
+      "opcode": "brc",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/log_softmax_linear.py:21:1",
+      "text": "bne t2, zero, .Lbrc1427_true  # [op1427] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/log_softmax_linear.py:21:1"
+    },
+    {
+      "pc": 75810,
+      "per_call": 2210.0,
+      "mnemonic": "slt",
+      "region": "program",
+      "origin": "op:slt",
+      "opcode": "slt",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/log_softmax_linear.py:21:1",
+      "text": "slt t2, t0, t2  # [op1426] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/log_softmax_linear.py:21:1"
+    },
+    {
+      "pc": 75806,
+      "per_call": 2210.0,
+      "mnemonic": "addiw",
+      "region": "operator_entry",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 75804,
+      "per_call": 2210.0,
+      "mnemonic": "lui",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/log_softmax_linear.py:21:1",
+      "text": "li t2, 2048  # [op1425] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/log_softmax_linear.py:21:1"
+    },
+    {
+      "pc": 75660,
+      "per_call": 2210.0,
+      "mnemonic": "bnez",
+      "region": "program",
+      "origin": "vec-arith",
+      "opcode": "vslidedn",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/log_softmax_linear.py:30:13",
+      "text": "bne t2, zero, .Lbrc1382_true  # [op1382] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/log_softmax_linear.py:32:28"
+    },
+    {
+      "pc": 75656,
+      "per_call": 2210.0,
+      "mnemonic": "slt",
+      "region": "program",
+      "origin": "scalar-mem",
+      "opcode": "sstore",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/log_softmax_linear.py:30:13",
+      "text": "slt t2, t0, t2  # [op1381] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/log_softmax_linear.py:32:28"
+    },
+    {
+      "pc": 75652,
+      "per_call": 2210.0,
+      "mnemonic": "addiw",
+      "region": "operator_entry",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 75650,
+      "per_call": 2210.0,
+      "mnemonic": "lui",
+      "region": "program",
+      "origin": "vec-arith",
+      "opcode": "vextract",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/log_softmax_linear.py:30:13",
+      "text": "li t2, 2048  # [op1380] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/log_softmax_linear.py:32:28"
+    },
+    {
+      "pc": 73278,
+      "per_call": 2210.0,
+      "mnemonic": "bnez",
+      "region": "program",
+      "origin": "branch",
+      "opcode": "br",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/log_softmax_linear.py:21:1",
+      "text": "bne t0, zero, .Lbrc709_true  # [op709] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/log_softmax_linear.py:21:1"
+    },
+    {
+      "pc": 73274,
+      "per_call": 2210.0,
+      "mnemonic": "slt",
+      "region": "program",
+      "origin": "vec-config",
+      "opcode": "vsetvli",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/log_softmax_linear.py:21:1",
+      "text": "slt t0, t2, t0  # [op708] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/log_softmax_linear.py:21:1"
+    },
+    {
+      "pc": 73270,
+      "per_call": 2210.0,
+      "mnemonic": "addiw",
+      "region": "operator_entry",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 73268,
+      "per_call": 2210.0,
+      "mnemonic": "lui",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/log_softmax_linear.py:21:1",
+      "text": "li t0, 2048  # [op707] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/log_softmax_linear.py:21:1"
+    },
+    {
+      "pc": 73120,
+      "per_call": 2210.0,
+      "mnemonic": "bnez",
+      "region": "program",
+      "origin": "branch",
+      "opcode": "br",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/log_softmax_linear.py:21:1",
+      "text": "bne t2, zero, .Lbrc664_true  # [op664] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/log_softmax_linear.py:31:26"
+    },
+    {
+      "pc": 73116,
+      "per_call": 2210.0,
+      "mnemonic": "slt",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/log_softmax_linear.py:21:1",
+      "text": "slt t2, t0, t2  # [op663] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/log_softmax_linear.py:31:26"
+    },
+    {
+      "pc": 73112,
+      "per_call": 2210.0,
+      "mnemonic": "addiw",
+      "region": "operator_entry",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 73110,
+      "per_call": 2210.0,
+      "mnemonic": "lui",
+      "region": "program",
+      "origin": "branch",
+      "opcode": "brc",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/log_softmax_linear.py:21:1",
+      "text": "li t2, 2048  # [op662] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/log_softmax_linear.py:31:26"
+    },
+    {
+      "pc": 72978,
+      "per_call": 2210.0,
+      "mnemonic": "bnez",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/log_softmax_linear.py:29:13",
+      "text": "bne t2, zero, .Lbrc615_true  # [op615] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/log_softmax_linear.py:21:1"
+    },
+    {
+      "pc": 72974,
+      "per_call": 2210.0,
+      "mnemonic": "slt",
+      "region": "program",
+      "origin": "op:sadd",
+      "opcode": "sadd",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/log_softmax_linear.py:29:13",
+      "text": "slt t2, t0, t2  # [op614] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/log_softmax_linear.py:21:1"
+    },
+    {
+      "pc": 72970,
+      "per_call": 2210.0,
+      "mnemonic": "addiw",
+      "region": "operator_entry",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 72968,
+      "per_call": 2210.0,
+      "mnemonic": "lui",
+      "region": "program",
+      "origin": "reload",
+      "opcode": "sreload",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/log_softmax_linear.py:29:13",
+      "text": "li t2, 2048  # [op613] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/log_softmax_linear.py:21:1"
+    },
+    {
+      "pc": 76234,
+      "per_call": 2176.0,
+      "mnemonic": "j",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/log_softmax_linear.py:32:28",
+      "text": "j .Lprk18.head  # [op1566] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/log_softmax_linear.py:32:21"
+    },
+    {
+      "pc": 76232,
+      "per_call": 2176.0,
+      "mnemonic": "add",
+      "region": "program",
+      "origin": "op:vfncvt",
+      "opcode": "vfncvt",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/log_softmax_linear.py:32:28",
+      "text": "add t0, t0, t1  # [op1565] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/log_softmax_linear.py:32:21"
+    },
+    {
+      "pc": 76230,
+      "per_call": 2176.0,
+      "mnemonic": "addi",
+      "region": "program",
+      "origin": "vec-config",
+      "opcode": "vsetvli",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/log_softmax_linear.py:32:28",
+      "text": "li t1, 1  # [op1564] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/log_softmax_linear.py:32:21"
+    },
+    {
+      "pc": 76226,
+      "per_call": 2176.0,
+      "mnemonic": "sw",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/log_softmax_linear.py:32:28",
+      "text": "sw t1, 0(s3)  # [op1563] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/log_softmax_linear.py:32:21"
+    },
+    {
+      "pc": 76224,
+      "per_call": 2176.0,
+      "mnemonic": "add",
+      "region": "program",
+      "origin": "vec-arith",
+      "opcode": "vmovv",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/log_softmax_linear.py:32:28",
+      "text": "add s3, a7, s3  # [op1562] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/log_softmax_linear.py:32:21"
+    },
+    {
+      "pc": 76220,
+      "per_call": 2176.0,
+      "mnemonic": "mul",
+      "region": "program",
+      "origin": "vec-arith",
+      "opcode": "vbin",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/log_softmax_linear.py:32:28",
+      "text": "mul s3, t0, s3  # [op1561] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/log_softmax_linear.py:32:21"
+    },
+    {
+      "pc": 76218,
+      "per_call": 2176.0,
+      "mnemonic": "addi",
+      "region": "program",
+      "origin": "vec-arith",
+      "opcode": "vmovv",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/log_softmax_linear.py:32:28",
+      "text": "li s3, 4  # [op1560] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/log_softmax_linear.py:32:21"
+    },
+    {
+      "pc": 76214,
+      "per_call": 2176.0,
+      "mnemonic": "vmv.x.s",
+      "region": "program",
+      "origin": "vec-config",
+      "opcode": "vsetvli",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/log_softmax_linear.py:32:28",
+      "text": "vmv.x.s t1, v1  # [op1559] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/log_softmax_linear.py:32:21"
+    },
+    {
+      "pc": 76210,
+      "per_call": 2176.0,
+      "mnemonic": "vsetvli",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/log_softmax_linear.py:32:28",
+      "text": "vsetvli t1, t1, e32, m1, ta,ma  # [op1558] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/log_softmax_linear.py:32:21"
+    },
+    {
+      "pc": 76206,
+      "per_call": 2176.0,
+      "mnemonic": "addi",
+      "region": "program",
+      "origin": "op:vfwcvt",
+      "opcode": "vfwcvt",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/log_softmax_linear.py:32:28",
+      "text": "li t1, 32  # [op1557] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/log_softmax_linear.py:32:21"
+    },
+    {
+      "pc": 76204,
+      "per_call": 2176.0,
+      "mnemonic": "j",
+      "region": "program",
+      "origin": "vec-config",
+      "opcode": "vsetvli",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/log_softmax_linear.py:32:28",
+      "text": "j .Lprc19.head  # [op1556] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/log_softmax_linear.py:32:21"
+    },
+    {
+      "pc": 76202,
+      "per_call": 2176.0,
+      "mnemonic": "add",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/log_softmax_linear.py:32:28",
+      "text": "add t1, t1, s11  # [op1555] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/log_softmax_linear.py:32:21"
+    },
+    {
+      "pc": 76198,
+      "per_call": 2176.0,
+      "mnemonic": "addi",
+      "region": "program",
+      "origin": "vec-arith",
+      "opcode": "vmovv",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/log_softmax_linear.py:32:28",
+      "text": "li s11, 32  # [op1554] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/log_softmax_linear.py:32:21"
+    },
+    {
+      "pc": 76194,
+      "per_call": 2176.0,
+      "mnemonic": "vfredusum.vs",
+      "region": "program",
+      "origin": "vec-config",
+      "opcode": "vsetvli",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/log_softmax_linear.py:32:28",
+      "text": "vfredusum.vs v1, v2, v1  # [op1553] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/log_softmax_linear.py:32:21"
+    },
+    {
+      "pc": 76190,
+      "per_call": 2176.0,
+      "mnemonic": "vle32.v",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/log_softmax_linear.py:32:28",
+      "text": "vle32.v v2, 0(s11)  # [op1552] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/log_softmax_linear.py:32:21"
+    },
+    {
+      "pc": 76188,
+      "per_call": 2176.0,
+      "mnemonic": "add",
+      "region": "program",
+      "origin": "op:vfwcvt",
+      "opcode": "vfwcvt",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/log_softmax_linear.py:32:28",
+      "text": "add s11, a6, s11  # [op1551] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/log_softmax_linear.py:32:21"
+    }
+  ],
+  "problems": []
+}

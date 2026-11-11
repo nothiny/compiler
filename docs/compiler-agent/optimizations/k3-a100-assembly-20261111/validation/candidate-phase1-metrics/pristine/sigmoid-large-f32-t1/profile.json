@@ -1,0 +1,420 @@
+{
+  "schema": "a100-isolated-profile/v1",
+  "case": {
+    "name": "sigmoid-large-f32",
+    "operator": "suite/perf/sigmoid.py",
+    "shape": [
+      262144
+    ],
+    "dtype": "float32",
+    "declared_shape": false
+  },
+  "variant": "pristine",
+  "compiler_revision": "b5c42fbb75a242a8",
+  "threads": 1,
+  "repeat_delta": 1,
+  "artifact": "/tmp/a100-k3-candidate-phase1-review-ez6ha1ly/annotated-cache/073e051e316d8ae07c750515178901bbeee8417cafc6cb8961099fa21be31727",
+  "artifact_sha256": "e30c8c08db7475f9bd89702e3b1d18d84b2a74bc28854ad725fb552deace45a0",
+  "diagnostic_note": "Only emitted assembly comments are annotated at runtime; compiler files unchanged.",
+  "adapter_sha256": "50fa997c9093ac97a849ae304ad0af456b95d2a75f76ba18076367f1da1cf0ef",
+  "prototype_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "plugin_sha256": "f600c8cf2f470151c1ff7d55f7b804ffce8e6dadbad96bd1b3817320c15693c6",
+  "asm_join": {
+    "listing_instruction_rows": 178,
+    "program_instructions": 178,
+    "affine_offset": 70918,
+    "region": [
+      70918,
+      71524
+    ],
+    "byte_identity": true,
+    "actual_instruction_starts": 187,
+    "source_start_rows": 178,
+    "uid_mapping": "live MIR object identity captured before emission; no positional inference"
+  },
+  "allocation": {
+    "frame_bytes": 16,
+    "gprs_used": 15,
+    "spill_rounds_bound": 64,
+    "spill_slots": 0,
+    "spilled_values": 0,
+    "vector_bytes_used": 1024,
+    "vector_file_bytes": 4096,
+    "vector_regs_used": 8
+  },
+  "measurements": [
+    {
+      "pair": 0,
+      "total_process_guest_instructions_per_call": 2579007.0,
+      "aggregate_categories_per_call": {
+        "atomic": 7.0,
+        "system": 3.0,
+        "scalar-load": 524582.0,
+        "scalar-arith": 979078.0,
+        "scalar-store": 343.0,
+        "branch": 552754.0,
+        "vec-mem": 20480.0,
+        "vec-arith": 491520.0,
+        "vec-config": 10240.0
+      },
+      "program_guest_instructions_per_call": 991531.0,
+      "outside_program_guest_instructions_per_call": 1587476.0,
+      "program_origins_per_call": {
+        "frame/service": 8.0,
+        "scalar-mem": 10.0,
+        "op:swext": 8961.0,
+        "const-materialization": 279556.0,
+        "op:sadd": 57857.0,
+        "op:sdivu": 1.0,
+        "op:smul": 16385.0,
+        "op:smove": 32770.0,
+        "branch": 28678.0,
+        "op:slt": 17153.0,
+        "op:sshl": 256.0,
+        "op:ssub": 25344.0,
+        "op:sand": 8448.0,
+        "vec-config": 8192.0,
+        "vec-arith": 425984.0,
+        "op:vunit_load": 8192.0,
+        "op:vfmacc": 57344.0,
+        "op:vunit_store": 8192.0,
+        "op:vpopc": 8192.0,
+        "control": 8.0
+      },
+      "program_blocks_per_call": {
+        "program-services": 8.0,
+        "entry": 20.0,
+        "prog_head": 1286.0,
+        "prog_body": 2304.0,
+        "chunk1_head": 101888.0,
+        "chunk1_exit": 768.0,
+        "chunk1_body": 884736.0,
+        "prog_next": 512.0,
+        "prog_exit": 9.0
+      },
+      "program_mnemonics_per_call": {
+        "addi": 74245.0,
+        "sd": 264.0,
+        "mv": 59653.0,
+        "ld": 270.0,
+        "lwu": 2.0,
+        "sext.w": 8961.0,
+        "add": 41217.0,
+        "divu": 1.0,
+        "mul": 16385.0,
+        "j": 17666.0,
+        "slt": 17153.0,
+        "bnez": 8705.0,
+        "sllw": 256.0,
+        "subw": 25344.0,
+        "and": 8448.0,
+        "addw": 16640.0,
+        "vsetvli": 8192.0,
+        "vid.v": 8192.0,
+        "vadd.vx": 8192.0,
+        "vmv.v.x": 163840.0,
+        "vadd.vv": 24576.0,
+        "vmslt.vv": 8192.0,
+        "vmv1r.v": 40960.0,
+        "vle32.v": 8192.0,
+        "vmerge.vvm": 24576.0,
+        "vfsgnjn.vv": 8192.0,
+        "lui": 106496.0,
+        "addiw": 65536.0,
+        "vfmul.vv": 24576.0,
+        "vfadd.vv": 16384.0,
+        "vfsub.vv": 16384.0,
+        "vfmacc.vv": 49152.0,
+        "vmv.v.v": 24576.0,
+        "vfcvt.rtz.x.f.v": 8192.0,
+        "vsra.vv": 8192.0,
+        "vsub.vv": 8192.0,
+        "vsll.vv": 16384.0,
+        "vmflt.vv": 16384.0,
+        "slli": 8192.0,
+        "vfdiv.vv": 8192.0,
+        "vse32.v": 8192.0,
+        "vcpop.m": 8192.0,
+        "ret": 1.0
+      },
+      "negative_program_deltas": [],
+      "raw_runs": [
+        {
+          "command": [
+            "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64",
+            "-L",
+            "/home/i_yinzida/.local/opt/a100/toolchain-1.1.2/sysroot",
+            "-cpu",
+            "max,vlen=1024,elen=64,vext_spec=v1.0",
+            "-plugin",
+            "/tmp/a100-k3-candidate-phase1-review-ez6ha1ly/tools/profiling/full_instruction_counts.so,out=/home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/candidate-phase1-metrics/pristine/sigmoid-large-f32-t1/pair-0/r1/counts.json",
+            "/tmp/a100-k3-candidate-phase1-review-ez6ha1ly/annotated-cache/073e051e316d8ae07c750515178901bbeee8417cafc6cb8961099fa21be31727/operator_exec",
+            "--bundle",
+            "/home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/candidate-phase1-metrics/pristine/sigmoid-large-f32-t1/pair-0/r1/bundle/bundle.bin",
+            "--threads",
+            "1",
+            "--repeats",
+            "1"
+          ],
+          "raw_sha256": "8bd9b3405653e329a6a0b1f61480c988f88c410f16b48a8ccdbbad76bed490a1",
+          "raw_path": "/home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/candidate-phase1-metrics/pristine/sigmoid-large-f32-t1/pair-0/r1/counts.json",
+          "runtime": {
+            "runtime": "a100rt/v1",
+            "status": "ok",
+            "threads": 1,
+            "repeats": 1,
+            "pool_initializations": 1,
+            "repeats_all_equal": true,
+            "workers": [
+              {
+                "id": 0,
+                "guest_tid": 1813060,
+                "items": 262144
+              }
+            ],
+            "bundle_bytes": 2097344
+          },
+          "comparison": {
+            "status": "PASS",
+            "max_abs_error": {
+              "y_ptr": 1.1920928955078125e-07
+            }
+          },
+          "elapsed_qemu_wall_s_auxiliary_only": 0.4365978450514376,
+          "repeats": 1
+        },
+        {
+          "command": [
+            "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64",
+            "-L",
+            "/home/i_yinzida/.local/opt/a100/toolchain-1.1.2/sysroot",
+            "-cpu",
+            "max,vlen=1024,elen=64,vext_spec=v1.0",
+            "-plugin",
+            "/tmp/a100-k3-candidate-phase1-review-ez6ha1ly/tools/profiling/full_instruction_counts.so,out=/home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/candidate-phase1-metrics/pristine/sigmoid-large-f32-t1/pair-0/r2/counts.json",
+            "/tmp/a100-k3-candidate-phase1-review-ez6ha1ly/annotated-cache/073e051e316d8ae07c750515178901bbeee8417cafc6cb8961099fa21be31727/operator_exec",
+            "--bundle",
+            "/home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/candidate-phase1-metrics/pristine/sigmoid-large-f32-t1/pair-0/r2/bundle/bundle.bin",
+            "--threads",
+            "1",
+            "--repeats",
+            "2"
+          ],
+          "raw_sha256": "1c8a52f95b3766a7f84d3b04c7b795c2a810923a3ff022bc36a1f6dd25e5a5f2",
+          "raw_path": "/home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/candidate-phase1-metrics/pristine/sigmoid-large-f32-t1/pair-0/r2/counts.json",
+          "runtime": {
+            "runtime": "a100rt/v1",
+            "status": "ok",
+            "threads": 1,
+            "repeats": 2,
+            "pool_initializations": 1,
+            "repeats_all_equal": true,
+            "workers": [
+              {
+                "id": 0,
+                "guest_tid": 1813434,
+                "items": 262144
+              }
+            ],
+            "bundle_bytes": 2097344
+          },
+          "comparison": {
+            "status": "PASS",
+            "max_abs_error": {
+              "y_ptr": 1.1920928955078125e-07
+            }
+          },
+          "elapsed_qemu_wall_s_auxiliary_only": 0.8242945680394769,
+          "repeats": 2
+        }
+      ]
+    },
+    {
+      "pair": 1,
+      "total_process_guest_instructions_per_call": 2579148.0,
+      "aggregate_categories_per_call": {
+        "atomic": 12.0,
+        "system": 8.0,
+        "scalar-load": 524592.0,
+        "scalar-arith": 979155.0,
+        "scalar-store": 348.0,
+        "branch": 552793.0,
+        "vec-mem": 20480.0,
+        "vec-arith": 491520.0,
+        "vec-config": 10240.0
+      },
+      "program_guest_instructions_per_call": 991531.0,
+      "outside_program_guest_instructions_per_call": 1587617.0,
+      "program_origins_per_call": {
+        "frame/service": 8.0,
+        "scalar-mem": 10.0,
+        "op:swext": 8961.0,
+        "const-materialization": 279556.0,
+        "op:sadd": 57857.0,
+        "op:sdivu": 1.0,
+        "op:smul": 16385.0,
+        "op:smove": 32770.0,
+        "branch": 28678.0,
+        "op:slt": 17153.0,
+        "op:sshl": 256.0,
+        "op:ssub": 25344.0,
+        "op:sand": 8448.0,
+        "vec-config": 8192.0,
+        "vec-arith": 425984.0,
+        "op:vunit_load": 8192.0,
+        "op:vfmacc": 57344.0,
+        "op:vunit_store": 8192.0,
+        "op:vpopc": 8192.0,
+        "control": 8.0
+      },
+      "program_blocks_per_call": {
+        "program-services": 8.0,
+        "entry": 20.0,
+        "prog_head": 1286.0,
+        "prog_body": 2304.0,
+        "chunk1_head": 101888.0,
+        "chunk1_exit": 768.0,
+        "chunk1_body": 884736.0,
+        "prog_next": 512.0,
+        "prog_exit": 9.0
+      },
+      "program_mnemonics_per_call": {
+        "addi": 74245.0,
+        "sd": 264.0,
+        "mv": 59653.0,
+        "ld": 270.0,
+        "lwu": 2.0,
+        "sext.w": 8961.0,
+        "add": 41217.0,
+        "divu": 1.0,
+        "mul": 16385.0,
+        "j": 17666.0,
+        "slt": 17153.0,
+        "bnez": 8705.0,
+        "sllw": 256.0,
+        "subw": 25344.0,
+        "and": 8448.0,
+        "addw": 16640.0,
+        "vsetvli": 8192.0,
+        "vid.v": 8192.0,
+        "vadd.vx": 8192.0,
+        "vmv.v.x": 163840.0,
+        "vadd.vv": 24576.0,
+        "vmslt.vv": 8192.0,
+        "vmv1r.v": 40960.0,
+        "vle32.v": 8192.0,
+        "vmerge.vvm": 24576.0,
+        "vfsgnjn.vv": 8192.0,
+        "lui": 106496.0,
+        "addiw": 65536.0,
+        "vfmul.vv": 24576.0,
+        "vfadd.vv": 16384.0,
+        "vfsub.vv": 16384.0,
+        "vfmacc.vv": 49152.0,
+        "vmv.v.v": 24576.0,
+        "vfcvt.rtz.x.f.v": 8192.0,
+        "vsra.vv": 8192.0,
+        "vsub.vv": 8192.0,
+        "vsll.vv": 16384.0,
+        "vmflt.vv": 16384.0,
+        "slli": 8192.0,
+        "vfdiv.vv": 8192.0,
+        "vse32.v": 8192.0,
+        "vcpop.m": 8192.0,
+        "ret": 1.0
+      },
+      "negative_program_deltas": [],
+      "raw_runs": [
+        {
+          "command": [
+            "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64",
+            "-L",
+            "/home/i_yinzida/.local/opt/a100/toolchain-1.1.2/sysroot",
+            "-cpu",
+            "max,vlen=1024,elen=64,vext_spec=v1.0",
+            "-plugin",
+            "/tmp/a100-k3-candidate-phase1-review-ez6ha1ly/tools/profiling/full_instruction_counts.so,out=/home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/candidate-phase1-metrics/pristine/sigmoid-large-f32-t1/pair-1/r1/counts.json",
+            "/tmp/a100-k3-candidate-phase1-review-ez6ha1ly/annotated-cache/073e051e316d8ae07c750515178901bbeee8417cafc6cb8961099fa21be31727/operator_exec",
+            "--bundle",
+            "/home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/candidate-phase1-metrics/pristine/sigmoid-large-f32-t1/pair-1/r1/bundle/bundle.bin",
+            "--threads",
+            "1",
+            "--repeats",
+            "1"
+          ],
+          "raw_sha256": "55c036e6230f71488651302d39b238361f10dc179cc100b8378d057c21bc05c8",
+          "raw_path": "/home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/candidate-phase1-metrics/pristine/sigmoid-large-f32-t1/pair-1/r1/counts.json",
+          "runtime": {
+            "runtime": "a100rt/v1",
+            "status": "ok",
+            "threads": 1,
+            "repeats": 1,
+            "pool_initializations": 1,
+            "repeats_all_equal": true,
+            "workers": [
+              {
+                "id": 0,
+                "guest_tid": 1814023,
+                "items": 262144
+              }
+            ],
+            "bundle_bytes": 2097344
+          },
+          "comparison": {
+            "status": "PASS",
+            "max_abs_error": {
+              "y_ptr": 1.1920928955078125e-07
+            }
+          },
+          "elapsed_qemu_wall_s_auxiliary_only": 0.4380324431695044,
+          "repeats": 1
+        },
+        {
+          "command": [
+            "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64",
+            "-L",
+            "/home/i_yinzida/.local/opt/a100/toolchain-1.1.2/sysroot",
+            "-cpu",
+            "max,vlen=1024,elen=64,vext_spec=v1.0",
+            "-plugin",
+            "/tmp/a100-k3-candidate-phase1-review-ez6ha1ly/tools/profiling/full_instruction_counts.so,out=/home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/candidate-phase1-metrics/pristine/sigmoid-large-f32-t1/pair-1/r2/counts.json",
+            "/tmp/a100-k3-candidate-phase1-review-ez6ha1ly/annotated-cache/073e051e316d8ae07c750515178901bbeee8417cafc6cb8961099fa21be31727/operator_exec",
+            "--bundle",
+            "/home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/candidate-phase1-metrics/pristine/sigmoid-large-f32-t1/pair-1/r2/bundle/bundle.bin",
+            "--threads",
+            "1",
+            "--repeats",
+            "2"
+          ],
+          "raw_sha256": "389c84f0fa0d4023bec7ca4065e9faf948118719fa72d0f349c34c4eb9e6cbd4",
+          "raw_path": "/home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/candidate-phase1-metrics/pristine/sigmoid-large-f32-t1/pair-1/r2/counts.json",
+          "runtime": {
+            "runtime": "a100rt/v1",
+            "status": "ok",
+            "threads": 1,
+            "repeats": 2,
+            "pool_initializations": 1,
+            "repeats_all_equal": true,
+            "workers": [
+              {
+                "id": 0,
+                "guest_tid": 1814342,
+                "items": 262144
+              }
+            ],
+            "bundle_bytes": 2097344
+          },
+          "comparison": {
+            "status": "PASS",
+            "max_abs_error": {
+              "y_ptr": 1.1920928955078125e-07
+            }
+          },
+          "elapsed_qemu_wall_s_auxiliary_only": 0.8167495192028582,
+          "repeats": 2
+        }
+      ]
+    }
+  ],
+  "scope": "Production phase-1 candidate, before narrow/width additions; frozen sources recorded by CANDIDATE_PHASE1_SNAPSHOT.json; comment-only MIR attribution and diagnostic cache tag; no prototype imports; QEMU counts are not board timing."
+}

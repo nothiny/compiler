@@ -1,0 +1,44 @@
+{
+  "command": [
+    "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64",
+    "-L",
+    "/home/i_yinzida/.local/opt/a100/toolchain-1.1.2/sysroot",
+    "-cpu",
+    "max,vlen=1024,elen=64,vext_spec=v1.0",
+    "-plugin",
+    "/tmp/a100-k3-final-frozen-xg9tlcpp/tools/profiling/full_instruction_counts.so,out=/home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/final-metrics/candidate/sigmoid-large-f32-t1/pair-1/r1/counts.json",
+    "/tmp/a100-k3-final-frozen-xg9tlcpp/annotated-cache/c34c5eaf0c5d4da7391ada531bbfdea30aa65e4929256827338501a646a687b9/operator_exec",
+    "--bundle",
+    "/home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/final-metrics/candidate/sigmoid-large-f32-t1/pair-1/r1/bundle/bundle.bin",
+    "--threads",
+    "1",
+    "--repeats",
+    "1"
+  ],
+  "raw_sha256": "a5f7431c18109f95ebb636d60ba0531f2be522d20b81da85758ee7aeff24c14a",
+  "raw_path": "/home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/final-metrics/candidate/sigmoid-large-f32-t1/pair-1/r1/counts.json",
+  "runtime": {
+    "runtime": "a100rt/v1",
+    "status": "ok",
+    "threads": 1,
+    "repeats": 1,
+    "pool_initializations": 1,
+    "repeats_all_equal": true,
+    "workers": [
+      {
+        "id": 0,
+        "guest_tid": 2170555,
+        "items": 262144
+      }
+    ],
+    "bundle_bytes": 2097344
+  },
+  "comparison": {
+    "status": "PASS",
+    "max_abs_error": {
+      "y_ptr": 1.1920928955078125e-07
+    }
+  },
+  "elapsed_qemu_wall_s_auxiliary_only": 0.41938513377681375,
+  "repeats": 1
+}

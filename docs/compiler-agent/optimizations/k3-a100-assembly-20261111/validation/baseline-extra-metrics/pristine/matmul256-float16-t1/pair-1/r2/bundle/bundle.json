@@ -1,0 +1,84 @@
+{
+  "schema": "a100-native-io/v1",
+  "views": {
+    "a_ptr": {
+      "storage": 0,
+      "dtype": "float16",
+      "host_dtype": "float16",
+      "offset": 0,
+      "shape": [
+        256,
+        256
+      ],
+      "strides": [
+        512,
+        2
+      ],
+      "output": false
+    },
+    "b_ptr": {
+      "storage": 1,
+      "dtype": "float16",
+      "host_dtype": "float16",
+      "offset": 0,
+      "shape": [
+        256,
+        256
+      ],
+      "strides": [
+        512,
+        2
+      ],
+      "output": false
+    },
+    "y_ptr": {
+      "storage": 2,
+      "dtype": "float16",
+      "host_dtype": "float16",
+      "offset": 0,
+      "shape": [
+        256,
+        256
+      ],
+      "strides": [
+        512,
+        2
+      ],
+      "output": true
+    }
+  },
+  "view_order": [
+    "a_ptr",
+    "b_ptr",
+    "y_ptr"
+  ],
+  "scalar_order": [
+    "K",
+    "M",
+    "N"
+  ],
+  "scalar_types": {
+    "K": "int64",
+    "M": "int64",
+    "N": "int64"
+  },
+  "storages": [
+    {
+      "offset": 320,
+      "size": 131072
+    },
+    {
+      "offset": 131392,
+      "size": 131072
+    },
+    {
+      "offset": 262464,
+      "size": 131072
+    }
+  ],
+  "outputs": [
+    "y_ptr"
+  ],
+  "relocations": [],
+  "expected_outputs_included": false
+}

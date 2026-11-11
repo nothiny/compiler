@@ -1,0 +1,84 @@
+{
+  "schema": "a100-native-io/v1",
+  "views": {
+    "a_ptr": {
+      "storage": 0,
+      "dtype": "bfloat16",
+      "host_dtype": "float32",
+      "offset": 0,
+      "shape": [
+        16,
+        16
+      ],
+      "strides": [
+        32,
+        2
+      ],
+      "output": false
+    },
+    "b_ptr": {
+      "storage": 1,
+      "dtype": "bfloat16",
+      "host_dtype": "float32",
+      "offset": 0,
+      "shape": [
+        16,
+        16
+      ],
+      "strides": [
+        32,
+        2
+      ],
+      "output": false
+    },
+    "y_ptr": {
+      "storage": 2,
+      "dtype": "bfloat16",
+      "host_dtype": "float32",
+      "offset": 0,
+      "shape": [
+        16,
+        16
+      ],
+      "strides": [
+        32,
+        2
+      ],
+      "output": true
+    }
+  },
+  "view_order": [
+    "a_ptr",
+    "b_ptr",
+    "y_ptr"
+  ],
+  "scalar_order": [
+    "K",
+    "M",
+    "N"
+  ],
+  "scalar_types": {
+    "K": "int64",
+    "M": "int64",
+    "N": "int64"
+  },
+  "storages": [
+    {
+      "offset": 320,
+      "size": 512
+    },
+    {
+      "offset": 832,
+      "size": 512
+    },
+    {
+      "offset": 1344,
+      "size": 512
+    }
+  ],
+  "outputs": [
+    "y_ptr"
+  ],
+  "relocations": [],
+  "expected_outputs_included": false
+}
