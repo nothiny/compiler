@@ -121,6 +121,8 @@ class CompileOptions:
     kept_axis_reduction: bool = True
     neutral_reduction_trim: bool = True
     matrix_row_reuse: bool = True
+    guarded_narrow_access: bool = True
+    elementwise_width: bool = True
 
     def __post_init__(self):
         if os.environ.get("A100C_MATRIX_PACK", "").strip().lower() in \
@@ -132,7 +134,9 @@ class CompileOptions:
         for field_name, env_name in (
                 ("kept_axis_reduction", "A100C_KEPT_AXIS_REDUCTION"),
                 ("neutral_reduction_trim", "A100C_NEUTRAL_REDUCTION_TRIM"),
-                ("matrix_row_reuse", "A100C_MATRIX_ROW_REUSE")):
+                ("matrix_row_reuse", "A100C_MATRIX_ROW_REUSE"),
+                ("guarded_narrow_access", "A100C_GUARDED_NARROW_ACCESS"),
+                ("elementwise_width", "A100C_ELEMENTWISE_WIDTH")):
             if os.environ.get(env_name, "").strip().lower() in \
                     ("off", "0", "false", "no"):
                 setattr(self, field_name, False)
@@ -149,7 +153,8 @@ class CompileOptions:
         if self.vmath_libm:
             parts.append("vmath-libm")
         for field_name in ("kept_axis_reduction", "neutral_reduction_trim",
-                           "matrix_row_reuse"):
+                           "matrix_row_reuse", "guarded_narrow_access",
+                           "elementwise_width"):
             if not getattr(self, field_name):
                 parts.append("no-" + field_name.replace("_", "-"))
         if not self.dumps:
@@ -343,7 +348,9 @@ class Compiler:
             vmath_libm=self.options.vmath_libm,
             kept_axis_reduction=self.options.kept_axis_reduction,
             neutral_reduction_trim=self.options.neutral_reduction_trim,
-            matrix_row_reuse=self.options.matrix_row_reuse)
+            matrix_row_reuse=self.options.matrix_row_reuse,
+            guarded_narrow_access=self.options.guarded_narrow_access,
+            elementwise_width=self.options.elementwise_width)
         try:
             mir_module = vectorize.lower_to_mir(tir_module, plan, self.target,
                                                 layout, grid, options)

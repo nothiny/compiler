@@ -1,0 +1,29 @@
+PASS width edge 0 0
+PASS width edge 0 1
+PASS width edge 0 17
+PASS width edge 0 97
+PASS width edge 0 257
+PASS width edge 1 0
+PASS width edge 1 1
+PASS width edge 1 17
+PASS width edge 1 97
+PASS width edge 1 257
+PASS width edge 2 0
+PASS width edge 2 1
+PASS width edge 2 17
+PASS width edge 2 97
+PASS width edge 2 257
+PASS alias disjoint 97
+PASS alias in-place 97
+PASS alias positive-shift 17
+PASS alias negative-shift 97
+PASS same artifact for runtime aliases
+/home/i_yinzida/compiler-a100-experiment-001/ops/suite/perf/gelu.py:49: RuntimeWarning: scipy.special is unavailable; mathref falls back to the slow np.vectorize(math.*) path
+  return {"y_ptr": (0.5 * x64 * (1.0 + _verf(x64 / np.sqrt(2.0)))).astype(np.float32)}
+PASS GELU size reuse False 128
+PASS GELU size reuse False 262144
+PASS GELU size reuse False 128
+PASS GELU size reuse True 128
+PASS GELU size reuse True 262144
+PASS GELU size reuse True 128
+PASS 44 native width checks, including same-ELF runtime aliases and N reuse

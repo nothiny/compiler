@@ -119,6 +119,10 @@ class LowerOptions:
     #: Reuse one B vector across two independent FP32 matrix output rows;
     #: the ordinary path remains available for tails and rollback.
     matrix_row_reuse: bool = True
+    #: Pressure-budgeted lane-independent chunk widths.  False preserves
+    #: the original 32-lane strip-mined lowering without candidate cleanup.
+    elementwise_width: bool = True
+    guarded_narrow_access: bool = True
 
     def identity_part(self) -> str:
         parts = []
@@ -140,6 +144,10 @@ class LowerOptions:
             parts.append("no-neutral-reduction-trim")
         if not self.matrix_row_reuse:
             parts.append("no-matrix-row-reuse")
+        if not self.elementwise_width:
+            parts.append("no-elementwise-width")
+        if not self.guarded_narrow_access:
+            parts.append("no-guarded-narrow-access")
         return ",".join(parts) if parts else "default"
 
 
@@ -11777,6 +11785,20 @@ class SliceLowering:
                            offset_reg: mir.VReg, pointee: tir.Type,
                            mreg: Optional[mir.VReg], other, default,
                            loc, rtype_ty=None) -> mir.VReg:
+        from a100c.lower import narrow_access
+        fallback = lambda: self._lower_load_narrow_scalar(
+            ctx, op, base_reg, offset_reg, pointee, mreg, other, default,
+            loc, rtype_ty)
+        result = narrow_access.try_load(
+            self, ctx, op, base_reg, offset_reg, pointee, mreg, other,
+            default, loc, rtype_ty if rtype_ty is not None
+            else op.results[0].type, fallback)
+        return fallback() if result is None else result
+
+    def _lower_load_narrow_scalar(self, ctx: _Ctx, op: tir.Op, base_reg: mir.VReg,
+                                  offset_reg: mir.VReg, pointee: tir.Type,
+                                  mreg: Optional[mir.VReg], other, default,
+                                  loc, rtype_ty=None) -> mir.VReg:
         """The per-lane scalar loop of one sub-32-bit block load (the
         address vector's lanes redirect the disabled ones to the
         scratch's ``other`` slot -- no source access there; the width-
@@ -12089,7 +12111,19 @@ class SliceLowering:
     def _lower_store_narrow(self, ctx: _Ctx, base_reg: mir.VReg,
                             offset_reg: mir.VReg, pointee: tir.Type,
                             vreg: mir.VReg, mask_reg: Optional[mir.VReg],
-                            loc) -> Optional[mir.VReg]:
+                            loc, volatile=False) -> Optional[mir.VReg]:
+        from a100c.lower import narrow_access
+        fallback = lambda: self._lower_store_narrow_scalar(
+            ctx, base_reg, offset_reg, pointee, vreg, mask_reg, loc)
+        if narrow_access.try_store(self, ctx, base_reg, offset_reg, pointee,
+                                   vreg, mask_reg, loc, fallback, volatile):
+            return mask_reg
+        return fallback()
+
+    def _lower_store_narrow_scalar(self, ctx: _Ctx, base_reg: mir.VReg,
+                                   offset_reg: mir.VReg, pointee: tir.Type,
+                                   vreg: mir.VReg, mask_reg: Optional[mir.VReg],
+                                   loc) -> Optional[mir.VReg]:
         """The per-lane scalar loop of one sub-32-bit block store (the
         value staged to the workspace first; disabled lanes redirect to
         the scratch's guard slot -- no source access)."""
@@ -12275,7 +12309,8 @@ class SliceLowering:
             # perform the writes the indexed form cannot (no access at
             # disabled lanes)
             return self._lower_store_narrow(ctx, base_reg, offset_reg,
-                                            pointee, vreg, mask_reg, loc)
+                                            pointee, vreg, mask_reg, loc,
+                                            volatile=bool(op.attrs.get("volatile")))
         scaled, tree = addr_mod.materialize_address(
             ctx, base_reg, offset_reg, pointee, loc, self._vl, (self._sew, 1))
         self.trees.append(tree)
@@ -12395,4 +12430,14 @@ def lower_to_mir(tir_module: tir.Module, plan: ExecutionPlan,
     module.meta["stats_mode"] = ("elements" if lowering._count_reg is not None
                                  else "chunks" if lowering._stats_chunk_granular
                                  else "none")
-    return module
+    from a100c.lower.vector_width import choose
+    selected = choose(module, lowering.options.elementwise_width,
+                      tir_module, layout, lowering._views_reg)
+    factor = selected.meta["elementwise_width"]["factor"]
+    if factor > 1:
+        width = 32 * factor
+        total = sum(vl * count for vl, count in selected.meta["chunks"])
+        if total % width == 0:
+            plan.chunks = tuple((width, 1) for _ in range(total // width))
+            selected.meta["chunks"] = [list(chunk) for chunk in plan.chunks]
+    return selected

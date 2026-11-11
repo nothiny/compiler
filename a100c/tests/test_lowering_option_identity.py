@@ -20,9 +20,11 @@ from opslib.runner import load_operator
 
 
 def main():
-    fields = ("kept_axis_reduction", "neutral_reduction_trim", "matrix_row_reuse")
+    fields = ("kept_axis_reduction", "neutral_reduction_trim", "matrix_row_reuse",
+              "guarded_narrow_access", "elementwise_width")
     env_names = ("A100C_KEPT_AXIS_REDUCTION", "A100C_NEUTRAL_REDUCTION_TRIM",
-                 "A100C_MATRIX_ROW_REUSE")
+                 "A100C_MATRIX_ROW_REUSE", "A100C_GUARDED_NARROW_ACCESS",
+                 "A100C_ELEMENTWISE_WIDTH")
     saved = {name: os.environ.pop(name, None) for name in env_names}
     original_lower = vectorize.lower_to_mir
     seen = []
@@ -63,7 +65,7 @@ def main():
                                      "threads": threads, "comparison": verdict,
                                      "specialization_identity": artifact.identity,
                                      "cache_key": artifact.executable.parent.name})
-                assert len(set(keys)) == 4
+                assert len(set(keys)) == len(fields) + 1
             for field, env_name in zip(fields, env_names):
                 os.environ[env_name] = "off"
                 option = driver.CompileOptions()
@@ -78,8 +80,8 @@ def main():
     out = os.environ.get("A100C_OPTION_IDENTITY_EVIDENCE")
     if out:
         Path(out).write_text(json.dumps({"rows": rows, "all_pass": True}, indent=2))
-    print("test_lowering_option_identity: 8 distinct compiled artifacts, "
-          "16 native original comparisons, both entry points PASS")
+    print(f"test_lowering_option_identity: {2 * (len(fields) + 1)} distinct compiled artifacts, "
+          f"{4 * (len(fields) + 1)} native original comparisons, both entry points PASS")
     return 0
 
 
