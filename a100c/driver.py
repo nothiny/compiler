@@ -116,6 +116,11 @@ class CompileOptions:
     #: path -- the on/off contrast and rollback.  Env route:
     #: A100C_VMATH_LIBM=1.
     vmath_libm: bool = False
+    #: Structurally guarded lowering optimizations. Disabled forms are
+    #: retained for controlled comparisons and have distinct artifact keys.
+    kept_axis_reduction: bool = True
+    neutral_reduction_trim: bool = True
+    matrix_row_reuse: bool = True
 
     def __post_init__(self):
         if os.environ.get("A100C_MATRIX_PACK", "").strip().lower() in \
@@ -124,6 +129,13 @@ class CompileOptions:
         if os.environ.get("A100C_VMATH_LIBM", "").strip().lower() in \
                 ("libm", "1", "true", "yes", "on"):
             self.vmath_libm = True
+        for field_name, env_name in (
+                ("kept_axis_reduction", "A100C_KEPT_AXIS_REDUCTION"),
+                ("neutral_reduction_trim", "A100C_NEUTRAL_REDUCTION_TRIM"),
+                ("matrix_row_reuse", "A100C_MATRIX_ROW_REUSE")):
+            if os.environ.get(env_name, "").strip().lower() in \
+                    ("off", "0", "false", "no"):
+                setattr(self, field_name, False)
     def identity_part(self) -> str:
         parts = []
         if self.witness_drop_tail_predicates:
@@ -136,6 +148,10 @@ class CompileOptions:
             parts.append("matrix-scalar-pack")
         if self.vmath_libm:
             parts.append("vmath-libm")
+        for field_name in ("kept_axis_reduction", "neutral_reduction_trim",
+                           "matrix_row_reuse"):
+            if not getattr(self, field_name):
+                parts.append("no-" + field_name.replace("_", "-"))
         if not self.dumps:
             parts.append("no-dumps")      # dumps do not affect the ELF
         return ",".join(parts) if parts else "default"
@@ -324,7 +340,10 @@ class Compiler:
             # honor them here too (the plain-driver path predated the
             # matrix pack switch and silently ignored it; W1 adds both)
             matrix_scalar_pack=self.options.matrix_scalar_pack,
-            vmath_libm=self.options.vmath_libm)
+            vmath_libm=self.options.vmath_libm,
+            kept_axis_reduction=self.options.kept_axis_reduction,
+            neutral_reduction_trim=self.options.neutral_reduction_trim,
+            matrix_row_reuse=self.options.matrix_row_reuse)
         try:
             mir_module = vectorize.lower_to_mir(tir_module, plan, self.target,
                                                 layout, grid, options)
