@@ -149,7 +149,10 @@ class FactoryCompiler(Compiler):
             witness_drop_stage_barrier=self.options.witness_drop_stage_barrier,
             witness_drop_atomic_masks=self.options.witness_drop_atomic_masks,
             matrix_scalar_pack=self.options.matrix_scalar_pack,
-            vmath_libm=self.options.vmath_libm)
+            vmath_libm=self.options.vmath_libm,
+            kept_axis_reduction=self.options.kept_axis_reduction,
+            neutral_reduction_trim=self.options.neutral_reduction_trim,
+            matrix_row_reuse=self.options.matrix_row_reuse)
         try:
             mir_module = vectorize.lower_to_mir(tir_module, plan, self.target,
                                                 layout, grid, options)

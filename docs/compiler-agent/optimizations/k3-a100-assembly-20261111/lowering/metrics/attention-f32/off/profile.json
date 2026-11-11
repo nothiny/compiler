@@ -1,0 +1,210 @@
+{
+  "project": "/tmp/a100-k3-lowering-frozen-y111s6ff",
+  "revision": "b5c42fbb75a242a8",
+  "mode": "off",
+  "operator": "suite/perf/attention_forward_triton.py",
+  "shape": [
+    4,
+    4,
+    32,
+    64
+  ],
+  "dtype": "float32",
+  "threads": 1,
+  "original_case_shape": true,
+  "options": "no-kept-axis-reduction,no-neutral-reduction-trim,no-matrix-row-reuse",
+  "artifact_sha256": "1c8ff7a2d3cd45340ba898affaa8fc65bc4bee2ae8484b327dd939956934904d",
+  "artifact_key": "9bdd3d59b4c596111ed4e5342ceb85310488eb6419f2a895deb769a7d716dcce",
+  "assembly_sha256": "9a7dbd625de392860e39bb8b6257d63fcf5b23e703916a88a57384b59f4d6c5f",
+  "program_pc_interval": [
+    70918,
+    76410
+  ],
+  "assembly_bytes_verified": true,
+  "plugin_sha256": "f600c8cf2f470151c1ff7d55f7b804ffce8e6dadbad96bd1b3817320c15693c6",
+  "raw_directory": "/tmp/a100-k3-pc-profile-sxwdymn5",
+  "runs": [
+    {
+      "pair": 0,
+      "repeats": 1,
+      "command": [
+        "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64",
+        "-L",
+        "/home/i_yinzida/.local/opt/a100/toolchain-1.1.2/sysroot",
+        "-cpu",
+        "max,vlen=1024,elen=64,vext_spec=v1.0",
+        "-plugin",
+        "/tmp/a100-k3-lowering-frozen-y111s6ff/tools/profiling/full_instruction_counts.so,out=/tmp/a100-k3-pc-profile-sxwdymn5/pair-0-r1/counts.json",
+        "/tmp/a100-k3-lowering-frozen-y111s6ff/metric-cache/9bdd3d59b4c596111ed4e5342ceb85310488eb6419f2a895deb769a7d716dcce/operator_exec",
+        "--bundle",
+        "/tmp/a100-k3-pc-profile-sxwdymn5/pair-0-r1/bundle.bin",
+        "--threads",
+        "1",
+        "--repeats",
+        "1"
+      ],
+      "comparison": {
+        "status": "PASS",
+        "max_abs_error": {
+          "out_ptr": 8.940696716308594e-08
+        }
+      },
+      "runtime": {
+        "runtime": "a100rt/v1",
+        "status": "ok",
+        "threads": 1,
+        "repeats": 1,
+        "pool_initializations": 1,
+        "repeats_all_equal": true,
+        "workers": [
+          {
+            "id": 0,
+            "guest_tid": 1686980,
+            "items": 5521408
+          }
+        ],
+        "bundle_bytes": 525056
+      },
+      "counts_path": "/tmp/a100-k3-pc-profile-sxwdymn5/pair-0-r1/counts.json",
+      "counts_sha256": "aa8dc08d529c29de106209570245f48412a1678bbd68253194f7e2117bea584d"
+    },
+    {
+      "pair": 0,
+      "repeats": 3,
+      "command": [
+        "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64",
+        "-L",
+        "/home/i_yinzida/.local/opt/a100/toolchain-1.1.2/sysroot",
+        "-cpu",
+        "max,vlen=1024,elen=64,vext_spec=v1.0",
+        "-plugin",
+        "/tmp/a100-k3-lowering-frozen-y111s6ff/tools/profiling/full_instruction_counts.so,out=/tmp/a100-k3-pc-profile-sxwdymn5/pair-0-r3/counts.json",
+        "/tmp/a100-k3-lowering-frozen-y111s6ff/metric-cache/9bdd3d59b4c596111ed4e5342ceb85310488eb6419f2a895deb769a7d716dcce/operator_exec",
+        "--bundle",
+        "/tmp/a100-k3-pc-profile-sxwdymn5/pair-0-r3/bundle.bin",
+        "--threads",
+        "1",
+        "--repeats",
+        "3"
+      ],
+      "comparison": {
+        "status": "PASS",
+        "max_abs_error": {
+          "out_ptr": 8.940696716308594e-08
+        }
+      },
+      "runtime": {
+        "runtime": "a100rt/v1",
+        "status": "ok",
+        "threads": 1,
+        "repeats": 3,
+        "pool_initializations": 1,
+        "repeats_all_equal": true,
+        "workers": [
+          {
+            "id": 0,
+            "guest_tid": 1687031,
+            "items": 5521408
+          }
+        ],
+        "bundle_bytes": 525056
+      },
+      "counts_path": "/tmp/a100-k3-pc-profile-sxwdymn5/pair-0-r3/counts.json",
+      "counts_sha256": "d902b3365ac8efca77b018d6017b60ae282c330b26609c557006935c99b64870"
+    },
+    {
+      "pair": 1,
+      "repeats": 1,
+      "command": [
+        "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64",
+        "-L",
+        "/home/i_yinzida/.local/opt/a100/toolchain-1.1.2/sysroot",
+        "-cpu",
+        "max,vlen=1024,elen=64,vext_spec=v1.0",
+        "-plugin",
+        "/tmp/a100-k3-lowering-frozen-y111s6ff/tools/profiling/full_instruction_counts.so,out=/tmp/a100-k3-pc-profile-sxwdymn5/pair-1-r1/counts.json",
+        "/tmp/a100-k3-lowering-frozen-y111s6ff/metric-cache/9bdd3d59b4c596111ed4e5342ceb85310488eb6419f2a895deb769a7d716dcce/operator_exec",
+        "--bundle",
+        "/tmp/a100-k3-pc-profile-sxwdymn5/pair-1-r1/bundle.bin",
+        "--threads",
+        "1",
+        "--repeats",
+        "1"
+      ],
+      "comparison": {
+        "status": "PASS",
+        "max_abs_error": {
+          "out_ptr": 8.940696716308594e-08
+        }
+      },
+      "runtime": {
+        "runtime": "a100rt/v1",
+        "status": "ok",
+        "threads": 1,
+        "repeats": 1,
+        "pool_initializations": 1,
+        "repeats_all_equal": true,
+        "workers": [
+          {
+            "id": 0,
+            "guest_tid": 1687146,
+            "items": 5521408
+          }
+        ],
+        "bundle_bytes": 525056
+      },
+      "counts_path": "/tmp/a100-k3-pc-profile-sxwdymn5/pair-1-r1/counts.json",
+      "counts_sha256": "d746129c2da2c4e1569fab0350d90214bb50a9e52c31d76a9e6e22d548ebbfc2"
+    },
+    {
+      "pair": 1,
+      "repeats": 3,
+      "command": [
+        "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64",
+        "-L",
+        "/home/i_yinzida/.local/opt/a100/toolchain-1.1.2/sysroot",
+        "-cpu",
+        "max,vlen=1024,elen=64,vext_spec=v1.0",
+        "-plugin",
+        "/tmp/a100-k3-lowering-frozen-y111s6ff/tools/profiling/full_instruction_counts.so,out=/tmp/a100-k3-pc-profile-sxwdymn5/pair-1-r3/counts.json",
+        "/tmp/a100-k3-lowering-frozen-y111s6ff/metric-cache/9bdd3d59b4c596111ed4e5342ceb85310488eb6419f2a895deb769a7d716dcce/operator_exec",
+        "--bundle",
+        "/tmp/a100-k3-pc-profile-sxwdymn5/pair-1-r3/bundle.bin",
+        "--threads",
+        "1",
+        "--repeats",
+        "3"
+      ],
+      "comparison": {
+        "status": "PASS",
+        "max_abs_error": {
+          "out_ptr": 8.940696716308594e-08
+        }
+      },
+      "runtime": {
+        "runtime": "a100rt/v1",
+        "status": "ok",
+        "threads": 1,
+        "repeats": 3,
+        "pool_initializations": 1,
+        "repeats_all_equal": true,
+        "workers": [
+          {
+            "id": 0,
+            "guest_tid": 1687194,
+            "items": 5521408
+          }
+        ],
+        "bundle_bytes": 525056
+      },
+      "counts_path": "/tmp/a100-k3-pc-profile-sxwdymn5/pair-1-r3/counts.json",
+      "counts_sha256": "b02e3bb9884b91aef5a8e5709beeb4d3c3b46270d2cf0c273c3bc262ff65076b"
+    }
+  ],
+  "pairs": [
+    48742076,
+    48742076
+  ],
+  "unit": "guest program instructions per complete native launch, all workers summed",
+  "instructions_per_launch": 48742076
+}

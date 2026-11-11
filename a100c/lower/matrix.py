@@ -2301,7 +2301,85 @@ class _Composed:
     # =====================================================================
     # The vector-FP32 path (fp32 IEEE and bf16)
     # =====================================================================
+    def _emit_vector_rows(self, row_count: int) -> dict:
+        """Reuse B across independent rows with affine K pointer recurrences.
+
+        The caller proves complete rows and N chunks.  All accesses remain
+        within dense, private FP32 staging records (including exact BF16
+        widenings); each output retains its original K-ordered FMA chain.
+        """
+        iface, spec, plan = self.if_, self.spec, self.plan
+        loc = spec.loc
+        chunk = min(plan.vector_chunk, self.N)
+        lmul = plan.vector_chunk_lmul
+        while chunk * 32 > self._vlen_bits * lmul:
+            lmul *= 2
+        vtype = mir.VectorType(32, lmul, "float")
+        ws = iface.ws(loc)
+        a0 = self._sadd(ws, self._k(spec.a_rec["offset"]), "vra0")
+        b0 = self._sadd(ws, self._k(spec.b_rec["offset"]), "vrb0")
+        r0 = self._sadd(ws, self._k(spec.res_rec["offset"]), "vrr0")
+        c0 = self._sadd(ws, self._k(spec.acc_rec["offset"]), "vrc0") \
+            if plan.acc_mode == "chain" else None
+        mf = iface.loop(self._k(0), self._k(self.M), [], loc, iface.tag("vrm"))
+        m = mf.params[0]
+        cf = iface.loop(self._k(0), self._k(self.N), [], loc, iface.tag("vrc"))
+        c = cf.params[0]
+        arow = self._sadd(a0, self._smul(m, self._k(self.K * 4), "vram"), "vrar")
+        brow = self._sadd(b0, self._smul(c, self._k(4), "vrbc"), "vrbr")
+        output_offset = self._sadd(
+            self._smul(m, self._k(self.N * 4), "vrrm"),
+            self._smul(c, self._k(4), "vrrc"), "vrro")
+        out = self._sadd(r0, output_offset, "vrrp")
+        iface.region(32, lmul, chunk, loc)
+        zero = self._splat(self._k32(0), vtype, "vrzero")
+        initial = []
+        for row in range(row_count):
+            if c0 is None:
+                initial.append(zero)
+            else:
+                address = self._sadd(c0, output_offset, "vrcp")
+                if row:
+                    address = self._sadd(address, self._k(row * self.N * 4), "vrcr")
+                initial.append(self._vload_unit(address, vtype, chunk, None, "vrc"))
+        kf = iface.loop(self._k(0), self._k(self.K),
+                        [*initial, arow, brow], loc, iface.tag("vrk"))
+        k = kf.params[0]
+        ap, bp = kf.params[1 + row_count:3 + row_count]
+        b = self._vload_unit(bp, vtype, chunk, None, "vrb")
+        updated = []
+        for row in range(row_count):
+            address = ap if row == 0 else self._sadd(
+                ap, self._k(row * self.K * 4), "vrap")
+            a = self._sload(address, 0, 32, "sext", "vra")
+            iface.region(32, lmul, chunk, loc)
+            av = self._splat(a, vtype, "vras")
+            updated.append(iface.emit(mir.MOp(
+                "vfmacc", [b, av, kf.params[1 + row]],
+                [iface.vreg(vtype, hint="vrfma", loc=loc)], loc=loc)))
+        iface.close(kf, [self._sadd(k, self._k(1), "vrkn"), *updated,
+                          self._sadd(ap, self._k(4), "vran"),
+                          self._sadd(bp, self._k(self.N * 4), "vrbn")], loc)
+        for row in range(row_count):
+            address = out if row == 0 else self._sadd(
+                out, self._k(row * self.N * 4), "vror")
+            self._vstore_unit(address, kf.exit.params[1 + row], chunk, None)
+        iface.close(cf, [self._sadd(c, self._k(chunk), "vrcn")], loc)
+        iface.close(mf, [self._sadd(m, self._k(row_count), "vrmn")], loc)
+        return {"path": "vector-fp32", "vector_chunk": chunk,
+                "ieee": plan.ieee, "bf16_gap": plan.bf16_gap,
+                "row_block": row_count, "pointer_recurrence": True,
+                "per_output_K_FMA_order": "unchanged"}
+
     def emit_vector(self) -> dict:
+        options = getattr(self.if_.sl, "options", None)
+        chunk = min(self.plan.vector_chunk, self.N)
+        # A small, bounded register block.  Odd M or partial N chunks keep
+        # the original masked row kernel; never access a padded source.
+        if getattr(options, "matrix_row_reuse", True) and \
+                self.M % 2 == 0 and self.N % chunk == 0 and \
+                self.plan.vector_chunk_lmul == 1:
+            return self._emit_vector_rows(2)
         if_ = self.if_
         spec, plan = self.spec, self.plan
         loc = spec.loc

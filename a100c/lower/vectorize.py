@@ -109,6 +109,16 @@ class LowerOptions:
     #: set.  Env route (the A100C_PASS_* switches' pattern):
     #: A100C_VMATH_LIBM=1.
     vmath_libm: bool = False
+    #: Independent output lanes of a non-last-axis FP32 sum keep the
+    #: original per-output addition order, while loading a contiguous
+    #: suffix in parallel.  False retains the scalar reduction walk.
+    kept_axis_reduction: bool = True
+    #: Skip wholly inactive chunks only after proving that each reduction
+    #: explicitly supplies its exact identity outside one shared mask.
+    neutral_reduction_trim: bool = True
+    #: Reuse one B vector across two independent FP32 matrix output rows;
+    #: the ordinary path remains available for tails and rollback.
+    matrix_row_reuse: bool = True
 
     def identity_part(self) -> str:
         parts = []
@@ -124,6 +134,12 @@ class LowerOptions:
             parts.append("matrix-scalar-pack")
         if self.vmath_libm:
             parts.append("vmath-libm")
+        if not self.kept_axis_reduction:
+            parts.append("no-kept-axis-reduction")
+        if not self.neutral_reduction_trim:
+            parts.append("no-neutral-reduction-trim")
+        if not self.matrix_row_reuse:
+            parts.append("no-matrix-row-reuse")
         return ",".join(parts) if parts else "default"
 
 
@@ -458,6 +474,9 @@ class SliceLowering:
         self._pass_bound: set = set()
         #: layout staging counter (IR-OBSERVABILITY: the countable record)
         self._layout_stagings: List[dict] = []
+        self._kept_axis_reductions: List[dict] = []
+        self._neutral_trim_proofs: List[dict] = []
+        self._geometry_boundary_closes = 0
         #: T028: a pass split fired at a partial consumer (the two-phase
         #: worker split cannot host mid-region merged-value consumers)
         self._pass_split_at_partial = False
@@ -4476,6 +4495,113 @@ class SliceLowering:
     ))
 
     def _chunk_clamp_bound(self, fn: tir.Function):
+        ordinary = self._elementwise_chunk_clamp_bound(fn)
+        if ordinary is not None or not self.options.neutral_reduction_trim:
+            return ordinary
+        return self._neutral_reduction_clamp_bound(fn)
+
+    def _neutral_reduction_clamp_bound(self, fn: tir.Function):
+        """Prove a common live prefix across a rank-one reduction pipeline.
+
+        Every external memory operation must share the very same prefix
+        mask, and every sum/min/max must explicitly select its own identity
+        outside that mask.  The remaining operations are lane-wise and
+        side-effect free.  Partial chunks retain the existing mask and
+        combine sequence; only wholly inactive chunks disappear.  A
+        non-neutral default, index reduction, control-flow region, volatile
+        access or differing pass extent declines the rewrite.
+        """
+        import math
+
+        if any(not isinstance(st, tir.Op) for st in fn.body.statements):
+            return None
+        params = [p for p in self._pass_params if p is not None]
+        if not params or len({p["extent"] for p in params}) != 1:
+            return None
+        extent = params[0]["extent"]
+        mask_value = bound = None
+        terms = None
+        reductions = []
+        for op in fn.body.statements:
+            if op.op in ("load", "store"):
+                if op.attrs.get("volatile"):
+                    return None
+                slot = 1 if op.op == "load" else 2
+                mask = op.operands[slot] if len(op.operands) > slot else None
+                if mask is None or mask.rank != 1:
+                    return None
+                if mask_value is None:
+                    pred = mask.producer
+                    if pred is None or pred.op != "cmp.lt":
+                        return None
+                    lhs, rhs = pred.operands
+                    if rhs.producer is not None and \
+                            rhs.producer.op == "broadcast" and \
+                            rhs.producer.operands[0].rank == 0:
+                        rhs = rhs.producer.operands[0]
+                    split = scalar_mod._split_arange_sum(lhs)
+                    if split is None or split[1] != 1 or rhs.rank != 0:
+                        return None
+                    # The chunk bound uses a signed comparison.  Restrict
+                    # this proof to an unshifted, signed prefix: arbitrary
+                    # source-width offset sums can wrap before comparing,
+                    # and unsigned high-bit bounds need a separate proof.
+                    if split[0] or not rhs.type.is_int_signed() or \
+                            rhs.type.width not in (32, 64):
+                        return None
+                    arange = split[2]
+                    if arange.attrs.get("start", 0) != 0 or \
+                            arange.attrs["end"] != extent:
+                        return None
+                    mask_value, bound, terms = mask, rhs, list(split[0])
+                elif mask.vid != mask_value.vid:
+                    return None
+            elif op.op == "reduce":
+                reductions.append(op)
+            elif op.op in self._CLAMP_SAFE_OPS or op.op.startswith(
+                    ("arith.", "bit.", "cmp.", "math.")):
+                continue
+            else:
+                return None
+        if mask_value is None or not reductions:
+            return None
+        for op in reductions:
+            kind = op.attrs.get("kind")
+            if kind not in ("sum", "max", "min") or \
+                    op.attrs.get("return_indices") or \
+                    tuple(op.attrs.get("axes", ())) != (0,):
+                return None
+            value = op.operands[0]
+            prod = value.producer
+            # An exact widening preserves 0 and +/-infinity.  Other
+            # conversions can change identity bits and are not crossed.
+            while prod is not None and prod.op == "convert" and \
+                    value.type.is_float() and value.type.bitwidth() == 32 and \
+                    prod.operands[0].type.is_float() and \
+                    prod.operands[0].type.bitwidth() == 16:
+                value, prod = prod.operands[0], prod.operands[0].producer
+            if prod is None or prod.op != "select.where" or \
+                    prod.operands[0].vid != mask_value.vid or \
+                    value.rank != 1 or int(value.shape[0].value) != extent:
+                return None
+            neutral = prod.operands[2]
+            cprod = neutral.producer
+            while cprod is not None and cprod.op in ("broadcast", "realize", "hint"):
+                neutral, cprod = cprod.operands[0], cprod.operands[0].producer
+            wanted = {"sum": 0, "max": -math.inf, "min": math.inf}[kind]
+            if cprod is None or cprod.op != "const" or \
+                    cprod.attrs.get("value") != wanted:
+                return None
+        for value in [*terms, bound]:
+            if self.value(value) is None or value.type.width != bound.type.width:
+                return None
+        proof = {"extent": extent, "reductions": len(reductions),
+                 "proof": "shared-prefix-mask-and-explicit-reduction-identities"}
+        if proof not in self._neutral_trim_proofs:
+            self._neutral_trim_proofs.append(proof)
+        return bound, terms
+
+    def _elementwise_chunk_clamp_bound(self, fn: tir.Function):
         """P1: the per-instance live-element bound of the chunk loop.
 
         Valid when every memory op in the function (any nesting depth)
@@ -5786,6 +5912,94 @@ class SliceLowering:
         scalar_mod.close_loop(ctx, kframe, [k_next])
         ctx.switch(kframe.exit)
 
+    def _preduce_kept_axis(self, ctx: _Ctx, op: tir.Op, kind: str,
+                           vtype: mir.VectorType, src_base: mir.VReg,
+                           esz: int, K: int, axes, T: int,
+                           res_rec: dict, idx_rec, loc) -> bool:
+        """SIMD independent columns, retaining each column's sum order.
+
+        Contiguous reduced axes followed by a contiguous kept suffix have
+        flattened address ``(prefix*T + reduction)*suffix + column``.
+        A chunk never crosses that suffix's boundary.  Each vector lane
+        visits reduction positions 0..T-1 in the original order, using the
+        same FP32 add and stored input values as the scalar walk.  The
+        source and destination are compiler-owned dense staging records;
+        no external load, conversion, product or FMA boundary moves.
+        """
+        if not self.options.kept_axis_reduction or kind != "sum" or \
+                idx_rec is not None or not axes or \
+                tuple(axes) != tuple(range(min(axes), max(axes) + 1)) or \
+                max(axes) >= op.operands[0].rank - 1 or \
+                vtype != mir.VectorType(32, 1, "float") or \
+                esz != 4 or res_rec["esz"] != 4 or K < 2 or T < 1:
+            return False
+        suffix = 1
+        for extent in op.operands[0].shape[max(axes) + 1:]:
+            suffix *= int(extent.value)
+        width = min(self.target.vlmax(32, 1), suffix)
+        while width > 1 and suffix % width:
+            width //= 2
+        if width < 2:
+            return False
+
+        def binary(code, lhs, rhs, hint):
+            return ctx.emit(mir.MOp(
+                code, [lhs, rhs], [ctx.vreg(mir.I64, hint=hint, loc=loc)],
+                loc=loc))
+
+        def constant(value):
+            return ctx.const(value, mir.I64, loc)
+
+        ws = self._workspace_private_reg(ctx, loc)
+        dst = binary("sadd", ws, constant(res_rec["offset"]), "krdst")
+        cols = scalar_mod.begin_counted_loop(
+            ctx, constant(0), constant(K), [], loc, self._tag("krcols"))
+        column = cols.params[0]
+        # Compute the invariant row address once; the inner loop advances
+        # a pointer by suffix*4 rather than decomposing coordinates again.
+        prefix = binary("sdivu", column, constant(suffix), "krprefix")
+        within = binary("ssub", column,
+                        binary("smul", prefix, constant(suffix), "krpfx"),
+                        "krwithin")
+        first = binary("sadd",
+                       binary("smul", prefix, constant(T * suffix), "kroff"),
+                       within, "krflat")
+        start = binary("sadd", src_base,
+                       binary("smul", first, constant(4), "krbyte"), "krsrc")
+        self._vregion(ctx, vtype, loc, vl=width)
+        zero = ctx.emit(mir.MOp(
+            "s2v", [ctx.const(0, mir.I32, loc)],
+            [ctx.vreg(vtype, hint="krzero", loc=loc)], loc=loc))
+        rows = scalar_mod.begin_counted_loop(
+            ctx, constant(0), constant(T), [zero, start], loc,
+            self._tag("krrows"))
+        row, acc, address = rows.params
+        self._vregion(ctx, vtype, loc, vl=width)
+        value = ctx.emit(mir.MOp(
+            "vunit_load", [address], [ctx.vreg(vtype, hint="krload", loc=loc)],
+            attrs={"sew": 32}, loc=loc))
+        added = ctx.emit(mir.MOp(
+            "vbin", [acc, value], [ctx.vreg(vtype, hint="kradd", loc=loc)],
+            attrs={"op": "add"}, loc=loc))
+        scalar_mod.close_loop(ctx, rows, [
+            binary("sadd", row, constant(1), "krnext"), added,
+            binary("sadd", address, constant(suffix * 4), "kradvance")])
+        ctx.switch(rows.exit)
+        destination = binary("sadd", dst,
+                             binary("smul", column, constant(4), "kroutoff"),
+                             "krout")
+        self._vregion(ctx, vtype, loc, vl=width)
+        ctx.emit0(mir.MOp("vunit_store", [destination, rows.exit.params[1]],
+                          [], attrs={"sew": 32}, loc=loc))
+        scalar_mod.close_loop(ctx, cols, [
+            binary("sadd", column, constant(width), "krcolnext")])
+        ctx.switch(cols.exit)
+        self._kept_axis_reductions.append({
+            "kind": kind, "axes": list(axes), "rows": T, "columns": K,
+            "suffix": suffix, "width": width,
+            "per_output_order": "unchanged", "loc": str(loc)})
+        return True
+
     def _preduce_general(self, ctx: _Ctx, fn: tir.Function, op: tir.Op,
                          kind: str, lane_vtype: mir.VectorType, lane_ty,
                          src_base: mir.VReg, esz: int, strides, kept,
@@ -5797,6 +6011,9 @@ class SliceLowering:
         is hoisted out of the inner loop; the reduced axes' contribution
         decomposes t).  The index forms track the reduced-axis position of
         the best element under the declared tie-break."""
+        if self._preduce_kept_axis(ctx, op, kind, lane_vtype, src_base,
+                                   esz, K, axes, T, res_rec, idx_rec, loc):
+            return
         sty = self._preduce_lane_scalar_type(lane_vtype)
         index_form = kind in ("argmax", "argmin")
         ret_idx = bool(op.attrs.get("return_indices"))
@@ -12170,6 +12387,9 @@ def lower_to_mir(tir_module: tir.Module, plan: ExecutionPlan,
     module.meta["chunks"] = [[vl, n] for vl, n in plan.chunks]
     module.meta["address_trees"] = [t.describe() for t in lowering.trees]
     module.meta["wide_selections"] = list(lowering._wide_selections)
+    module.meta["kept_axis_reductions"] = list(lowering._kept_axis_reductions)
+    module.meta["neutral_reduction_trims"] = list(lowering._neutral_trim_proofs)
+    module.meta["chunk_geometry_boundary_closes"] = lowering._geometry_boundary_closes
     module.meta["witness"] = lowering.options.identity_part()
     module.meta["grid"] = lowering.grid.describe()
     module.meta["stats_mode"] = ("elements" if lowering._count_reg is not None

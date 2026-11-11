@@ -1,0 +1,108 @@
+{
+  "scope": "three lowering mechanisms off/on with fixed backend and geometry, no real-board speedup",
+  "metric": "guest program instructions per launch, all workers summed",
+  "samples": [
+    {
+      "name": "attention-f32",
+      "operator": "suite/perf/attention_forward_triton.py",
+      "shape": [
+        4,
+        4,
+        32,
+        64
+      ],
+      "dtype": "float32",
+      "threads": 1,
+      "original_case_shape": true,
+      "off": 48742076,
+      "on": 18629308,
+      "reduction_percent": 61.78,
+      "off_evidence": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/lowering/metrics/attention-f32/off/profile.json",
+      "on_evidence": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/lowering/metrics/attention-f32/on/profile.json"
+    },
+    {
+      "name": "matmul-bf16",
+      "operator": "suite/perf/matmul.py",
+      "shape": [
+        16,
+        16,
+        16
+      ],
+      "dtype": "bfloat16",
+      "threads": 1,
+      "original_case_shape": true,
+      "off": 51822,
+      "on": 39730,
+      "reduction_percent": 23.334,
+      "off_evidence": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/lowering/metrics/matmul-bf16/off/profile.json",
+      "on_evidence": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/lowering/metrics/matmul-bf16/on/profile.json"
+    },
+    {
+      "name": "matmul-f32",
+      "operator": "suite/perf/matmul.py",
+      "shape": [
+        16,
+        16,
+        16
+      ],
+      "dtype": "float32",
+      "threads": 1,
+      "original_case_shape": true,
+      "off": 31676,
+      "on": 19583,
+      "reduction_percent": 38.177,
+      "off_evidence": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/lowering/metrics/matmul-f32/off/profile.json",
+      "on_evidence": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/lowering/metrics/matmul-f32/on/profile.json"
+    },
+    {
+      "name": "matrix-ime-f16",
+      "operator": "suite/perf/matmul.py",
+      "shape": [
+        16,
+        16,
+        16
+      ],
+      "dtype": "float16",
+      "threads": 1,
+      "original_case_shape": true,
+      "off": 34520,
+      "on": 34520,
+      "reduction_percent": 0.0,
+      "off_evidence": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/lowering/metrics/matrix-ime-f16/off/profile.json",
+      "on_evidence": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/lowering/metrics/matrix-ime-f16/on/profile.json"
+    },
+    {
+      "name": "matrix-large-f32",
+      "operator": "suite/perf/matmul.py",
+      "shape": [
+        256,
+        256,
+        256
+      ],
+      "dtype": "float32",
+      "threads": 1,
+      "original_case_shape": false,
+      "off": 55710022,
+      "on": 30906443,
+      "reduction_percent": 44.523,
+      "off_evidence": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/lowering/metrics/matrix-large-f32/off/profile.json",
+      "on_evidence": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/lowering/metrics/matrix-large-f32/on/profile.json"
+    },
+    {
+      "name": "softmax-f32",
+      "operator": "suite/perf/softmax.py",
+      "shape": [
+        4,
+        97
+      ],
+      "dtype": "float32",
+      "threads": 1,
+      "original_case_shape": true,
+      "off": 36267,
+      "on": 5216,
+      "reduction_percent": 85.618,
+      "off_evidence": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/lowering/metrics/softmax-f32/off/profile.json",
+      "on_evidence": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/lowering/metrics/softmax-f32/on/profile.json"
+    }
+  ]
+}
