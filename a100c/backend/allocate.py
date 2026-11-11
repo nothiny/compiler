@@ -46,7 +46,7 @@ from a100c.ir import mir
 from a100c.target import TargetModel
 
 __all__ = ["AllocationError", "Allocation", "allocate", "GPR_NAMES",
-           "ALLOCATABLE_GPRS", "CALLER_SAVED"]
+           "ALLOCATABLE_GPRS", "CALLER_SAVED", "register_pressure"]
 
 #: ABI register names by index (RISC-V psABI, lp64d; F045)
 GPR_NAMES = ["zero", "ra", "sp", "gp", "tp",
@@ -174,6 +174,37 @@ def _live_before(fn: mir.MFunction) -> Dict[str, List[Set[int]]]:
         befores.reverse()                              # before[i] for op i
         result[b.name] = befores
     return result
+
+
+def register_pressure(fn: mir.MFunction) -> Dict[str, int]:
+    """Conservative register-file demand for a lowering cost decision.
+
+    This read-only query uses the allocator's real CFG liveness and the
+    indexed-memory EEW/EMUL constraints.  Inputs and results are counted
+    together, including fixed masks.  It predicts demand, not successful
+    coloring; allocation still owns all placement and spill decisions.
+    """
+    live = _live_before(fn)
+    implied = _index_implied_groups(fn)
+    regs = {reg.rid: reg for reg in _all_values(fn)}
+    peak_gpr = peak_vector = 0
+    for block in fn.blocks:
+        for i, op in enumerate(block.ops):
+            active = live[block.name][i] | {reg.rid for reg in op.results}
+            scalar = vector = 0
+            for rid in active:
+                reg = regs.get(rid)
+                if reg is None:
+                    continue
+                if reg.is_scalar():
+                    scalar += 1
+                elif reg.is_mask():
+                    vector += 1
+                elif reg.is_vector():
+                    vector += max(reg.type.lmul, implied.get(rid, 1))
+            peak_gpr = max(peak_gpr, scalar)
+            peak_vector = max(peak_vector, vector)
+    return {"gpr": peak_gpr, "vector_registers": peak_vector}
 
 
 def _failure_live_set(fn: mir.MFunction, failed: Optional[mir.VReg]) -> Set[int]:
