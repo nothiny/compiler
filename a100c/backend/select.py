@@ -96,6 +96,8 @@ def _features(op: mir.MOp) -> Dict[str, object]:
         features["sew"] = op.attrs["sew"]
         features["lmul"] = op.attrs["lmul"]
         features["policy"] = op.attrs["policy"]
+    elif op.opcode in ("vspill", "vreload"):
+        features["lmul"] = op.attrs["lmul"]
     return features
 
 

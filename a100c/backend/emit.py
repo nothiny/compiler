@@ -61,7 +61,8 @@ def _fmt(template: str, values: Dict[str, str]) -> str:
 import re as _re
 
 _VSETVLI_RE = _re.compile(
-    r'\s*vsetvli\s+(\w+)\s*,\s*(\w+)\s*,\s*e(\d+)\s*,\s*m(\d+)\s*,\s*(\S+)')
+    r'\s*vsetvli\s+(\w+)\s*,\s*(\w+)\s*,\s*e(\d+)\s*,\s*m(\d+)\s*,\s*'
+    r'((?:ta|tu)\s*,\s*(?:ma|mu))')
 _LI_RE = _re.compile(r'\s*li\s+(\w+)\s*,\s*(\S+)')
 _STORE_OPS = {'sd', 'sw', 'sh', 'sb', 'fsw', 'fsd', 'vsw', 'vsb', 'vsh',
               'vse'}
@@ -167,6 +168,7 @@ def _peephole(lines: List[str]) -> List[str]:
     out: List[str] = []
     # vsetvli tracking: (avl_reg, sew, lmul, policy) of the last vsetvli
     vstate = None
+    vresult = None  # GPR still holding the preceding setter's VL result.
     # li tracking: reg -> immediate value of the last li for that reg
     li_state: Dict[str, str] = {}
     # set of registers written since the last vsetvli / li checkpoint
@@ -183,6 +185,7 @@ def _peephole(lines: List[str]) -> List[str]:
         if (stripped.endswith(':') or stripped.startswith('.')
                 or not stripped or stripped.startswith('#')):
             vstate = None
+            vresult = None
             li_state = {}
             written_since_v = set()
             written_since_li = {}
@@ -195,9 +198,24 @@ def _peephole(lines: List[str]) -> List[str]:
 
         if op in _BRANCH_OPS:
             vstate = None
+            vresult = None
             li_state = {}
             written_since_v = set()
             written_since_li = {}
+            out.append(line)
+            continue
+
+        # All vector-configuration setters change implicit state. A
+        # register-form vsetvli fact must not survive an immediate or
+        # register-vtype setter the textual tracker does not model.
+        if op in ('vsetivli', 'vsetvl'):
+            vstate = None
+            vresult = None
+            written_since_v = set()
+            dst = _peephole_dst_reg(line)
+            if dst:
+                li_state.pop(dst, None)
+                written_since_li[dst] = {dst}
             out.append(line)
             continue
 
@@ -206,9 +224,11 @@ def _peephole(lines: List[str]) -> List[str]:
             m = _VSETVLI_RE.match(line)
             if m:
                 dst, src, sew, lmul, policy = m.groups()
+                policy = policy.replace(" ", "").replace("\t", "")
                 if (vstate is not None
                         and vstate[1] == sew and vstate[2] == lmul
                         and vstate[3] == policy
+                        and (dst in ('x0', 'zero') or dst == vresult)
                         and vstate[0] not in written_since_v
                         and src not in written_since_v
                         and src == vstate[0]):
@@ -222,6 +242,7 @@ def _peephole(lines: List[str]) -> List[str]:
                                    f'{comment[1].strip()}')
                     continue
                 vstate = (src, sew, lmul, policy)
+                vresult = dst if dst not in ('x0', 'zero') else None
                 written_since_v = set()
                 written_since_v.add(dst)
                 # the vsetvli writes vl (= min(avl, VLMAX)) into dst --
@@ -260,6 +281,8 @@ def _peephole(lines: List[str]) -> List[str]:
                     continue
                 li_state[reg] = val
                 written_since_li[reg] = set()
+                if vresult == reg:
+                    vresult = None
                 out.append(line)
                 continue
             out.append(line)
@@ -268,6 +291,8 @@ def _peephole(lines: List[str]) -> List[str]:
         # -- general instruction: track register writes ------------------
         dst = _peephole_dst_reg(line)
         if dst:
+            if vresult == dst:
+                vresult = None
             written_since_v.add(dst)
             # also invalidate any li_state for this register
             if dst in written_since_li:
@@ -749,15 +774,20 @@ class _Emitter:
             avl_rid = op.operands[0].rid if op.operands else None
             avl_val = self._const_map.get(avl_rid) \
                 if avl_rid is not None else None
-            cfg = (op.attrs.get("sew"), op.attrs.get("lmul"))
+            cfg = (op.attrs.get("sew"), op.attrs.get("lmul"),
+                   op.attrs.get("policy"))
+            dead_result = not any(r.rid in self._live_after_at(op)
+                                  for r in op.results)
             if (getattr(self, "_vli_cfg", None) == cfg
                     and avl_val is not None
-                    and getattr(self, "_vli_avl_val", None) == avl_val):
+                    and getattr(self, "_vli_avl_val", None) == avl_val
+                    and dead_result):
                 return  # redundant: same config, same constant AVL
             if (avl_val is None
                     and getattr(self, "_vli_cfg", None) == cfg
                     and getattr(self, "_vli_avl", None) == avl_rid
-                    and not getattr(self, "_vli_clobber", True)):
+                    and not getattr(self, "_vli_clobber", True)
+                    and dead_result):
                 return  # redundant: same computed AVL, not redefined
             self._vli_cfg = cfg
             self._vli_avl_val = avl_val
@@ -992,46 +1022,46 @@ class _Emitter:
                       "imm": str(op.attrs.get("offset", 0))}
             self.emit(_fmt(entry.form, values), op)
             return
-        if code == "vspill":
-            sew, lmul = op.attrs["sew"], op.attrs["lmul"]
-            off = self.slot_offsets[op.attrs["slot"]]
-            saved_region = self._cur_region
-            self.emit(f"vsetvli x0, x0, e{sew}, m{lmul}, ta, ma", op)
-            # vector unit-stride accesses take a bare base register (no
-            # immediate offset form exists): materialize sp+off in a
-            # scratch GPR (a free one, or any caller-saved one saved to
-            # the dedicated slot first -- T014: a fully-allocated GPR
-            # file must still spill; T029: the offset-safe form -- the
-            # m4/m8 group slots push frames past the 12-bit immediate)
-            scratch, epilogue = self._spill_addr_gpr(op)
-            if epilogue:
-                self.emit(f"sd {scratch}, {self._spill_addr_slot}(sp)", op)
-            self._sp_addr(off, scratch, op)
-            self.emit(f"vse{sew}.v {self.phys(op.operands[0])}, "
-                      f"({scratch})", op)
-            for line in epilogue:
-                self.emit(line, op)
-            self._restore_region(saved_region, op)
-            return
-        if code == "vreload":
-            sew, lmul = op.attrs["sew"], op.attrs["lmul"]
-            off = self.slot_offsets[op.attrs["slot"]]
-            saved_region = self._cur_region
-            self.emit(f"vsetvli x0, x0, e{sew}, m{lmul}, ta, ma", op)
-            scratch, epilogue = self._spill_addr_gpr(op)
-            if epilogue:
-                self.emit(f"sd {scratch}, {self._spill_addr_slot}(sp)", op)
-            self._sp_addr(off, scratch, op)
-            self.emit(f"vle{sew}.v {self.phys(op.results[0])}, "
-                      f"({scratch})", op)
-            for line in epilogue:
-                self.emit(line, op)
-            self._restore_region(saved_region, op)
+        if code in ("vspill", "vreload"):
+            self._emit_vector_spill(op)
             return
         # generic template path (sconst, sload, smove, swext, sbin, s2v, vid,
         # vsetvli, vbin, vbinx)
         for text in self.op_text(op):
             self.emit(text, op)
+
+    def _emit_vector_spill(self, op: mir.MOp) -> None:
+        """Full stack-owned register groups, independent of active VL.
+
+        The selected RVV whole-register form neither reads nor changes
+        VL/VTYPE. In particular AVL=0 still saves/restores every byte.
+        Allocation inserts these operations after the initial selection,
+        so resolve their constrained repertoire entry here as for scalar
+        spill expansions.
+        """
+        group = op.attrs["lmul"]
+        reg = op.operands[0] if op.opcode == "vspill" else op.results[0]
+        physical = self.phys(reg)
+        slot = op.attrs["slot"]
+        if (group not in (1, 2, 4, 8)
+                or not physical.startswith("v")
+                or int(physical[1:]) % group
+                or int(physical[1:]) + group > 32
+                or self.alloc.slots[slot] < self.target.vlenb * group):
+            raise EmissionError(op.loc, op.opcode,
+                                "unaligned register group or undersized "
+                                "whole-register spill slot")
+        entry = self.repertoire.find(op.opcode, {"lmul": group})
+        if entry is None:
+            raise EmissionError(op.loc, op.opcode,
+                                "no legal whole-register spill entry")
+        scratch, epilogue = self._spill_addr_gpr(op)
+        if epilogue:
+            self.emit(f"sd {scratch}, {self._spill_addr_slot}(sp)", op)
+        self._sp_addr(self.slot_offsets[slot], scratch, op)
+        self.emit(_fmt(entry.form, {"vd": physical, "rs1": scratch}), op)
+        for line in epilogue:
+            self.emit(line, op)
 
     def _spill_addr_gpr(self, op: mir.MOp) -> Tuple[str, List[str]]:
         """A GPR usable as a spill/reload address: a free caller-saved

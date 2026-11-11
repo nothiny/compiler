@@ -100,10 +100,12 @@ def checks(build, fresh: Path) -> int:
           bool(needed) and not any("python" in name.lower() for name in needed),
           "NEEDED " + ",".join(needed))
 
-    # Rebuild determinism: the project build directory (reusing the
-    # precompiled runtime objects) must produce a byte-identical executable,
-    # compiling and assembling nothing.
-    project = build.build_operator_stub()
+    # Rebuild determinism in a separately populated cache: independent of
+    # stale project outputs or the order in which other tests happened to
+    # run. The warm build must compile and assemble nothing.
+    reuse_dir = fresh / "reuse-build"
+    build.build_operator_stub(reuse_dir)
+    project = build.build_operator_stub(reuse_dir)
     check("rebuild-byte-identical",
           hashlib.sha256(exe.read_bytes()).hexdigest()
           == hashlib.sha256(project["executable"].read_bytes()).hexdigest(),

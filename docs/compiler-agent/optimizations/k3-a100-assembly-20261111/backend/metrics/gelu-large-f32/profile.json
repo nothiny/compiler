@@ -1,0 +1,424 @@
+{
+  "schema": "a100-isolated-profile/v1",
+  "case": {
+    "name": "gelu-large-f32",
+    "operator": "suite/perf/gelu.py",
+    "shape": [
+      262144
+    ],
+    "dtype": "float32",
+    "declared_shape": false
+  },
+  "variant": "backend-only",
+  "compiler_revision": "317c99b18bf663e7",
+  "threads": 1,
+  "repeat_delta": 1,
+  "artifact": "/tmp/a100-backend-only-profile-v0ns7rq9/annotated-cache/a6127ade9ba1df07cfc1ad2d02fb733bee20a419e7016220ccdefa0d681d9021",
+  "artifact_sha256": "73ea2e11225235f186be463dd38120d68bf9ddd4cc16b4d7cb85b8af191e81bd",
+  "diagnostic_note": "Only emitted assembly comments are annotated at runtime; compiler files unchanged.",
+  "adapter_sha256": "22b419642745a2d47d616bffa42ba59a1b4a54ea2694d22fd2cafa26a6663966",
+  "prototype_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "plugin_sha256": "f600c8cf2f470151c1ff7d55f7b804ffce8e6dadbad96bd1b3817320c15693c6",
+  "asm_join": {
+    "listing_instruction_rows": 260,
+    "program_instructions": 260,
+    "affine_offset": 70918,
+    "region": [
+      70918,
+      71992
+    ],
+    "byte_identity": true,
+    "actual_instruction_starts": 309,
+    "source_start_rows": 260,
+    "uid_mapping": "live MIR object identity captured before emission; no positional inference"
+  },
+  "allocation": {
+    "frame_bytes": 16,
+    "gprs_used": 15,
+    "spill_rounds_bound": 64,
+    "spill_slots": 0,
+    "spilled_values": 0,
+    "vector_bytes_used": 1664,
+    "vector_file_bytes": 4096,
+    "vector_regs_used": 13
+  },
+  "measurements": [
+    {
+      "pair": 0,
+      "total_process_guest_instructions_per_call": 3578614.0,
+      "aggregate_categories_per_call": {
+        "scalar-load": 524593.0,
+        "vec-arith": 966656.0,
+        "system": 11.0,
+        "vec-mem": 20480.0,
+        "atomic": 13.0,
+        "vec-config": 10240.0,
+        "scalar-arith": 1503468.0,
+        "branch": 552805.0,
+        "scalar-store": 348.0
+      },
+      "program_guest_instructions_per_call": 1990955.0,
+      "outside_program_guest_instructions_per_call": 1587659.0,
+      "program_origins_per_call": {
+        "frame/service": 8.0,
+        "scalar-mem": 10.0,
+        "op:swext": 8961.0,
+        "const-materialization": 803844.0,
+        "op:sadd": 57857.0,
+        "op:sdivu": 1.0,
+        "op:smul": 16385.0,
+        "op:smove": 32770.0,
+        "branch": 28678.0,
+        "op:slt": 17153.0,
+        "op:sshl": 256.0,
+        "op:ssub": 25344.0,
+        "op:sand": 8448.0,
+        "vec-config": 8192.0,
+        "vec-arith": 745472.0,
+        "op:vunit_load": 8192.0,
+        "op:vfmacc": 212992.0,
+        "op:vunit_store": 8192.0,
+        "op:vpopc": 8192.0,
+        "control": 8.0
+      },
+      "program_blocks_per_call": {
+        "program-services": 8.0,
+        "entry": 20.0,
+        "prog_head": 1286.0,
+        "prog_body": 2304.0,
+        "chunk1_head": 101888.0,
+        "chunk1_exit": 768.0,
+        "chunk1_body": 1884160.0,
+        "prog_next": 512.0,
+        "prog_exit": 9.0
+      },
+      "program_mnemonics_per_call": {
+        "addi": 156165.0,
+        "sd": 264.0,
+        "mv": 59653.0,
+        "ld": 270.0,
+        "lwu": 2.0,
+        "sext.w": 8961.0,
+        "add": 41217.0,
+        "divu": 1.0,
+        "mul": 16385.0,
+        "j": 17666.0,
+        "slt": 17153.0,
+        "bnez": 8705.0,
+        "sllw": 256.0,
+        "subw": 25344.0,
+        "and": 8448.0,
+        "addw": 16640.0,
+        "vsetvli": 8192.0,
+        "vid.v": 8192.0,
+        "vadd.vx": 8192.0,
+        "vmv.v.x": 360448.0,
+        "vadd.vv": 24576.0,
+        "vmslt.vv": 8192.0,
+        "vmv1r.v": 57344.0,
+        "vle32.v": 8192.0,
+        "vmerge.vvm": 40960.0,
+        "lui": 294912.0,
+        "vfmul.vv": 81920.0,
+        "addiw": 237568.0,
+        "vfsgnjx.vv": 8192.0,
+        "slli": 90112.0,
+        "vfmacc.vv": 196608.0,
+        "vfdiv.vv": 16384.0,
+        "vmv.v.v": 32768.0,
+        "vfadd.vv": 16384.0,
+        "vfsub.vv": 24576.0,
+        "vfcvt.rtz.x.f.v": 8192.0,
+        "vsra.vv": 8192.0,
+        "vsub.vv": 8192.0,
+        "vsll.vv": 16384.0,
+        "vmflt.vv": 8192.0,
+        "vmfle.vv": 16384.0,
+        "vmfne.vv": 8192.0,
+        "vse32.v": 8192.0,
+        "vcpop.m": 8192.0,
+        "ret": 1.0
+      },
+      "negative_program_deltas": [],
+      "raw_runs": [
+        {
+          "command": [
+            "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64",
+            "-L",
+            "/home/i_yinzida/.local/opt/a100/toolchain-1.1.2/sysroot",
+            "-cpu",
+            "max,vlen=1024,elen=64,vext_spec=v1.0",
+            "-plugin",
+            "/tmp/a100-backend-only-profile-v0ns7rq9/tools/profiling/full_instruction_counts.so,out=/tmp/a100-backend-only-profile-v0ns7rq9/metrics/backend-only/gelu-large-f32-t1/pair-0/r1/counts.json",
+            "/tmp/a100-backend-only-profile-v0ns7rq9/annotated-cache/a6127ade9ba1df07cfc1ad2d02fb733bee20a419e7016220ccdefa0d681d9021/operator_exec",
+            "--bundle",
+            "/tmp/a100-backend-only-profile-v0ns7rq9/metrics/backend-only/gelu-large-f32-t1/pair-0/r1/bundle/bundle.bin",
+            "--threads",
+            "1",
+            "--repeats",
+            "1"
+          ],
+          "raw_sha256": "e4c002dadde1fdfdc745d0e114dfd1436f7ad2dc01d9a43971388d7ded028c84",
+          "raw_path": "/tmp/a100-backend-only-profile-v0ns7rq9/metrics/backend-only/gelu-large-f32-t1/pair-0/r1/counts.json",
+          "runtime": {
+            "runtime": "a100rt/v1",
+            "status": "ok",
+            "threads": 1,
+            "repeats": 1,
+            "pool_initializations": 1,
+            "repeats_all_equal": true,
+            "workers": [
+              {
+                "id": 0,
+                "guest_tid": 1689595,
+                "items": 262144
+              }
+            ],
+            "bundle_bytes": 2097344
+          },
+          "comparison": {
+            "status": "PASS",
+            "max_abs_error": {
+              "y_ptr": 4.76837158203125e-07
+            }
+          },
+          "elapsed_qemu_wall_s_auxiliary_only": 1.3108626990579069,
+          "repeats": 1
+        },
+        {
+          "command": [
+            "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64",
+            "-L",
+            "/home/i_yinzida/.local/opt/a100/toolchain-1.1.2/sysroot",
+            "-cpu",
+            "max,vlen=1024,elen=64,vext_spec=v1.0",
+            "-plugin",
+            "/tmp/a100-backend-only-profile-v0ns7rq9/tools/profiling/full_instruction_counts.so,out=/tmp/a100-backend-only-profile-v0ns7rq9/metrics/backend-only/gelu-large-f32-t1/pair-0/r2/counts.json",
+            "/tmp/a100-backend-only-profile-v0ns7rq9/annotated-cache/a6127ade9ba1df07cfc1ad2d02fb733bee20a419e7016220ccdefa0d681d9021/operator_exec",
+            "--bundle",
+            "/tmp/a100-backend-only-profile-v0ns7rq9/metrics/backend-only/gelu-large-f32-t1/pair-0/r2/bundle/bundle.bin",
+            "--threads",
+            "1",
+            "--repeats",
+            "2"
+          ],
+          "raw_sha256": "568aa4966bd83f69c41edb1e71a4e4d01af34f81669feb6773f6aed2aac8ae90",
+          "raw_path": "/tmp/a100-backend-only-profile-v0ns7rq9/metrics/backend-only/gelu-large-f32-t1/pair-0/r2/counts.json",
+          "runtime": {
+            "runtime": "a100rt/v1",
+            "status": "ok",
+            "threads": 1,
+            "repeats": 2,
+            "pool_initializations": 1,
+            "repeats_all_equal": true,
+            "workers": [
+              {
+                "id": 0,
+                "guest_tid": 1689657,
+                "items": 262144
+              }
+            ],
+            "bundle_bytes": 2097344
+          },
+          "comparison": {
+            "status": "PASS",
+            "max_abs_error": {
+              "y_ptr": 4.76837158203125e-07
+            }
+          },
+          "elapsed_qemu_wall_s_auxiliary_only": 2.5322077036835253,
+          "repeats": 2
+        }
+      ]
+    },
+    {
+      "pair": 1,
+      "total_process_guest_instructions_per_call": 3578572.0,
+      "aggregate_categories_per_call": {
+        "scalar-load": 524592.0,
+        "vec-arith": 966656.0,
+        "system": 8.0,
+        "vec-mem": 20480.0,
+        "atomic": 12.0,
+        "vec-config": 10240.0,
+        "scalar-arith": 1503443.0,
+        "branch": 552793.0,
+        "scalar-store": 348.0
+      },
+      "program_guest_instructions_per_call": 1990955.0,
+      "outside_program_guest_instructions_per_call": 1587617.0,
+      "program_origins_per_call": {
+        "frame/service": 8.0,
+        "scalar-mem": 10.0,
+        "op:swext": 8961.0,
+        "const-materialization": 803844.0,
+        "op:sadd": 57857.0,
+        "op:sdivu": 1.0,
+        "op:smul": 16385.0,
+        "op:smove": 32770.0,
+        "branch": 28678.0,
+        "op:slt": 17153.0,
+        "op:sshl": 256.0,
+        "op:ssub": 25344.0,
+        "op:sand": 8448.0,
+        "vec-config": 8192.0,
+        "vec-arith": 745472.0,
+        "op:vunit_load": 8192.0,
+        "op:vfmacc": 212992.0,
+        "op:vunit_store": 8192.0,
+        "op:vpopc": 8192.0,
+        "control": 8.0
+      },
+      "program_blocks_per_call": {
+        "program-services": 8.0,
+        "entry": 20.0,
+        "prog_head": 1286.0,
+        "prog_body": 2304.0,
+        "chunk1_head": 101888.0,
+        "chunk1_exit": 768.0,
+        "chunk1_body": 1884160.0,
+        "prog_next": 512.0,
+        "prog_exit": 9.0
+      },
+      "program_mnemonics_per_call": {
+        "addi": 156165.0,
+        "sd": 264.0,
+        "mv": 59653.0,
+        "ld": 270.0,
+        "lwu": 2.0,
+        "sext.w": 8961.0,
+        "add": 41217.0,
+        "divu": 1.0,
+        "mul": 16385.0,
+        "j": 17666.0,
+        "slt": 17153.0,
+        "bnez": 8705.0,
+        "sllw": 256.0,
+        "subw": 25344.0,
+        "and": 8448.0,
+        "addw": 16640.0,
+        "vsetvli": 8192.0,
+        "vid.v": 8192.0,
+        "vadd.vx": 8192.0,
+        "vmv.v.x": 360448.0,
+        "vadd.vv": 24576.0,
+        "vmslt.vv": 8192.0,
+        "vmv1r.v": 57344.0,
+        "vle32.v": 8192.0,
+        "vmerge.vvm": 40960.0,
+        "lui": 294912.0,
+        "vfmul.vv": 81920.0,
+        "addiw": 237568.0,
+        "vfsgnjx.vv": 8192.0,
+        "slli": 90112.0,
+        "vfmacc.vv": 196608.0,
+        "vfdiv.vv": 16384.0,
+        "vmv.v.v": 32768.0,
+        "vfadd.vv": 16384.0,
+        "vfsub.vv": 24576.0,
+        "vfcvt.rtz.x.f.v": 8192.0,
+        "vsra.vv": 8192.0,
+        "vsub.vv": 8192.0,
+        "vsll.vv": 16384.0,
+        "vmflt.vv": 8192.0,
+        "vmfle.vv": 16384.0,
+        "vmfne.vv": 8192.0,
+        "vse32.v": 8192.0,
+        "vcpop.m": 8192.0,
+        "ret": 1.0
+      },
+      "negative_program_deltas": [],
+      "raw_runs": [
+        {
+          "command": [
+            "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64",
+            "-L",
+            "/home/i_yinzida/.local/opt/a100/toolchain-1.1.2/sysroot",
+            "-cpu",
+            "max,vlen=1024,elen=64,vext_spec=v1.0",
+            "-plugin",
+            "/tmp/a100-backend-only-profile-v0ns7rq9/tools/profiling/full_instruction_counts.so,out=/tmp/a100-backend-only-profile-v0ns7rq9/metrics/backend-only/gelu-large-f32-t1/pair-1/r1/counts.json",
+            "/tmp/a100-backend-only-profile-v0ns7rq9/annotated-cache/a6127ade9ba1df07cfc1ad2d02fb733bee20a419e7016220ccdefa0d681d9021/operator_exec",
+            "--bundle",
+            "/tmp/a100-backend-only-profile-v0ns7rq9/metrics/backend-only/gelu-large-f32-t1/pair-1/r1/bundle/bundle.bin",
+            "--threads",
+            "1",
+            "--repeats",
+            "1"
+          ],
+          "raw_sha256": "228b8b5527761758b8600b599cff60554ac4ba4b1a6a4e11d95d9159ace3cf81",
+          "raw_path": "/tmp/a100-backend-only-profile-v0ns7rq9/metrics/backend-only/gelu-large-f32-t1/pair-1/r1/counts.json",
+          "runtime": {
+            "runtime": "a100rt/v1",
+            "status": "ok",
+            "threads": 1,
+            "repeats": 1,
+            "pool_initializations": 1,
+            "repeats_all_equal": true,
+            "workers": [
+              {
+                "id": 0,
+                "guest_tid": 1689734,
+                "items": 262144
+              }
+            ],
+            "bundle_bytes": 2097344
+          },
+          "comparison": {
+            "status": "PASS",
+            "max_abs_error": {
+              "y_ptr": 4.76837158203125e-07
+            }
+          },
+          "elapsed_qemu_wall_s_auxiliary_only": 1.3045372101478279,
+          "repeats": 1
+        },
+        {
+          "command": [
+            "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64",
+            "-L",
+            "/home/i_yinzida/.local/opt/a100/toolchain-1.1.2/sysroot",
+            "-cpu",
+            "max,vlen=1024,elen=64,vext_spec=v1.0",
+            "-plugin",
+            "/tmp/a100-backend-only-profile-v0ns7rq9/tools/profiling/full_instruction_counts.so,out=/tmp/a100-backend-only-profile-v0ns7rq9/metrics/backend-only/gelu-large-f32-t1/pair-1/r2/counts.json",
+            "/tmp/a100-backend-only-profile-v0ns7rq9/annotated-cache/a6127ade9ba1df07cfc1ad2d02fb733bee20a419e7016220ccdefa0d681d9021/operator_exec",
+            "--bundle",
+            "/tmp/a100-backend-only-profile-v0ns7rq9/metrics/backend-only/gelu-large-f32-t1/pair-1/r2/bundle/bundle.bin",
+            "--threads",
+            "1",
+            "--repeats",
+            "2"
+          ],
+          "raw_sha256": "4bd110cf8a3ec568687ca45996c05276ca003851439b8bd4fb90d4efb7f0a37c",
+          "raw_path": "/tmp/a100-backend-only-profile-v0ns7rq9/metrics/backend-only/gelu-large-f32-t1/pair-1/r2/counts.json",
+          "runtime": {
+            "runtime": "a100rt/v1",
+            "status": "ok",
+            "threads": 1,
+            "repeats": 2,
+            "pool_initializations": 1,
+            "repeats_all_equal": true,
+            "workers": [
+              {
+                "id": 0,
+                "guest_tid": 1689752,
+                "items": 262144
+              }
+            ],
+            "bundle_bytes": 2097344
+          },
+          "comparison": {
+            "status": "PASS",
+            "max_abs_error": {
+              "y_ptr": 4.76837158203125e-07
+            }
+          },
+          "elapsed_qemu_wall_s_auxiliary_only": 2.5258739632554352,
+          "repeats": 2
+        }
+      ]
+    }
+  ],
+  "scope": "Backend-only candidate on c8ade47: whole-register spills and vector-state legality; lowering unchanged; comment-only MIR attribution and diagnostic cache tag; no prototype imports; QEMU counts are not board timing."
+}

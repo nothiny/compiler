@@ -374,46 +374,14 @@ def check_lmul4_allocation():
     check("lmul4-no-interfering-pair-shares", not conflicts,
           str(conflicts[:3]))
 
-    # the emitted spill form's ambient-vl discipline: ``vsetvli x0, x0,
-    # e{sew}, m{lmul}`` KEEPS the ambient vl (probed on the pinned QEMU:
-    # from vl=32/e32m1 the switch to e32m4 left vl=32, and vse32.v
-    # stored exactly 32 lanes), so the spill/reload of a whole register
-    # group is value-preserving only when the ambient region at every
-    # spill site is the FULL one (avl == vlmax).  Assert it textually on
-    # the emitted program: each spill-form store loads the whole group.
-    vlen_bits = DEFAULT_TARGET.vlen_bits
-    spill_form = re.compile(
-        r"^\s*vsetvli\s+x0,\s*x0,\s*e(\d+),\s*m(\d+),\s*ta,\s*ma")
-    vsl = re.compile(r"^\s*vsetvli\s+(\w+),\s*(\w+),\s*e(\d+),\s*m(\d+)")
-    lil = re.compile(r"^\s*li\s+(\w+),\s*(-?\d+)")
-    mem = re.compile(r"^\s*(vse\d+|vle\d+)\.v")
-    consts: Dict[str, int] = {}
-    ambient = None
-    pending = None
-    sites = []
-    for line in program.text.splitlines():
-        li = lil.match(line)
-        if li:
-            consts[li.group(1)] = int(li.group(2))
-        if spill_form.match(line):
-            pending = ambient
-            continue
-        vm = vsl.match(line)
-        if vm:
-            ambient = (int(vm.group(3)), int(vm.group(4)),
-                       consts.get(vm.group(2)))
-        if mem.match(line) and pending is not None:
-            sites.append((pending, line.strip()))
-            pending = None
-    bad_ambient = [(str(p), m) for p, m in sites
-                   if p is None or p[2] is None
-                   or p[2] != (vlen_bits // p[0]) * p[1]
-                   or (p[0], p[1]) != (32, 4)]
-    check("lmul4-spill-sites-full-vl-ambient",
-          sites and not bad_ambient,
-          f"{len(sites)} spill sites, all in full-vl e32m4 "
-          f"(avl 128) ambient regions"
-          if not bad_ambient else str(bad_ambient[:3]))
+    # Whole-register transfers preserve all bytes without depending on
+    # ambient VL/VTYPE. The independent backend-state native test covers
+    # zero/partial/runtime AVL and all LMUL groups.
+    stores = re.findall(r"^\s*vs4r\.v\s+v\d+", program.text, re.MULTILINE)
+    loads = re.findall(r"^\s*vl4re8\.v\s+v\d+", program.text, re.MULTILINE)
+    check("lmul4-spill-sites-use-whole-register-transfers",
+          bool(stores) and bool(loads),
+          f"{len(stores)} whole m4 stores, {len(loads)} whole m4 loads")
 
     # executed: the operators behind the removed LMUL-4 refusals
     # (gemm_smallk: the N-tail mask covering all 128 lanes;

@@ -35,6 +35,42 @@ ASFLAGS = ("-march=rv64gcv",)
 LINKFLAGS = ("-march=rv64gcv", "-mabi=lp64d", "-pthread", "-Wl,--build-id=none",
              "-lm")
 
+_TOOL_DIGESTS = {}
+
+
+def _tool_digest(path: Path) -> str:
+    """Content identity of a declared tool, memoized at its file identity."""
+    path = path.resolve()
+    stat = path.stat()
+    key = (str(path), stat.st_size, stat.st_mtime_ns, stat.st_ctime_ns)
+    if key not in _TOOL_DIGESTS:
+        _TOOL_DIGESTS[key] = hashlib.sha256(path.read_bytes()).hexdigest()
+    return _TOOL_DIGESTS[key]
+
+
+def _sdk_lock_digest() -> str:
+    lock = PROJECT_ROOT / "a100_support" / "lock.json"
+    return hashlib.sha256(lock.read_bytes()).hexdigest() if lock.is_file() else ""
+
+
+def build_identity() -> str:
+    """Bound native build settings and the pinned SDK installation.
+
+    The lock names the installed SDK archive. Its sysroot is assumed not
+    externally modified; local compiler/runtime inputs are hashed by the
+    driver and runtime-object cache independently.
+    """
+    tools = tool_paths()
+    material = {
+        "tools": {name: {"path": str(tools[name].resolve()),
+                         "sha256": _tool_digest(tools[name])}
+                  for name in ("gcc", "as", "ld")},
+        "sysroot": str(tools["sysroot"]),
+        "cflags": CFLAGS, "asflags": ASFLAGS, "linkflags": LINKFLAGS,
+        "sdk_lock": _sdk_lock_digest(),
+    }
+    return hashlib.sha256(json.dumps(material, sort_keys=True).encode()).hexdigest()
+
 
 def _project_env() -> dict:
     """Declared tool paths from the environment, falling back to .env."""
@@ -91,6 +127,25 @@ def default_build_dir() -> Path:
     return RUNTIME_DIR / "build"
 
 
+def _runtime_header_identity() -> bytes:
+    """The local runtime include closure, shared by all C object stamps.
+
+    The runtime has a small common ABI header; hashing all local headers
+    also covers future nested includes and newly added headers without a
+    second hand-maintained dependency list. System headers/toolchain stay
+    pinned by the declared tool installation and sysroot.
+    """
+    digest = hashlib.sha256()
+    for path in sorted(RUNTIME_DIR.rglob("*.h")):
+        if "build" in path.relative_to(RUNTIME_DIR).parts:
+            continue
+        digest.update(path.relative_to(RUNTIME_DIR).as_posix().encode())
+        digest.update(b"\0")
+        digest.update(path.read_bytes())
+        digest.update(b"\0")
+    return digest.digest()
+
+
 def runtime_objects(build_dir: Path | None = None):
     """Compile (or reuse) the precompiled runtime objects; returns
     (objects, tools, invocations, compiled_count)."""
@@ -100,10 +155,14 @@ def runtime_objects(build_dir: Path | None = None):
     objects: list[Path] = []
     invocations = []
     compiled = 0
+    headers = _runtime_header_identity()
     for name in RUNTIME_SOURCES:
         source = RUNTIME_DIR / name
-        stamp = _digest(source.read_bytes(), repr(CFLAGS).encode(),
-                        str(tools["gcc"]).encode(), str(tools["sysroot"]).encode())
+        stamp = _digest(source.read_bytes(), headers, repr(CFLAGS).encode(),
+                        str(tools["gcc"]).encode(),
+                        _tool_digest(tools["gcc"]).encode(),
+                        str(tools["sysroot"]).encode(),
+                        _sdk_lock_digest().encode())
         obj = build_dir / f"{source.stem}-{stamp}.o"
         if not obj.is_file():
             command = [tools["gcc"], *CFLAGS, "--sysroot", tools["sysroot"],
@@ -122,7 +181,7 @@ def assemble_operator(source: Path, build_dir: Path | None = None):
     build_dir.mkdir(parents=True, exist_ok=True)
     tools = tool_paths()
     stamp = _digest(Path(source).read_bytes(), repr(ASFLAGS).encode(),
-                    str(tools["as"]).encode())
+                    str(tools["as"]).encode(), _tool_digest(tools["as"]).encode())
     obj = build_dir / f"{Path(source).stem}-{stamp}.o"
     assembled = 0
     invocations = []

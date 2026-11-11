@@ -453,6 +453,15 @@ def _control_rows() -> List[InstructionEntry]:
     rows.append(_E("ld", "sreload", (), "ld {rd}, {slot}(sp)",
                    notes="allocator-inserted scalar reload",
                    evidence="RV64 (F002)"))
+    for group in (1, 2, 4, 8):
+        for opcode, mnemonic in (("vspill", f"vs{group}r.v"),
+                                 ("vreload", f"vl{group}re8.v")):
+            rows.append(_E(mnemonic, opcode, (("lmul", group),),
+                           f"{mnemonic} {{vd}}, ({{rs1}})",
+                           notes="aligned whole-register group; stack-owned "
+                                 "VLENB*LMUL bytes; preserves VL/VTYPE",
+                           evidence="RVV 1.0 whole-register memory; "
+                                    "test_backend_vector_state.py"))
     return rows
 
 
