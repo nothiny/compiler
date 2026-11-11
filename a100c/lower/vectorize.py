@@ -4739,6 +4739,7 @@ class SliceLowering:
 
         self._chunk = {"head": head, "body": cbody, "elem": elem_b,
                        "items": items_c, "vl": vl, "extent": B,
+                       "sew": self._sew,
                        "exit": exitb.name,
                        "exit_params": exit_params[2:],
                        "exit_params_items": exit_params[1],
@@ -4926,6 +4927,17 @@ class SliceLowering:
             params = params_list[si]
             if params is None:      # pragma: no cover - segmentation shape
                 raise self._err(None, "layout", "pass without parameters")
+            # An extent-one scalar segment may have opened a chunk with a
+            # smaller VL.  Close it before mutating this pass's geometry:
+            # otherwise its back edge advances e.g. 16 while the new body
+            # executes 32 lanes and can write another program's outputs.
+            if self._chunk is not None and (
+                    self._chunk["extent"], self._chunk["vl"],
+                    self._chunk["sew"]) != (
+                    params["extent"], params["vl"], params["sew"]):
+                self._close_pass(ctx, fn, strided)
+                self._geometry_boundary_closes = getattr(
+                    self, "_geometry_boundary_closes", 0) + 1
             # T035: a restructured region (matrix / mixed-extent) inside
             # the pass CLOSES this pass's chunk before it runs, so frames
             # whose vids the region defines have no lowered value at that
