@@ -1,0 +1,62 @@
+{
+  "schema": "independent-source-review/v1",
+  "utc": "2026-11-11T01:38:23.042453+00:00",
+  "reviewer": "baseline_review",
+  "scope": "Final phase-2 width/narrow composition and consumer integration. Phase-1 unchanged legality review is separately preserved. This source review and 21-case profiles do not assert complete-input acceptance.",
+  "source_git": "51f3c61266fab1c4184f7bca771af7e458ce5595",
+  "source_snapshot": "/tmp/a100-k3-final-frozen-xg9tlcpp",
+  "source_digest": "05b63e8a1395fe3de7be01f0ab0c0da19314e5c9da3e14c10587f2fb7ee1184b",
+  "files_sha256": {
+    "a100c/lower/vector_width.py": "ed23ce76c3106a4313e17791dfa530c38c9448a4f8a4a69ccdabacd9f3b0b481",
+    "a100c/lower/narrow_access.py": "54a84fd8bbe97a6f4031a0860acb9c0630484ead5d8101766013802ae4eb46a7",
+    "a100c/backend/allocate.py": "9adad8eeb5bb3abc002d32ce7605038793d95c5be7fa6ea798ce3e45f85140fe",
+    "a100c/driver.py": "b278c2aa476366f98cb8dc43525dc25be9af7fc44de83ed5d7c74bbedf28d41e",
+    "a100c/factory.py": "b19a3162b69f0a849543066eb2381c3b369083888aa9df218b85db4cb6d3d7e1",
+    "a100c/lower/vectorize.py": "49eff04122634921b7d3f638aade6694621686a47ebe4621b079d43f3f2cae20",
+    "a100c/runtime/a100rt.h": "24e23f9629099b7cce66398effaca29cbf21e10d13ab9d461c0743443fd64270",
+    "a100c/tests/test_elementwise_width.py": "8b96812fc1ae83b01408dec4ca1873c8a7b34110c60d65adce1483947fda916f",
+    "a100c/tests/test_guarded_narrow_access.py": "69ebc9b3b27989fb264066dda05a1b988d5edb9a95c236f4d35d59ac4ff684e0",
+    "a100c/tests/test_lowering_option_identity.py": "e221bcfb3f76f7086d9dfa8f633470a19bca7c304ad38bd10a3a3b7477a857bd"
+  },
+  "blocking_findings": [],
+  "resolved_findings": [
+    {
+      "area": "chunk scalar side effects",
+      "finding": "Earlier width predicate accepted scalar memory in a widened chunk body. Owner now declines any body sload/sstore and any additional carried scalar state; source-prologue/epilogue ABI reads/stats stores remain unchanged."
+    },
+    {
+      "area": "source alias dependence",
+      "finding": "Width now binds real TIR pointer roots to native views; unknown/pointer-table/structured/volatile forms decline. Native guard compares 64-bit backing-storage base pointers at offsetof(view.storage)=48 in 56-byte records. It checks read/write and write/write pairs. Equal backing storage retains 32 active lanes and 32-step traversal; distinct storage may select wider geometry. view.data inequality is never used as a disjointness proof."
+    },
+    {
+      "area": "cache SDK closure",
+      "finding": "The SDK lock digest now participates in both complete-program identity and runtime-object stamps; source dependency discovery covers factory, passes, planning and native headers."
+    },
+    {
+      "area": "profiler provenance",
+      "finding": "Old owner collector tools symlink could change run_scan ROOT. Those records are kept with a provenance caveat; owner recollected with hard-copied tools. This reviewer’s baseline/current/final collectors directly import the production factory from explicit frozen root, and final profiles assert/hash every actual imported a100c/support module. Full-scan launcher likewise asserts the actual copied runner/import roots."
+    }
+  ],
+  "width_legality": {
+    "structural_guards": "One simple lane-independent function; fixed 32-lane source regions; divisible static BLOCK; exact induction and work-counter updates. Cross-lane reductions, shuffle/gather/scan/IME, scalar math services, atomics/ordering, narrow fallback and dynamic initial AVL decline.",
+    "pressure": "Public read-only query reuses allocator CFG liveness. Inputs and results are counted together; vector cost is max(explicit LMUL,indexed EEW/SEW implied EMUL); masks including fixed v0 cost a register. Candidate caps 28 vector registers and GPR <= max(25,baseline). Verifier and real allocation remain authoritative; no coloring success is inferred merely from the estimate.",
+    "state": "Every data LMUL and vset region is widened consistently; native selected AVL drives both chunk traversal and work increments. Alias fallback keeps original active lane count under wider physical groups; no cross-lane operation observes unused lanes.",
+    "runtime_shape": "Only static BLOCK/CFG/pressure select candidates. Actual N remains runtime-symbolic; the same artifact is tested for small/large/small N and alias/nonalias bindings."
+  },
+  "narrow_legality": {
+    "addresses": "Check each active lane’s actual i64 byte offset against the 16-lane contiguous segment expectation, after the existing address materializer. Guard performs arithmetic only, no source/destination access.",
+    "masks": "First-inactive and fully inactive poisoned addresses do not dereference source memory; masked unit loads explicitly restore typed defaults. Type-mismatched vector other and volatile accesses decline.",
+    "fallback": "Guard mismatch executes the original scalar lowering with original masking/default behavior; segment stores preserve segment order and only accept distinct consecutive active addresses within each segment.",
+    "resource_bounds": "Only data SEW8/16, LMUL1, VL16/32; guard scratch fits the already allocated narrow workspace, and the join restores region state. Guarded narrow CFG is ineligible for automatic width, so the two mechanisms are not force-composed on the same loop."
+  },
+  "evidence_inspected": {
+    "owner_semantic_width": "44 native checks including NaN/Inf/zero/payload/bitcast/integer wrap and same-ELF runtime aliases; GELU128->262144->128 compile1/cache2",
+    "owner_semantic_narrow": "112 normal exact checks PASS; 40 guard-removal witnesses with 22 observed failures covering load and store; 84 original case-thread checks PASS; dual entry option checks PASS",
+    "reviewer_actual_executions": "Independent final paired profiles: 21 cases x 4 native runs =84, original comparisons/repeats/byte/SHA/import-root checks all PASS; full original2734 campaign is ongoing in separate fresh caches"
+  },
+  "pending": [
+    "All original2734 rows and resource bindings at this frozen source",
+    "Independent standalone suite result aggregation",
+    "No actual K3 execution or hardware speedup claim under the user’s QEMU-only boundary"
+  ]
+}

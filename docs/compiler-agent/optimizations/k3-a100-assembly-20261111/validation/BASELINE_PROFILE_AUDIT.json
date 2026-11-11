@@ -1,0 +1,428 @@
+{
+  "schema": "a100-baseline-profiles-audit/v1",
+  "utc": "2026-11-11T01:02:54.636507+00:00",
+  "baseline_git": "c8ade47ad9a537c3fce84eb8daf5de6799d907a7",
+  "profiles": 14,
+  "declared_shape_profiles": 9,
+  "extra_shape_profiles": 5,
+  "native_runs": 56,
+  "scope": "QEMU native program-region repeat differences, not hardware speedups; 14 profiles are not full-corpus acceptance",
+  "rows": [
+    {
+      "name": "attention-bfloat16",
+      "operator": "suite/perf/attention_forward_triton.py",
+      "shape": [
+        4,
+        4,
+        32,
+        64
+      ],
+      "dtype": "bfloat16",
+      "declared_shape": true,
+      "profile": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/baseline-metrics/pristine/attention-bfloat16-t1/profile.json",
+      "profile_sha256": "dfd0e9989ae44faa3653e2e0c0fa3592a0526da78fd2839718f9e29160b321d2",
+      "artifact_sha256": "af2153bbd2e740727c682d585ca474e393ddacd1753ab5dcf797f2f656c2fdca",
+      "compiler_revision": "fc3ccea383db5f55",
+      "program_guest_instructions_per_call": 90832568.0,
+      "whole_process_guest_instructions_per_call": [
+        91045997.0,
+        91045997.0
+      ],
+      "checks": {
+        "two_pairs": true,
+        "same_program_count": true,
+        "no_negative_program_deltas": true,
+        "byte_identity": true,
+        "artifact_sha": true,
+        "program_checksum": true,
+        "all_native_compare_pass": true,
+        "all_repeats_pass": true
+      }
+    },
+    {
+      "name": "attention-float16",
+      "operator": "suite/perf/attention_forward_triton.py",
+      "shape": [
+        4,
+        4,
+        32,
+        64
+      ],
+      "dtype": "float16",
+      "declared_shape": true,
+      "profile": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/baseline-metrics/pristine/attention-float16-t1/profile.json",
+      "profile_sha256": "88672085d58c59a90d66c287445bb9c5da629ddb8ef8f71ed3b5565718ba0546",
+      "artifact_sha256": "47c95937dce76640412dcebe68772dffffbf14e525a116042463f284764bfa59",
+      "compiler_revision": "fc3ccea383db5f55",
+      "program_guest_instructions_per_call": 82965176.0,
+      "whole_process_guest_instructions_per_call": [
+        83178605.0,
+        83178605.0
+      ],
+      "checks": {
+        "two_pairs": true,
+        "same_program_count": true,
+        "no_negative_program_deltas": true,
+        "byte_identity": true,
+        "artifact_sha": true,
+        "program_checksum": true,
+        "all_native_compare_pass": true,
+        "all_repeats_pass": true
+      }
+    },
+    {
+      "name": "attention-float32",
+      "operator": "suite/perf/attention_forward_triton.py",
+      "shape": [
+        4,
+        4,
+        32,
+        64
+      ],
+      "dtype": "float32",
+      "declared_shape": true,
+      "profile": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/baseline-metrics/pristine/attention-float32-t1/profile.json",
+      "profile_sha256": "ef7ca94dc7f95ea7f4e635e8c39427f079f51a6338b071b5a1d0c80787eff41c",
+      "artifact_sha256": "6ce45cd4efd306c820cc1f6df072d0c485dc56b462362cccc6a3243174675ad6",
+      "compiler_revision": "fc3ccea383db5f55",
+      "program_guest_instructions_per_call": 47660216.0,
+      "whole_process_guest_instructions_per_call": [
+        48070745.0,
+        48070703.0
+      ],
+      "checks": {
+        "two_pairs": true,
+        "same_program_count": true,
+        "no_negative_program_deltas": true,
+        "byte_identity": true,
+        "artifact_sha": true,
+        "program_checksum": true,
+        "all_native_compare_pass": true,
+        "all_repeats_pass": true
+      }
+    },
+    {
+      "name": "gelu-large-f32",
+      "operator": "suite/perf/gelu.py",
+      "shape": [
+        262144
+      ],
+      "dtype": "float32",
+      "declared_shape": false,
+      "profile": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/baseline-metrics/pristine/gelu-large-f32-t1/profile.json",
+      "profile_sha256": "f0a3d939dfa219413cb00f1bdd6306c10f16e9a52686d313966af6e5aa4f2ef0",
+      "artifact_sha256": "616eb2eabff069c45ca6a29a62ea578227f3b4cf643840914a49a7862fe292d1",
+      "compiler_revision": "fc3ccea383db5f55",
+      "program_guest_instructions_per_call": 1990955.0,
+      "whole_process_guest_instructions_per_call": [
+        3578629.0,
+        3578671.0
+      ],
+      "checks": {
+        "two_pairs": true,
+        "same_program_count": true,
+        "no_negative_program_deltas": true,
+        "byte_identity": true,
+        "artifact_sha": true,
+        "program_checksum": true,
+        "all_native_compare_pass": true,
+        "all_repeats_pass": true
+      }
+    },
+    {
+      "name": "matmul128-bfloat16",
+      "operator": "suite/perf/matmul.py",
+      "shape": [
+        128,
+        128,
+        128
+      ],
+      "dtype": "bfloat16",
+      "declared_shape": false,
+      "profile": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/baseline-metrics/pristine/matmul128-bfloat16-t1/profile.json",
+      "profile_sha256": "e7d875891a45c8489f173ec7f3278e26080350dcb9b18d1119996064b996a2b7",
+      "artifact_sha256": "a8d9eac1eba1ea940b15d2bdfe2f9ad933a0c5383f57ebb5113d93fe25c4b256",
+      "compiler_revision": "fc3ccea383db5f55",
+      "program_guest_instructions_per_call": 11754438.0,
+      "whole_process_guest_instructions_per_call": [
+        11835226.0,
+        11835070.0
+      ],
+      "checks": {
+        "two_pairs": true,
+        "same_program_count": true,
+        "no_negative_program_deltas": true,
+        "byte_identity": true,
+        "artifact_sha": true,
+        "program_checksum": true,
+        "all_native_compare_pass": true,
+        "all_repeats_pass": true
+      }
+    },
+    {
+      "name": "matmul128-float16",
+      "operator": "suite/perf/matmul.py",
+      "shape": [
+        128,
+        128,
+        128
+      ],
+      "dtype": "float16",
+      "declared_shape": false,
+      "profile": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/baseline-metrics/pristine/matmul128-float16-t1/profile.json",
+      "profile_sha256": "f71ac904f234284a3d8def4b9876e30630e4b5aee3b8b54790047a9fbefc0200",
+      "artifact_sha256": "096a4b0f4663ab0f28f65020e5f517f6d679d61bb66ddc5ea39bca4ba87cce4f",
+      "compiler_revision": "fc3ccea383db5f55",
+      "program_guest_instructions_per_call": 7438232.0,
+      "whole_process_guest_instructions_per_call": [
+        7518723.0,
+        7518723.0
+      ],
+      "checks": {
+        "two_pairs": true,
+        "same_program_count": true,
+        "no_negative_program_deltas": true,
+        "byte_identity": true,
+        "artifact_sha": true,
+        "program_checksum": true,
+        "all_native_compare_pass": true,
+        "all_repeats_pass": true
+      }
+    },
+    {
+      "name": "matmul128-float32",
+      "operator": "suite/perf/matmul.py",
+      "shape": [
+        128,
+        128,
+        128
+      ],
+      "dtype": "float32",
+      "declared_shape": false,
+      "profile": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/baseline-metrics/pristine/matmul128-float32-t1/profile.json",
+      "profile_sha256": "b4f5a046dd8baaf3740d112584a2f4a6dcf261fbdd51f0406c20183f85492b5b",
+      "artifact_sha256": "eca819d0b13a8cdc009c6347a2de067e9c6d429e1752ce028a8ee4b3f66661ee",
+      "compiler_revision": "fc3ccea383db5f55",
+      "program_guest_instructions_per_call": 7124870.0,
+      "whole_process_guest_instructions_per_call": [
+        7280028.0,
+        7279929.0
+      ],
+      "checks": {
+        "two_pairs": true,
+        "same_program_count": true,
+        "no_negative_program_deltas": true,
+        "byte_identity": true,
+        "artifact_sha": true,
+        "program_checksum": true,
+        "all_native_compare_pass": true,
+        "all_repeats_pass": true
+      }
+    },
+    {
+      "name": "sigmoid-large-f32",
+      "operator": "suite/perf/sigmoid.py",
+      "shape": [
+        262144
+      ],
+      "dtype": "float32",
+      "declared_shape": false,
+      "profile": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/baseline-metrics/pristine/sigmoid-large-f32-t1/profile.json",
+      "profile_sha256": "3b33e666e6a2cb43b7aeae25d1c61463372f97c2f6fa337190b8f3ec4325c595",
+      "artifact_sha256": "7f3b88ead0d15baf16a26964837368af87b00e00a0c26096bc5cb582bf2ab080",
+      "compiler_revision": "fc3ccea383db5f55",
+      "program_guest_instructions_per_call": 991531.0,
+      "whole_process_guest_instructions_per_call": [
+        2579148.0,
+        2579190.0
+      ],
+      "checks": {
+        "two_pairs": true,
+        "same_program_count": true,
+        "no_negative_program_deltas": true,
+        "byte_identity": true,
+        "artifact_sha": true,
+        "program_checksum": true,
+        "all_native_compare_pass": true,
+        "all_repeats_pass": true
+      }
+    },
+    {
+      "name": "softmax97-bfloat16",
+      "operator": "suite/perf/softmax.py",
+      "shape": [
+        4,
+        97
+      ],
+      "dtype": "bfloat16",
+      "declared_shape": true,
+      "profile": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/baseline-metrics/pristine/softmax97-bfloat16-t1/profile.json",
+      "profile_sha256": "c58fbaeb70dbec8f8a81d7aca83bc9783ddd3d2ea2920c77ca4dd5bb0f5a7848",
+      "artifact_sha256": "8fb73c4678f6aeac0d0c6ee6708cb5617bd137d332582d794598c27539ac7dd4",
+      "compiler_revision": "fc3ccea383db5f55",
+      "program_guest_instructions_per_call": 52017.0,
+      "whole_process_guest_instructions_per_call": [
+        56137.0,
+        56236.0
+      ],
+      "checks": {
+        "two_pairs": true,
+        "same_program_count": true,
+        "no_negative_program_deltas": true,
+        "byte_identity": true,
+        "artifact_sha": true,
+        "program_checksum": true,
+        "all_native_compare_pass": true,
+        "all_repeats_pass": true
+      }
+    },
+    {
+      "name": "softmax97-float16",
+      "operator": "suite/perf/softmax.py",
+      "shape": [
+        4,
+        97
+      ],
+      "dtype": "float16",
+      "declared_shape": true,
+      "profile": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/baseline-metrics/pristine/softmax97-float16-t1/profile.json",
+      "profile_sha256": "c088b020769e1ceb735a34cba0d05465fc46654ebcb2bb592d68160588c82d3b",
+      "artifact_sha256": "d5551d4b2522d2b6838110b8d6fa59ef0b638b39670684c5713b931f1634e3b4",
+      "compiler_revision": "fc3ccea383db5f55",
+      "program_guest_instructions_per_call": 46129.0,
+      "whole_process_guest_instructions_per_call": [
+        50348.0,
+        50306.0
+      ],
+      "checks": {
+        "two_pairs": true,
+        "same_program_count": true,
+        "no_negative_program_deltas": true,
+        "byte_identity": true,
+        "artifact_sha": true,
+        "program_checksum": true,
+        "all_native_compare_pass": true,
+        "all_repeats_pass": true
+      }
+    },
+    {
+      "name": "softmax97-float32",
+      "operator": "suite/perf/softmax.py",
+      "shape": [
+        4,
+        97
+      ],
+      "dtype": "float32",
+      "declared_shape": true,
+      "profile": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/baseline-metrics/pristine/softmax97-float32-t1/profile.json",
+      "profile_sha256": "842d7e06ce95e8e21c9b54704b1b8b84539cbf4852701d437d680cb86806bf08",
+      "artifact_sha256": "6cda8d0e19ad266d9f8d1b44f838c0f53d4fec996128dd376095e8cd500951e2",
+      "compiler_revision": "fc3ccea383db5f55",
+      "program_guest_instructions_per_call": 36267.0,
+      "whole_process_guest_instructions_per_call": [
+        41497.0,
+        41638.0
+      ],
+      "checks": {
+        "two_pairs": true,
+        "same_program_count": true,
+        "no_negative_program_deltas": true,
+        "byte_identity": true,
+        "artifact_sha": true,
+        "program_checksum": true,
+        "all_native_compare_pass": true,
+        "all_repeats_pass": true
+      }
+    },
+    {
+      "name": "matmul16-bfloat16",
+      "operator": "suite/perf/matmul.py",
+      "shape": [
+        16,
+        16,
+        16
+      ],
+      "dtype": "bfloat16",
+      "declared_shape": true,
+      "profile": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/baseline-metrics-smoke/pristine/matmul16-bfloat16-t1/profile.json",
+      "profile_sha256": "e4ead9e5d597f77be3d9b00410b79a23433c2c9336eded058a015d73356360e5",
+      "artifact_sha256": "a8d9eac1eba1ea940b15d2bdfe2f9ad933a0c5383f57ebb5113d93fe25c4b256",
+      "compiler_revision": "fc3ccea383db5f55",
+      "program_guest_instructions_per_call": 51822.0,
+      "whole_process_guest_instructions_per_call": [
+        59376.0,
+        59277.0
+      ],
+      "checks": {
+        "two_pairs": true,
+        "same_program_count": true,
+        "no_negative_program_deltas": true,
+        "byte_identity": true,
+        "artifact_sha": true,
+        "program_checksum": true,
+        "all_native_compare_pass": true,
+        "all_repeats_pass": true
+      }
+    },
+    {
+      "name": "matmul16-float16",
+      "operator": "suite/perf/matmul.py",
+      "shape": [
+        16,
+        16,
+        16
+      ],
+      "dtype": "float16",
+      "declared_shape": true,
+      "profile": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/baseline-metrics-smoke/pristine/matmul16-float16-t1/profile.json",
+      "profile_sha256": "962c0a8e5de3e4e178d225d74c9cd5302302bce95ff3f5a2959e9dcd000c0f61",
+      "artifact_sha256": "096a4b0f4663ab0f28f65020e5f517f6d679d61bb66ddc5ea39bca4ba87cce4f",
+      "compiler_revision": "fc3ccea383db5f55",
+      "program_guest_instructions_per_call": 34520.0,
+      "whole_process_guest_instructions_per_call": [
+        41777.0,
+        41693.0
+      ],
+      "checks": {
+        "two_pairs": true,
+        "same_program_count": true,
+        "no_negative_program_deltas": true,
+        "byte_identity": true,
+        "artifact_sha": true,
+        "program_checksum": true,
+        "all_native_compare_pass": true,
+        "all_repeats_pass": true
+      }
+    },
+    {
+      "name": "matmul16-float32",
+      "operator": "suite/perf/matmul.py",
+      "shape": [
+        16,
+        16,
+        16
+      ],
+      "dtype": "float32",
+      "declared_shape": true,
+      "profile": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/baseline-metrics-smoke/pristine/matmul16-float32-t1/profile.json",
+      "profile_sha256": "b2777d41135ebc90634fb9d17799a7a8ad3abf9d7af3fd5611f2fe3279567e95",
+      "artifact_sha256": "eca819d0b13a8cdc009c6347a2de067e9c6d429e1752ce028a8ee4b3f66661ee",
+      "compiler_revision": "fc3ccea383db5f55",
+      "program_guest_instructions_per_call": 31676.0,
+      "whole_process_guest_instructions_per_call": [
+        40218.0,
+        40317.0
+      ],
+      "checks": {
+        "two_pairs": true,
+        "same_program_count": true,
+        "no_negative_program_deltas": true,
+        "byte_identity": true,
+        "artifact_sha": true,
+        "program_checksum": true,
+        "all_native_compare_pass": true,
+        "all_repeats_pass": true
+      }
+    }
+  ]
+}

@@ -1,0 +1,65 @@
+{
+  "schema": "independent-source-review/v1",
+  "utc": "2026-11-11T01:08:03.790061+00:00",
+  "scope": "Phase-1 production changes only: kept-axis reduction, neutral-domain trimming, MR2, chunk geometry and backend state/cache fixes. No final full-input acceptance; narrow/width follow-ups require additional review.",
+  "reviewer": "baseline_review",
+  "review_method": "Read real consumer integration, legality guards, source control-flow and independent oracle construction. Owner native evidence is identified separately from this reviewer’s own executions.",
+  "source_snapshot": "/tmp/a100-k3-candidate-phase1-review-ez6ha1ly",
+  "source_sha256": {
+    "a100c/lower/vectorize.py": "9d42d1aa3f0c6706a8c8c18dc12d3ecb76e31b13415f4ff3ac2370c865408940",
+    "a100c/lower/matrix.py": "a4d1016a18b8de8762ec9286e84989e427c85533a1f2484615f398394ad9bd48",
+    "a100c/driver.py": "3a4d2887a423d5a0c094726b18bec2deab85a8725313f9ecd4686c1b1304eae0",
+    "a100c/factory.py": "78286ba6fda749f8291ec7ba4fcb81ab1bd4ed7604c26f2f841ae85744f556d3",
+    "a100c/backend/allocate.py": "fc0ebe0ae54cd4ddcde3e6d51881c7196b272e6885fb15837db40715697e6568",
+    "a100c/backend/emit.py": "8ea53cf8323943f0136dd67663d962956252c544d26b3ab99ac12f57df8369bd",
+    "a100c/backend/repertoire.py": "8d40c51fb4828901d46d3f215bbde9cbace9bc558ff84611e49b17d01ecff039",
+    "a100c/backend/select.py": "e3e8061872cb782529125f033c5d9a9338e75d6ca95567d71d0c1d0d2a781922",
+    "a100c/runtime/build.py": "9b841a167a7d4b0dc75b57fb169889112e3576f841a89bdd3f0df86d3cd72cba",
+    "a100c/tests/test_k3_lowering_optimizations.py": "e1b075100266f67306d34cbe0534fa617dd290070655f4be0707a8d9c6c1e4fa",
+    "a100c/tests/test_backend_vector_state.py": "cbf05e1275f9d5be9d2cd2f599accacc56ff38571a9f04efeb5f5522ef42438e",
+    "a100c/tests/test_t029_repairs.py": "c184bb912f092e25553d92c8ef1e9c491258ff5aecc7ea3f32891f517d05d700"
+  },
+  "blocking_findings": [],
+  "checks": [
+    {
+      "area": "options and cache",
+      "finding": "All three LowerOptions flags are carried by CompileOptions through both Compiler and FactoryCompiler; disabled values enter identity_part. Environment off values map conservatively to False."
+    },
+    {
+      "area": "neutral-domain trimming",
+      "finding": "Matches a single unshifted signed32/64 arange prefix mask, all external memory shares that identical SSA predicate; volatile/control/effect/unknown ops decline. Every sum/min/max explicitly selects its identity, index reductions decline. Whole invalid chunks are omitted; original partial-tail masks and combine order remain."
+    },
+    {
+      "area": "kept-axis reduction",
+      "finding": "Only FP32 sum on contiguous reduced axes followed by contiguous kept suffix, dense 4-byte staging, no index result; width divides suffix so chunks never cross prefix rows. Each lane reads reduced coordinates 0..T-1 in the existing order and uses separate FP32 add. Operand conversions/product/FMA boundaries are not moved."
+    },
+    {
+      "area": "MR2",
+      "finding": "Even M, complete N chunks, LMUL1 guard; chain loads original nonzero accumulator rows, non-chain begins at zero; per-output K-order and FMA operand order match old path. Reads are private staged FP32/BF16-widened data. Odd M/tails retain old path."
+    },
+    {
+      "area": "chunk geometry",
+      "finding": "Compares old chunk extent/VL/SEW before updating next pass geometry and closes the old loop using old values. Recorded old stride cannot silently inherit wider next-pass VL."
+    },
+    {
+      "area": "whole-register spill",
+      "finding": "Allocator slot capacity VLENB*LMUL, emitter validates aligned non-overlapping legal groups and stack slot size; whole-register memory neither reads nor changes VL/VTYPE. Mask spills remain refused. Byte/state/scratch oracle covers zero and partial AVL."
+    },
+    {
+      "area": "T029 test change",
+      "finding": "The removed full-VL ambient assertion described the old implementation restriction. Replacement requires whole-register forms; original real operator execution checks remain. New independent backend-state native byte/state witnesses support relaxing the runtime-AVL allocation refusal."
+    }
+  ],
+  "nonblocking_findings": [
+    {
+      "area": "SDK identity closure",
+      "finding": "The phase-1 snapshot binds SDK lock in complete-program identity but not runtime-object stamp. Fixed-SDK assumption prevents this from affecting the current measurements. Backend owner has subsequently added the lock digest to runtime-object stamp and a real recompile witness; final source review must bind that correction."
+    }
+  ],
+  "pending": [
+    "Final narrow/width implementation and source-bound review",
+    "Two-pair original comparison profiles at final candidate",
+    "All original 2734 cases executed-and-compared with fresh per-shard caches",
+    "No physical K3 compatibility/timing claim from this QEMU-only run"
+  ]
+}

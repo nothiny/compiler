@@ -1,0 +1,701 @@
+{
+  "schema": "a100-final-paired-program-instruction-metrics/v1",
+  "utc": "2026-11-11T01:36:31.462252+00:00",
+  "scope": "Final 51f3c61 production source at one frozen root; QEMU native operator-program-region repeat differences; not complete-call hardware timing/speedup and not full input acceptance. Whole-process and outside-program costs remain separately retained in per-profile raw evidence.",
+  "baseline_git": "c8ade47",
+  "final_source_git": "51f3c61266fab1c4184f7bca771af7e458ce5595",
+  "final_source_manifest": "validation/FINAL_SOURCE_SNAPSHOT.json",
+  "final_source_digest": "05b63e8a1395fe3de7be01f0ab0c0da19314e5c9da3e14c10587f2fb7ee1184b",
+  "profiles_per_revision": 21,
+  "native_runs_per_revision": 84,
+  "original_shape_profiles": 15,
+  "extra_shape_profiles": 6,
+  "rows": [
+    {
+      "name": "attention-bfloat16",
+      "operator": "suite/perf/attention_forward_triton.py",
+      "shape": [
+        4,
+        4,
+        32,
+        64
+      ],
+      "dtype": "bfloat16",
+      "original_manifest_shape": true,
+      "threads": 1,
+      "seed": 30,
+      "baseline_program_instructions": 90832568.0,
+      "phase1_program_instructions": 61800116.0,
+      "final_program_instructions": 38534836.0,
+      "change_percent": -57.57597,
+      "whole_process_per_call_baseline": [
+        91045997.0,
+        91045997.0
+      ],
+      "whole_process_per_call_final": [
+        38748406.0,
+        38748307.0
+      ],
+      "baseline_profile": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/baseline-metrics/pristine/attention-bfloat16-t1/profile.json",
+      "final_profile": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/final-metrics/candidate/attention-bfloat16-t1/profile.json",
+      "final_profile_sha256": "5591c850fec02f80619e78e18198024e49801d0781d1c2f2c7f2dde99d66dd60",
+      "final_artifact_sha256": "a6f91bd1e52a91055d01614159c2ecc81aae0bff3a075a4966a026775f9a39ba",
+      "final_compiler_revision": "92fa8b4b706f0a76",
+      "baseline_spilled_values": 24,
+      "final_spilled_values": 20,
+      "all_checks_pass": true
+    },
+    {
+      "name": "attention-float16",
+      "operator": "suite/perf/attention_forward_triton.py",
+      "shape": [
+        4,
+        4,
+        32,
+        64
+      ],
+      "dtype": "float16",
+      "original_manifest_shape": true,
+      "threads": 1,
+      "seed": 30,
+      "baseline_program_instructions": 82965176.0,
+      "phase1_program_instructions": 53932724.0,
+      "final_program_instructions": 30667444.0,
+      "change_percent": -63.035763,
+      "whole_process_per_call_baseline": [
+        83178605.0,
+        83178605.0
+      ],
+      "whole_process_per_call_final": [
+        30880732.0,
+        30880873.0
+      ],
+      "baseline_profile": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/baseline-metrics/pristine/attention-float16-t1/profile.json",
+      "final_profile": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/final-metrics/candidate/attention-float16-t1/profile.json",
+      "final_profile_sha256": "d8932d502b5dab3acf7a07f078cabca45a1b636ed07bba2e9436bffa148b52a1",
+      "final_artifact_sha256": "0269509fc740180f68b2b65f338d31428430d293e72a7a9fc080b555befac72a",
+      "final_compiler_revision": "92fa8b4b706f0a76",
+      "baseline_spilled_values": 24,
+      "final_spilled_values": 20,
+      "all_checks_pass": true
+    },
+    {
+      "name": "attention-float32",
+      "operator": "suite/perf/attention_forward_triton.py",
+      "shape": [
+        4,
+        4,
+        32,
+        64
+      ],
+      "dtype": "float32",
+      "original_manifest_shape": true,
+      "threads": 1,
+      "seed": 30,
+      "baseline_program_instructions": 47660216.0,
+      "phase1_program_instructions": 18627764.0,
+      "final_program_instructions": 18627764.0,
+      "change_percent": -60.915486,
+      "whole_process_per_call_baseline": [
+        48070745.0,
+        48070703.0
+      ],
+      "whole_process_per_call_final": [
+        19038251.0,
+        19038251.0
+      ],
+      "baseline_profile": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/baseline-metrics/pristine/attention-float32-t1/profile.json",
+      "final_profile": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/final-metrics/candidate/attention-float32-t1/profile.json",
+      "final_profile_sha256": "aecf3447773d9a040bbc64b26152aa8ecfb313d803693fb87a4be933c22b4c1a",
+      "final_artifact_sha256": "e3d068bfeeec5101120486df12095fa5e3e92c5e7410d1d4c4df282e00013ea1",
+      "final_compiler_revision": "92fa8b4b706f0a76",
+      "baseline_spilled_values": 24,
+      "final_spilled_values": 20,
+      "all_checks_pass": true
+    },
+    {
+      "name": "gelu-large-f32",
+      "operator": "suite/perf/gelu.py",
+      "shape": [
+        262144
+      ],
+      "dtype": "float32",
+      "original_manifest_shape": false,
+      "threads": 1,
+      "seed": 30,
+      "baseline_program_instructions": 1990955.0,
+      "phase1_program_instructions": 1990955.0,
+      "final_program_instructions": 987191.0,
+      "change_percent": -50.416207,
+      "whole_process_per_call_baseline": [
+        3578629.0,
+        3578671.0
+      ],
+      "whole_process_per_call_final": [
+        2574907.0,
+        2574907.0
+      ],
+      "baseline_profile": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/baseline-metrics/pristine/gelu-large-f32-t1/profile.json",
+      "final_profile": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/final-metrics/candidate/gelu-large-f32-t1/profile.json",
+      "final_profile_sha256": "8fda99e70f1122bac3c839476a097b7ab4c6540c10631e295124407c1f458f94",
+      "final_artifact_sha256": "7472fd106e5848829de18485e3a3e1b41d7b87dc2b64f9c0dcee81d9b64de5e1",
+      "final_compiler_revision": "92fa8b4b706f0a76",
+      "baseline_spilled_values": 0,
+      "final_spilled_values": 0,
+      "all_checks_pass": true
+    },
+    {
+      "name": "matmul-tail-bfloat16",
+      "operator": "suite/perf/matmul.py",
+      "shape": [
+        8,
+        32,
+        24
+      ],
+      "dtype": "bfloat16",
+      "original_manifest_shape": true,
+      "threads": 1,
+      "seed": 30,
+      "baseline_program_instructions": 103574.0,
+      "phase1_program_instructions": null,
+      "final_program_instructions": 54297.0,
+      "change_percent": -47.576612,
+      "whole_process_per_call_baseline": [
+        111708.0,
+        111666.0
+      ],
+      "whole_process_per_call_final": [
+        62530.0,
+        62473.0
+      ],
+      "baseline_profile": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/baseline-extra-metrics/pristine/matmul-tail-bfloat16-t1/profile.json",
+      "final_profile": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/final-metrics/candidate/matmul-tail-bfloat16-t1/profile.json",
+      "final_profile_sha256": "d2708e14715dc8a1cf259afa17abc0579c69d9f6d276b80dec156be403b8fc7f",
+      "final_artifact_sha256": "fbd7956ef4dcef48e2b8ec9c5f70f339e43344e792e4196be677bcf2e2b9bddc",
+      "final_compiler_revision": "92fa8b4b706f0a76",
+      "baseline_spilled_values": 1,
+      "final_spilled_values": 6,
+      "all_checks_pass": true
+    },
+    {
+      "name": "matmul-tail-float16",
+      "operator": "suite/perf/matmul.py",
+      "shape": [
+        8,
+        32,
+        24
+      ],
+      "dtype": "float16",
+      "original_manifest_shape": true,
+      "threads": 1,
+      "seed": 30,
+      "baseline_program_instructions": 68952.0,
+      "phase1_program_instructions": null,
+      "final_program_instructions": 45216.0,
+      "change_percent": -34.423947,
+      "whole_process_per_call_baseline": [
+        76846.0,
+        76804.0
+      ],
+      "whole_process_per_call_final": [
+        51785.0,
+        53110.0
+      ],
+      "baseline_profile": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/baseline-extra-metrics/pristine/matmul-tail-float16-t1/profile.json",
+      "final_profile": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/final-metrics/candidate/matmul-tail-float16-t1/profile.json",
+      "final_profile_sha256": "ae04b1f59f192509b3df9a59696f994260f2160b8e1283011df1ef996c5d178b",
+      "final_artifact_sha256": "c062accd5b6b1b006a41b09116d19e9427482c9ce257cb9c9560431fc829d3f3",
+      "final_compiler_revision": "92fa8b4b706f0a76",
+      "baseline_spilled_values": 15,
+      "final_spilled_values": 12,
+      "all_checks_pass": true
+    },
+    {
+      "name": "matmul-tail-float32",
+      "operator": "suite/perf/matmul.py",
+      "shape": [
+        8,
+        32,
+        24
+      ],
+      "dtype": "float32",
+      "original_manifest_shape": true,
+      "threads": 1,
+      "seed": 30,
+      "baseline_program_instructions": 63282.0,
+      "phase1_program_instructions": null,
+      "final_program_instructions": 39091.0,
+      "change_percent": -38.2273,
+      "whole_process_per_call_baseline": [
+        73266.0,
+        71758.0
+      ],
+      "whole_process_per_call_final": [
+        49033.0,
+        49012.0
+      ],
+      "baseline_profile": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/baseline-extra-metrics/pristine/matmul-tail-float32-t1/profile.json",
+      "final_profile": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/final-metrics/candidate/matmul-tail-float32-t1/profile.json",
+      "final_profile_sha256": "5547446664dbe3a69ce465850313ba14c87f854142745836cdd640dfa2dba473",
+      "final_artifact_sha256": "0f3efec2ab2dd02a25aea1a09f66e0501f88ab9b74bc4135339dbe6dd2a08306",
+      "final_compiler_revision": "92fa8b4b706f0a76",
+      "baseline_spilled_values": 1,
+      "final_spilled_values": 6,
+      "all_checks_pass": true
+    },
+    {
+      "name": "matmul128-bfloat16",
+      "operator": "suite/perf/matmul.py",
+      "shape": [
+        128,
+        128,
+        128
+      ],
+      "dtype": "bfloat16",
+      "original_manifest_shape": false,
+      "threads": 1,
+      "seed": 30,
+      "baseline_program_instructions": 11754438.0,
+      "phase1_program_instructions": 8654731.0,
+      "final_program_instructions": 5670795.0,
+      "change_percent": -51.756137,
+      "whole_process_per_call_baseline": [
+        11835226.0,
+        11835070.0
+      ],
+      "whole_process_per_call_final": [
+        5751385.0,
+        5751427.0
+      ],
+      "baseline_profile": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/baseline-metrics/pristine/matmul128-bfloat16-t1/profile.json",
+      "final_profile": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/final-metrics/candidate/matmul128-bfloat16-t1/profile.json",
+      "final_profile_sha256": "544d466f386bd3ff25dcb9a3536536d3865afdab6139d4b1e7b415317e3eb29b",
+      "final_artifact_sha256": "4e153476ec2be6eef1c26f9c4c3aa778c29c471ed5b13b2b6fe49b1df4f6b274",
+      "final_compiler_revision": "92fa8b4b706f0a76",
+      "baseline_spilled_values": 1,
+      "final_spilled_values": 6,
+      "all_checks_pass": true
+    },
+    {
+      "name": "matmul128-float16",
+      "operator": "suite/perf/matmul.py",
+      "shape": [
+        128,
+        128,
+        128
+      ],
+      "dtype": "float16",
+      "original_manifest_shape": false,
+      "threads": 1,
+      "seed": 30,
+      "baseline_program_instructions": 7438232.0,
+      "phase1_program_instructions": 7438232.0,
+      "final_program_instructions": 4589206.0,
+      "change_percent": -38.302462,
+      "whole_process_per_call_baseline": [
+        7518723.0,
+        7518723.0
+      ],
+      "whole_process_per_call_final": [
+        4669754.0,
+        4669655.0
+      ],
+      "baseline_profile": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/baseline-metrics/pristine/matmul128-float16-t1/profile.json",
+      "final_profile": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/final-metrics/candidate/matmul128-float16-t1/profile.json",
+      "final_profile_sha256": "932bc1acbef2ed81ac2e3906501376833a37c93ec5be93bc61de3d3aec2aea8d",
+      "final_artifact_sha256": "df35f3279f32e1705c1d36bf054e32656ffd55bc1ab6e67ad5ef9fd8b711c24a",
+      "final_compiler_revision": "92fa8b4b706f0a76",
+      "baseline_spilled_values": 15,
+      "final_spilled_values": 12,
+      "all_checks_pass": true
+    },
+    {
+      "name": "matmul128-float32",
+      "operator": "suite/perf/matmul.py",
+      "shape": [
+        128,
+        128,
+        128
+      ],
+      "dtype": "float32",
+      "original_manifest_shape": false,
+      "threads": 1,
+      "seed": 30,
+      "baseline_program_instructions": 7124870.0,
+      "phase1_program_instructions": 4024907.0,
+      "final_program_instructions": 4024907.0,
+      "change_percent": -43.509046,
+      "whole_process_per_call_baseline": [
+        7280028.0,
+        7279929.0
+      ],
+      "whole_process_per_call_final": [
+        4179966.0,
+        4179924.0
+      ],
+      "baseline_profile": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/baseline-metrics/pristine/matmul128-float32-t1/profile.json",
+      "final_profile": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/final-metrics/candidate/matmul128-float32-t1/profile.json",
+      "final_profile_sha256": "e8b43056e1e10ea6a512d76ce1537db2b2046386138dd0f57c9ab4b171eda3a5",
+      "final_artifact_sha256": "6eab92b0b653001ab649914ae4a24a3c37d5e894e8a79c4ae5c92b09f03503d0",
+      "final_compiler_revision": "92fa8b4b706f0a76",
+      "baseline_spilled_values": 1,
+      "final_spilled_values": 6,
+      "all_checks_pass": true
+    },
+    {
+      "name": "matmul16-bfloat16",
+      "operator": "suite/perf/matmul.py",
+      "shape": [
+        16,
+        16,
+        16
+      ],
+      "dtype": "bfloat16",
+      "original_manifest_shape": true,
+      "threads": 1,
+      "seed": 30,
+      "baseline_program_instructions": 51822.0,
+      "phase1_program_instructions": 39730.0,
+      "final_program_instructions": 27186.0,
+      "change_percent": -47.539655,
+      "whole_process_per_call_baseline": [
+        59376.0,
+        59277.0
+      ],
+      "whole_process_per_call_final": [
+        34641.0,
+        34683.0
+      ],
+      "baseline_profile": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/baseline-metrics-smoke/pristine/matmul16-bfloat16-t1/profile.json",
+      "final_profile": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/final-metrics/candidate/matmul16-bfloat16-t1/profile.json",
+      "final_profile_sha256": "ebcfda0dddd79b42b305ebd8cd708b92e30a16bcc550261cb1a8a71fb0032d72",
+      "final_artifact_sha256": "4e153476ec2be6eef1c26f9c4c3aa778c29c471ed5b13b2b6fe49b1df4f6b274",
+      "final_compiler_revision": "92fa8b4b706f0a76",
+      "baseline_spilled_values": 1,
+      "final_spilled_values": 6,
+      "all_checks_pass": true
+    },
+    {
+      "name": "matmul16-float16",
+      "operator": "suite/perf/matmul.py",
+      "shape": [
+        16,
+        16,
+        16
+      ],
+      "dtype": "float16",
+      "original_manifest_shape": true,
+      "threads": 1,
+      "seed": 30,
+      "baseline_program_instructions": 34520.0,
+      "phase1_program_instructions": 34520.0,
+      "final_program_instructions": 22651.0,
+      "change_percent": -34.382966,
+      "whole_process_per_call_baseline": [
+        41777.0,
+        41693.0
+      ],
+      "whole_process_per_call_final": [
+        29923.0,
+        29866.0
+      ],
+      "baseline_profile": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/baseline-metrics-smoke/pristine/matmul16-float16-t1/profile.json",
+      "final_profile": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/final-metrics/candidate/matmul16-float16-t1/profile.json",
+      "final_profile_sha256": "049f7a93149b2b61eda9493fa5cd7e349b10562e78a8508e478254d85fb8296a",
+      "final_artifact_sha256": "df35f3279f32e1705c1d36bf054e32656ffd55bc1ab6e67ad5ef9fd8b711c24a",
+      "final_compiler_revision": "92fa8b4b706f0a76",
+      "baseline_spilled_values": 15,
+      "final_spilled_values": 12,
+      "all_checks_pass": true
+    },
+    {
+      "name": "matmul16-float32",
+      "operator": "suite/perf/matmul.py",
+      "shape": [
+        16,
+        16,
+        16
+      ],
+      "dtype": "float32",
+      "original_manifest_shape": true,
+      "threads": 1,
+      "seed": 30,
+      "baseline_program_instructions": 31676.0,
+      "phase1_program_instructions": 19583.0,
+      "final_program_instructions": 19583.0,
+      "change_percent": -38.177169,
+      "whole_process_per_call_baseline": [
+        40218.0,
+        40317.0
+      ],
+      "whole_process_per_call_final": [
+        28026.0,
+        29536.0
+      ],
+      "baseline_profile": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/baseline-metrics-smoke/pristine/matmul16-float32-t1/profile.json",
+      "final_profile": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/final-metrics/candidate/matmul16-float32-t1/profile.json",
+      "final_profile_sha256": "c63f77a050011328c1d8b331175e2c65b6b9e36bcbf971b669ba13720a1a04d0",
+      "final_artifact_sha256": "6eab92b0b653001ab649914ae4a24a3c37d5e894e8a79c4ae5c92b09f03503d0",
+      "final_compiler_revision": "92fa8b4b706f0a76",
+      "baseline_spilled_values": 1,
+      "final_spilled_values": 6,
+      "all_checks_pass": true
+    },
+    {
+      "name": "matmul256-float16",
+      "operator": "suite/perf/matmul.py",
+      "shape": [
+        256,
+        256,
+        256
+      ],
+      "dtype": "float16",
+      "original_manifest_shape": false,
+      "threads": 1,
+      "seed": 30,
+      "baseline_program_instructions": 57669976.0,
+      "phase1_program_instructions": null,
+      "final_program_instructions": 35129686.0,
+      "change_percent": -39.084965,
+      "whole_process_per_call_baseline": [
+        57973724.0,
+        57973625.0
+      ],
+      "whole_process_per_call_final": [
+        35433335.0,
+        35433335.0
+      ],
+      "baseline_profile": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/baseline-extra-metrics/pristine/matmul256-float16-t1/profile.json",
+      "final_profile": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/final-metrics/candidate/matmul256-float16-t1/profile.json",
+      "final_profile_sha256": "6a90e3e2cfb702d977d3df9135f4ebae55eef5923b9a83e5bd65f84054f67ce5",
+      "final_artifact_sha256": "df35f3279f32e1705c1d36bf054e32656ffd55bc1ab6e67ad5ef9fd8b711c24a",
+      "final_compiler_revision": "92fa8b4b706f0a76",
+      "baseline_spilled_values": 15,
+      "final_spilled_values": 12,
+      "all_checks_pass": true
+    },
+    {
+      "name": "sigmoid-large-f32",
+      "operator": "suite/perf/sigmoid.py",
+      "shape": [
+        262144
+      ],
+      "dtype": "float32",
+      "original_manifest_shape": false,
+      "threads": 1,
+      "seed": 30,
+      "baseline_program_instructions": 991531.0,
+      "phase1_program_instructions": 991531.0,
+      "final_program_instructions": 487479.0,
+      "change_percent": -50.835728,
+      "whole_process_per_call_baseline": [
+        2579148.0,
+        2579190.0
+      ],
+      "whole_process_per_call_final": [
+        2075138.0,
+        2075096.0
+      ],
+      "baseline_profile": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/baseline-metrics/pristine/sigmoid-large-f32-t1/profile.json",
+      "final_profile": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/final-metrics/candidate/sigmoid-large-f32-t1/profile.json",
+      "final_profile_sha256": "79e7cc684254f310cd83cf0fe7ebf0e8598c5197f970e2dcdc4a4cc232f6075f",
+      "final_artifact_sha256": "5941dac436dc39a813892822fdcabbc2f7eedd5192bd528432020d10c5235cd6",
+      "final_compiler_revision": "92fa8b4b706f0a76",
+      "baseline_spilled_values": 0,
+      "final_spilled_values": 0,
+      "all_checks_pass": true
+    },
+    {
+      "name": "softmax16-bfloat16",
+      "operator": "suite/perf/softmax.py",
+      "shape": [
+        4,
+        16
+      ],
+      "dtype": "bfloat16",
+      "original_manifest_shape": true,
+      "threads": 1,
+      "seed": 30,
+      "baseline_program_instructions": 52017.0,
+      "phase1_program_instructions": null,
+      "final_program_instructions": 2088.0,
+      "change_percent": -95.985928,
+      "whole_process_per_call_baseline": [
+        55158.0,
+        55314.0
+      ],
+      "whole_process_per_call_final": [
+        5286.0,
+        5286.0
+      ],
+      "baseline_profile": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/baseline-extra-metrics/pristine/softmax16-bfloat16-t1/profile.json",
+      "final_profile": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/final-metrics/candidate/softmax16-bfloat16-t1/profile.json",
+      "final_profile_sha256": "8ee1bfa63f2aa0fbfa207ec482dd64cb0a1e80d0a4c36473251e27df24fff4d1",
+      "final_artifact_sha256": "bc120890e83db55e55d1d173d5003aec6de9075338637d7121c5364853e007f0",
+      "final_compiler_revision": "92fa8b4b706f0a76",
+      "baseline_spilled_values": 0,
+      "final_spilled_values": 0,
+      "all_checks_pass": true
+    },
+    {
+      "name": "softmax16-float16",
+      "operator": "suite/perf/softmax.py",
+      "shape": [
+        4,
+        16
+      ],
+      "dtype": "float16",
+      "original_manifest_shape": true,
+      "threads": 1,
+      "seed": 30,
+      "baseline_program_instructions": 46129.0,
+      "phase1_program_instructions": null,
+      "final_program_instructions": 1904.0,
+      "change_percent": -95.872445,
+      "whole_process_per_call_baseline": [
+        49287.0,
+        49327.0
+      ],
+      "whole_process_per_call_final": [
+        5102.0,
+        5102.0
+      ],
+      "baseline_profile": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/baseline-extra-metrics/pristine/softmax16-float16-t1/profile.json",
+      "final_profile": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/final-metrics/candidate/softmax16-float16-t1/profile.json",
+      "final_profile_sha256": "131ec788e83590dd0df52e741b29a474ed889693ca6f3991f390712c8f3a8049",
+      "final_artifact_sha256": "329ee580624420e888ca625ac70436638f861615b8f00b9d01d2a875a1a9dafc",
+      "final_compiler_revision": "92fa8b4b706f0a76",
+      "baseline_spilled_values": 0,
+      "final_spilled_values": 0,
+      "all_checks_pass": true
+    },
+    {
+      "name": "softmax16-float32",
+      "operator": "suite/perf/softmax.py",
+      "shape": [
+        4,
+        16
+      ],
+      "dtype": "float32",
+      "original_manifest_shape": true,
+      "threads": 1,
+      "seed": 30,
+      "baseline_program_instructions": 36267.0,
+      "phase1_program_instructions": null,
+      "final_program_instructions": 1592.0,
+      "change_percent": -95.610334,
+      "whole_process_per_call_baseline": [
+        39637.0,
+        39736.0
+      ],
+      "whole_process_per_call_final": [
+        4920.0,
+        4863.0
+      ],
+      "baseline_profile": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/baseline-extra-metrics/pristine/softmax16-float32-t1/profile.json",
+      "final_profile": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/final-metrics/candidate/softmax16-float32-t1/profile.json",
+      "final_profile_sha256": "78be2b6a84cc456435e696edb2f2eed30d4ad19804a76a5742b49a215da00fe1",
+      "final_artifact_sha256": "6a106ce3438f4c7ca7427748fb40042dc892098ff332ca7ae0c6cd0d8cf5b402",
+      "final_compiler_revision": "92fa8b4b706f0a76",
+      "baseline_spilled_values": 0,
+      "final_spilled_values": 0,
+      "all_checks_pass": true
+    },
+    {
+      "name": "softmax97-bfloat16",
+      "operator": "suite/perf/softmax.py",
+      "shape": [
+        4,
+        97
+      ],
+      "dtype": "bfloat16",
+      "original_manifest_shape": true,
+      "threads": 1,
+      "seed": 30,
+      "baseline_program_instructions": 52017.0,
+      "phase1_program_instructions": 7188.0,
+      "final_program_instructions": 7188.0,
+      "change_percent": -86.181441,
+      "whole_process_per_call_baseline": [
+        56137.0,
+        56236.0
+      ],
+      "whole_process_per_call_final": [
+        12333.0,
+        11449.0
+      ],
+      "baseline_profile": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/baseline-metrics/pristine/softmax97-bfloat16-t1/profile.json",
+      "final_profile": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/final-metrics/candidate/softmax97-bfloat16-t1/profile.json",
+      "final_profile_sha256": "4d48f262c1c8339cb0a894a4129fef18497973d7e4e2bdd84902ea001c3e8ade",
+      "final_artifact_sha256": "0cc2e0cb708fe3b1064ee0a49c42c9421336aac5fde8d19ff53b8c5697663c2e",
+      "final_compiler_revision": "92fa8b4b706f0a76",
+      "baseline_spilled_values": 0,
+      "final_spilled_values": 0,
+      "all_checks_pass": true
+    },
+    {
+      "name": "softmax97-float16",
+      "operator": "suite/perf/softmax.py",
+      "shape": [
+        4,
+        97
+      ],
+      "dtype": "float16",
+      "original_manifest_shape": true,
+      "threads": 1,
+      "seed": 30,
+      "baseline_program_instructions": 46129.0,
+      "phase1_program_instructions": 6452.0,
+      "final_program_instructions": 6452.0,
+      "change_percent": -86.013137,
+      "whole_process_per_call_baseline": [
+        50348.0,
+        50306.0
+      ],
+      "whole_process_per_call_final": [
+        10671.0,
+        10671.0
+      ],
+      "baseline_profile": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/baseline-metrics/pristine/softmax97-float16-t1/profile.json",
+      "final_profile": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/final-metrics/candidate/softmax97-float16-t1/profile.json",
+      "final_profile_sha256": "9f4e9f5326571834bcfe1ab5d2b507541a1d3e3529cb8f2092794575ffb1ebfa",
+      "final_artifact_sha256": "a10cc919e85b8a2fee7586cfe0233548d1b84ad331879428dc3f1f7ae180a10b",
+      "final_compiler_revision": "92fa8b4b706f0a76",
+      "baseline_spilled_values": 0,
+      "final_spilled_values": 0,
+      "all_checks_pass": true
+    },
+    {
+      "name": "softmax97-float32",
+      "operator": "suite/perf/softmax.py",
+      "shape": [
+        4,
+        97
+      ],
+      "dtype": "float32",
+      "original_manifest_shape": true,
+      "threads": 1,
+      "seed": 30,
+      "baseline_program_instructions": 36267.0,
+      "phase1_program_instructions": 5216.0,
+      "final_program_instructions": 5216.0,
+      "change_percent": -85.617779,
+      "whole_process_per_call_baseline": [
+        41497.0,
+        41638.0
+      ],
+      "whole_process_per_call_final": [
+        10587.0,
+        10629.0
+      ],
+      "baseline_profile": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/baseline-metrics/pristine/softmax97-float32-t1/profile.json",
+      "final_profile": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/validation/final-metrics/candidate/softmax97-float32-t1/profile.json",
+      "final_profile_sha256": "0a65a0464f004c0a9063f44864e7a44fbd56d435704c51c5dc8ae328b1ec5654",
+      "final_artifact_sha256": "16e61c69b798094b87323abc571ec9b682f9744161f2e7a5fcf48b1488ce6bc7",
+      "final_compiler_revision": "92fa8b4b706f0a76",
+      "baseline_spilled_values": 0,
+      "final_spilled_values": 0,
+      "all_checks_pass": true
+    }
+  ]
+}
