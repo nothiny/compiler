@@ -52,23 +52,27 @@ __all__ = ["CompileOptions", "Compiler", "make_compiler", "compiler_revision",
 
 ROOT = Path(__file__).resolve().parents[1]
 
-#: code-affecting files of the compiler revision (never the whole tree)
-_REVISION_FILES = (
-    "a100c/target.py", "a100c/ir/mir.py", "a100c/ir/tir.py",
-    "a100c/plan/partition.py", "a100c/plan/grid.py",
-    "a100c/lower/binding.py", "a100c/lower/addresses.py",
-    "a100c/lower/scalar.py", "a100c/lower/matrix.py",
-    "a100c/lower/vectorize.py",
-    "a100c/backend/repertoire.py", "a100c/backend/legalize.py",
-    "a100c/backend/select.py", "a100c/backend/allocate.py",
-    "a100c/backend/emit.py", "a100c/driver.py",
-    "a100c/frontend/source.py", "a100c/frontend/specialize.py",
-    "a100c/frontend/types.py", "a100c/frontend/shapes.py",
-    "a100c/frontend/surface.py", "a100c/frontend/lower_tir.py",
-    "a100c/frontend/gridmodel.py",
-    "a100c/runtime/build.py", "a100c/runtime/a100rt.h",
-    "a100c/runtime/bundle.c", "a100c/runtime/pool.c", "a100c/runtime/main.c",
-)
+def _revision_files():
+    """Discover production inputs, including new passes and native headers.
+
+    A hand-maintained list missed factory/pass/planning dependencies and
+    silently reused stale complete programs. Tests, caches and build
+    products do not affect generated code and stay outside the identity.
+    """
+    package = ROOT / "a100c"
+    ignored = {"tests", "cache", "build", "__pycache__"}
+    paths = []
+    for directory, subdirs, files in os.walk(package):
+        # Prune before descent: the shared cache can contain hundreds of
+        # thousands of entries and must not be traversed per lookup.
+        subdirs[:] = [name for name in subdirs if name not in ignored]
+        for name in files:
+            path = Path(directory) / name
+            if (path.suffix == ".py"
+                    or (path.is_relative_to(package / "runtime")
+                        and path.suffix in (".c", ".h", ".S"))):
+                paths.append(path.relative_to(ROOT).as_posix())
+    return sorted(paths)
 
 
 class PipelineError(Exception):
@@ -140,7 +144,7 @@ class CompileOptions:
 def compiler_revision() -> str:
     """Digest of the code-affecting files (not the whole tree)."""
     digest = hashlib.sha256()
-    for rel in _REVISION_FILES:
+    for rel in _revision_files():
         path = ROOT / rel
         if path.is_file():
             digest.update(rel.encode())
@@ -233,6 +237,7 @@ class Compiler:
             + f"options={self.options.identity_part()}\n".encode()
             + f"layout={layout.digest}\n".encode()
             + f"abi={self.target.abi}\n".encode()
+            + f"build={self._runtime.build_identity()}\n".encode()
         ).hexdigest()
         return {"key": key, "specialization": spec.identity,
                 "layout": layout.digest}

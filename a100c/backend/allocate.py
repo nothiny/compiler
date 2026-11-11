@@ -32,10 +32,10 @@ Exceeding a file is a compiler-owned spill/split decision (the vector file
 has no architectural spill, F041): the live range is split -- the value is
 stored to a stack slot after each definition (block parameters included,
 stored at block entry) and reloaded into a fresh short-range value before
-each use -- and coloring restarts (bounded rounds).  Vector spill is only
-legal in full-vl regions (the spill sequence re-establishes vlmax at the
-value's (SEW, LMUL)); elsewhere, and for masks, the allocator refuses with
-a located diagnostic (a bounded, declared refusal, see ABSENT_FORMS).
+each use -- and coloring restarts (bounded rounds).  Vector groups spill
+through whole-register transfers, preserving every byte without changing
+VL/VTYPE, including runtime and zero AVL. Masks remain a located refusal
+(a bounded, declared refusal, see ABSENT_FORMS).
 """
 from __future__ import annotations
 
@@ -1163,15 +1163,6 @@ def _allocate_function(module: mir.MModule, fn: mir.MFunction,
                 f"mask value '{victim.name}' cannot be spilled: the mask "
                 "file is exhausted and mask spill is not implemented (a "
                 "bounded, located refusal -- see ABSENT_FORMS)")
-        if victim.is_vector():
-            const_vl = _const_vl_regions(fn)
-            if (victim.type.sew, victim.type.lmul) not in const_vl:
-                raise AllocationError(
-                    victim.loc,
-                    f"vector value '{victim.name}' must spill outside a "
-                    "constant-vl region; vector spill where the displaced "
-                    "region's vl is a runtime value is not implemented "
-                    "(located refusal)")
         slot = len(alloc.slots)
         alloc.slots.append(target.vlenb * victim.type.lmul
                            if victim.is_vector() else 8)
