@@ -30,6 +30,7 @@ parser.add_argument("--shape", required=True)
 parser.add_argument("--dtype", required=True)
 parser.add_argument("--threads", type=int, default=1)
 parser.add_argument("--off", action="store_true")
+parser.add_argument("--switch", help="one CompileOptions boolean to compare; default compares the original three mechanisms")
 parser.add_argument("--out", required=True)
 args = parser.parse_args()
 root = Path(args.project).resolve()
@@ -48,6 +49,17 @@ from a100_support.native_device import NativeExecutableDevice
 from a100_support.native_io import unpack_outputs
 from opslib.compare import compare_case
 
+
+def assert_frozen_imports():
+    for name, module in list(sys.modules.items()):
+        if name == "a100c" or name.startswith("a100c."):
+            path = getattr(module, "__file__", None)
+            if path:
+                assert Path(path).resolve().is_relative_to(root), (name, path, str(root))
+
+
+assert_frozen_imports()
+
 out = Path(args.out).resolve()
 out.mkdir(parents=True, exist_ok=True)
 raw = Path(tempfile.mkdtemp(prefix="a100-k3-pc-profile-"))
@@ -57,13 +69,15 @@ row = next(r for r in rows if r["dtype"] == args.dtype)
 row = dict(row, shape=shape)
 case = scan.build_case(row, seed=30, use_golden=any(r["shape"] == shape and r["dtype"] == args.dtype for r in rows))
 fields = {"cache_dir": str(root / "metric-cache")}
-for field in ("kept_axis_reduction", "neutral_reduction_trim", "matrix_row_reuse"):
+for field in ((args.switch,) if args.switch else
+              ("kept_axis_reduction", "neutral_reduction_trim", "matrix_row_reuse")):
     if field in CompileOptions.__dataclass_fields__:
         fields[field] = not args.off
 options = CompileOptions(**fields)
 compiler = FactoryCompiler(options=options)
 revision = compiler_revision()
 staged = NativeExecutableDevice(compiler, args.threads).stage_case(case)
+assert_frozen_imports()
 assert compiler_revision() == revision, "source changed while compiling; freeze it first"
 executable = Path(staged.artifact.executable)
 entry = executable.parent
