@@ -1,0 +1,19 @@
+PASS slice-mir-verifies
+PASS vsetvli-regions-present | [(32, 1)]
+PASS exact-vl-is-32
+PASS masked-load-declares-undef
+PASS masked-store-declares-no-access
+PASS memory-index-at-eew64
+PASS address-trees-recorded | trees=[] wide=2
+PASS address-model-independent-check
+PASS worker-loop-and-grid-present
+PASS grid-tied-to-scalar | {('n_elements',): ('scalar', 'n_elements')}
+PASS grid-self-check-recorded | {'modeled': [1], 'declared': [1], 'tied_scalars': ['n_elements'], 'tied_views': []}
+PASS witness-drops-tail-predicates
+PASS fp16-element-lowers-and-verifies | errs=[] sews=[16, 32]
+PASS untied-grid-refused | /tmp/a100-final-suites-vj2_9v9h/a100c/tests/_scratch_bad_grid.py:72:1: grid: a grid axis i
+PASS matrix-stub-refuses | matrix lowering: tl.dot: probe; the IME tile path is not implemented by the vert
+PASS scalar-stub-refuses
+PASS control-flow-refused | vectorization: loop: malformed control flow: the counted loop form requires lowe
+PASS view-extent-tie-lowers-to-shape-load
+test_lower_vector: all checks PASS

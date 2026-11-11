@@ -1,0 +1,24 @@
+actual_driver=/tmp/a100-final-suites-vj2_9v9h/a100c/driver.py
+PASS ptradd-widened-equals-model | 63 boundary-crossing (lane, scalar) pairs where the 32-bit path is defined, all agreeing
+PASS ptradd-zext-control-disagrees | a zext widening differs from the signed model on negative lanes (the check is load-bearing)
+PASS ptradd-operator-compiles-elf | operator_exec
+PASS ptradd-widened-form-in-mir | 10 vwaddx0 sext widenings to vi64m2
+PASS ptradd-softmax-executes-pass-1t
+PASS ptradd-softmax-executes-pass-2t
+PASS lmul4-groups-naturally-aligned | []
+PASS lmul4-file-within-budget | 28 regs / 3584B of 4096B
+PASS lmul4-pressure-spills-legally | 4 spilled, slots [512, 512, 512, 512]
+PASS lmul4-spill-frame-assembles | frame 2064B assembled
+PASS lmul4-post-spill-verifies
+PASS lmul4-no-interfering-pair-shares | []
+PASS lmul4-spill-sites-use-whole-register-transfers | 4 whole m4 stores, 4 whole m4 loads
+PASS lmul4-gemm-smallk-executes-pass
+PASS lmul4-matmul-k64-executes-pass-2t
+PASS convergence-constant-loop-pressure | converged; 14 remat products, 0 reload re-splits, 1 stack spills
+PASS convergence-module-verifies
+PASS convergence-remat-values-preserved | 14 remat products, values [1000, 1001, 1002, 1003, 1004, 1005]...
+PASS convergence-spill-reload-slots-match | 1 reloads against 1 spill slots, all shape-matched
+PASS convergence-matmul-k32-fast-fp16-pass
+PASS overlap-control-legal-allocates | src=v1 dst=v2 (groups disjoint)
+PASS overlap-control-rejects-overlap | allocation: allocation gives 'dst' (v2) a destination group overlapping source 'src' (v2) 
+test_t029_repairs: all checks PASS

@@ -1,0 +1,26 @@
+PASS layout-corpus-executors-1-2-4-8
+PASS layout-family-remaining-refusals-located
+PASS shape-oracle-broadcast-flags-and-mapping
+PASS broadcast-as-real-rejected-by-verifier | plain=2 real=1 plain_inv=['type-contradiction', 'broadcast-extent-consumed-as-real']
+PASS shape-oracle-strided-broadcast-executes
+PASS construct-reshape-executes-1-2-4-8
+PASS construct-trans-executes-1-2-4-8
+PASS construct-permute-executes-1-2-4-8
+PASS construct-split_join-executes-1-2-4-8
+PASS construct-cat-executes-1-2-4-8
+PASS construct-expand_squeeze-executes-1-2-4-8
+PASS construct-broadcast-executes-1-2-4-8
+PASS construct-ravel_view-executes-1-2-4-8
+PASS construct-flip-executes-1-2-4-8
+PASS construct-swizzle2d-executes-1-2-4-8
+PASS construct-to_tensor-executes-1-2-4-8
+PASS construct-composed-kitchen-sink-1-2-4-8
+PASS attr-T-and-value-dtype-fold-executes
+PASS refusal-split_scalars | tl.split: the rank-1 split-to-scalars form (the pinned unsplat route) is a declared-unsupported refu
+PASS refusal-expand_scalar | tl.expand_dims: expand_dims of a scalar (the pinned splat form) is not in the layout lane; a scalar 
+PASS refusal-permute_bad | tl.permute: permute dims must be a permutation of 0..1, but were (0, 0) (at /tmp/a100c-layout-9w48rs
+PASS refusal-reshape_count | tl.reshape: cannot reshape [8] to [10]: the element counts differ (8 vs 10) (at /tmp/a100c-layout-9w
+PASS refusal-swizzle_float | tl.swizzle2d: swizzle2d operates on integer index blocks, got fp32 and fp32 (at /tmp/a100c-layout-9w
+PASS layout-in-loop-executes-1-4-workers
+PASS multi-pass-and-staging-structure-observable | chunk blocks=9 staging loops=9 artifact=8e2b87f5c6
+test_layout_ops: all checks PASS

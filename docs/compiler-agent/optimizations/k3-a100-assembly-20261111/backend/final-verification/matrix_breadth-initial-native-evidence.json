@@ -1,0 +1,167 @@
+{
+  "schema": "a100c-matrix-breadth/v1",
+  "endpoint": "qemu-functional (jdsk-qemu 10.0.2, -cpu max,vlen=1024,elen=64,vext_spec=v1.0)",
+  "cases": [
+    {
+      "form": "int8-basic",
+      "compare": "PASS"
+    },
+    {
+      "form": "int8-acc",
+      "compare": "PASS"
+    },
+    {
+      "form": "uint8-basic",
+      "compare": "PASS"
+    },
+    {
+      "form": "uint8-acc",
+      "compare": "PASS"
+    },
+    {
+      "form": "fp16-basic",
+      "compare": "PASS"
+    },
+    {
+      "form": "fp16-acc",
+      "compare": "PASS"
+    },
+    {
+      "form": "fp16-out-dtype",
+      "compare": "PASS"
+    },
+    {
+      "form": "fp16-masked",
+      "compare": "PASS"
+    },
+    {
+      "form": "fp32-basic",
+      "compare": "PASS"
+    },
+    {
+      "form": "fp32-acc",
+      "compare": "PASS"
+    },
+    {
+      "form": "fp32-masked",
+      "compare": "PASS"
+    },
+    {
+      "form": "bf16-basic",
+      "compare": "PASS"
+    },
+    {
+      "form": "bf16-acc",
+      "compare": "PASS"
+    },
+    {
+      "form": "bf16-masked",
+      "compare": "PASS"
+    },
+    {
+      "form": "fp32-ieee-bitexact",
+      "compare": "PASS"
+    },
+    {
+      "form": "bf16-16x16x16-vectorfp32",
+      "compare": "PASS",
+      "ime_executions": null,
+      "gap": "the pinned QEMU emulator's BF16 IME format selection has not passed (F010: the bf16 matrix probe fails while its executed smt.vfwmadot selects the MCPM float16 format; F034); BF16 IME execution is not claimable and FP16 or vector success never proves it -- BF16 dot lowers to the vector FP32 path (BF16->FP32 conversion is exact) and the gap is recorded separately"
+    },
+    {
+      "form": "while-carried-pointer-block",
+      "compare": "PASS",
+      "note": "the uniform pointer-recurrence repair (T014)"
+    },
+    {
+      "form": "kloop-runtime-bound-1iter",
+      "artifact_sha256": "a39e226cde146687a11bde2566c01f93f39515ba1985c61b31a525bb77efc940",
+      "compare": "PASS"
+    },
+    {
+      "form": "kloop-multi-8x8x32-bk16",
+      "artifact_sha256": "e7b678fe350d29325baa7a721db31972eb1857e61b5d4cc0fc3bcdc2b259335e",
+      "threads": 1,
+      "compare": "PASS"
+    },
+    {
+      "form": "kloop-multi-8x8x48-bk16",
+      "artifact_sha256": "e7b678fe350d29325baa7a721db31972eb1857e61b5d4cc0fc3bcdc2b259335e",
+      "threads": 1,
+      "compare": "PASS"
+    },
+    {
+      "form": "kloop-multi-16x8x56-bk16",
+      "artifact_sha256": "1b66b7f030c95ca5163adfa2b613d5d3d42786e553717dd7758fa44fe018449b",
+      "threads": 1,
+      "compare": "PASS"
+    },
+    {
+      "form": "kloop-multi-8x16x64-bk8",
+      "artifact_sha256": "d2d7bd243068a6b130345ec1e8c4430d9006e4d642dc64b8034d8b62f41fde60",
+      "threads": 4,
+      "compare": "PASS"
+    }
+  ],
+  "census": [
+    {
+      "file": "matmul_kernel.py",
+      "family": "matmul",
+      "outcome": "RUN-ERROR ValueError operands could not be broadcast together with shapes (128,128) (16384,) "
+    },
+    {
+      "file": "matmul_kernel_2d_8e70c631.py",
+      "family": "matmul",
+      "outcome": "PASS"
+    },
+    {
+      "file": "gemm_smallk_kernel_5ee47e3f.py",
+      "family": "matmul",
+      "outcome": "PASS"
+    },
+    {
+      "file": "matmul_abt_kernel.py",
+      "family": "matmul",
+      "outcome": "RUN-ERROR ValueError operands could not be broadcast together with shapes (128,96) (12288,) "
+    },
+    {
+      "file": "flash_varlen_fwd_kernel.py",
+      "family": "attention",
+      "outcome": "PASS"
+    },
+    {
+      "file": "gqa.py",
+      "family": "attention",
+      "outcome": "PASS"
+    },
+    {
+      "file": "conv1x1_pool_fc_kernel.py",
+      "family": "conv_pool",
+      "outcome": "PASS"
+    },
+    {
+      "file": "implicit_conv2d.py",
+      "family": "conv_pool",
+      "outcome": "PASS"
+    },
+    {
+      "file": "grouped_gemm_kernel.py",
+      "family": "matmul",
+      "outcome": "PASS"
+    },
+    {
+      "file": "matmul_k32_splitn4_paired_kernel_6f1c91c8.py",
+      "family": "matmul",
+      "outcome": "PASS"
+    }
+  ],
+  "kloop_reproduction": {
+    "shape": [
+      8,
+      8,
+      16
+    ],
+    "bad_elements": 0,
+    "note": "the T030 repair regression (was 30/64 wrong at this exact probe before the back-edge copy fix)"
+  }
+}

@@ -1,0 +1,23 @@
+PASS every-declared-math-form-executes-and-compares | 24/24 forms PASS
+PASS wrongly-rounded-constant-fails-the-accuracy-test | correct ref PASS=True, perturbed ref PASS=False (the control must fail)
+PASS fp32-ieee-forms-bit-exact | sqrt/sqrt_rn/div_rn/fma equal the double-rounded oracle
+PASS fp16-bf16-ride-the-fp32-lanes | one final rounding inside the 16-bit tolerance
+PASS integer-abs-and-maxmin-exact | compares PASS under the case policy
+PASS maximum-minimum-honor-propagate_nan | compares PASS under the case policy
+PASS refusal-fp16-transcendental | <probe>:16:11: tl.exp: tl.exp requires fp32 or fp64 operands (the pinned _check_dtype); 16
+PASS refusal-tensor-pow | <probe>:16:11: **: tensor pow is not supported by the pinned Triton 3.8 semantics (constex
+PASS corpus-math-representatives-execute-and-compare | 4 operators (math.transcendental, math.transcendental (erf), sigmoid, math.round (floor))
+PASS math-op-1-2-4-8-threads-one-artifact | 1 artifact sha(s) across 4 thread counts
+PASS constexpr-pow-folds-exact | compares PASS under the case policy
+PASS vmath-poly-default-no-vmath-op | vfmacc=True vmath=False
+PASS vmath-poly-libm-rollback-keeps-vmath | vmath=True vfmacc=False
+PASS vmath-poly-sin-keeps-libm | sin/cos/ceil have no polynomial in this round
+PASS vmath-poly-switch-changes-identity | 1bc6746d2072.. vs 8e190b3bae4a..
+PASS vmath-poly-poly-wp_exp-executes | compares PASS under the case policy
+PASS vmath-poly-libm-wp_exp-executes | compares PASS under the case policy
+PASS vmath-poly-wp_exp-positions-agree | max cross-position |diff| 9.537e-07
+PASS vmath-poly-poly-wp_erf-executes | compares PASS under the case policy
+PASS vmath-poly-libm-wp_erf-executes | compares PASS under the case policy
+PASS vmath-poly-wp_erf-positions-agree | max cross-position |diff| 1.192e-07
+PASS vmath-poly-switch-matrix | the W1 rollback wiring is load-bearing end to end
+test_math_ops: all checks PASS

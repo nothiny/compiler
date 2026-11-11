@@ -1,0 +1,16 @@
+PASS workspace-queries-present
+PASS entry-and-abi-prologue
+PASS epilogue-present
+PASS one-label-per-block | ['entry', 'prog_head', 'prog_body', 'chunk1_head', 'chunk1_exit', 'chunk1_body', 'prog_next', 'prog_exit']
+PASS vsetvli-regions-emitted
+PASS masked-indexed-memory-with-v0t
+PASS note-gnu-stack
+PASS brc-edge-stubs
+PASS condition-read-before-edge-moves
+PASS instructions-carry-source-attribution | 116 attributed lines
+PASS attribution-maps-to-real-ops | 91 distinct ops
+PASS emission-is-deterministic
+PASS emission-stats-recorded | {'frame_bytes': 64, 'saved_regs': ['s1', 's2', 's3', 's4', 's5'], 'emitted_lines': 17, 'spill_slots': 0, 'gprs_assigned': 15, 'vregs_assigned': 5}
+PASS artifact-is-elf64-little-riscv | magic=7f454c460201 machine=f300
+PASS declared-cross-toolchain-only
+test_emit: all checks PASS

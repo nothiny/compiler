@@ -1,0 +1,5 @@
+real artifact threads=1 repeats=16: PASS (outputs compare PASS under the case policy)
+real artifact threads=2 repeats=16: PASS (outputs compare PASS under the case policy)
+real artifact threads=4 repeats=16: PASS (outputs compare PASS under the case policy)
+real artifact threads=8 repeats=16: PASS (outputs compare PASS under the case policy)
+FAIL witness: the degraded build (stage barrier removed) produced correct results across all repeats -- the synchronization is NOT load-bearing (the check cannot fail, so it proves nothing)

@@ -1,0 +1,45 @@
+PASS every-executed-dot-form-compares-pass | 14/14 forms PASS, 0 located allocation refusals (the heavier IME forms' spill-convergence boundary), 0 compared FAILs
+PASS fp32-dot-ieee-bit-exact | every value equals numpy fp32 matmul exactly (no tf32 path)
+FAIL bf16-vector-path-with-recorded-gap | compare PASS; plan gap recorded; smt.* executions ? (the gap: BF16 IME is not claimable, F010/F034)
+FAIL int8-ime-plugin-counts | the plugin endpoint is unavailable
+FAIL fp16-ime-plugin-counts | the plugin endpoint is unavailable
+PASS over-budget-demand-chunks-legally | 256 lanes at SEW 32 with 3 live values: chunk (256, lmul 8, 1 chunk(s)) -- fits
+PASS narrower-chunk-when-over-budget | 512 lanes at SEW 64 with 9 live values: chunk (32, lmul 2, 16 chunk(s)) -- the demand 2304B fits the 4096B file
+PASS no-chunking-exists-refusal | tile plan: budget: the register demand of 500 live values at SEW 64 exceeds the vector file (3968B) 
+PASS every-dot-plan-demand-within-budget | int8/uint8/fp16/fp16-out/fp32/bf16 plans carry demand records inside the 32x128B file (F023/F028/F041)
+PASS composed-dot-demand-recorded-and-inside-budget | 1 matrix segment(s) in meta; allocation records spills=0 of 896B/4096B (the visible over-budget accounting)
+PASS pointer-recurrence-while-loop-regression | each iteration reads its own tile
+PASS dot-1-2-4-8-threads-one-artifact | 1 artifact sha(s) across 4 thread counts, compare PASS at each
+       fp64-operands: the probe template did not apply
+       int16-operands: the probe template did not apply
+       bf16-out-dtype: the probe template did not apply
+       mixed-operands: the probe template did not apply
+       k-mismatch: the probe template did not apply
+PASS kloop-dot-compiles-by-default | the runtime-bound k-loop lowers (the T014 refusal is removed; the dot rides the staged tile pipeline)
+PASS kloop-dot-executes-and-compares | compares PASS under the case policy
+PASS kloop-oneloop-reproduction-passes | the T014 reproduction executes and compares PASS (0/64 bad; before the repair 30/64 were wrong -- the staged regions lost the second chunk of the carried accumulator)
+PASS kloop-multi-iter-2iters-threads1 | 2 k-iterations, threads 1: compares PASS under the case policy
+PASS kloop-multi-iter-3iters-threads1 | 3 k-iterations, threads 1: compares PASS under the case policy
+PASS kloop-multi-iter-ragged-threads1 | 4 k-iterations, threads 1: compares PASS under the case policy
+PASS kloop-multi-iter-8iters-threads4 | 8 k-iterations, threads 4: compares PASS under the case policy
+FAIL kloop-int8-ime-counts-smt.vmadot | the plugin endpoint is unavailable
+FAIL kloop-fp16-ime-counts-smt.vfwmadot | the plugin endpoint is unavailable
+# census:
+#   matmul_kernel.py                               matmul       RUN-ERROR ValueError operands could not be broadcast together with shapes (128,128) (16384,) 
+#   matmul_kernel_2d_8e70c631.py                   matmul       PASS
+#   gemm_smallk_kernel_5ee47e3f.py                 matmul       PASS
+#   matmul_abt_kernel.py                           matmul       RUN-ERROR ValueError operands could not be broadcast together with shapes (128,96) (12288,) 
+#   flash_varlen_fwd_kernel.py                     attention    PASS
+#   gqa.py                                         attention    PASS
+#   conv1x1_pool_fc_kernel.py                      conv_pool    PASS
+#   implicit_conv2d.py                             conv_pool    PASS
+#   grouped_gemm_kernel.py                         matmul       PASS
+#   matmul_k32_splitn4_paired_kernel_6f1c91c8.py   matmul       PASS
+PASS family-census-no-silent-wrong-answers | 8 PASS, 0 located refusals (a boundary of another construct, never a silent wrong answer), 2 case/environment rows
+# evidence: /tmp/a100c-matrix-breadth-iagjd121/matrix-breadth-evidence.json
+test_matrix_breadth: FAILED: 5 check(s)
+  - bf16-vector-path-with-recorded-gap
+  - int8-ime-plugin-counts
+  - fp16-ime-plugin-counts
+  - kloop-int8-ime-counts-smt.vmadot
+  - kloop-fp16-ime-counts-smt.vfwmadot

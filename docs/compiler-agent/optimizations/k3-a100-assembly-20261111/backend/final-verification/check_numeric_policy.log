@@ -1,0 +1,6 @@
+PASS static: no rtol/atol override anywhere; comparison forwards (case, actual, expected)
+PASS tolerance: inside -> PASS; outside -> FAIL (a 1e6-widened tolerance would accept the outside value, so the probe discriminates)
+PASS exactness: int off-by-one -> FAIL (a float reading under the declared rtol=atol=1 would accept it)
+PASS reference: correct output vs the case's reference -> PASS; vs a tampered reference -> FAIL (the reference drives the verdict)
+PASS comparator: sign_invariant: flip -> PASS under the case's comparator (plain allclose would reject); perturbation -> FAIL; quantized_interval: inside -> PASS; fractional-in-interval -> FAIL; outside -> FAIL; equal_nan=False: NaN-vs-NaN -> FAIL; equal_nan=True: NaN-vs-NaN -> PASS
+PASS manifest: 15 rows carry the case's own policy (comparators seen: ['allclose', 'quantized_interval'])

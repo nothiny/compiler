@@ -1,0 +1,102 @@
+{
+  "completed_utc": "2026-11-11T01:44:19.898382+00:00",
+  "partial": false,
+  "source_changes": [],
+  "results": [
+    {
+      "label": "matrix_breadth-fixture-retry",
+      "root": "/tmp/a100-final-suites-vj2_9v9h",
+      "command": [
+        "nice",
+        "-n",
+        "10",
+        "/usr/bin/python3",
+        "-B",
+        "-c",
+        "import pathlib,runpy,sys;import a100c.driver as d;root=pathlib.Path(sys.argv[1]).resolve();assert pathlib.Path(d.__file__).resolve().is_relative_to(root),d.__file__;print('actual_driver='+str(d.__file__),flush=True);script=sys.argv[2];sys.argv=sys.argv[2:];runpy.run_path(script,run_name='__main__')",
+        "/tmp/a100-final-suites-vj2_9v9h",
+        "/tmp/a100-final-suites-vj2_9v9h/a100c/tests/test_matrix_breadth.py"
+      ],
+      "actual_exit": 0,
+      "timeout": false,
+      "elapsed_seconds": 110.039,
+      "log": "/home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/optimizations/k3-a100-assembly-20261111/backend/final-verification/matrix_breadth-fixture-retry.log",
+      "log_sha256": "d5645cd17aa54142fdc72a6af93111ee11c4a432b607ae63c4b224ec7c632fd4",
+      "test_source_sha256": "dcb57bd0671e56b12ccef9a3886dd23db311891a3fd6b756907cf5cb50316413",
+      "pass_lines": 24,
+      "fail_lines": []
+    },
+    {
+      "label": "mir_verifier-final",
+      "root": "/tmp/a100-final-suites-vj2_9v9h",
+      "command": [
+        "nice",
+        "-n",
+        "10",
+        "/usr/bin/python3",
+        "-B",
+        "-c",
+        "import pathlib,runpy,sys;import a100c.driver as d;root=pathlib.Path(sys.argv[1]).resolve();assert pathlib.Path(d.__file__).resolve().is_relative_to(root),d.__file__;print('actual_driver='+str(d.__file__),flush=True);script=sys.argv[2];sys.argv=sys.argv[2:];runpy.run_path(script,run_name='__main__')",
+        "/tmp/a100-final-suites-vj2_9v9h",
+        "/tmp/a100-final-suites-vj2_9v9h/a100c/tests/test_mir_verifier.py"
+      ],
+      "actual_exit": 0,
+      "timeout": false,
+      "elapsed_seconds": 0.566,
+      "log": "/home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/optimizations/k3-a100-assembly-20261111/backend/final-verification/mir_verifier-final.log",
+      "log_sha256": "cf0008bbc9321d8ed1ffb26de912d6d6a0edf69ec9a8dce6e33542dae4b90b89",
+      "test_source_sha256": "c4946525aa8eb3dcc1d7428b9ddd2891b4a3f06b7bc30339f0fb0553290f70d7",
+      "pass_lines": 17,
+      "fail_lines": []
+    },
+    {
+      "label": "t029_spill-final",
+      "root": "/tmp/a100-final-suites-vj2_9v9h",
+      "command": [
+        "nice",
+        "-n",
+        "10",
+        "/usr/bin/python3",
+        "-B",
+        "-c",
+        "import pathlib,runpy,sys;import a100c.driver as d;root=pathlib.Path(sys.argv[1]).resolve();assert pathlib.Path(d.__file__).resolve().is_relative_to(root),d.__file__;print('actual_driver='+str(d.__file__),flush=True);script=sys.argv[2];sys.argv=sys.argv[2:];runpy.run_path(script,run_name='__main__')",
+        "/tmp/a100-final-suites-vj2_9v9h",
+        "/tmp/a100-final-suites-vj2_9v9h/a100c/tests/test_t029_repairs.py"
+      ],
+      "actual_exit": 0,
+      "timeout": false,
+      "elapsed_seconds": 4.622,
+      "log": "/home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/optimizations/k3-a100-assembly-20261111/backend/final-verification/t029_spill-final.log",
+      "log_sha256": "e836dc2a6c5bb6afdd6f260e9b176695d1d8fb6152b982a1600fddf5ab0e334b",
+      "test_source_sha256": "c184bb912f092e25553d92c8ef1e9c491258ff5aecc7ea3f32891f517d05d700",
+      "pass_lines": 22,
+      "fail_lines": []
+    },
+    {
+      "label": "stage-barrier-baseline",
+      "root": "/tmp/a100-barrier-baseline-1v2izaah",
+      "command": [
+        "nice",
+        "-n",
+        "10",
+        "/usr/bin/python3",
+        "-B",
+        "-c",
+        "import pathlib,runpy,sys;import a100c.driver as d;root=pathlib.Path(sys.argv[1]).resolve();assert pathlib.Path(d.__file__).resolve().is_relative_to(root),d.__file__;print('actual_driver='+str(d.__file__),flush=True);script=sys.argv[2];sys.argv=sys.argv[2:];runpy.run_path(script,run_name='__main__')",
+        "/tmp/a100-barrier-baseline-1v2izaah",
+        "/tmp/a100-barrier-baseline-1v2izaah/tools/check_stage_barriers.py",
+        "--witness"
+      ],
+      "actual_exit": 1,
+      "timeout": false,
+      "elapsed_seconds": 1.517,
+      "log": "/home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/optimizations/k3-a100-assembly-20261111/backend/final-verification/stage-barrier-baseline.log",
+      "log_sha256": "66407035eae4a5acf475537a924d999393a906394a44e27fdb9caf12cea5e5c8",
+      "test_source_sha256": "a68d6ad856320be433632136a8f272dfa3ef650a7ae92582d725926bae46694a",
+      "pass_lines": 0,
+      "fail_lines": [
+        "FAIL witness: the degraded build (stage barrier removed) produced correct results across all repeats -- the synchronization is NOT load-bearing (the check cannot fail, so it proves nothing)"
+      ]
+    }
+  ]
+}
