@@ -1,0 +1,295 @@
+# a100c emitted program: gelu_kernel
+# source: tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py
+# specialization identity: 6b6546636779df79
+# compiler revision: 92fa8b4b706f0a76
+# target model: a100-rvv1-vlen1024/1 (VLEN=1024, file=4096B)
+# options: no-guarded-narrow-access,no-elementwise-width
+# argument layout: 633b17d1a57c5f03
+# every instruction below traces to a selected MIR op: [opN] carries the source location
+# passes: passes=default
+    .text
+    .globl operator_workspace_private
+    .type operator_workspace_private, @function
+operator_workspace_private:
+    li a0, 0
+    ret
+    .size operator_workspace_private, .-operator_workspace_private
+    .globl operator_workspace_shared
+    .type operator_workspace_shared, @function
+operator_workspace_shared:
+    li a0, 0
+    ret
+    .size operator_workspace_shared, .-operator_workspace_shared
+    .globl operator_entry
+    .type operator_entry, @function
+    # [peephole] removed 0 redundant vsetvli, 1 redundant li
+operator_entry:  # fn operator_entry
+addi sp, sp, -64
+sd ra, 0(sp)
+sd s1, 8(sp)
+sd s2, 16(sp)
+sd s3, 24(sp)
+sd s4, 32(sp)
+sd s5, 40(sp)
+mv t0, a0
+.Lentry:  # block entry
+ld t1, 0(t0)  # [op0] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+ld t2, 0(t1)  # [op1] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+ld t1, 8(t1)  # [op2] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+ld a5, 24(t0)  # [op3] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+lwu s1, 40(t0)  # [op4] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+lwu a1, 44(t0)  # [op5] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+ld t0, 8(t1)  # [op6] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+addiw a2, t0, 0  # [op7] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+ld a6, 0(t2)  # [op8] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+ld a7, 56(t2)  # [op9] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+li t1, 1023  # [op10] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+add t0, t0, t1  # [op11] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+li t1, 1024  # [op12] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+divu a3, t0, t1  # [op13] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+li t0, 1  # [op14] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+mul s2, t0, a3  # [op15] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+mv t0, s1  # [op16] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+mv s3, a1  # [op17] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+li t1, 0  # [op18] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+j .Lprog_head  # [op19] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+.Lprog_head:  # block prog_head
+slt t2, t0, s2  # [op20] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+bne t2, zero, .Lbrc21_true  # [op21] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+sd t1, 48(sp)  # [op21] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+mv t1, t0  # [op21] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+ld t0, 48(sp)  # [op21] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+j .Lprog_exit  # [op21] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+.Lbrc21_true:  # [op21] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+mv t2, t0  # [op21] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+mv t0, t1  # [op21] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+j .Lprog_body  # [op21] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+.Lprog_body:  # block prog_body
+addiw t1, t2, 0  # [op22] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+addiw s1, a3, 0  # [op23] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+li s1, 10  # [op24] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:23:15
+sllw t1, t1, s1  # [op25] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:23:15
+li s1, 0  # [op26] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+sd t0, 48(sp)  # [op27] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+mv t0, s1  # [op27] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+ld s1, 48(sp)  # [op27] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+j .Lchunk1_head  # [op27] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+.Lchunk1_head:  # block chunk1_head
+subw a4, a2, t1  # [op28] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+li a1, 1024  # [op29] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+slt s4, a4, a1  # [op30] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+addiw s4, s4, 0  # [op31] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+li s5, 0  # [op32] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+subw s4, s5, s4  # [op33] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+subw a4, a4, a1  # [op34] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+and a4, a4, s4  # [op35] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+addw a1, a1, a4  # [op36] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+slt a1, t0, a1  # [op37] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+bne a1, zero, .Lbrc38_true  # [op38] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+mv t1, t2  # [op38] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+mv t0, s1  # [op38] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+j .Lchunk1_exit  # [op38] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+.Lbrc38_true:  # [op38] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+j .Lchunk1_body  # [op38] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+.Lchunk1_exit:  # block chunk1_exit
+mv t1, t0  # [op39] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+mv t0, t2  # [op39] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+j .Lprog_next  # [op39] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+.Lchunk1_body:  # block chunk1_body
+li a1, 32  # [op40] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+vsetvli a1, a1, e32, m1, ta,ma  # [op41] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+li a1, 32  # [op42] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:23:34
+vid.v v1  # [op44] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:23:34
+vadd.vx v1, v1, t0  # [op45] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:23:34
+vmv.v.x v2, t1  # [op46] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:23:15
+vadd.vv v1, v2, v1  # [op47] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:23:15
+vmv.v.x v2, a2  # [op48] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:24:12
+vmslt.vv v5, v1, v2  # [op49] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:24:12
+li a1, 0  # [op50] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:25:9
+vmv.v.x v1, a1  # [op51] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:25:9
+mv a1, t0  # [op52] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:25:9
+mv a4, t1  # [op53] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:25:9
+add a1, a1, a4  # [op54] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:25:9
+li a4, 4  # [op55] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:25:9
+mul a1, a1, a4  # [op56] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:25:9
+add a1, a6, a1  # [op57] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:25:9
+vmv1r.v v0, v5  # [op58] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:25:9
+vle32.v v2, 0(a1), v0.t  # [op59] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:25:9
+vmv1r.v v0, v5  # [op60] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:25:9
+vmerge.vvm v1, v1, v2, v0  # [op61] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:25:9
+li a1, 1056964608  # [op62] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:9
+vmv.v.x v2, a1  # [op63] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:9
+vfmul.vv v8, v2, v1  # [op64] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:9
+li a1, 1060439283  # [op65] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:33
+vmv.v.x v2, a1  # [op66] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:33
+vfmul.vv v3, v2, v1  # [op67] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:33
+vfsgnjx.vv v4, v3, v3  # [op68] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vfmul.vv v1, v4, v4  # [op69] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+li a1, 1065353216  # [op70] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vmv.v.x v6, a1  # [op71] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+li a1, 898629920  # [op72] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vmv.v.x v2, a1  # [op73] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+li a1, 3077194043  # [op74] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vmv.v.x v7, a1  # [op75] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vfmacc.vv v7, v2, v1  # [op76] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+li a1, 955968394  # [op77] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vmv.v.x v2, a1  # [op78] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vfmacc.vv v2, v7, v1  # [op79] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+li a1, 3126850842  # [op80] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vmv.v.x v7, a1  # [op81] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vfmacc.vv v7, v2, v1  # [op82] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+li a1, 1001073796  # [op83] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vmv.v.x v2, a1  # [op84] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vfmacc.vv v2, v7, v1  # [op85] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+li a1, 3168540257  # [op86] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vmv.v.x v7, a1  # [op87] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vfmacc.vv v7, v2, v1  # [op88] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+li a1, 1038555024  # [op89] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vmv.v.x v2, a1  # [op90] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vfmacc.vv v2, v7, v1  # [op91] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+li a1, 3200291747  # [op92] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vmv.v.x v7, a1  # [op93] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vfmacc.vv v7, v2, v1  # [op94] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+li a1, 1066430139  # [op95] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vmv.v.x v2, a1  # [op96] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vfmacc.vv v2, v7, v1  # [op97] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vfmul.vv v9, v3, v2  # [op98] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vfdiv.vv v2, v6, v1  # [op99] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+li a1, 1045795439  # [op100] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vmv.v.x v7, a1  # [op101] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+li a1, 3214660180  # [op102] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vmv.v.x v10, a1  # [op103] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vfmacc.vv v10, v7, v2  # [op104] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+li a1, 1078560265  # [op105] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vmv.v.x v7, a1  # [op106] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vfmacc.vv v7, v10, v2  # [op107] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+li a1, 3231258870  # [op108] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vmv.v.x v10, a1  # [op109] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vfmacc.vv v10, v7, v2  # [op110] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+li a1, 1083796153  # [op111] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vmv.v.x v7, a1  # [op112] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vfmacc.vv v7, v10, v2  # [op113] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+li a1, 3227124571  # [op114] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vmv.v.x v10, a1  # [op115] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vfmacc.vv v10, v7, v2  # [op116] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+li a1, 1072436177  # [op117] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vmv.v.x v7, a1  # [op118] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vfmacc.vv v7, v10, v2  # [op119] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+li a1, 3210323127  # [op120] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vmv.v.x v10, a1  # [op121] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vfmacc.vv v10, v7, v2  # [op122] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+li a1, 1053845448  # [op123] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vmv.v.x v7, a1  # [op124] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vfmacc.vv v7, v10, v2  # [op125] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+li a1, 3197111909  # [op126] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vmv.v.x v10, a1  # [op127] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vfmacc.vv v10, v7, v2  # [op128] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+li a1, 1058041288  # [op129] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vmv.v.x v7, a1  # [op130] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vmv.v.v v11, v7  # [op131] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vfmacc.vv v11, v10, v2  # [op131] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+li a1, 3216550459  # [op132] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vmv.v.x v2, a1  # [op133] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vfmul.vv v1, v1, v2  # [op134] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+li a1, 1262485504  # [op135] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vmv.v.x v2, a1  # [op136] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vfadd.vv v7, v1, v2  # [op137] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vfsub.vv v2, v7, v2  # [op138] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vfsub.vv v1, v1, v2  # [op139] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+li a1, 958534664  # [op140] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vmv.v.x v7, a1  # [op141] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+li a1, 984576714  # [op142] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vmv.v.x v10, a1  # [op143] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vfmacc.vv v10, v7, v1  # [op144] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+li a1, 1008571674  # [op145] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vmv.v.x v7, a1  # [op146] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vfmacc.vv v7, v10, v1  # [op147] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+li a1, 1029920722  # [op148] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vmv.v.x v10, a1  # [op149] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vfmacc.vv v10, v7, v1  # [op150] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+li a1, 1047920112  # [op151] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vmv.v.x v7, a1  # [op152] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vfmacc.vv v7, v10, v1  # [op153] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+li a1, 1060205080  # [op154] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vmv.v.x v10, a1  # [op155] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vfmacc.vv v10, v7, v1  # [op156] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+li a1, 1065353216  # [op157] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vmv.v.x v7, a1  # [op158] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vmv.v.v v12, v7  # [op159] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vfmacc.vv v12, v1, v10  # [op159] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vfcvt.rtz.x.f.v v1, v2  # [op160] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+li a1, 1  # [op161] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vmv.v.x v2, a1  # [op162] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vsra.vv v2, v1, v2  # [op163] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vsub.vv v10, v1, v2  # [op164] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+li a1, 127  # [op165] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vmv.v.x v1, a1  # [op166] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+li a1, 23  # [op167] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vmv.v.x v7, a1  # [op168] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vadd.vv v2, v2, v1  # [op169] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vadd.vv v1, v10, v1  # [op170] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vsll.vv v2, v2, v7  # [op171] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vsll.vv v1, v1, v7  # [op172] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vmv.v.v v7, v2  # [op173] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vmv.v.v v2, v1  # [op174] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vfmul.vv v1, v12, v7  # [op175] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vfmul.vv v1, v1, v2  # [op176] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vfmul.vv v1, v1, v11  # [op177] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vfdiv.vv v1, v1, v4  # [op178] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vfsub.vv v2, v6, v1  # [op179] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+li a1, 0  # [op180] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vmv.v.x v1, a1  # [op181] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vmflt.vv v1, v3, v1  # [op182] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+li a1, 3212836864  # [op183] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vmv.v.x v7, a1  # [op184] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+li a1, 1065353216  # [op185] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vmv.v.x v10, a1  # [op186] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vmv1r.v v0, v1  # [op187] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vmerge.vvm v1, v10, v7, v0  # [op188] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vfmul.vv v2, v1, v2  # [op189] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+li a1, 1082130432  # [op190] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vmv.v.x v7, a1  # [op191] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vmfle.vv v7, v7, v4  # [op192] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vmfle.vv v4, v6, v4  # [op193] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vmv1r.v v0, v4  # [op194] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vmerge.vvm v2, v9, v2, v0  # [op195] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vmv1r.v v0, v7  # [op196] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vmerge.vvm v1, v2, v1, v0  # [op197] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vmfne.vv v2, v3, v3  # [op198] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+li a1, 2143289344  # [op199] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vmv.v.x v3, a1  # [op200] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vmv1r.v v0, v2  # [op201] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+vmerge.vvm v1, v1, v3, v0  # [op202] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:26
+li a1, 1065353216  # [op203] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:20
+vmv.v.x v2, a1  # [op204] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:20
+vfadd.vv v1, v2, v1  # [op205] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:20
+vfmul.vv v1, v8, v1  # [op206] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:26:9
+mv a1, t0  # [op207] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:27:5
+mv a4, t1  # [op208] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:27:5
+add a1, a1, a4  # [op209] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:27:5
+li a4, 4  # [op210] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:27:5
+mul a1, a1, a4  # [op211] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:27:5
+add a1, a7, a1  # [op212] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:27:5
+vmv1r.v v0, v5  # [op213] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:27:5
+vse32.v v1, 0(a1), v0.t  # [op214] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:27:5
+vcpop.m a1, v5  # [op215] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:27:5
+add s1, s1, a1  # [op216] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+li a1, 32  # [op217] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+addw t0, t0, a1  # [op218] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+    # [peephole-li] [op219] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+j .Lchunk1_head  # [op221] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+.Lprog_next:  # block prog_next
+add t0, t0, s3  # [op222] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+j .Lprog_head  # [op223] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+.Lprog_exit:  # block prog_exit
+sd t0, 0(a5)  # [op224] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+ld ra, 0(sp)  # [op225] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+ld s1, 8(sp)  # [op225] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+ld s2, 16(sp)  # [op225] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+ld s3, 24(sp)  # [op225] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+ld s4, 32(sp)  # [op225] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+ld s5, 40(sp)  # [op225] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+addi sp, sp, 64  # [op225] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+ret  # [op225] /tmp/a100-k3-width-frozen-spjhbebe/ops/suite/perf/gelu.py:21:1
+    .size operator_entry, .-operator_entry
+    .section .note.GNU-stack,"",@progbits

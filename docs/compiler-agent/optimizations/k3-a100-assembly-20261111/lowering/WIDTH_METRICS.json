@@ -1,0 +1,189 @@
+{
+  "scope": "width-only controlled comparison; all other lowering choices held equal; guarded_narrow_access=False in both",
+  "metric": "guest program instructions per launch, all workers summed",
+  "samples": [
+    {
+      "name": "addvalue-large-t1",
+      "operator": "suite/perf/add_value.py",
+      "shape": [
+        262144
+      ],
+      "dtype": "float32",
+      "threads": 1,
+      "off": 401715,
+      "on": 100414,
+      "reduction_percent": 75.004,
+      "width_selection": {
+        "enabled": true,
+        "factor": 4,
+        "attempts": [
+          {
+            "factor": 4,
+            "status": "selected",
+            "pressure": {
+              "gpr": 17,
+              "vector_registers": 14
+            },
+            "removed_temporaries": 5,
+            "errors": []
+          }
+        ],
+        "vector_budget": 28,
+        "runtime_storage_pairs": [
+          [
+            1,
+            0
+          ]
+        ]
+      },
+      "off_evidence": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/lowering/width-metrics/addvalue-large-t1/off/profile.json",
+      "on_evidence": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/lowering/width-metrics/addvalue-large-t1/on/profile.json"
+    },
+    {
+      "name": "gelu-large-t1",
+      "operator": "suite/perf/gelu.py",
+      "shape": [
+        262144
+      ],
+      "dtype": "float32",
+      "threads": 1,
+      "off": 1990955,
+      "on": 987191,
+      "reduction_percent": 50.416,
+      "width_selection": {
+        "enabled": true,
+        "factor": 2,
+        "attempts": [
+          {
+            "factor": 4,
+            "status": "declined",
+            "pressure": {
+              "gpr": 16,
+              "vector_registers": 49
+            },
+            "removed_temporaries": 5,
+            "errors": []
+          },
+          {
+            "factor": 2,
+            "status": "selected",
+            "pressure": {
+              "gpr": 16,
+              "vector_registers": 25
+            },
+            "removed_temporaries": 5,
+            "errors": []
+          }
+        ],
+        "vector_budget": 28,
+        "runtime_storage_pairs": [
+          [
+            0,
+            1
+          ]
+        ]
+      },
+      "off_evidence": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/lowering/width-metrics/gelu-large-t1/off/profile.json",
+      "on_evidence": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/lowering/width-metrics/gelu-large-t1/on/profile.json"
+    },
+    {
+      "name": "gelu-large-t8",
+      "operator": "suite/perf/gelu.py",
+      "shape": [
+        262144
+      ],
+      "dtype": "float32",
+      "threads": 8,
+      "off": 1991256,
+      "on": 987576,
+      "reduction_percent": 50.404,
+      "width_selection": {
+        "enabled": true,
+        "factor": 2,
+        "attempts": [
+          {
+            "factor": 4,
+            "status": "declined",
+            "pressure": {
+              "gpr": 16,
+              "vector_registers": 49
+            },
+            "removed_temporaries": 5,
+            "errors": []
+          },
+          {
+            "factor": 2,
+            "status": "selected",
+            "pressure": {
+              "gpr": 16,
+              "vector_registers": 25
+            },
+            "removed_temporaries": 5,
+            "errors": []
+          }
+        ],
+        "vector_budget": 28,
+        "runtime_storage_pairs": [
+          [
+            0,
+            1
+          ]
+        ]
+      },
+      "off_evidence": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/lowering/width-metrics/gelu-large-t8/off/profile.json",
+      "on_evidence": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/lowering/width-metrics/gelu-large-t8/on/profile.json"
+    },
+    {
+      "name": "sigmoid-large-t1",
+      "operator": "suite/perf/sigmoid.py",
+      "shape": [
+        262144
+      ],
+      "dtype": "float32",
+      "threads": 1,
+      "off": 991531,
+      "on": 487479,
+      "reduction_percent": 50.836,
+      "width_selection": {
+        "enabled": true,
+        "factor": 2,
+        "attempts": [
+          {
+            "factor": 4,
+            "status": "declined",
+            "pressure": {
+              "gpr": 16,
+              "vector_registers": 29
+            },
+            "removed_temporaries": 5,
+            "errors": []
+          },
+          {
+            "factor": 2,
+            "status": "selected",
+            "pressure": {
+              "gpr": 16,
+              "vector_registers": 15
+            },
+            "removed_temporaries": 5,
+            "errors": []
+          }
+        ],
+        "vector_budget": 28,
+        "runtime_storage_pairs": [
+          [
+            0,
+            1
+          ]
+        ]
+      },
+      "off_evidence": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/lowering/width-metrics/sigmoid-large-t1/off/profile.json",
+      "on_evidence": "docs/compiler-agent/optimizations/k3-a100-assembly-20261111/lowering/width-metrics/sigmoid-large-t1/on/profile.json"
+    }
+  ],
+  "comparisons": 32,
+  "all_original_comparisons_pass": true,
+  "repeat_pairs_equal": true,
+  "raw_assembly_bytes_verified": true,
+  "note": "additional large sizes from unchanged original case builders; not declared-case coverage or silicon speedup"
+}
