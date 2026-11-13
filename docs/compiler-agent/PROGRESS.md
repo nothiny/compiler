@@ -61,7 +61,6 @@ Phase: **IMPLEMENTATION** · project: `compiler-a100-experiment-001`
 
 | When | Phase | Event | Detail |
 |---|---|---|---|
-| 2026-11-07T21:47:20.708039+00:00 | IMPLEMENTATION | task-delegate | WTI044 task=T041 attempt=1 profile=general-purpose |
 | 2026-11-07T22:51:54.258758+00:00 | IMPLEMENTATION | task-report-out-of-contract | T041: a100c/cache/8fffa7be373fcfa2c88cb9b017346df37a3bd83606ffa9620acc0f4afba33402/artifact.json, a100c/cache/75da02c1494412ceb33a84ca1aaf26b43060cc5ae279802585321cafc9f5ec56/stage.mir.allocated.txt, a100c/driver.py, a100c/cache/b3ae3e2fc0f758af18416516563cacd0300a04325cce70f436138dcc5aff68f9/stage.selection.txt, a100c/cache/75da02c1494412ceb33a84ca1aaf26b43060cc5ae279802585321cafc9f5ec56/artifact.json |
 | 2026-11-07T22:51:54.266003+00:00 | IMPLEMENTATION | task-report | WTI044 FAILED attempt=1 [changes outside the declared paths: a100c/cache/8fffa7be373fcfa2c88cb9b017346df37a3bd83606ffa9620acc0f4afba33402/artifact.json, a100c/cache/75da02c1494412ceb33a84ca1aaf26b43060cc5ae279802585321cafc9f5ec56/stage.mir.allocated.txt, a100c/driver.py, a100c/cache/b3ae3e2fc0f758af18416516563cacd0300a04325cce70f436138dcc5aff68f9/stage.selection.txt, a100c/cache/75da02c1494412ceb33a84ca1aaf26b43060cc5ae279802585321cafc9f5ec56/artifact.json] |
 | 2026-11-07T22:51:54.267881+00:00 | IMPLEMENTATION | fail-task | T041 [implementation] Manager-filed report for a dead child: the dispatched worker session for T041 (grid-model baking defect + resource-evidence path fix + fresh full census) was terminated by the harness after 600000ms of inactivity and never filed its own TaskReport. No commands, acceptance coverage or evidence from… |
@@ -111,3 +110,4 @@ Phase: **IMPLEMENTATION** · project: `compiler-a100-experiment-001`
 | 2026-11-11T07:22:37.385922+00:00 | IMPLEMENTATION | task-delegate | WTI051 task=T050 attempt=1 profile=general-purpose |
 | 2026-11-11T07:35:41.890571+00:00 | IMPLEMENTATION | task-orphan | WTI051 T050 attempt=1 recovered as PENDING |
 | 2026-11-13T15:21:17.134175+00:00 | IMPLEMENTATION | start-task | T050 agent=coder |
+| 2026-11-13T15:21:19.375493+00:00 | IMPLEMENTATION | task-delegate | WTI052 task=T050 attempt=2 profile=general-purpose |
