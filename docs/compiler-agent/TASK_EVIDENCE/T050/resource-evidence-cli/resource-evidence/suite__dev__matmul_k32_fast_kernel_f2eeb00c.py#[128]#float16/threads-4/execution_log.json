@@ -1,0 +1,59 @@
+{
+  "run_id": "t050-res",
+  "case_id": "suite/dev/matmul_k32_fast_kernel_f2eeb00c.py#[128]#float16",
+  "artifact_sha256": "45d0733f102c1ba3ed495b19d5a13adf18491d633cef1632d29eba4a72da83ce",
+  "variant": "threads-4",
+  "instruction_counts": {
+    "smt.vmadot": 0,
+    "smt.vfwmadot": 4096
+  },
+  "workers": [
+    {
+      "worker": "worker-0",
+      "unit": "a100-compute-worker-slot-0",
+      "observed_units": [
+        "a100-compute-worker-slot-0"
+      ],
+      "completed_units": 123872,
+      "start": 4203922.595827803,
+      "end": 4203922.739744253
+    },
+    {
+      "worker": "worker-1",
+      "unit": "a100-compute-worker-slot-1",
+      "observed_units": [
+        "a100-compute-worker-slot-1"
+      ],
+      "completed_units": 123872,
+      "start": 4203922.595827803,
+      "end": 4203922.739744253
+    },
+    {
+      "worker": "worker-2",
+      "unit": "a100-compute-worker-slot-2",
+      "observed_units": [
+        "a100-compute-worker-slot-2"
+      ],
+      "completed_units": 0,
+      "start": 4203922.595827803,
+      "end": 4203922.739744253
+    },
+    {
+      "worker": "worker-3",
+      "unit": "a100-compute-worker-slot-3",
+      "observed_units": [
+        "a100-compute-worker-slot-3"
+      ],
+      "completed_units": 0,
+      "start": 4203922.595827803,
+      "end": 4203922.739744253
+    }
+  ],
+  "guest_tids": [
+    1833993,
+    1833994,
+    1833995,
+    1833996
+  ],
+  "command": "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64 -L /home/i_yinzida/.local/opt/a100/toolchain-1.1.2/sysroot -cpu max,vlen=1024,elen=64,vext_spec=v1.0 -plugin /home/i_yinzida/compiler-a100-experiment-001/a100_support/build/instruction_counts.so,out=/tmp/t050/res/resource-evidence/suite__dev__matmul_k32_fast_kernel_f2eeb00c.py#[128]#float16/threads-4/counts.json /home/i_yinzida/compiler-a100-experiment-001/a100c/cache/56ac5f55832549fd58fd29a3ac70b8f0492a8579758a0a8c4e69727e5808e8ef/operator_exec --bundle /tmp/a100-native-case-1slf9vr1/bundle.bin --threads 4"
+}

@@ -100,6 +100,12 @@ DEFAULT_MANIFEST = "ops/suite/manifest.json"
 DECLARED_CENSUS = {"cases": 2734, "identities": 2161}
 #: dtypes whose IME execution is verified under the pinned endpoint (F034)
 IME_VERIFIED_DTYPES = ("float16", "int8")
+#: the declared worker set (F053: 1/2/4/8 configurable compute workers);
+#: ``--resource-evidence`` captures every flagged row at EACH of these
+#: counts inside one prepared run, so the row's evidence binds positive
+#: instruction counts and the worker view to the same run, case and
+#: artifact at every count the contract requires
+RESOURCE_COUNTS = (1, 2, 4, 8)
 #: the IME instruction families are dtype-bound by construction (F030/F037:
 #: INT8 8x16x8 -> INT32 rides smt.vmadot, FP16 8x8x8 -> FP32 rides
 #: smt.vfwmadot; bf16 takes the vector FP32 path under the recorded
@@ -504,16 +510,98 @@ def capture_resource_evidence(staged, case_id_text, run_id, threads,
             unmet.append(f"executed instruction count zero: {pattern}")
     active = [w for w in workers if w["completed_units"] > 0]
     distinct_units = {w["unit"] for w in active}
-    if len(active) < minimum or len(distinct_units) < minimum:
+    # the multi-worker clause at the capture's own count: a count-1 capture
+    # is the one-worker baseline (the clause is vacuous below the declared
+    # minimum); a count >= minimum capture must show the minimum active
+    # workers on distinct units
+    required_active = min(threads, minimum)
+    if len(active) < required_active or len(distinct_units) < required_active:
         unmet.append(f"insufficient multi-worker observation: "
                      f"{len(active)} active workers over "
-                     f"{len(distinct_units)} units (minimum {minimum})")
+                     f"{len(distinct_units)} units (minimum "
+                     f"{required_active} at threads={threads})")
     observations.update({"instruction_counts": instruction_counts,
                          "workers": workers})
     binding_ref = {"path": _rel(binding_path), "sha256": _sha256(binding_path)}
     if unmet:
         return True, False, "; ".join(unmet), binding_ref, observations
     return True, True, "", binding_ref, observations
+
+
+def capture_resource_evidence_counts(staged, case_id_text, run_id,
+                                     requirements, work_dir, case_timeout,
+                                     row_dtype=None,
+                                     counts=RESOURCE_COUNTS):
+    """Capture one flagged row's resource evidence at EVERY declared worker
+    count inside the same prepared run (T050).
+
+    Each count runs the same instrumented launch (same artifact, same
+    staged bundle) with ``--threads N``; every count must satisfy the
+    per-count contract (dtype-filtered instruction witnesses executed,
+    ``min(N, minimum_workers)`` active workers on distinct units) for the
+    row to carry evidence.  Returns the same tuple shape as
+    :func:`capture_resource_evidence`; ``observations`` gains a
+    ``counts`` record with each count's instruction counts and worker
+    view, and the top-level ``instruction_counts`` carries the union a
+    family witness may be read from (the summarize set-level check).
+    """
+    work_dir.mkdir(parents=True, exist_ok=True)
+    ran_ok = True
+    contract_ok = True
+    details = []
+    binding_refs = {}
+    union_counts: dict = {}
+    per_count = {}
+    last_observations = {}
+    began, ended = None, None
+    for count in counts:
+        cdir = work_dir / f"threads-{count}"
+        r_ok, c_ok, detail, binding, observations = capture_resource_evidence(
+            staged, case_id_text, run_id, count, requirements, cdir,
+            case_timeout, row_dtype=row_dtype)
+        ran_ok = ran_ok and r_ok
+        contract_ok = contract_ok and c_ok
+        if detail:
+            details.append(f"[threads-{count}] {detail}")
+        if binding is not None:
+            binding_refs[str(count)] = binding
+        for pattern, executed in (observations.get("instruction_counts")
+                                  or {}).items():
+            union_counts[pattern] = max(union_counts.get(pattern, 0),
+                                        int(executed))
+        per_count[str(count)] = {
+            "instruction_counts": observations.get("instruction_counts"),
+            "workers": observations.get("workers"),
+            "exit_code": observations.get("exit_code"),
+        }
+        if began is None:
+            began = (observations.get("interval_s") or [None, None])[0]
+        ended = (observations.get("interval_s") or [None, None])[1]
+        last_observations = observations
+    combined = dict(last_observations)
+    combined.update({
+        "instruction_counts": union_counts,
+        "workers": per_count.get(str(max(counts)), {}).get("workers"),
+        "counts": per_count,
+        "interval_s": [began, ended],
+    })
+    # the combined binding: one file referencing every count's capture
+    binding = {"requirements_sha256": _sha256(
+                   ROOT / "EXECUTION_RESOURCES.json"),
+               "artifact": {"path": _rel(staged.artifact.executable),
+                            "sha256": staged.artifact_sha256},
+               "variant": "threads-" + ",".join(str(c) for c in counts),
+               "counts": binding_refs}
+    binding_path = work_dir / "binding.json"
+    binding_path.write_text(json.dumps(binding, indent=2) + "\n")
+    binding_ref = {"path": _rel(binding_path),
+                   "sha256": _sha256(binding_path)}
+    if not ran_ok:
+        return False, False, "; ".join(details) or "instrumented run failed", \
+            None, combined
+    if not contract_ok:
+        return True, False, "; ".join(details), binding_ref, combined
+    return True, True, "", binding_ref, combined
 
 
 # ---------------------------------------------------------------------------
@@ -613,14 +701,24 @@ class ScanDriver:
         launch_began = time.perf_counter()
         try:
             if resource:
-                ran_ok, contract_ok, detail, binding, observations = \
-                    capture_resource_evidence(
-                        staged, row["id"], args.run_id,
-                        args.resource_threads, self.requirements,
-                        (evidence_root / evidence_dir_name(row["id"]))
-                        if evidence_root else Path(tempfile.mkdtemp(
-                            prefix="a100-resource-")),
-                        self.case_timeout, row_dtype=row["dtype"])
+                rdir = (evidence_root / evidence_dir_name(row["id"])) \
+                    if evidence_root else Path(tempfile.mkdtemp(
+                        prefix="a100-resource-"))
+                if getattr(args, "resource_evidence", False):
+                    # every declared worker count in the same prepared run:
+                    # the row's evidence binds instruction counts and the
+                    # worker view to this run, case and artifact at 1/2/4/8
+                    ran_ok, contract_ok, detail, binding, observations = \
+                        capture_resource_evidence_counts(
+                            staged, row["id"], args.run_id,
+                            self.requirements, rdir, self.case_timeout,
+                            row_dtype=row["dtype"])
+                else:
+                    ran_ok, contract_ok, detail, binding, observations = \
+                        capture_resource_evidence(
+                            staged, row["id"], args.run_id,
+                            args.resource_threads, self.requirements, rdir,
+                            self.case_timeout, row_dtype=row["dtype"])
                 result["resource_observations"] = _jsonable(observations)
                 result["threads"] = args.resource_threads
                 executed = ran_ok
@@ -710,6 +808,22 @@ class ScanDriver:
         representatives = representative_resource_cases(args.manifest_path)
         self._resource_ids = set(representatives.values())
         self._resource_ids.update(args.flag_resource or ())
+        if getattr(args, "resource_evidence", False):
+            # the resource-contract rows are part of this run even when
+            # --operator narrows the normal rows: the evidence the run
+            # produces is the representative set's, and the operator
+            # filter must not silently drop the contract (the chunk_abc
+            # scan pattern: run one operator's cases AND the
+            # representatives' evidence in the same run)
+            by_id = {row["id"]: row for row in rows}
+            for rep_id in sorted(self._resource_ids):
+                if rep_id not in by_id:
+                    for row in enumerated_rows(args.manifest_path,
+                                               args.group, None):
+                        if row["id"] == rep_id:
+                            rows.append(row)
+                            by_id[rep_id] = row
+                            break
         journal_rows = {}
         if args.journal and Path(args.journal).is_file():
             for line in Path(args.journal).read_text(
@@ -933,6 +1047,15 @@ def build_manifest(args) -> int:
 # ---------------------------------------------------------------------------
 
 def main(argv=None) -> int:
+    if argv is None:
+        argv = sys.argv[1:]
+    argv = list(argv)
+    if "--resource-evidence" in argv \
+            and not any(tok in ("run", "manifest") for tok in argv):
+        # the implied run mode: the flag sits before the mode word, so the
+        # mode is inserted right after it (main-parser position) and the
+        # remaining run-mode flags parse against the run subparser
+        argv.insert(argv.index("--resource-evidence") + 1, "run")
     parser = argparse.ArgumentParser(
         description="the input scan driver (enumerate, compile once per "
                     "identity, execute, compare, report)")
@@ -942,7 +1065,13 @@ def main(argv=None) -> int:
     parser.add_argument("--seed", type=int, default=30)
     parser.add_argument("--no-golden", action="store_true",
                         help="rebuild every case with make_case (no cache)")
-    sub = parser.add_subparsers(dest="mode", required=True)
+    parser.add_argument("--resource-evidence", action="store_true",
+                        help="run mode: capture the resource-evidence rows "
+                             "at EVERY declared worker count (1/2/4/8) in "
+                             "the same run, and keep the representative "
+                             "rows in the run even when --operator narrows "
+                             "the normal rows (implies the run mode)")
+    sub = parser.add_subparsers(dest="mode", required=False)
 
     p_manifest = sub.add_parser(
         "manifest", help="write the input-regression/v1 manifest")
@@ -972,8 +1101,10 @@ def main(argv=None) -> int:
                        help="compute threads (default A100_COMPUTE_THREADS "
                             "or 1)")
     p_run.add_argument("--resource-threads", type=int, default=4,
-                       choices=(2, 4, 8),
-                       help="threads for resource-evidence rows (default 4)")
+                       choices=(1, 2, 4, 8),
+                       help="threads for resource-evidence rows (default 4; "
+                            "the single-count capture -- "
+                            "--resource-evidence captures every count)")
     p_run.add_argument("--case-timeout", type=float,
                        help="per-case bound in seconds (default "
                             "A100_EXECUTION_TIMEOUT or 120)")
@@ -987,6 +1118,9 @@ def main(argv=None) -> int:
                        metavar="ID",
                        help="add a case id to the resource-evidence set")
     args = parser.parse_args(argv)
+
+    if args.mode is None:
+        parser.error("the mode is required (manifest | run)")
 
     if args.mode == "manifest":
         return build_manifest(args)

@@ -7590,6 +7590,25 @@ class SliceLowering:
         prod = v.producer
         if prod is None:
             return self._need(v, loc)
+        # T050: a carried entry of an enclosing runtime region (an override
+        # layer maps it to the region's head parameter) re-materializes to
+        # the CURRENT iteration's parameter, never to its init producer.
+        # grouped_mm's walk carries group_start/last_problem_end whose
+        # inits are consts; the store-path condition
+        # (``offs_am + BLOCK_M <= group_end``) re-derived offs_am from the
+        # ENTRY constants (group_start=0, last_problem_end=0) after the
+        # pass close dropped the in-pass binding, so masked-path tiles
+        # (their own group's bound fails) evaluated against a wrong offs_am
+        # and took the unmasked blockptr store: the store over-wrote the
+        # NEXT group's rows with this tile's data and stored past the C
+        # view's extent, and at multi-worker counts the overlapping
+        # stores' order decided the final values (the 8-thread
+        # intermittency; the block parameter dominates every position
+        # inside the region, so the reuse is legal exactly where the
+        # re-materialization runs).
+        for layer in reversed(self._overrides):
+            if v.vid in layer:
+                return layer[v.vid]
         if prod.op == "const":
             return scalar_mod.lower_const(ctx, prod.attrs["value"], v.type,
                                           loc)
