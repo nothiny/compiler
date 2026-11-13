@@ -61,8 +61,6 @@ Phase: **IMPLEMENTATION** · project: `compiler-a100-experiment-001`
 
 | When | Phase | Event | Detail |
 |---|---|---|---|
-| 2026-11-07T21:47:14.681473+00:00 | IMPLEMENTATION | task-submission | 011-baking-and-harness-defects |
-| 2026-11-07T21:47:20.002360+00:00 | IMPLEMENTATION | start-task | T041 agent=coder |
 | 2026-11-07T21:47:20.708039+00:00 | IMPLEMENTATION | task-delegate | WTI044 task=T041 attempt=1 profile=general-purpose |
 | 2026-11-07T22:51:54.258758+00:00 | IMPLEMENTATION | task-report-out-of-contract | T041: a100c/cache/8fffa7be373fcfa2c88cb9b017346df37a3bd83606ffa9620acc0f4afba33402/artifact.json, a100c/cache/75da02c1494412ceb33a84ca1aaf26b43060cc5ae279802585321cafc9f5ec56/stage.mir.allocated.txt, a100c/driver.py, a100c/cache/b3ae3e2fc0f758af18416516563cacd0300a04325cce70f436138dcc5aff68f9/stage.selection.txt, a100c/cache/75da02c1494412ceb33a84ca1aaf26b43060cc5ae279802585321cafc9f5ec56/artifact.json |
 | 2026-11-07T22:51:54.266003+00:00 | IMPLEMENTATION | task-report | WTI044 FAILED attempt=1 [changes outside the declared paths: a100c/cache/8fffa7be373fcfa2c88cb9b017346df37a3bd83606ffa9620acc0f4afba33402/artifact.json, a100c/cache/75da02c1494412ceb33a84ca1aaf26b43060cc5ae279802585321cafc9f5ec56/stage.mir.allocated.txt, a100c/driver.py, a100c/cache/b3ae3e2fc0f758af18416516563cacd0300a04325cce70f436138dcc5aff68f9/stage.selection.txt, a100c/cache/75da02c1494412ceb33a84ca1aaf26b43060cc5ae279802585321cafc9f5ec56/artifact.json] |
@@ -111,3 +109,5 @@ Phase: **IMPLEMENTATION** · project: `compiler-a100-experiment-001`
 | 2026-11-11T07:21:48.126700+00:00 | IMPLEMENTATION | task-orphan | WTI050 T044 attempt=1 recovered as PENDING |
 | 2026-11-11T07:22:20.331898+00:00 | IMPLEMENTATION | start-task | T050 agent=coder |
 | 2026-11-11T07:22:37.385922+00:00 | IMPLEMENTATION | task-delegate | WTI051 task=T050 attempt=1 profile=general-purpose |
+| 2026-11-11T07:35:41.890571+00:00 | IMPLEMENTATION | task-orphan | WTI051 T050 attempt=1 recovered as PENDING |
+| 2026-11-13T15:21:17.134175+00:00 | IMPLEMENTATION | start-task | T050 agent=coder |

@@ -100,7 +100,26 @@ triton-riscv-side failure. Candidate causes to diagnose on the triton side if
 pursued (user's list): runtime crash / SIGILL of the large-BLOCK ELF on the board,
 a silently ignored llc error, or an output-buffer allocation failure.
 
-## 3. fp16/fp32 MatMul ULP mismatches — no action
+## 3. User status update (2026-11-11 afternoon)
+
+The user cancelled the T050 repair dispatch (WTI051 spawn cancelled before launch;
+invocation closed via reconcile-running, T050 back to READY) and states no operator
+errors remain. Verified at that moment: no fresh rerun artifact exists in the board
+workspace after 12:40 (last on-disk result for aminmax is the 1-thread PASS at
+12:34); the reported 8-thread MISMATCH (~12:00) was observed on the current tree
+(post 09:02-09:25 fixes) and no relevant code change has landed since. If the
+8-thread case now passes, intermittency of the race-shaped merge defect is the
+likely explanation and a single passing run does not establish the merge race is
+gone.
+
+Disposition (manager, 2026-11-11): the user did not further specify; per their
+direction no repair or verification dispatch is outstanding and the engine is
+quiescent (no open invocations; T044/T045-T050 remain READY and do not run by
+themselves). The determinism question for the 8-thread merge class stays open:
+5 repeated bounded 8-thread executions of the aminmax repro (and the corpus-side
+grouped_mm case) would settle it — record any rerun outcome here when available.
+
+## 4. fp16/fp32 MatMul ULP mismatches — no action
 
 - 7 fp16 cases (K=512 accumulation): last-bit rounding differences from different
   accumulation orders across GPU Triton 3.8 (golden), board a100c and board
