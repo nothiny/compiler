@@ -61,7 +61,6 @@ Phase: **IMPLEMENTATION** · project: `compiler-a100-experiment-001`
 
 | When | Phase | Event | Detail |
 |---|---|---|---|
-| 2026-11-07T22:51:54.267881+00:00 | IMPLEMENTATION | fail-task | T041 [implementation] Manager-filed report for a dead child: the dispatched worker session for T041 (grid-model baking defect + resource-evidence path fix + fresh full census) was terminated by the harness after 600000ms of inactivity and never filed its own TaskReport. No commands, acceptance coverage or evidence from… |
 | 2026-11-07T22:51:59.043179+00:00 | IMPLEMENTATION | start-task | T041 agent=coder |
 | 2026-11-07T22:51:59.836859+00:00 | IMPLEMENTATION | task-delegate | WTI045 task=T041 attempt=2 profile=general-purpose |
 | 2026-11-07T23:55:31.150140+00:00 | IMPLEMENTATION | task-report-out-of-contract | T041: a100c/cache/8f98a91ebd96582d0575aeee5e8e7b193fbb67ab8f9fcaa3f2ca2807a75e7123/stage.mir.allocated.txt, a100c/cache/8f98a91ebd96582d0575aeee5e8e7b193fbb67ab8f9fcaa3f2ca2807a75e7123/stage.mir.lowered.txt, a100c/cache/8f98a91ebd96582d0575aeee5e8e7b193fbb67ab8f9fcaa3f2ca2807a75e7123/stage.tir.txt, a100c/cache/8f98a91ebd96582d0575aeee5e8e7b193fbb67ab8f9fcaa3f2ca2807a75e7123/stage.mir.legalized.txt, a100c/cache/build/program-f6e2793f1242ae36.o |
@@ -111,3 +110,4 @@ Phase: **IMPLEMENTATION** · project: `compiler-a100-experiment-001`
 | 2026-11-13T15:21:19.375493+00:00 | IMPLEMENTATION | task-delegate | WTI052 task=T050 attempt=2 profile=general-purpose |
 | 2026-11-13T17:47:53.557773+00:00 | IMPLEMENTATION | task-orphan | WTI052 T050 attempt=2 recovered as PENDING |
 | 2026-11-13T17:48:14.118010+00:00 | IMPLEMENTATION | start-task | T050 agent=coder |
+| 2026-11-13T17:48:16.762961+00:00 | IMPLEMENTATION | task-delegate | WTI053 task=T050 attempt=3 profile=general-purpose |
