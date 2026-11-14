@@ -855,6 +855,27 @@ the family scan as the gate.  This is the recorded next-session
 headline with the measurement (53c5e30) and the sconst verdict
 (6e44def) attached.
 
+THE PREDICATE'S SOUNDNESS RECIPE (refined in the closing minutes):
+the naive worry -- a 32-lane window CROSSING a row boundary is
+non-contiguous even with the unit column stride, and only the
+runtime guard catches it today -- dissolves on an ALIGNMENT fact the
+lowering already holds: the staging element base steps by exactly vl
+(the loop induction), and when the row width C1 (the sdiv/srem
+constant, 64 in the K/V staging) is a MULTIPLE of vl (64 % 32 == 0),
+every window [elem, elem+32) lies ENTIRELY inside one row (elem mod
+C1 in {0, 32}; the window never straddles).  The compile-time
+predicate is then exactly three conjuncts, all statically known:
+(a) the offset tree has the sdiv/srem-by-C1 decomposition with a
+UNIT column coefficient after the T033 ==1 folding; (b) C1 % vl == 0;
+(c) the element base's step is vl (the staging loop's own
+induction).  Under (a)+(b)+(c) the addresses are c + i*esz for all
+i in [0, vl) BY CONSTRUCTION -- the guard's runtime proof is a
+corollary, and the direct masked-load form (vle16.v base, v0.t; the
+inactive lanes perform no access, the declared default) is exact.
+The residual corpus risk is only shape coverage: kernels whose row
+width is NOT a multiple of vl keep today's guard (the predicate
+simply declines -- a located fallback, not a refusal).
+
 ## Replay
 
 ```bash
