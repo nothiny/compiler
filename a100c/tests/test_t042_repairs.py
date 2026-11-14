@@ -40,11 +40,20 @@ Checks (each must hold for exit 0):
     source group, and the MIR really carries the class (compares over m2
     operands with mask results);
   * t042-control-prefix-coloring-reproduces: with the constraint
-    disabled (the pre-fix allocator), the SAME MIR colors the compare
-    mask strictly inside a source group (the pre-fix defect, reproduced)
-    and the post-allocation assert refuses it with a located diagnostic
+    disabled (the pre-fix allocator), the coloring of the failing
+    CLASS's own cases must place a compare mask strictly inside a
+    source group (the pre-fix defect, reproduced) and the
+    post-allocation assert must refuse it with a located diagnostic
     naming the mask, the source and the registers -- the constraint and
-    the safety net are load-bearing, not decorative;
+    the safety net are load-bearing, not decorative.  The reproduction
+    is established over a fixed candidate list of the class's cases and
+    stops at the first that reproduces (T050 attempt 3: the original
+    single witness -- amax [17] float16 -- drifted VACUOUS with later
+    shared-path lowering changes: its constraint-off coloring no longer
+    collides, while the class's exposure is unchanged --
+    vector_norm__l1_norm fp16 still reproduces the pre-fix placement;
+    a control pinned to one case's incidental coloring is fragile, and
+    a vacuous control is a failure, never a pass);
   * t042-safety-net-rejects-handbuilt: a hand-built allocation that puts
     a compare mask strictly inside a source group is rejected by
     _check_group_overlap (the malformed-form control);
@@ -107,6 +116,8 @@ from a100c.target import DEFAULT_TARGET                      # noqa: E402
 
 AMAX = "suite/dev/amax_kernel_1.py"
 MEAN = "suite/dev/mean_kernel_1.py"
+NANSUM = "suite/dev/nansum_kernel_1.py"
+VECTOR_NORM = "suite/dev/vector_norm__l1_norm_kernel_1.py"
 CLASS_OPERATORS = (
     "suite/dev/amax_kernel_1.py",
     "suite/dev/count_nonzero_kernel_1.py",
@@ -215,31 +226,69 @@ def check_allocation_legal_mask_placement():
 def check_control_prefix_coloring():
     """The pre-fix allocator, reproduced by disabling the constraint:
     the coloring itself must place a compare mask strictly inside a
-    source group, and the safety net must refuse it."""
-    module, _ = _build_mir(AMAX, (17,), "float16")
-    fn = module.functions[0]
-    fixed = {}
-    for b in fn.blocks:
-        for op in b.ops:
-            for r in op.results:
-                if r.fixed_phys == "v0":
-                    fixed[r.rid] = "v0"
+    source group, and the safety net must refuse it.
+
+    The reproduction is established over the failing class's own cases
+    (a fixed candidate order, stopping at the first that reproduces):
+    the constraint-off coloring of ONE case is an incidental property
+    that later shared-path lowering changes can drift (the original
+    single witness, amax [17] float16, went vacuous exactly that way
+    while the class's exposure was unchanged), but the CLASS must still
+    be exposed -- if no case of the class reproduces the pre-fix
+    placement with the constraint off, the control fails as vacuous and
+    names what it tried.  Never a silent pass.
+    """
+    candidates = (
+        (VECTOR_NORM, (17,), "float16"),
+        (AMAX, (17,), "float16"),
+        (MEAN, (17,), "float16"),
+        (NANSUM, (17,), "float16"),
+    )
+    witness = None
+    reproduced = []
+    tried = []
     original = alloc_mod._mask_compare_groups
     try:
         alloc_mod._mask_compare_groups = lambda fn_: ({}, {})
-        assignment, failed = alloc_mod._try_color(fn, DEFAULT_TARGET, fixed)
-        reproduced = []
-        if assignment is not None:
-            reproduced = _mask_in_group_violations(fn, assignment)
+        for operator, shape, dtype in candidates:
+            module, _ = _build_mir(operator, shape, dtype)
+            fn = module.functions[0]
+            fixed = {}
+            for b in fn.blocks:
+                for op in b.ops:
+                    for r in op.results:
+                        if r.fixed_phys == "v0":
+                            fixed[r.rid] = "v0"
+            assignment, failed = alloc_mod._try_color(fn, DEFAULT_TARGET,
+                                                      fixed)
+            tried.append(f"{operator.split('/')[-1]} {shape} {dtype}")
+            if assignment is None:
+                continue
+            violations = _mask_in_group_violations(fn, assignment)
+            if violations:
+                witness = (operator, shape, dtype)
+                reproduced = violations
+                break
         check("t042-control-prefix-coloring-reproduces",
-              assignment is not None and bool(reproduced),
-              "constraint-off coloring: "
-              + (f"{len(reproduced)} mask-in-group placement(s), e.g. "
-                 f"{reproduced[0]}" if reproduced
-                 else "no violation reproduced (control is vacuous)"))
+              witness is not None and bool(reproduced),
+              (f"witness {witness[0].split('/')[-1]} {witness[1]} "
+               f"{witness[2]}: {len(reproduced)} mask-in-group "
+               f"placement(s), e.g. {reproduced[0]}") if witness is not None
+              else "no case of the class reproduces with the constraint "
+                   f"off (tried {tried}) -- the control is vacuous")
+        if witness is None:
+            # nothing reproduces: the real-path safety-net exercise below
+            # has no illegal form to catch (the hand-built control still
+            # exercises the assert directly); the vacuous control is a
+            # failure, never a pass
+            check("t042-control-safety-net-refuses", False,
+                  "no witness case: the class no longer reproduces the "
+                  "pre-fix form with the constraint off")
+            return
         # the full path with the constraint disabled must be refused by
-        # the post-allocation assert, naming the illegal form
-        module2, _ = _build_mir(AMAX, (17,), "float16")
+        # the post-allocation assert, naming the illegal form -- on the
+        # SAME case whose coloring reproduced the placement
+        module2, _ = _build_mir(*witness)
         refused = False
         detail = ""
         try:

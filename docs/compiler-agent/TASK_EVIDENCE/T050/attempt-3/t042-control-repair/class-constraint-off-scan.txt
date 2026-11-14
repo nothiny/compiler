@@ -1,0 +1,43 @@
+T050 attempt-3 evidence: the T042 mask-in-group constraint-off coloring
+over the whole failing class (amax/count_nonzero/mean/nansum/norm_max/vector_norm),
+with the T050 _materialize_scalar_tree override lookup ACTIVE (current tree).
+Also: the amax [17] fp16 legalized MIR is byte-identical with the entire T050
+lookup disabled (dump sha 6df02e15eac9fc40, 180013 bytes, both configurations),
+so the control vacuity predates/is-independent-of the T050 change.
+
+amax_kernel_1.py                       [17]     float32   constraint-off violations=0 vacuous
+amax_kernel_1.py                       [17]     float16   constraint-off violations=0 vacuous
+amax_kernel_1.py                       [17]     bfloat16  constraint-off violations=0 vacuous
+amax_kernel_1.py                       [97]     float32   constraint-off violations=0 vacuous
+amax_kernel_1.py                       [97]     float16   constraint-off violations=0 vacuous
+amax_kernel_1.py                       [97]     bfloat16  constraint-off violations=0 vacuous
+count_nonzero_kernel_1.py              [17]     float32   constraint-off violations=0 vacuous
+count_nonzero_kernel_1.py              [17]     float16   constraint-off violations=0 vacuous
+count_nonzero_kernel_1.py              [17]     bfloat16  constraint-off violations=0 vacuous
+count_nonzero_kernel_1.py              [97]     float32   constraint-off violations=0 vacuous
+count_nonzero_kernel_1.py              [97]     float16   constraint-off violations=0 vacuous
+count_nonzero_kernel_1.py              [97]     bfloat16  constraint-off violations=0 vacuous
+mean_kernel_1.py                       [17]     float32   constraint-off violations=0 vacuous
+mean_kernel_1.py                       [17]     float16   constraint-off violations=0 vacuous
+mean_kernel_1.py                       [17]     bfloat16  constraint-off violations=0 vacuous
+mean_kernel_1.py                       [115]    float32   constraint-off violations=0 vacuous
+mean_kernel_1.py                       [115]    float16   constraint-off violations=0 vacuous
+mean_kernel_1.py                       [115]    bfloat16  constraint-off violations=0 vacuous
+nansum_kernel_1.py                     [17]     float32   constraint-off violations=0 vacuous
+nansum_kernel_1.py                     [17]     float16   constraint-off violations=0 vacuous
+nansum_kernel_1.py                     [17]     bfloat16  constraint-off violations=0 vacuous
+nansum_kernel_1.py                     [97]     float32   constraint-off violations=0 vacuous
+nansum_kernel_1.py                     [97]     float16   constraint-off violations=0 vacuous
+nansum_kernel_1.py                     [97]     bfloat16  constraint-off violations=0 vacuous
+norm__max_norm_kernel_1.py             [17]     float32   constraint-off violations=0 vacuous
+norm__max_norm_kernel_1.py             [17]     float16   constraint-off violations=0 vacuous
+norm__max_norm_kernel_1.py             [17]     bfloat16  constraint-off violations=0 vacuous
+norm__max_norm_kernel_1.py             [97]     float32   constraint-off violations=0 vacuous
+norm__max_norm_kernel_1.py             [97]     float16   constraint-off violations=0 vacuous
+norm__max_norm_kernel_1.py             [97]     bfloat16  constraint-off violations=0 vacuous
+vector_norm__l1_norm_kernel_1.py       [17]     float32   constraint-off violations=0 vacuous
+vector_norm__l1_norm_kernel_1.py       [17]     float16   constraint-off violations=2 REPRODUCES
+vector_norm__l1_norm_kernel_1.py       [17]     bfloat16  constraint-off violations=2 REPRODUCES
+vector_norm__l1_norm_kernel_1.py       [97]     float32   constraint-off violations=0 vacuous
+vector_norm__l1_norm_kernel_1.py       [97]     float16   constraint-off violations=2 REPRODUCES
+vector_norm__l1_norm_kernel_1.py       [97]     bfloat16  constraint-off violations=2 REPRODUCES

@@ -1,0 +1,1435 @@
+// mir/v1 module amax_kernel_1 source=/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py
+// address_trees: ['inp1 + sext(vi64 vb1) * 2', 'inp1 + sext(vi64 vb1) * 2', 'inp1 + sext(vi64 vb2) * 2', 'inp1 + sext(vi64 vb2) * 2']
+// block_extent: 128
+// chunk_geometry_boundary_closes: 0
+// chunks: [[32, 1], [32, 1], [32, 1], [32, 1]]
+// elementwise_width: {'enabled': True, 'factor': 1, 'attempts': [], 'vector_budget': 28, 'runtime_storage_pairs': [[0, 1]], 'reason': 'cross-lane or unsupported vector operation'}
+// grid: {'ndim': 1, 'axes': ["$bundle_view('mid', 0)"], 'ties': {"('mid', 0)": ['view_extent', 'mid', 0]}, 'self_check': {'modeled': [1], 'declared': [1], 'tied_scalars': [], 'tied_views': ['mid[0]']}, 'linear_ndim': 0}
+// kept_axis_reductions: []
+// legalize: {'rewrites': {'strunc->swext': 6, 'vwiden->vwaddx0': 2}, 'declined': {}}
+// matrix_segments: []
+// matrix_staging_offset: None
+// neutral_reduction_trims: []
+// sew: 16
+// stage_plan: {'eligible': True, 'reason': '1 partial(s), two-phase split at single-program-grids; merge owner worker 0', 'policy': 'single-program-grids', 'merge_owner': 0, 'barriers': 1, 'partials': [{'name': 'red', 'merge': 'max', 'dtype': 'fp32', 'bytes': 4, 'tie_break_left': True}], 'layout': {'slots': [0], 'slot_sizes': [8], 'workers': 8, 'stride': 8, 'total_bytes': 64}}
+// stats_mode: chunks
+// wide_selections: []
+// witness: default
+fn operator_entry(launch:i64)
+entry(launch:i64):
+  bundle1:i64 = sload(launch:i64) ext=sext offset=0 width=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  views1:i64 = sload(bundle1:i64) ext=sext offset=0 width=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  scalars1:i64 = sload(bundle1:i64) ext=sext offset=8 width=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  stats1:i64 = sload(launch:i64) ext=sext offset=24 width=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  wid1:u32 = sload(launch:i64) ext=zext offset=40 width=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  wcnt1:u32 = sload(launch:i64) ext=zext offset=44 width=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  M1:i64 = sload(scalars1:i64) ext=sext offset=8 width=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  Mn1:i32 = swext(M1:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  inp1:i64 = sload(views1:i64) ext=sext offset=0 width=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  mid1:i64 = sload(views1:i64) ext=sext offset=56 width=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  vshape1:i64 = sload(views1:i64) ext=sext offset=64 width=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  vext1:i64 = sload(vshape1:i64) ext=sext offset=0 width=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  k1:i64 = sconst() value=1  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  gn1:i64 = smul(k1:i64, vext1:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  pid1:i64 = smove(wid1:u32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  wcnt641:i64 = smove(wcnt1:u32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  k2:i64 = sconst() value=0  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  k3:i64 = sconst() value=1  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  k4:i64 = sconst() value=2  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  wmul1:i64 = slt(k3:i64, wcnt641:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  gsm1:i64 = slt(gn1:i64, k4:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  gsplit1:i64 = sand(wmul1:i64, gsm1:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  pid0s1:i64 = smove(wid1:u32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  k5:i64 = sconst() value=0  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  brc(gsplit1:i64) false_args=[pid0s1, k5] false_target=prog_head true_args=[] true_target=split_entry  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+prog_head(pid.loop:i64, items.loop:i64):
+  go1:i64 = slt(pid.loop:i64, gn1:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  brc(go1:i64) false_args=[pid.loop, items.loop] false_target=prog_exit true_args=[pid.loop, items.loop] true_target=prog_body  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+split_entry:
+  pid.split1:i64 = smove(wid1:u32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  k180:i64 = sconst() value=0  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  k181:i32 = sconst() value=0  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  np02:i32 = swext(vext1:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  wspr2:i64 = sload(launch:i64) ext=sext offset=16 width=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  wssh2:i64 = sload(launch:i64) ext=sext offset=8 width=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  w3:i64 = smove(k181:i32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:12:11
+  k182:i64 = sconst() value=128  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:13:14
+  s2:i64 = smul(k182:i64, w3:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:13:14
+  wid641:i64 = smove(wid1:u32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  k183:i64 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  swvl1:i64 = smul(wcnt641:i64, k183:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  k184:i64 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  se01:i64 = smul(wid641:i64, k184:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  se0t1:i32 = swext(se01:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  k185:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  cvr100:i32 = vsetvli(k185:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  k186:f32 = sconst() value=4286578688  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  ids7:vf32m1 = s2v(k186:f32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  br() args=[se0t1, k180, ids7] target=schunk2_head  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+prog_body(pid.body:i64, items.body:i64):
+  pid01:i32 = swext(pid.body:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  np01:i32 = swext(vext1:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  wspr1:i64 = sload(launch:i64) ext=sext offset=16 width=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  wssh1:i64 = sload(launch:i64) ext=sext offset=8 width=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  w1:i64 = smove(pid01:i32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:12:11
+  k6:i64 = sconst() value=128  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:13:14
+  s1:i64 = smul(k6:i64, w1:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:13:14
+  k7:i32 = sconst() value=0  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  k8:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  cvr1:i32 = vsetvli(k8:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  k9:f32 = sconst() value=4286578688  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  ids1:vf32m1 = s2v(k9:f32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  br() args=[k7, items.body, ids1] target=chunk1_head  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+chunk1_head(elem.loop:i32, items.chunk:i64, mrg0:vf32m1):
+  k10:i32 = sconst() value=128  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  cgo1:i64 = slt(elem.loop:i32, k10:i32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  brc(cgo1:i64) false_args=[pid.body, items.chunk, mrg0] false_target=chunk1_exit true_args=[elem.loop, items.chunk, mrg0] true_target=chunk1_body  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+chunk1_exit(pid.xreg:i64, items.xreg:i64, mrgx0:vf32m1):
+  k177:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  cvr98:i32 = vsetvli(k177:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  x03:f32 = vextract(mrgx0:vf32m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  sp5:vf32m1 = s2v(x03:f32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:34:5
+  cvm3:vf32m2 = vmovv(sp5:vf32m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:34:5
+  k178:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:34:5
+  cvr99:i32 = vsetvli(k178:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:34:5
+  cvd2:vf16m1 = vfncvt(cvm3:vf32m2) op=ff  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:34:5
+  x04:f16 = vextract(cvd2:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:34:5
+  k179:i64 = sconst() value=2  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:34:5
+  sa1:i64 = smul(w1:i64, k179:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:34:5
+  ad1:i64 = sadd(mid1:i64, sa1:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:34:5
+  sstore(ad1:i64, x04:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:34:5
+  br() args=[pid.body, items.xreg] target=prog_next  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+chunk1_body(elem.loop:i32, items.chunk:i64, mrg0:vf32m1):
+  k11:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  vl1:i32 = vsetvli(k11:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  k12:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:13:33
+  cvr2:i32 = vsetvli(k12:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:13:33
+  iota1:vi32m1 = vid()  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:13:33
+  ar1:vi32m1 = vbinx(iota1:vi32m1, elem.loop:i32) op=add  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:13:33
+  k13:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:13:33
+  cvr3:i32 = vsetvli(k13:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:13:33
+  k14:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:13:14
+  cvr4:i32 = vsetvli(k14:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:13:14
+  cvw1:vi64m2 = vwaddx0(ar1:vi32m1) mode=sext  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:13:14
+  k15:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:13:14
+  cvr5:i32 = vsetvli(k15:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:13:14
+  k16:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:13:14
+  rgo1:i32 = vsetvli(k16:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:13:14
+  splat1:vi64m2 = s2v(s1:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:13:14
+  k17:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:13:14
+  cvr6:i32 = vsetvli(k17:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:13:14
+  k18:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:13:14
+  rgo2:i32 = vsetvli(k18:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:13:14
+  vb1:vi64m2 = vbin(splat1:vi64m2, cvw1:vi64m2) op=add  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:13:14
+  k19:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:13:14
+  cvr7:i32 = vsetvli(k19:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:13:14
+  w2:i64 = smove(Mn1:i32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:15:12
+  k20:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:15:12
+  rgo3:i32 = vsetvli(k20:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:15:12
+  splat2:vi64m2 = s2v(w2:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:15:12
+  k21:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:15:12
+  cvr8:i32 = vsetvli(k21:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:15:12
+  k22:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:15:12
+  rgo4:i32 = vsetvli(k22:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:15:12
+  m1:vm = vcmp(vb1:vi64m2, splat2:vi64m2) fp=False pred=lt  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:15:12
+  k23:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:15:12
+  cvr9:i32 = vsetvli(k23:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:15:12
+  k24:f32 = sconst() value=4286578688  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k25:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr10:i32 = vsetvli(k25:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sp1:vf32m1 = s2v(k24:f32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvm1:vf32m2 = vmovv(sp1:vf32m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k26:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr11:i32 = vsetvli(k26:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvd1:vf16m1 = vfncvt(cvm1:vf32m2) op=ff  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  x01:f16 = vextract(cvd1:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  splat3:vf16m1 = s2v(x01:f16)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k27:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr12:i32 = vsetvli(k27:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k28:i32 = sconst() value=0  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ids2:vi32m1 = s2v(k28:i32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k29:i32 = sconst() value=1  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ids3:vi32m1 = s2v(k29:i32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nm01:vm = vmovmask(m1:vm)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nm11:vi32m1 = vsel(nm01:vm, ids3:vi32m1, ids2:vi32m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k30:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  rega1:i32 = vsetvli(k30:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k31:i64 = sconst() value=2  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  addrs1:vi64m2 = vbinx(vb1:vi64m2, k31:i64) op=mul  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k32:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  regr1:i32 = vsetvli(k32:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k33:i64 = sconst() value=0  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k34:i32 = sconst() value=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr13:i32 = vsetvli(k34:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng1:i64 = vextract(addrs1:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng2:vi64m2 = vid()  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k35:i64 = sconst() value=2  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng3:vi64m2 = vbinx(ng2:vi64m2, k35:i64) op=mul  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng4:vi64m2 = vbinx(ng3:vi64m2, ng1:i64) op=add  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng5:vm = vcmp(addrs1:vi64m2, ng4:vi64m2) fp=False pred=ne  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k36:i32 = sconst() value=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr14:i32 = vsetvli(k36:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k37:i32 = sconst() value=0  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng6:vi32m1 = s2v(k37:i32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng7:vm = vcmp(nm11:vi32m1, ng6:vi32m1) fp=False pred=ne  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng8:vm = vmand(ng5:vm, ng7:vm)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng9:i64 = vpopc(ng8:vm)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng10:i64 = sadd(k33:i64, ng9:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng11:i64 = sadd(inp1:i64, ng1:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k38:i32 = sconst() value=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr15:i32 = vsetvli(k38:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng12:vi64m2 = vid()  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k39:i64 = sconst() value=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng13:vi64m2 = vbinx(ng12:vi64m2, k39:i64) op=add  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng14:vi64m2 = vrgather(addrs1:vi64m2, ng13:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng15:i64 = vextract(ng14:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng16:vi64m2 = vid()  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k40:i64 = sconst() value=2  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng17:vi64m2 = vbinx(ng16:vi64m2, k40:i64) op=mul  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng18:vi64m2 = vbinx(ng17:vi64m2, ng15:i64) op=add  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng19:vm = vcmp(ng14:vi64m2, ng18:vi64m2) fp=False pred=ne  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k41:i32 = sconst() value=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr16:i32 = vsetvli(k41:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng20:vi32m1 = vid()  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k42:i32 = sconst() value=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng21:vi32m1 = vbinx(ng20:vi32m1, k42:i32) op=add  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng22:vi32m1 = vrgather(nm11:vi32m1, ng21:vi32m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k43:i32 = sconst() value=0  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng23:vi32m1 = s2v(k43:i32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng24:vm = vcmp(ng22:vi32m1, ng23:vi32m1) fp=False pred=ne  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng25:vm = vmand(ng19:vm, ng24:vm)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng26:i64 = vpopc(ng25:vm)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng27:i64 = sadd(ng10:i64, ng26:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng28:i64 = sadd(inp1:i64, ng15:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  brc(ng27:i64) false_args=[] false_target=ngl.t1 true_args=[] true_target=ngl.e1  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+ngl.t1:
+  k44:i64 = sconst() value=0  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng29:i64 = sadd(wspr1:i64, k44:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k45:i32 = sconst() value=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr17:i32 = vsetvli(k45:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k46:i32 = sconst() value=0  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng30:vi32m1 = s2v(k46:i32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng31:vm = vcmp(nm11:vi32m1, ng30:vi32m1) fp=False pred=ne  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k47:i32 = sconst() value=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr18:i32 = vsetvli(k47:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng01:vm = vmovmask(ng31:vm)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng32:vf16m1 = vunit_load(ng11:i64, ng01:vm) default=undef sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng02:vm = vmovmask(ng31:vm)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng33:vf16m1 = vsel(ng02:vm, ng32:vf16m1, splat3:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k48:i64 = sconst() value=0  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng34:i64 = sadd(ng29:i64, k48:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  vunit_store(ng34:i64, ng33:vf16m1) sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k49:i32 = sconst() value=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr19:i32 = vsetvli(k49:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng35:vi32m1 = vid()  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k50:i32 = sconst() value=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng36:vi32m1 = vbinx(ng35:vi32m1, k50:i32) op=add  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng37:vi32m1 = vrgather(nm11:vi32m1, ng36:vi32m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k51:i32 = sconst() value=0  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng38:vi32m1 = s2v(k51:i32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng39:vm = vcmp(ng37:vi32m1, ng38:vi32m1) fp=False pred=ne  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k52:i32 = sconst() value=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr20:i32 = vsetvli(k52:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng03:vm = vmovmask(ng39:vm)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng40:vf16m1 = vunit_load(ng28:i64, ng03:vm) default=undef sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng41:vi16m1 = vid()  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k53:i16 = sconst() value=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng42:vi16m1 = vbinx(ng41:vi16m1, k53:i16) op=add  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng43:vf16m1 = vrgather(splat3:vf16m1, ng42:vi16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng04:vm = vmovmask(ng39:vm)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng44:vf16m1 = vsel(ng04:vm, ng40:vf16m1, ng43:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k54:i64 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng45:i64 = sadd(ng29:i64, k54:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  vunit_store(ng45:i64, ng44:vf16m1) sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k55:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr21:i32 = vsetvli(k55:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng46:vf16m1 = vunit_load(ng29:i64) sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  br() args=[ng46] target=ngl.j1  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+ngl.e1:
+  k56:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  rega2:i32 = vsetvli(k56:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k57:i64 = sconst() value=2  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  addrs2:vi64m2 = vbinx(vb1:vi64m2, k57:i64) op=mul  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k58:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  regr2:i32 = vsetvli(k58:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k59:i64 = sconst() value=0  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nws1:i64 = sadd(wspr1:i64, k59:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k60:i64 = sconst() value=128  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nwr1:i64 = sadd(nws1:i64, k60:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k61:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr22:i32 = vsetvli(k61:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k62:i32 = sconst() value=0  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ids4:vi32m1 = s2v(k62:i32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k63:i32 = sconst() value=1  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ids5:vi32m1 = s2v(k63:i32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nm02:vm = vmovmask(m1:vm)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nm12:vi32m1 = vsel(nm02:vm, ids5:vi32m1, ids4:vi32m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k64:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr23:i32 = vsetvli(k64:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nva1:vi64m2 = vbinx(addrs2:vi64m2, inp1:i64) op=add  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k65:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr24:i32 = vsetvli(k65:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k66:i32 = sconst() value=0  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sp2:vi32m1 = s2v(k66:i32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nnm1:vm = vcmp(nm12:vi32m1, sp2:vi32m1) fp=False pred=ne  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nv01:vm = vmovmask(nnm1:vm)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k67:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr25:i32 = vsetvli(k67:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k68:i64 = sconst() value=0  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sp3:vi64m2 = s2v(k68:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sp4:vi64m2 = s2v(nwr1:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nvd1:vi64m2 = vbin(nva1:vi64m2, sp4:vi64m2) op=sub  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nvs1:vi64m2 = vsel(nv01:vm, nvd1:vi64m2, sp3:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nvo1:vi64m2 = vbin(sp4:vi64m2, nvs1:vi64m2) op=add  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k69:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr26:i32 = vsetvli(k69:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k70:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr27:i32 = vsetvli(k70:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl01:i64 = vextract(nvo1:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k71:i64 = sconst() value=0  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nls1:i64 = sadd(nws1:i64, k71:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k72:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr28:i32 = vsetvli(k72:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl02:f16 = vextract(splat3:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nwr1:i64, nl02:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl1:vf16m1 = vslidedn(splat3:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nlv1:f16 = sload(nl01:i64) ext=zext offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nls1:i64, nlv1:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k73:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr29:i32 = vsetvli(k73:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl2:vi64m2 = vslidedn(nvo1:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl03:i64 = vextract(nsl2:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k74:i64 = sconst() value=2  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nls2:i64 = sadd(nws1:i64, k74:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k75:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr30:i32 = vsetvli(k75:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl04:f16 = vextract(nsl1:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nwr1:i64, nl04:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl3:vf16m1 = vslidedn(nsl1:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nlv2:f16 = sload(nl03:i64) ext=zext offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nls2:i64, nlv2:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k76:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr31:i32 = vsetvli(k76:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl4:vi64m2 = vslidedn(nsl2:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl05:i64 = vextract(nsl4:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k77:i64 = sconst() value=4  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nls3:i64 = sadd(nws1:i64, k77:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k78:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr32:i32 = vsetvli(k78:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl06:f16 = vextract(nsl3:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nwr1:i64, nl06:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl5:vf16m1 = vslidedn(nsl3:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nlv3:f16 = sload(nl05:i64) ext=zext offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nls3:i64, nlv3:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k79:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr33:i32 = vsetvli(k79:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl6:vi64m2 = vslidedn(nsl4:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl07:i64 = vextract(nsl6:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k80:i64 = sconst() value=6  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nls4:i64 = sadd(nws1:i64, k80:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k81:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr34:i32 = vsetvli(k81:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl08:f16 = vextract(nsl5:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nwr1:i64, nl08:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl7:vf16m1 = vslidedn(nsl5:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nlv4:f16 = sload(nl07:i64) ext=zext offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nls4:i64, nlv4:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k82:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr35:i32 = vsetvli(k82:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl8:vi64m2 = vslidedn(nsl6:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl09:i64 = vextract(nsl8:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k83:i64 = sconst() value=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nls5:i64 = sadd(nws1:i64, k83:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k84:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr36:i32 = vsetvli(k84:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl010:f16 = vextract(nsl7:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nwr1:i64, nl010:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl9:vf16m1 = vslidedn(nsl7:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nlv5:f16 = sload(nl09:i64) ext=zext offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nls5:i64, nlv5:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k85:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr37:i32 = vsetvli(k85:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl10:vi64m2 = vslidedn(nsl8:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl011:i64 = vextract(nsl10:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k86:i64 = sconst() value=10  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nls6:i64 = sadd(nws1:i64, k86:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k87:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr38:i32 = vsetvli(k87:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl012:f16 = vextract(nsl9:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nwr1:i64, nl012:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl11:vf16m1 = vslidedn(nsl9:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nlv6:f16 = sload(nl011:i64) ext=zext offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nls6:i64, nlv6:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k88:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr39:i32 = vsetvli(k88:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl12:vi64m2 = vslidedn(nsl10:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl013:i64 = vextract(nsl12:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k89:i64 = sconst() value=12  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nls7:i64 = sadd(nws1:i64, k89:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k90:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr40:i32 = vsetvli(k90:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl014:f16 = vextract(nsl11:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nwr1:i64, nl014:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl13:vf16m1 = vslidedn(nsl11:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nlv7:f16 = sload(nl013:i64) ext=zext offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nls7:i64, nlv7:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k91:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr41:i32 = vsetvli(k91:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl14:vi64m2 = vslidedn(nsl12:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl015:i64 = vextract(nsl14:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k92:i64 = sconst() value=14  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nls8:i64 = sadd(nws1:i64, k92:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k93:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr42:i32 = vsetvli(k93:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl016:f16 = vextract(nsl13:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nwr1:i64, nl016:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl15:vf16m1 = vslidedn(nsl13:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nlv8:f16 = sload(nl015:i64) ext=zext offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nls8:i64, nlv8:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k94:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr43:i32 = vsetvli(k94:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl16:vi64m2 = vslidedn(nsl14:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl017:i64 = vextract(nsl16:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k95:i64 = sconst() value=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nls9:i64 = sadd(nws1:i64, k95:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k96:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr44:i32 = vsetvli(k96:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl018:f16 = vextract(nsl15:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nwr1:i64, nl018:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl17:vf16m1 = vslidedn(nsl15:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nlv9:f16 = sload(nl017:i64) ext=zext offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nls9:i64, nlv9:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k97:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr45:i32 = vsetvli(k97:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl18:vi64m2 = vslidedn(nsl16:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl019:i64 = vextract(nsl18:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k98:i64 = sconst() value=18  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nls10:i64 = sadd(nws1:i64, k98:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k99:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr46:i32 = vsetvli(k99:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl020:f16 = vextract(nsl17:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nwr1:i64, nl020:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl19:vf16m1 = vslidedn(nsl17:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nlv10:f16 = sload(nl019:i64) ext=zext offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nls10:i64, nlv10:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k100:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr47:i32 = vsetvli(k100:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl20:vi64m2 = vslidedn(nsl18:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl021:i64 = vextract(nsl20:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k101:i64 = sconst() value=20  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nls11:i64 = sadd(nws1:i64, k101:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k102:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr48:i32 = vsetvli(k102:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl022:f16 = vextract(nsl19:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nwr1:i64, nl022:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl21:vf16m1 = vslidedn(nsl19:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nlv11:f16 = sload(nl021:i64) ext=zext offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nls11:i64, nlv11:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k103:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr49:i32 = vsetvli(k103:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl22:vi64m2 = vslidedn(nsl20:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl023:i64 = vextract(nsl22:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k104:i64 = sconst() value=22  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nls12:i64 = sadd(nws1:i64, k104:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k105:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr50:i32 = vsetvli(k105:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl024:f16 = vextract(nsl21:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nwr1:i64, nl024:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl23:vf16m1 = vslidedn(nsl21:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nlv12:f16 = sload(nl023:i64) ext=zext offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nls12:i64, nlv12:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k106:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr51:i32 = vsetvli(k106:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl24:vi64m2 = vslidedn(nsl22:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl025:i64 = vextract(nsl24:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k107:i64 = sconst() value=24  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nls13:i64 = sadd(nws1:i64, k107:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k108:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr52:i32 = vsetvli(k108:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl026:f16 = vextract(nsl23:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nwr1:i64, nl026:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl25:vf16m1 = vslidedn(nsl23:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nlv13:f16 = sload(nl025:i64) ext=zext offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nls13:i64, nlv13:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k109:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr53:i32 = vsetvli(k109:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl26:vi64m2 = vslidedn(nsl24:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl027:i64 = vextract(nsl26:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k110:i64 = sconst() value=26  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nls14:i64 = sadd(nws1:i64, k110:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k111:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr54:i32 = vsetvli(k111:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl028:f16 = vextract(nsl25:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nwr1:i64, nl028:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl27:vf16m1 = vslidedn(nsl25:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nlv14:f16 = sload(nl027:i64) ext=zext offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nls14:i64, nlv14:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k112:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr55:i32 = vsetvli(k112:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl28:vi64m2 = vslidedn(nsl26:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl029:i64 = vextract(nsl28:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k113:i64 = sconst() value=28  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nls15:i64 = sadd(nws1:i64, k113:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k114:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr56:i32 = vsetvli(k114:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl030:f16 = vextract(nsl27:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nwr1:i64, nl030:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl29:vf16m1 = vslidedn(nsl27:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nlv15:f16 = sload(nl029:i64) ext=zext offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nls15:i64, nlv15:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k115:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr57:i32 = vsetvli(k115:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl30:vi64m2 = vslidedn(nsl28:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl031:i64 = vextract(nsl30:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k116:i64 = sconst() value=30  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nls16:i64 = sadd(nws1:i64, k116:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k117:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr58:i32 = vsetvli(k117:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl032:f16 = vextract(nsl29:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nwr1:i64, nl032:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl31:vf16m1 = vslidedn(nsl29:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nlv16:f16 = sload(nl031:i64) ext=zext offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nls16:i64, nlv16:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k118:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr59:i32 = vsetvli(k118:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl32:vi64m2 = vslidedn(nsl30:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl033:i64 = vextract(nsl32:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k119:i64 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nls17:i64 = sadd(nws1:i64, k119:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k120:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr60:i32 = vsetvli(k120:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl034:f16 = vextract(nsl31:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nwr1:i64, nl034:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl33:vf16m1 = vslidedn(nsl31:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nlv17:f16 = sload(nl033:i64) ext=zext offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nls17:i64, nlv17:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k121:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr61:i32 = vsetvli(k121:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl34:vi64m2 = vslidedn(nsl32:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl035:i64 = vextract(nsl34:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k122:i64 = sconst() value=34  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nls18:i64 = sadd(nws1:i64, k122:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k123:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr62:i32 = vsetvli(k123:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl036:f16 = vextract(nsl33:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nwr1:i64, nl036:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl35:vf16m1 = vslidedn(nsl33:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nlv18:f16 = sload(nl035:i64) ext=zext offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nls18:i64, nlv18:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k124:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr63:i32 = vsetvli(k124:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl36:vi64m2 = vslidedn(nsl34:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl037:i64 = vextract(nsl36:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k125:i64 = sconst() value=36  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nls19:i64 = sadd(nws1:i64, k125:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k126:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr64:i32 = vsetvli(k126:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl038:f16 = vextract(nsl35:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nwr1:i64, nl038:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl37:vf16m1 = vslidedn(nsl35:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nlv19:f16 = sload(nl037:i64) ext=zext offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nls19:i64, nlv19:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k127:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr65:i32 = vsetvli(k127:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl38:vi64m2 = vslidedn(nsl36:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl039:i64 = vextract(nsl38:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k128:i64 = sconst() value=38  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nls20:i64 = sadd(nws1:i64, k128:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k129:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr66:i32 = vsetvli(k129:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl040:f16 = vextract(nsl37:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nwr1:i64, nl040:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl39:vf16m1 = vslidedn(nsl37:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nlv20:f16 = sload(nl039:i64) ext=zext offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nls20:i64, nlv20:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k130:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr67:i32 = vsetvli(k130:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl40:vi64m2 = vslidedn(nsl38:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl041:i64 = vextract(nsl40:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k131:i64 = sconst() value=40  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nls21:i64 = sadd(nws1:i64, k131:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k132:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr68:i32 = vsetvli(k132:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl042:f16 = vextract(nsl39:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nwr1:i64, nl042:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl41:vf16m1 = vslidedn(nsl39:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nlv21:f16 = sload(nl041:i64) ext=zext offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nls21:i64, nlv21:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k133:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr69:i32 = vsetvli(k133:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl42:vi64m2 = vslidedn(nsl40:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl043:i64 = vextract(nsl42:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k134:i64 = sconst() value=42  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nls22:i64 = sadd(nws1:i64, k134:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k135:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr70:i32 = vsetvli(k135:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl044:f16 = vextract(nsl41:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nwr1:i64, nl044:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl43:vf16m1 = vslidedn(nsl41:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nlv22:f16 = sload(nl043:i64) ext=zext offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nls22:i64, nlv22:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k136:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr71:i32 = vsetvli(k136:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl44:vi64m2 = vslidedn(nsl42:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl045:i64 = vextract(nsl44:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k137:i64 = sconst() value=44  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nls23:i64 = sadd(nws1:i64, k137:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k138:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr72:i32 = vsetvli(k138:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl046:f16 = vextract(nsl43:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nwr1:i64, nl046:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl45:vf16m1 = vslidedn(nsl43:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nlv23:f16 = sload(nl045:i64) ext=zext offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nls23:i64, nlv23:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k139:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr73:i32 = vsetvli(k139:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl46:vi64m2 = vslidedn(nsl44:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl047:i64 = vextract(nsl46:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k140:i64 = sconst() value=46  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nls24:i64 = sadd(nws1:i64, k140:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k141:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr74:i32 = vsetvli(k141:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl048:f16 = vextract(nsl45:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nwr1:i64, nl048:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl47:vf16m1 = vslidedn(nsl45:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nlv24:f16 = sload(nl047:i64) ext=zext offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nls24:i64, nlv24:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k142:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr75:i32 = vsetvli(k142:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl48:vi64m2 = vslidedn(nsl46:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl049:i64 = vextract(nsl48:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k143:i64 = sconst() value=48  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nls25:i64 = sadd(nws1:i64, k143:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k144:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr76:i32 = vsetvli(k144:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl050:f16 = vextract(nsl47:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nwr1:i64, nl050:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl49:vf16m1 = vslidedn(nsl47:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nlv25:f16 = sload(nl049:i64) ext=zext offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nls25:i64, nlv25:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k145:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr77:i32 = vsetvli(k145:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl50:vi64m2 = vslidedn(nsl48:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl051:i64 = vextract(nsl50:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k146:i64 = sconst() value=50  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nls26:i64 = sadd(nws1:i64, k146:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k147:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr78:i32 = vsetvli(k147:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl052:f16 = vextract(nsl49:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nwr1:i64, nl052:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl51:vf16m1 = vslidedn(nsl49:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nlv26:f16 = sload(nl051:i64) ext=zext offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nls26:i64, nlv26:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k148:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr79:i32 = vsetvli(k148:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl52:vi64m2 = vslidedn(nsl50:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl053:i64 = vextract(nsl52:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k149:i64 = sconst() value=52  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nls27:i64 = sadd(nws1:i64, k149:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k150:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr80:i32 = vsetvli(k150:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl054:f16 = vextract(nsl51:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nwr1:i64, nl054:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl53:vf16m1 = vslidedn(nsl51:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nlv27:f16 = sload(nl053:i64) ext=zext offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nls27:i64, nlv27:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k151:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr81:i32 = vsetvli(k151:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl54:vi64m2 = vslidedn(nsl52:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl055:i64 = vextract(nsl54:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k152:i64 = sconst() value=54  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nls28:i64 = sadd(nws1:i64, k152:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k153:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr82:i32 = vsetvli(k153:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl056:f16 = vextract(nsl53:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nwr1:i64, nl056:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl55:vf16m1 = vslidedn(nsl53:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nlv28:f16 = sload(nl055:i64) ext=zext offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nls28:i64, nlv28:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k154:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr83:i32 = vsetvli(k154:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl56:vi64m2 = vslidedn(nsl54:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl057:i64 = vextract(nsl56:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k155:i64 = sconst() value=56  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nls29:i64 = sadd(nws1:i64, k155:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k156:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr84:i32 = vsetvli(k156:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl058:f16 = vextract(nsl55:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nwr1:i64, nl058:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl57:vf16m1 = vslidedn(nsl55:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nlv29:f16 = sload(nl057:i64) ext=zext offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nls29:i64, nlv29:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k157:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr85:i32 = vsetvli(k157:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl58:vi64m2 = vslidedn(nsl56:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl059:i64 = vextract(nsl58:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k158:i64 = sconst() value=58  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nls30:i64 = sadd(nws1:i64, k158:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k159:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr86:i32 = vsetvli(k159:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl060:f16 = vextract(nsl57:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nwr1:i64, nl060:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl59:vf16m1 = vslidedn(nsl57:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nlv30:f16 = sload(nl059:i64) ext=zext offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nls30:i64, nlv30:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k160:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr87:i32 = vsetvli(k160:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl60:vi64m2 = vslidedn(nsl58:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl061:i64 = vextract(nsl60:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k161:i64 = sconst() value=60  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nls31:i64 = sadd(nws1:i64, k161:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k162:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr88:i32 = vsetvli(k162:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl062:f16 = vextract(nsl59:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nwr1:i64, nl062:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl61:vf16m1 = vslidedn(nsl59:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nlv31:f16 = sload(nl061:i64) ext=zext offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nls31:i64, nlv31:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k163:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr89:i32 = vsetvli(k163:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl62:vi64m2 = vslidedn(nsl60:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl063:i64 = vextract(nsl62:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k164:i64 = sconst() value=62  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nls32:i64 = sadd(nws1:i64, k164:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k165:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr90:i32 = vsetvli(k165:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl064:f16 = vextract(nsl61:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nwr1:i64, nl064:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl63:vf16m1 = vslidedn(nsl61:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nlv32:f16 = sload(nl063:i64) ext=zext offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nls32:i64, nlv32:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k166:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr91:i32 = vsetvli(k166:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl64:vi64m2 = vslidedn(nsl62:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k167:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr92:i32 = vsetvli(k167:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nld1:vf16m1 = vunit_load(nws1:i64) sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  br() args=[nld1] target=ngl.j1  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+ngl.j1(ng_join1:vf16m1):
+  k168:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr93:i32 = vsetvli(k168:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvf1:vf32m2 = vfwcvt(ng_join1:vf16m1) op=ff  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:32:16
+  k169:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:32:16
+  cvr94:i32 = vsetvli(k169:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:32:16
+  cvm2:vf32m1 = vmovv(cvf1:vf32m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:32:16
+  k170:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:32:16
+  cvr95:i32 = vsetvli(k170:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:32:16
+  k171:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:32:16
+  cvr96:i32 = vsetvli(k171:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:32:16
+  k172:f32 = sconst() value=4286578688  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:32:16
+  ids6:vf32m1 = s2v(k172:f32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:32:16
+  vr1:vf32m1 = vred(cvm2:vf32m1, ids6:vf32m1) kind=max  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:32:16
+  x02:f32 = vextract(vr1:vf32m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:32:16
+  k173:i64 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  items21:i64 = sadd(items.chunk:i64, k173:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  k174:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  elem21:i32 = sadd(elem.loop:i32, k174:i32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  k175:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  bvl1:i32 = vsetvli(k175:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  k176:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  cvr97:i32 = vsetvli(k176:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  mc1:vf32m1 = s2v(x02:f32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  mt1:vm = vcmp(mrg0:vf32m1, mc1:vf32m1) fp=True pred=lt  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  mv01:vm = vmovmask(mt1:vm)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  ms1:vf32m1 = vsel(mv01:vm, mc1:vf32m1, mrg0:vf32m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  br() args=[elem21, items21, ms1] target=chunk1_head  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+prog_next(pid.next:i64, items.next:i64):
+  pid21:i64 = sadd(pid.next:i64, wcnt641:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  br() args=[pid21, items.next] target=prog_head  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+schunk2_head(elem.loop:i32, items.chunk:i64, mrg0:vf32m1):
+  k187:i32 = sconst() value=128  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  cgo2:i64 = slt(elem.loop:i32, k187:i32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  brc(cgo2:i64) false_args=[pid.split1, items.chunk, mrg0] false_target=schunk2_exit true_args=[elem.loop, items.chunk, mrg0] true_target=schunk2_body  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+schunk2_exit(pid.xreg:i64, items.xreg:i64, mrgx0:vf32m1):
+  k353:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  cvr197:i32 = vsetvli(k353:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  x07:f32 = vextract(mrgx0:vf32m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  k354:i64 = sconst() value=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  wid642:i64 = smove(wid1:u32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  wsoff1:i64 = smul(wid642:i64, k354:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  wsb1:i64 = sadd(wssh2:i64, wsoff1:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  sstore(wsb1:i64, x07:f32) offset=0 width=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  callbarrier(launch:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  k355:i64 = sconst() value=0  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  notown1:i64 = sltu(k355:i64, wid642:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  brc(notown1:i64) false_args=[] false_target=split_merge true_args=[] true_target=split_skip  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+schunk2_body(elem.loop:i32, items.chunk:i64, mrg0:vf32m1):
+  k188:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  vl2:i32 = vsetvli(k188:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  k189:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:13:33
+  cvr101:i32 = vsetvli(k189:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:13:33
+  iota2:vi32m1 = vid()  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:13:33
+  ar2:vi32m1 = vbinx(iota2:vi32m1, elem.loop:i32) op=add  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:13:33
+  k190:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:13:33
+  cvr102:i32 = vsetvli(k190:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:13:33
+  k191:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:13:14
+  cvr103:i32 = vsetvli(k191:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:13:14
+  cvw2:vi64m2 = vwaddx0(ar2:vi32m1) mode=sext  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:13:14
+  k192:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:13:14
+  cvr104:i32 = vsetvli(k192:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:13:14
+  k193:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:13:14
+  rgo5:i32 = vsetvli(k193:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:13:14
+  splat4:vi64m2 = s2v(s2:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:13:14
+  k194:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:13:14
+  cvr105:i32 = vsetvli(k194:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:13:14
+  k195:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:13:14
+  rgo6:i32 = vsetvli(k195:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:13:14
+  vb2:vi64m2 = vbin(splat4:vi64m2, cvw2:vi64m2) op=add  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:13:14
+  k196:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:13:14
+  cvr106:i32 = vsetvli(k196:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:13:14
+  w4:i64 = smove(Mn1:i32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:15:12
+  k197:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:15:12
+  rgo7:i32 = vsetvli(k197:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:15:12
+  splat5:vi64m2 = s2v(w4:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:15:12
+  k198:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:15:12
+  cvr107:i32 = vsetvli(k198:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:15:12
+  k199:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:15:12
+  rgo8:i32 = vsetvli(k199:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:15:12
+  m2:vm = vcmp(vb2:vi64m2, splat5:vi64m2) fp=False pred=lt  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:15:12
+  k200:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:15:12
+  cvr108:i32 = vsetvli(k200:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:15:12
+  k201:f32 = sconst() value=4286578688  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k202:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr109:i32 = vsetvli(k202:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sp6:vf32m1 = s2v(k201:f32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvm4:vf32m2 = vmovv(sp6:vf32m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k203:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr110:i32 = vsetvli(k203:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvd3:vf16m1 = vfncvt(cvm4:vf32m2) op=ff  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  x05:f16 = vextract(cvd3:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  splat6:vf16m1 = s2v(x05:f16)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k204:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr111:i32 = vsetvli(k204:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k205:i32 = sconst() value=0  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ids8:vi32m1 = s2v(k205:i32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k206:i32 = sconst() value=1  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ids9:vi32m1 = s2v(k206:i32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nm03:vm = vmovmask(m2:vm)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nm13:vi32m1 = vsel(nm03:vm, ids9:vi32m1, ids8:vi32m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k207:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  rega3:i32 = vsetvli(k207:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k208:i64 = sconst() value=2  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  addrs3:vi64m2 = vbinx(vb2:vi64m2, k208:i64) op=mul  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k209:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  regr3:i32 = vsetvli(k209:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k210:i64 = sconst() value=0  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k211:i32 = sconst() value=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr112:i32 = vsetvli(k211:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng47:i64 = vextract(addrs3:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng48:vi64m2 = vid()  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k212:i64 = sconst() value=2  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng49:vi64m2 = vbinx(ng48:vi64m2, k212:i64) op=mul  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng50:vi64m2 = vbinx(ng49:vi64m2, ng47:i64) op=add  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng51:vm = vcmp(addrs3:vi64m2, ng50:vi64m2) fp=False pred=ne  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k213:i32 = sconst() value=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr113:i32 = vsetvli(k213:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k214:i32 = sconst() value=0  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng52:vi32m1 = s2v(k214:i32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng53:vm = vcmp(nm13:vi32m1, ng52:vi32m1) fp=False pred=ne  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng54:vm = vmand(ng51:vm, ng53:vm)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng55:i64 = vpopc(ng54:vm)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng56:i64 = sadd(k210:i64, ng55:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng57:i64 = sadd(inp1:i64, ng47:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k215:i32 = sconst() value=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr114:i32 = vsetvli(k215:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng58:vi64m2 = vid()  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k216:i64 = sconst() value=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng59:vi64m2 = vbinx(ng58:vi64m2, k216:i64) op=add  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng60:vi64m2 = vrgather(addrs3:vi64m2, ng59:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng61:i64 = vextract(ng60:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng62:vi64m2 = vid()  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k217:i64 = sconst() value=2  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng63:vi64m2 = vbinx(ng62:vi64m2, k217:i64) op=mul  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng64:vi64m2 = vbinx(ng63:vi64m2, ng61:i64) op=add  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng65:vm = vcmp(ng60:vi64m2, ng64:vi64m2) fp=False pred=ne  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k218:i32 = sconst() value=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr115:i32 = vsetvli(k218:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng66:vi32m1 = vid()  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k219:i32 = sconst() value=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng67:vi32m1 = vbinx(ng66:vi32m1, k219:i32) op=add  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng68:vi32m1 = vrgather(nm13:vi32m1, ng67:vi32m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k220:i32 = sconst() value=0  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng69:vi32m1 = s2v(k220:i32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng70:vm = vcmp(ng68:vi32m1, ng69:vi32m1) fp=False pred=ne  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng71:vm = vmand(ng65:vm, ng70:vm)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng72:i64 = vpopc(ng71:vm)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng73:i64 = sadd(ng56:i64, ng72:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng74:i64 = sadd(inp1:i64, ng61:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  brc(ng73:i64) false_args=[] false_target=ngl.t2 true_args=[] true_target=ngl.e2  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+ngl.t2:
+  k221:i64 = sconst() value=0  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng75:i64 = sadd(wspr2:i64, k221:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k222:i32 = sconst() value=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr116:i32 = vsetvli(k222:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k223:i32 = sconst() value=0  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng76:vi32m1 = s2v(k223:i32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng77:vm = vcmp(nm13:vi32m1, ng76:vi32m1) fp=False pred=ne  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k224:i32 = sconst() value=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr117:i32 = vsetvli(k224:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng05:vm = vmovmask(ng77:vm)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng78:vf16m1 = vunit_load(ng57:i64, ng05:vm) default=undef sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng06:vm = vmovmask(ng77:vm)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng79:vf16m1 = vsel(ng06:vm, ng78:vf16m1, splat6:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k225:i64 = sconst() value=0  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng80:i64 = sadd(ng75:i64, k225:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  vunit_store(ng80:i64, ng79:vf16m1) sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k226:i32 = sconst() value=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr118:i32 = vsetvli(k226:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng81:vi32m1 = vid()  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k227:i32 = sconst() value=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng82:vi32m1 = vbinx(ng81:vi32m1, k227:i32) op=add  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng83:vi32m1 = vrgather(nm13:vi32m1, ng82:vi32m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k228:i32 = sconst() value=0  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng84:vi32m1 = s2v(k228:i32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng85:vm = vcmp(ng83:vi32m1, ng84:vi32m1) fp=False pred=ne  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k229:i32 = sconst() value=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr119:i32 = vsetvli(k229:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng07:vm = vmovmask(ng85:vm)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng86:vf16m1 = vunit_load(ng74:i64, ng07:vm) default=undef sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng87:vi16m1 = vid()  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k230:i16 = sconst() value=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng88:vi16m1 = vbinx(ng87:vi16m1, k230:i16) op=add  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng89:vf16m1 = vrgather(splat6:vf16m1, ng88:vi16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng08:vm = vmovmask(ng85:vm)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng90:vf16m1 = vsel(ng08:vm, ng86:vf16m1, ng89:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k231:i64 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng91:i64 = sadd(ng75:i64, k231:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  vunit_store(ng91:i64, ng90:vf16m1) sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k232:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr120:i32 = vsetvli(k232:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ng92:vf16m1 = vunit_load(ng75:i64) sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  br() args=[ng92] target=ngl.j2  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+ngl.e2:
+  k233:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  rega4:i32 = vsetvli(k233:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k234:i64 = sconst() value=2  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  addrs4:vi64m2 = vbinx(vb2:vi64m2, k234:i64) op=mul  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k235:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  regr4:i32 = vsetvli(k235:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k236:i64 = sconst() value=0  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nws2:i64 = sadd(wspr2:i64, k236:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k237:i64 = sconst() value=128  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nwr2:i64 = sadd(nws2:i64, k237:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k238:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr121:i32 = vsetvli(k238:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k239:i32 = sconst() value=0  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ids10:vi32m1 = s2v(k239:i32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k240:i32 = sconst() value=1  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  ids11:vi32m1 = s2v(k240:i32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nm04:vm = vmovmask(m2:vm)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nm14:vi32m1 = vsel(nm04:vm, ids11:vi32m1, ids10:vi32m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k241:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr122:i32 = vsetvli(k241:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nva2:vi64m2 = vbinx(addrs4:vi64m2, inp1:i64) op=add  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k242:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr123:i32 = vsetvli(k242:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k243:i32 = sconst() value=0  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sp7:vi32m1 = s2v(k243:i32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nnm2:vm = vcmp(nm14:vi32m1, sp7:vi32m1) fp=False pred=ne  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nv02:vm = vmovmask(nnm2:vm)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k244:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr124:i32 = vsetvli(k244:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k245:i64 = sconst() value=0  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sp8:vi64m2 = s2v(k245:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sp9:vi64m2 = s2v(nwr2:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nvd2:vi64m2 = vbin(nva2:vi64m2, sp9:vi64m2) op=sub  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nvs2:vi64m2 = vsel(nv02:vm, nvd2:vi64m2, sp8:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nvo2:vi64m2 = vbin(sp9:vi64m2, nvs2:vi64m2) op=add  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k246:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr125:i32 = vsetvli(k246:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k247:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr126:i32 = vsetvli(k247:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl065:i64 = vextract(nvo2:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k248:i64 = sconst() value=0  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nls33:i64 = sadd(nws2:i64, k248:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k249:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr127:i32 = vsetvli(k249:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl066:f16 = vextract(splat6:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nwr2:i64, nl066:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl65:vf16m1 = vslidedn(splat6:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nlv33:f16 = sload(nl065:i64) ext=zext offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nls33:i64, nlv33:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k250:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr128:i32 = vsetvli(k250:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl66:vi64m2 = vslidedn(nvo2:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl067:i64 = vextract(nsl66:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k251:i64 = sconst() value=2  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nls34:i64 = sadd(nws2:i64, k251:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k252:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr129:i32 = vsetvli(k252:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl068:f16 = vextract(nsl65:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nwr2:i64, nl068:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl67:vf16m1 = vslidedn(nsl65:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nlv34:f16 = sload(nl067:i64) ext=zext offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nls34:i64, nlv34:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k253:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr130:i32 = vsetvli(k253:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl68:vi64m2 = vslidedn(nsl66:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl069:i64 = vextract(nsl68:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k254:i64 = sconst() value=4  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nls35:i64 = sadd(nws2:i64, k254:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k255:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr131:i32 = vsetvli(k255:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl070:f16 = vextract(nsl67:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nwr2:i64, nl070:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl69:vf16m1 = vslidedn(nsl67:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nlv35:f16 = sload(nl069:i64) ext=zext offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nls35:i64, nlv35:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k256:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr132:i32 = vsetvli(k256:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl70:vi64m2 = vslidedn(nsl68:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl071:i64 = vextract(nsl70:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k257:i64 = sconst() value=6  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nls36:i64 = sadd(nws2:i64, k257:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k258:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr133:i32 = vsetvli(k258:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl072:f16 = vextract(nsl69:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nwr2:i64, nl072:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl71:vf16m1 = vslidedn(nsl69:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nlv36:f16 = sload(nl071:i64) ext=zext offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nls36:i64, nlv36:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k259:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr134:i32 = vsetvli(k259:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl72:vi64m2 = vslidedn(nsl70:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl073:i64 = vextract(nsl72:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k260:i64 = sconst() value=8  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nls37:i64 = sadd(nws2:i64, k260:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k261:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr135:i32 = vsetvli(k261:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl074:f16 = vextract(nsl71:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nwr2:i64, nl074:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl73:vf16m1 = vslidedn(nsl71:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nlv37:f16 = sload(nl073:i64) ext=zext offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nls37:i64, nlv37:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k262:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr136:i32 = vsetvli(k262:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl74:vi64m2 = vslidedn(nsl72:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl075:i64 = vextract(nsl74:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k263:i64 = sconst() value=10  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nls38:i64 = sadd(nws2:i64, k263:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k264:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr137:i32 = vsetvli(k264:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl076:f16 = vextract(nsl73:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nwr2:i64, nl076:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl75:vf16m1 = vslidedn(nsl73:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nlv38:f16 = sload(nl075:i64) ext=zext offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nls38:i64, nlv38:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k265:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr138:i32 = vsetvli(k265:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl76:vi64m2 = vslidedn(nsl74:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl077:i64 = vextract(nsl76:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k266:i64 = sconst() value=12  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nls39:i64 = sadd(nws2:i64, k266:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k267:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr139:i32 = vsetvli(k267:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl078:f16 = vextract(nsl75:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nwr2:i64, nl078:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl77:vf16m1 = vslidedn(nsl75:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nlv39:f16 = sload(nl077:i64) ext=zext offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nls39:i64, nlv39:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k268:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr140:i32 = vsetvli(k268:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl78:vi64m2 = vslidedn(nsl76:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl079:i64 = vextract(nsl78:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k269:i64 = sconst() value=14  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nls40:i64 = sadd(nws2:i64, k269:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k270:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr141:i32 = vsetvli(k270:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl080:f16 = vextract(nsl77:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nwr2:i64, nl080:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl79:vf16m1 = vslidedn(nsl77:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nlv40:f16 = sload(nl079:i64) ext=zext offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nls40:i64, nlv40:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k271:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr142:i32 = vsetvli(k271:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl80:vi64m2 = vslidedn(nsl78:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl081:i64 = vextract(nsl80:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k272:i64 = sconst() value=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nls41:i64 = sadd(nws2:i64, k272:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k273:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr143:i32 = vsetvli(k273:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl082:f16 = vextract(nsl79:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nwr2:i64, nl082:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl81:vf16m1 = vslidedn(nsl79:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nlv41:f16 = sload(nl081:i64) ext=zext offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nls41:i64, nlv41:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k274:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr144:i32 = vsetvli(k274:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl82:vi64m2 = vslidedn(nsl80:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl083:i64 = vextract(nsl82:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k275:i64 = sconst() value=18  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nls42:i64 = sadd(nws2:i64, k275:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k276:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr145:i32 = vsetvli(k276:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl084:f16 = vextract(nsl81:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nwr2:i64, nl084:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl83:vf16m1 = vslidedn(nsl81:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nlv42:f16 = sload(nl083:i64) ext=zext offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nls42:i64, nlv42:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k277:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr146:i32 = vsetvli(k277:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl84:vi64m2 = vslidedn(nsl82:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl085:i64 = vextract(nsl84:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k278:i64 = sconst() value=20  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nls43:i64 = sadd(nws2:i64, k278:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k279:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr147:i32 = vsetvli(k279:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl086:f16 = vextract(nsl83:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nwr2:i64, nl086:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl85:vf16m1 = vslidedn(nsl83:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nlv43:f16 = sload(nl085:i64) ext=zext offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nls43:i64, nlv43:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k280:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr148:i32 = vsetvli(k280:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl86:vi64m2 = vslidedn(nsl84:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl087:i64 = vextract(nsl86:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k281:i64 = sconst() value=22  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nls44:i64 = sadd(nws2:i64, k281:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k282:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr149:i32 = vsetvli(k282:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl088:f16 = vextract(nsl85:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nwr2:i64, nl088:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl87:vf16m1 = vslidedn(nsl85:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nlv44:f16 = sload(nl087:i64) ext=zext offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nls44:i64, nlv44:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k283:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr150:i32 = vsetvli(k283:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl88:vi64m2 = vslidedn(nsl86:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl089:i64 = vextract(nsl88:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k284:i64 = sconst() value=24  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nls45:i64 = sadd(nws2:i64, k284:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k285:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr151:i32 = vsetvli(k285:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl090:f16 = vextract(nsl87:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nwr2:i64, nl090:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl89:vf16m1 = vslidedn(nsl87:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nlv45:f16 = sload(nl089:i64) ext=zext offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nls45:i64, nlv45:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k286:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr152:i32 = vsetvli(k286:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl90:vi64m2 = vslidedn(nsl88:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl091:i64 = vextract(nsl90:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k287:i64 = sconst() value=26  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nls46:i64 = sadd(nws2:i64, k287:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k288:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr153:i32 = vsetvli(k288:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl092:f16 = vextract(nsl89:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nwr2:i64, nl092:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl91:vf16m1 = vslidedn(nsl89:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nlv46:f16 = sload(nl091:i64) ext=zext offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nls46:i64, nlv46:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k289:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr154:i32 = vsetvli(k289:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl92:vi64m2 = vslidedn(nsl90:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl093:i64 = vextract(nsl92:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k290:i64 = sconst() value=28  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nls47:i64 = sadd(nws2:i64, k290:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k291:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr155:i32 = vsetvli(k291:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl094:f16 = vextract(nsl91:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nwr2:i64, nl094:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl93:vf16m1 = vslidedn(nsl91:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nlv47:f16 = sload(nl093:i64) ext=zext offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nls47:i64, nlv47:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k292:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr156:i32 = vsetvli(k292:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl94:vi64m2 = vslidedn(nsl92:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl095:i64 = vextract(nsl94:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k293:i64 = sconst() value=30  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nls48:i64 = sadd(nws2:i64, k293:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k294:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr157:i32 = vsetvli(k294:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl096:f16 = vextract(nsl93:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nwr2:i64, nl096:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl95:vf16m1 = vslidedn(nsl93:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nlv48:f16 = sload(nl095:i64) ext=zext offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nls48:i64, nlv48:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k295:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr158:i32 = vsetvli(k295:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl96:vi64m2 = vslidedn(nsl94:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl097:i64 = vextract(nsl96:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k296:i64 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nls49:i64 = sadd(nws2:i64, k296:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k297:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr159:i32 = vsetvli(k297:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl098:f16 = vextract(nsl95:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nwr2:i64, nl098:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl97:vf16m1 = vslidedn(nsl95:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nlv49:f16 = sload(nl097:i64) ext=zext offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nls49:i64, nlv49:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k298:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr160:i32 = vsetvli(k298:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl98:vi64m2 = vslidedn(nsl96:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl099:i64 = vextract(nsl98:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k299:i64 = sconst() value=34  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nls50:i64 = sadd(nws2:i64, k299:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k300:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr161:i32 = vsetvli(k300:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl0100:f16 = vextract(nsl97:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nwr2:i64, nl0100:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl99:vf16m1 = vslidedn(nsl97:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nlv50:f16 = sload(nl099:i64) ext=zext offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nls50:i64, nlv50:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k301:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr162:i32 = vsetvli(k301:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl100:vi64m2 = vslidedn(nsl98:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl0101:i64 = vextract(nsl100:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k302:i64 = sconst() value=36  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nls51:i64 = sadd(nws2:i64, k302:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k303:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr163:i32 = vsetvli(k303:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl0102:f16 = vextract(nsl99:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nwr2:i64, nl0102:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl101:vf16m1 = vslidedn(nsl99:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nlv51:f16 = sload(nl0101:i64) ext=zext offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nls51:i64, nlv51:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k304:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr164:i32 = vsetvli(k304:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl102:vi64m2 = vslidedn(nsl100:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl0103:i64 = vextract(nsl102:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k305:i64 = sconst() value=38  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nls52:i64 = sadd(nws2:i64, k305:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k306:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr165:i32 = vsetvli(k306:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl0104:f16 = vextract(nsl101:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nwr2:i64, nl0104:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl103:vf16m1 = vslidedn(nsl101:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nlv52:f16 = sload(nl0103:i64) ext=zext offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nls52:i64, nlv52:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k307:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr166:i32 = vsetvli(k307:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl104:vi64m2 = vslidedn(nsl102:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl0105:i64 = vextract(nsl104:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k308:i64 = sconst() value=40  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nls53:i64 = sadd(nws2:i64, k308:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k309:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr167:i32 = vsetvli(k309:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl0106:f16 = vextract(nsl103:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nwr2:i64, nl0106:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl105:vf16m1 = vslidedn(nsl103:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nlv53:f16 = sload(nl0105:i64) ext=zext offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nls53:i64, nlv53:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k310:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr168:i32 = vsetvli(k310:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl106:vi64m2 = vslidedn(nsl104:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl0107:i64 = vextract(nsl106:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k311:i64 = sconst() value=42  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nls54:i64 = sadd(nws2:i64, k311:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k312:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr169:i32 = vsetvli(k312:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl0108:f16 = vextract(nsl105:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nwr2:i64, nl0108:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl107:vf16m1 = vslidedn(nsl105:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nlv54:f16 = sload(nl0107:i64) ext=zext offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nls54:i64, nlv54:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k313:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr170:i32 = vsetvli(k313:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl108:vi64m2 = vslidedn(nsl106:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl0109:i64 = vextract(nsl108:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k314:i64 = sconst() value=44  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nls55:i64 = sadd(nws2:i64, k314:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k315:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr171:i32 = vsetvli(k315:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl0110:f16 = vextract(nsl107:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nwr2:i64, nl0110:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl109:vf16m1 = vslidedn(nsl107:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nlv55:f16 = sload(nl0109:i64) ext=zext offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nls55:i64, nlv55:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k316:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr172:i32 = vsetvli(k316:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl110:vi64m2 = vslidedn(nsl108:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl0111:i64 = vextract(nsl110:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k317:i64 = sconst() value=46  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nls56:i64 = sadd(nws2:i64, k317:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k318:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr173:i32 = vsetvli(k318:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl0112:f16 = vextract(nsl109:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nwr2:i64, nl0112:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl111:vf16m1 = vslidedn(nsl109:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nlv56:f16 = sload(nl0111:i64) ext=zext offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nls56:i64, nlv56:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k319:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr174:i32 = vsetvli(k319:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl112:vi64m2 = vslidedn(nsl110:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl0113:i64 = vextract(nsl112:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k320:i64 = sconst() value=48  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nls57:i64 = sadd(nws2:i64, k320:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k321:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr175:i32 = vsetvli(k321:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl0114:f16 = vextract(nsl111:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nwr2:i64, nl0114:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl113:vf16m1 = vslidedn(nsl111:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nlv57:f16 = sload(nl0113:i64) ext=zext offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nls57:i64, nlv57:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k322:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr176:i32 = vsetvli(k322:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl114:vi64m2 = vslidedn(nsl112:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl0115:i64 = vextract(nsl114:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k323:i64 = sconst() value=50  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nls58:i64 = sadd(nws2:i64, k323:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k324:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr177:i32 = vsetvli(k324:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl0116:f16 = vextract(nsl113:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nwr2:i64, nl0116:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl115:vf16m1 = vslidedn(nsl113:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nlv58:f16 = sload(nl0115:i64) ext=zext offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nls58:i64, nlv58:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k325:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr178:i32 = vsetvli(k325:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl116:vi64m2 = vslidedn(nsl114:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl0117:i64 = vextract(nsl116:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k326:i64 = sconst() value=52  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nls59:i64 = sadd(nws2:i64, k326:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k327:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr179:i32 = vsetvli(k327:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl0118:f16 = vextract(nsl115:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nwr2:i64, nl0118:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl117:vf16m1 = vslidedn(nsl115:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nlv59:f16 = sload(nl0117:i64) ext=zext offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nls59:i64, nlv59:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k328:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr180:i32 = vsetvli(k328:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl118:vi64m2 = vslidedn(nsl116:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl0119:i64 = vextract(nsl118:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k329:i64 = sconst() value=54  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nls60:i64 = sadd(nws2:i64, k329:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k330:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr181:i32 = vsetvli(k330:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl0120:f16 = vextract(nsl117:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nwr2:i64, nl0120:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl119:vf16m1 = vslidedn(nsl117:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nlv60:f16 = sload(nl0119:i64) ext=zext offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nls60:i64, nlv60:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k331:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr182:i32 = vsetvli(k331:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl120:vi64m2 = vslidedn(nsl118:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl0121:i64 = vextract(nsl120:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k332:i64 = sconst() value=56  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nls61:i64 = sadd(nws2:i64, k332:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k333:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr183:i32 = vsetvli(k333:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl0122:f16 = vextract(nsl119:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nwr2:i64, nl0122:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl121:vf16m1 = vslidedn(nsl119:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nlv61:f16 = sload(nl0121:i64) ext=zext offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nls61:i64, nlv61:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k334:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr184:i32 = vsetvli(k334:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl122:vi64m2 = vslidedn(nsl120:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl0123:i64 = vextract(nsl122:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k335:i64 = sconst() value=58  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nls62:i64 = sadd(nws2:i64, k335:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k336:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr185:i32 = vsetvli(k336:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl0124:f16 = vextract(nsl121:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nwr2:i64, nl0124:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl123:vf16m1 = vslidedn(nsl121:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nlv62:f16 = sload(nl0123:i64) ext=zext offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nls62:i64, nlv62:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k337:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr186:i32 = vsetvli(k337:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl124:vi64m2 = vslidedn(nsl122:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl0125:i64 = vextract(nsl124:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k338:i64 = sconst() value=60  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nls63:i64 = sadd(nws2:i64, k338:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k339:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr187:i32 = vsetvli(k339:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl0126:f16 = vextract(nsl123:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nwr2:i64, nl0126:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl125:vf16m1 = vslidedn(nsl123:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nlv63:f16 = sload(nl0125:i64) ext=zext offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nls63:i64, nlv63:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k340:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr188:i32 = vsetvli(k340:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl126:vi64m2 = vslidedn(nsl124:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl0127:i64 = vextract(nsl126:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k341:i64 = sconst() value=62  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nls64:i64 = sadd(nws2:i64, k341:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k342:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr189:i32 = vsetvli(k342:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nl0128:f16 = vextract(nsl125:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nwr2:i64, nl0128:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl127:vf16m1 = vslidedn(nsl125:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nlv64:f16 = sload(nl0127:i64) ext=zext offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  sstore(nls64:i64, nlv64:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k343:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr190:i32 = vsetvli(k343:i32) lmul=2 policy=ta,ma sew=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nsl128:vi64m2 = vslidedn(nsl126:vi64m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  k344:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr191:i32 = vsetvli(k344:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  nld2:vf16m1 = vunit_load(nws2:i64) sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  br() args=[nld2] target=ngl.j2  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+ngl.j2(ng_join2:vf16m1):
+  k345:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvr192:i32 = vsetvli(k345:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:31:15
+  cvf2:vf32m2 = vfwcvt(ng_join2:vf16m1) op=ff  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:32:16
+  k346:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:32:16
+  cvr193:i32 = vsetvli(k346:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:32:16
+  cvm5:vf32m1 = vmovv(cvf2:vf32m2)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:32:16
+  k347:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:32:16
+  cvr194:i32 = vsetvli(k347:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:32:16
+  k348:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:32:16
+  cvr195:i32 = vsetvli(k348:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:32:16
+  k349:f32 = sconst() value=4286578688  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:32:16
+  ids12:vf32m1 = s2v(k349:f32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:32:16
+  vr2:vf32m1 = vred(cvm5:vf32m1, ids12:vf32m1) kind=max  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:32:16
+  x06:f32 = vextract(vr2:vf32m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:32:16
+  k350:i64 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  items22:i64 = sadd(items.chunk:i64, k350:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  sst1:i32 = swext(swvl1:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  elem22:i32 = sadd(elem.loop:i32, sst1:i32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  k351:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  bvl2:i32 = vsetvli(k351:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  k352:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  cvr196:i32 = vsetvli(k352:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  mc2:vf32m1 = s2v(x06:f32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  mt2:vm = vcmp(mrg0:vf32m1, mc2:vf32m1) fp=True pred=lt  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  mv02:vm = vmovmask(mt2:vm)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  ms2:vf32m1 = vsel(mv02:vm, mc2:vf32m1, mrg0:vf32m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  br() args=[elem22, items22, ms2] target=schunk2_head  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+split_merge:
+  k356:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  cvr198:i32 = vsetvli(k356:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  k357:f32 = sconst() value=4286578688  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  ids13:vf32m1 = s2v(k357:f32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  k358:i64 = sconst() value=0  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  wcntm1:i64 = smove(wcnt1:u32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  br() args=[k358, ids13] target=merge.head  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+split_skip:
+  br() args=[pid.split1, items.xreg] target=prog_exit  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+merge.head(i.merge1:i64, cmerge1:vf32m1):
+  go2:i64 = slt(i.merge1:i64, wcntm1:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  brc(go2:i64) false_args=[i.merge1, cmerge1] false_target=merge.exit true_args=[i.merge1, cmerge1] true_target=merge.body  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+merge.body(i.merge1:i64, cmerge1:vf32m1):
+  mwoff1:i64 = smul(i.merge1:i64, k354:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  mwb1:i64 = sadd(wssh2:i64, mwoff1:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  k359:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  mvl1:i32 = vsetvli(k359:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  k360:i64 = sconst() value=1  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  mi1:i64 = sadd(i.merge1:i64, k360:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  pl1:f32 = sload(mwb1:i64) ext=sext offset=0 width=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  k361:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  cvr199:i32 = vsetvli(k361:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  pls1:vf32m1 = s2v(pl1:f32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  mt3:vm = vcmp(cmerge1:vf32m1, pls1:vf32m1) fp=True pred=lt  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  mv03:vm = vmovmask(mt3:vm)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  ms3:vf32m1 = vsel(mv03:vm, pls1:vf32m1, cmerge1:vf32m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  br() args=[mi1, ms3] target=merge.head  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+merge.exit(i.mergex1:i64, cmergex1:vf32m1):
+  k362:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  cvr200:i32 = vsetvli(k362:i32) lmul=1 policy=ta,ma sew=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  x08:f32 = vextract(cmergex1:vf32m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  sp10:vf32m1 = s2v(x08:f32)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:34:5
+  cvm6:vf32m2 = vmovv(sp10:vf32m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:34:5
+  k363:i32 = sconst() value=32  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:34:5
+  cvr201:i32 = vsetvli(k363:i32) lmul=1 policy=ta,ma sew=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:34:5
+  cvd4:vf16m1 = vfncvt(cvm6:vf32m2) op=ff  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:34:5
+  x09:f16 = vextract(cvd4:vf16m1)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:34:5
+  k364:i64 = sconst() value=2  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:34:5
+  sa2:i64 = smul(w3:i64, k364:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:34:5
+  ad2:i64 = sadd(mid1:i64, sa2:i64)  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:34:5
+  sstore(ad2:i64, x09:f16) offset=0 width=16  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:34:5
+  br() args=[pid.split1, items.xreg] target=prog_exit  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+prog_exit(pid.exit:i64, items.exit:i64):
+  sstore(stats1:i64, items.exit:i64) offset=0 width=64  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
+  ret()  ; /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/amax_kernel_1.py:11:1
