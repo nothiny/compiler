@@ -700,6 +700,32 @@ round test modules PASS; no-name-dispatch positive 0 / witness 1;
 multi-worker 18/18 at threads=2/4/8; the family scan 1,269/1,269 PASS over 233 operators.
 Metrics in evidence/zs-metrics/, scans in evidence/zs-family-scan/.
 
+## The deferred full-input regression on the final tree: 2,728/2,734 PASS, 6 pre-existing compile-budget timeouts
+
+The recorded follow-up ran in the session's closing window: the full
+2734-case corpus (500 operators, threads=1, 10 shards) on the final
+five-candidate tree.  RESULT: 2,728/2,734 PASS; the 6 non-PASS are
+TIMEOUT ("case budget exceeded") on exactly two operators --
+complex_svd_pick_orthonormal_v_kernel [17] and deconv3d_fwd_kernel
+[1,4,8,8,8], three dtypes each.  TIMING ANALYSIS (the pre-existence
+check): complex_svd f16 compiles in 182.9s at e505061 (pre-zero-splat)
+vs 185.7-186.2s at HEAD -- the delta is noise-level, the peephole's
+proof scans are NOT the driver, and the case budget sits exactly at
+these two operators' standalone compile time (under 10-shard load they
+tip over; a serial re-run passed complex_svd f32 and both operators'
+artifacts compile and execute correctly standalone).  These are the
+same two operators the round's opening notes carried as pre-existing
+test-timeout classes (complex_svd's static_range nest is the
+allocator's documented compile-budget case); the K3 full pass at
+817419a predates the T050 fix and every candidate in this file, so the
+2,728/2,734 result is the CURRENT tree's full-input binding: every
+mismatch class is clear, and the 6 timeouts are a located, pre-existing
+compile-budget boundary, not a correctness defect of any candidate.
+A window cap on the proof scan was implemented and measured (185.7s --
+no effect) and REVERTED to keep the tree byte-identical to the
+validated evidence.  Evidence in evidence/full-input/ (10 shard
+reports + journals + the serial re-check).
+
 ## Replay
 
 ```bash
