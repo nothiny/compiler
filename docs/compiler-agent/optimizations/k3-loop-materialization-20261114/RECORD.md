@@ -726,6 +726,17 @@ no effect) and REVERTED to keep the tree byte-identical to the
 validated evidence.  Evidence in evidence/full-input/ (10 shard
 reports + journals + the serial re-check).
 
+ANOMALY NARROWED (the session's final instrument): a marker test
+(unique tag per dump_module call) proves the ALLOCATED dump -- the
+call whose text is written to stage.mir.allocated.txt -- itself
+returns chunk9_body at 608 ops / 3 slot-16 sreloads.  The earlier
+in-process snapshots claiming 107 ops / 1 reload at allocation end
+were UNRELIABLE INSTRUMENTATION (the same pipeline, unhooke, produces
+the 608/3 dump); the r9/r10 producers therefore live INSIDE the
+allocation rounds, not in any post-allocation step -- the next
+session's hunt starts inside _allocate_function's round loop with
+that constraint.
+
 ## Replay
 
 ```bash
