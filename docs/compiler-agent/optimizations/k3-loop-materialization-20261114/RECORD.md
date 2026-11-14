@@ -907,6 +907,35 @@ the decline class is bounded by the small-divisor remainder (2/4/8,
 blocks each -- the attention family -- where the 12-15% ceiling
 concentrates.]
 
+## Next-session task list (the guard predicate, directly executable)
+
+1. IMPLEMENT the three-conjunct predicate as a helper next to
+   narrow_access.try_load: `_staging_contiguous(offset_tir, C1, vl,
+   step)` returning (verdict, base_scalar_c, esz) -- conjuncts (a)
+   the sdiv/srem-by-C1 shape with unit column coefficient after T033
+   folding, (b) C1 % vl == 0, (c) the element base's step == vl.
+2. SELECT at _lower_load_narrow / try_load: on a positive verdict
+   emit the direct form -- pin the boundary mask (vmovmask), one
+   vle16.v/vse16.v at the scalar base with v0.t, the other-select
+   when an ``other`` operand is declared; keep the guard otherwise
+   (a structural select, no name dispatch).
+3. COUNTER: count predicate accepts/declines per compile (one
+   Counter in the module; surfaces in the pass stats) -- the decline
+   class is bounded at 29% of the 7,929-site divisor pool (measured,
+   bb0c0b6).
+4. VERIFY: the round's standard chain -- smoke (attention + fht +
+   softmax families), test_emit + both round modules, no-name-
+   dispatch positive/witness, multi-worker 18x at 2/4/8, the family
+   scan 1,269 (the 626 guard-bearing programs are 30% of the corpus,
+   the attention family's 108-block programs are the ceiling
+   carriers).
+5. MEASURE: same-tree paired, the 7-case set -- the ceiling is
+   ~2.5-3M/call on attention (12-15%); watch softmax_log (its guard
+   share is proportionally large) for two-sided effects.
+6. RECORD: results + declines histogram here; the fallback semantics
+   (the guard's located fallback, never a refusal) is the declared
+   contract.
+
 ## Replay
 
 ```bash
