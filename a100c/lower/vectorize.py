@@ -145,6 +145,17 @@ class LowerOptions:
     #: it for those (the mechanism is fully validated; see the round
     #: record).
     chunk_mask_split: bool = False
+    #: The pressure-bounded loop-invariant sconst hoist (P3b): at each
+    #: counted loop's close, the body block's top-cap most-used sconst
+    #: ops move to just before the preheader's entry br (constants are
+    #: loop-invariant; a def inside the loop only dominates uses inside
+    #: it, so the relocation is dominance-safe; the cap bounds the extra
+    #: cross-loop GPR live ranges).  DEFAULT OFF: the same-tree on/off
+    #: contrast measured attention-f16 -0.98% but matmul16 +2.44% -- the
+    #: win and the loss come from the SAME single-use AVL constants, and
+    #: a use-density filter that removes the loss also removes the win
+    #: (attn +0.00%).  A100C_LOOP_CONST_HOIST=on opts in.
+    loop_const_hoist: bool = False
 
     def identity_part(self) -> str:
         parts = []
@@ -174,6 +185,8 @@ class LowerOptions:
             parts.append("no-local-materialization")
         if not self.chunk_mask_split:
             parts.append("no-chunk-mask-split")
+        if not self.loop_const_hoist:
+            parts.append("no-loop-const-hoist")
         return ",".join(parts) if parts else "default"
 
 
@@ -320,6 +333,10 @@ class _Ctx:
         #: active region) -- plus the rid -> value table the exact
         #: vsetvli dedup reads
         self.local_materialization = bool(local_materialization)
+        #: the bounded loop-invariant sconst hoist (P3b) -- read by
+        #: scalar_mod.close_loop at every counted loop's close
+        self.loop_const_hoist = True
+        self.loop_const_hoist_cap = 4
         self._const_cache: Dict[tuple, mir.VReg] = {}
         self._const_value_of: Dict[int, int] = {}
         self._lane_index_cache: Dict[tuple, mir.VReg] = {}
@@ -1749,6 +1766,7 @@ class SliceLowering:
         module.functions.append(function)
         ctx = _Ctx(module, function,
                    local_materialization=self.options.local_materialization)
+        ctx.loop_const_hoist = self.options.loop_const_hoist
         self._ctx = ctx
         # the implicit-region provider: the pass parameters active when a
         # block's first vector op is emitted (T014's per-block region fix)

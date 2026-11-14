@@ -136,6 +136,10 @@ class CompileOptions:
     #: saving); A100C_CHUNK_MASK_SPLIT=on enables it for multi-chunk
     #: shapes.
     chunk_mask_split: bool = False
+    #: The pressure-bounded loop-invariant sconst hoist (P3b).  DEFAULT
+    #: OFF (the on/off contrast: attention -0.98% vs matmul16 +2.44%,
+    #: inseparable by structure).  Env: A100C_LOOP_CONST_HOIST=on opts in.
+    loop_const_hoist: bool = False
 
     def __post_init__(self):
         if os.environ.get("A100C_MATRIX_PACK", "").strip().lower() in \
@@ -158,6 +162,9 @@ class CompileOptions:
         if os.environ.get("A100C_CHUNK_MASK_SPLIT", "").strip().lower() in \
                 ("on", "1", "true", "yes"):
             self.chunk_mask_split = True
+        if os.environ.get("A100C_LOOP_CONST_HOIST", "").strip().lower() in \
+                ("on", "1", "true", "yes"):
+            self.loop_const_hoist = True
     def identity_part(self) -> str:
         parts = []
         if self.witness_drop_tail_predicates:
@@ -173,7 +180,7 @@ class CompileOptions:
         for field_name in ("kept_axis_reduction", "neutral_reduction_trim",
                            "matrix_row_reuse", "guarded_narrow_access",
                            "elementwise_width", "local_materialization",
-                           "chunk_mask_split"):
+                           "chunk_mask_split", "loop_const_hoist"):
             if not getattr(self, field_name):
                 parts.append("no-" + field_name.replace("_", "-"))
         if not self.dumps:
@@ -371,7 +378,8 @@ class Compiler:
             guarded_narrow_access=self.options.guarded_narrow_access,
             elementwise_width=self.options.elementwise_width,
             local_materialization=self.options.local_materialization,
-            chunk_mask_split=self.options.chunk_mask_split)
+            chunk_mask_split=self.options.chunk_mask_split,
+            loop_const_hoist=self.options.loop_const_hoist)
         try:
             mir_module = vectorize.lower_to_mir(tir_module, plan, self.target,
                                                 layout, grid, options)

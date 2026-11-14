@@ -654,16 +654,23 @@ class LoopFrame:
     """An open loop: head (test), body and exit blocks with the carried
     values as head/exit block parameters (the loop-carried joins)."""
 
-    __slots__ = ("tag", "head", "body", "exit", "params", "loc")
+    __slots__ = ("tag", "head", "body", "exit", "params", "loc",
+                 "preheader", "preheader_br")
 
     def __init__(self, tag: str, head: mir.Block, body: mir.Block,
-                 exit_b: mir.Block, params: List[mir.VReg], loc):
+                 exit_b: mir.Block, params: List[mir.VReg], loc,
+                 preheader=None, preheader_br=None):
         self.tag = tag
         self.head = head
         self.body = body
         self.exit = exit_b
         self.params = params
         self.loc = loc
+        #: the block the loop's entry br was emitted from (the
+        #: preheader) and that br's op index inside it -- the bounded
+        #: sconst hoist inserts loop-invariant constants before it
+        self.preheader = preheader
+        self.preheader_br = preheader_br
 
 
 def begin_counted_loop(ctx, lower: mir.VReg, upper: mir.VReg,
@@ -685,6 +692,8 @@ def begin_counted_loop(ctx, lower: mir.VReg, upper: mir.VReg,
     head_params = [ctx.vreg(lower.type, hint=f"i.{tag}", loc=loc)]
     head_params += [ctx.vreg(v.type, hint=f"c{tag}", loc=loc)
                     for v in carried_inits]
+    preheader = ctx.cur
+    preheader_br = len(ctx.cur.ops)      # the entry br lands at this index
     head = ctx.add_block(f"{tag}.head", head_params, loc)
     body = ctx.add_block(f"{tag}.body", list(head_params), loc)
     exit_params = [ctx.vreg(lower.type, hint=f"i.{tag}x", loc=loc)]
@@ -710,7 +719,8 @@ def begin_counted_loop(ctx, lower: mir.VReg, upper: mir.VReg,
                              "false_target": exit_b.name,
                              "false_args": list(head_params)}, loc=loc))
     ctx.switch(body)
-    return LoopFrame(tag, head, body, exit_b, head_params, loc)
+    return LoopFrame(tag, head, body, exit_b, head_params, loc,
+                     preheader=preheader, preheader_br=preheader_br)
 
 
 def begin_while_loop(ctx, cond_init: mir.VReg,
@@ -727,6 +737,8 @@ def begin_while_loop(ctx, cond_init: mir.VReg,
     head_params = [ctx.vreg(cond_init.type, hint=f"w.{tag}", loc=loc)]
     head_params += [ctx.vreg(v.type, hint=f"c{tag}", loc=loc)
                     for v in carried_inits]
+    preheader = ctx.cur
+    preheader_br = len(ctx.cur.ops)      # the entry br lands at this index
     head = ctx.add_block(f"{tag}.head", head_params, loc)
     body = ctx.add_block(f"{tag}.body", list(head_params), loc)
     exit_params = [ctx.vreg(cond_init.type, hint=f"w.{tag}x", loc=loc)]
@@ -744,7 +756,55 @@ def begin_while_loop(ctx, cond_init: mir.VReg,
                              "false_target": exit_b.name,
                              "false_args": list(head_params)}, loc=loc))
     ctx.switch(body)
-    return LoopFrame(tag, head, body, exit_b, head_params, loc)
+    return LoopFrame(tag, head, body, exit_b, head_params, loc,
+                     preheader=preheader, preheader_br=preheader_br)
+
+
+def hoist_frame_consts(ctx, frame: LoopFrame, cap: int = 4) -> int:
+    """Move the body block's TOP-``cap`` most-used sconst ops from the
+    loop BODY to just before the preheader's entry br (the
+    pressure-bounded loop-invariant constant hoist).
+
+    Every sconst is loop-invariant (a constant), and a value DEFINED in
+    the loop body is used only at program points the loop dominates --
+    so relocating its def to the preheader preserves dominance for every
+    existing use.  The mir-licm lesson bounds the risk: unbounded
+    hoisting perturbs the allocator's spill/remat pressure; the cap
+    keeps at most ``cap`` extra GPR live ranges across the loop (the
+    mir-licm convergent cap was 4), and only the most-USED constants
+    earn the slot.  Returns the number of ops moved.
+    """
+    body = frame.body
+    if frame.preheader is None or frame.preheader is body \
+            or not body.ops:
+        return 0
+    cands = []          # (use_count, position, op)
+    for pos, op in enumerate(body.ops):
+        if op.opcode != "sconst" or not op.results:
+            continue
+        rid = op.results[0].rid
+        uses = 0
+        for fn in ctx.module.functions:
+            for b in fn.blocks:
+                for o in b.ops:
+                    for r in o.operands:
+                        if r.rid == rid:
+                            uses += 1
+        if uses:
+            cands.append((uses, pos, op))
+    if not cands:
+        return 0
+    cands.sort(key=lambda t: (-t[0], t[1]))
+    moved = cands[:cap]
+    moved_set = {id(t[2]) for t in moved}
+    body.ops = [op for op in body.ops if id(op) not in moved_set]
+    ph = frame.preheader
+    at = frame.preheader_br if frame.preheader_br is not None \
+        else len(ph.ops) - 1
+    for _uses, _pos, op in moved:
+        ph.ops.insert(at, op)
+        at += 1
+    return len(moved)
 
 
 def close_loop(ctx, frame: LoopFrame,
@@ -762,6 +822,11 @@ def close_loop(ctx, frame: LoopFrame,
                 frame.loc, "loop",
                 f"back-edge value {new.type!r} does not match head param "
                 f"{param.type!r} (a carried value changed width in the body)")
+    if getattr(ctx, "loop_const_hoist", False) \
+            and frame.preheader is not None:
+        hoist_frame_consts(ctx, frame, cap=getattr(ctx,
+                                                   "loop_const_hoist_cap",
+                                                   4))
     ctx.emit0(mir.MOp("br", [], [],
                       attrs={"target": frame.head.name,
                              "args": list(back_edge_values)}, loc=frame.loc))
