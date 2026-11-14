@@ -876,6 +876,28 @@ The residual corpus risk is only shape coverage: kernels whose row
 width is NOT a multiple of vl keep today's guard (the predicate
 simply declines -- a located fallback, not a refusal).
 
+THE EMISSION-SEQUENCE SKETCH (the last refinement, from the measured
+block structures): today each guarded narrow access executes, per
+staging iteration -- the region dance around the guard's e32 index
+math, the plan's per-segment slice/first/delta/compare/vpopc chain,
+the bad-sum branch, then the taken path (ngl.t1: 37 ops including
+the vle16.v + the other-select, or ngl.e1: 387 ops when the runtime
+proof fails) plus the join's block-param shuffle (ngl.j1: 21 ops).
+The DIRECT form under the predicate is, per access: pin the boundary
+mask to v0 (one vmovmask, already required by every masked form),
+one vle16.v base, v0.t, and the declared-other select when an
+``other`` operand exists (one vsel) -- FIVE ops class, no branch, no
+second/third block, no ws reload in guard blocks.  The per-access
+saving is therefore ~35-40 executed ops (fast-path taken) and the
+block-count collapse also removes the guard-block ws reloads (131k/
+call) and their region churn outright.  The fallback coverage
+estimate: row widths in the corpus staging are powers of two (16/32/
+64/128) and vl is 16/32 -- the multiple-of-vl conjunct holds for
+every staging shape the family scan exercised; the fallback class is
+expected to be the rare odd-width or vl-misaligned kernel, and its
+size is measurable in one compile sweep by counting predicate
+declines (a counter, not a semantic change).
+
 ## Replay
 
 ```bash
