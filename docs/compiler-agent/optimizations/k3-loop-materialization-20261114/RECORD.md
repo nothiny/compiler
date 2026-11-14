@@ -229,12 +229,26 @@ MIR-dead vsetvli results are still load-bearing at runtime, most
 plausibly through allocator-INSERTED code (the T029 remat / T032
 reload class) or the emitter's li/vl-state expectations, neither of
 which the op-indexed `_live_after_at` liveness sees.  Reverted the same
-hour; the pre/post artifact pair for the bisection is preserved
-(matmul [16,16,16] f32: 970a8e53.../program.S vs 21d1106c.../program.S
-under a100c/cache/ -- instruction streams differ by exactly the 120
-dst rewrites + 13 li elisions).  Recorded: the idea stays attractive
-(~1 li per region setter saved) but needs the interaction understood
-first.
+hour.  Two follow-up experiments narrowed it further: (a) disabling the
+peephole's li-dedup entirely (fresh compile, cache-voided -- the first
+attempt of this experiment silently hit the broken artifact's cache
+because the peephole switch is not in the cache key) still mismatches,
+exonerating the li tracking; (b) restricting the rewrite to
+non-block-end vsetvlis (the block-end/edge-move class) still
+mismatches 14/15.  The emitted-text delta is exactly the 120 dst
+rewrites, the MIR is unchanged, no vsetvli result rid is used anywhere
+in the allocated MIR, and an emitter-op trace found only three
+dst-register "reads" that all turned out to be artifacts of the branch
+edge's parallel moves (not MIR ops).  The mechanism stays unidentified:
+something at runtime reads those vl values or depends on the register
+write in a way invisible to both the MIR-level liveness and the traced
+op stream (the spill/restore machinery's vsetvli x0,x0 region dance is
+the remaining suspect class).  Bisect pairs preserved under
+a100c/cache/: 970a8e53... (pre) vs 21d1106c.../0620280a.../7e5442520c8e
+(the three broken variants).  The idea stays attractive (~1 li per
+region setter) but is CLOSED for this line until the spill-restore
+interplay is traced; any restart should begin from the trace, not from
+the text diff.
 ## What is NOT claimed / pending
 
 - No full 2734-case input regression this round (user-directed scope);
