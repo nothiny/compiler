@@ -753,7 +753,16 @@ rid-annotated operands (a one-line dump_op change) and re-run the
 split hook: if ng29/nws1 carry a different rid, the r9/r10 producers
 are a SECOND split of that instance through a path the name-matched
 hook missed, and the fix is to make the block-scoped consolidation
-apply to it as well.
+apply to it as well.  [EXECUTED AT CLOSE, the last budget minutes:
+the split-time scan finds ONLY the victim rid 0x54 in chunk9_body's
+four uses -- ng29/nws1 DO NOT EXIST in the block at split time at
+all (neither rid).  The r9/r10-served uses therefore APPEAR between
+the ws split and the dump -- the inserting producer is among the
+remaining round-loop steps whose name-matched logging missed them
+(another victim's split touching ops whose operand NAME is wspr1,
+or an argload-remat re-emission of an sreload-defining chain).  The
+next session hooks _remat_argload's INSERTED PRODUCTS and every
+_split_value call regardless of name.]
 
 ## Replay
 
