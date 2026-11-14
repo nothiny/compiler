@@ -123,6 +123,16 @@ class LowerOptions:
     #: the original 32-lane strip-mined lowering without candidate cleanup.
     elementwise_width: bool = True
     guarded_narrow_access: bool = True
+    #: Block-scoped materialization reuse in the emission context (the
+    #: loop-body cost round): one sconst per (value, type) per block, one
+    #: lane-index chain (vid + the chunk's element base) per (index
+    #: type, vl) per block, one splat per (bits, type, active region)
+    #: per block, and exact vsetvli deduplication at the emission
+    #: chokepoint (a request matching the active region's (sew, lmul,
+    #: avl) returns the establishing setter's vl result -- identical
+    #: config and avl give an identical vl).  False preserves per-use
+    #: materialization everywhere.
+    local_materialization: bool = True
 
     def identity_part(self) -> str:
         parts = []
@@ -148,6 +158,8 @@ class LowerOptions:
             parts.append("no-elementwise-width")
         if not self.guarded_narrow_access:
             parts.append("no-guarded-narrow-access")
+        if not self.local_materialization:
+            parts.append("no-local-materialization")
         return ",".join(parts) if parts else "default"
 
 
@@ -203,10 +215,34 @@ _POLY_ERF_W = (0.5641751233324483, -0.2813598202473231,
                3.148805865370541, -1.2173561826391135,
                0.20856641201419582)
 #: the (fn, sew)-structural guard set: which libm names the polynomial
-#: path replaces at SEW 32 (sin/cos/ceil and every other width keep the
-#: vmath form)
+#: path replaces at SEW 32 (ceil and every other width keep the vmath
+#: form; sinf/cosf ride the guarded polynomial with the libm fallback
+#: inside one op)
 _VMATH_POLY_FNS = frozenset(("expf", "exp2f", "logf", "log2f",
-                             "erff", "floorf"))
+                             "erff", "floorf", "sinf", "cosf"))
+#: sinf/cosf: rint via the 1.5*2^23 magic (valid |x*2/pi| < 2^22) and
+#: the 3-way Cody-Waite split of pi/2 (each term 11 significant bits, so
+#: q*term is exact in fp32 for |q| < 2^13)
+_POLY_SINCOS_R2PI = 0.6366197466850281
+_POLY_MAGIC_RINT = 12582912.0
+_POLY_SINCOS_PIO2_1 = 1.5703125
+_POLY_SINCOS_PIO2_2 = 0.0004837512969970703
+_POLY_SINCOS_PIO2_3 = 7.549533620476723e-08
+#: the polynomial's fp32-only argument reduction carries an absolute
+#: error of about ulp(|x|)/2 (the x - q*PIO2_1 cancellation), so the
+#: whole-op domain guard bounds |x|: inside it the fitted-sequence error
+#: is <= 4.8e-7 for |x| < 16 (the corpus distributions) and <= 3.1e-5
+#: at the cap; ANY out-of-range lane routes the whole op to the libm
+#: path (a structural guard with a correct fallback, never a silent
+#: wrong answer)
+_POLY_SINCOS_XMAX = 1024.0
+#: sin(r)/r and cos(r) on r in [-pi/4, pi/4]: least-squares fits over
+#: Chebyshev nodes in z = r*r (validated by the round's f32 sequence
+#: simulation; max |err| 1.8e-7 for |x| < 4, 4.8e-7 for |x| < 16)
+_POLY_SIN_S = (1.0, -0.16666667, 0.008333334, -0.00019841264,
+               2.7555348e-06, -2.4761027e-08)
+_POLY_COS_C = (1.0, -0.5, 0.041666668, -0.0013888881,
+               2.4799027e-05, -2.7179246e-07)
 
 
 _VECTOR_KIND = {"float": "float", "int": "int", "uint": "uint"}
@@ -239,7 +275,8 @@ class _Ctx:
     has an fp16 pass).
     """
 
-    def __init__(self, module: mir.MModule, function: mir.MFunction):
+    def __init__(self, module: mir.MModule, function: mir.MFunction,
+                 local_materialization: bool = True):
         self.module = module
         self.function = function
         self.blocks: Dict[str, mir.Block] = {}
@@ -248,17 +285,36 @@ class _Ctx:
         self._region_known: set = set()
         #: the ACTIVE (sew, lmul, vl) at the current emission position
         #: (None at a block's start -- the MIR invariant: no region crosses
-        #: blocks).  Every emitted vsetvli updates it (through
-        #: _note_region; the vl is None when the emitter did not record
-        #: its avl constant).  The region helpers use it to skip a
-        #: redundant switch -- exactly, never assumed -- and never mistake
-        #: a helper's leftover region (an e64m2 address form) for the
-        #: pass's data region (T028: resolve_conj's fneg at e16 ran in a
-        #: stale e64m2 -- _open_region's old "is the data region" no-op
-        #: test was unsound against leftovers)
+        #: blocks).  Every appended vsetvli updates it through the emit
+        #: chokepoint's exact tracking: the avl's constant value when the
+        #: avl came from :meth:`const`, the avl operand's identity for a
+        #: computed vl (a vreg is defined once per block, so one rid is
+        #: one value), and None when neither is trackable.  The region
+        #: helpers use it to skip a redundant switch -- exactly, never
+        #: assumed -- and never mistake a helper's leftover region (an
+        #: e64m2 address form) for the pass's data region (T028:
+        #: resolve_conj's fneg at e16 ran in a stale e64m2 --
+        #: _open_region's old "is the data region" no-op test was
+        #: unsound against leftovers)
         self.active_region: Optional[Tuple[int, int, Optional[int]]] = None
         #: the region provider: () -> (sew, lmul, vl) of the current pass
         self.default_region = None
+        #: the loop-body materialization round (local-materialization
+        #: switch): block-scoped caches, cleared at every block switch --
+        #: one sconst per (value, scalar type), one lane-index chain per
+        #: (index type, vl, chunk element), one splat per (bits, type,
+        #: active region) -- plus the rid -> value table the exact
+        #: vsetvli dedup reads
+        self.local_materialization = bool(local_materialization)
+        self._const_cache: Dict[tuple, mir.VReg] = {}
+        self._const_value_of: Dict[int, int] = {}
+        self._lane_index_cache: Dict[tuple, mir.VReg] = {}
+        self._splat_cache: Dict[tuple, mir.VReg] = {}
+        #: the vl-result vreg of the vsetvli that established
+        #: ``active_region`` (None when the establishing avl was not
+        #: tracked): a deduplicated request returns it -- identical
+        #: config and avl give an identical vl, so the skip is exact
+        self._region_result: Optional[mir.VReg] = None
 
     def add_block(self, name: str, params=(), loc=None) -> mir.Block:
         block = mir.Block(name, list(params), loc)
@@ -270,12 +326,49 @@ class _Ctx:
         self.cur = block
         self._region_known.discard(id(block))
         self.active_region = None
+        self._region_result = None
+        self._const_cache = {}
+        self._const_value_of = {}
+        self._lane_index_cache = {}
+        self._splat_cache = {}
+
+    def _region_key(self, op: mir.MOp) -> Optional[tuple]:
+        """(sew, lmul, avl-key) of one vsetvli request, or None when the
+        request is not exactly trackable (a policy other than ta,ma, or
+        no avl operand)."""
+        if op.attrs.get("policy") != "ta,ma" or not op.operands:
+            return None
+        avl = op.operands[0]
+        if avl.rid in self._const_value_of:
+            return (op.attrs["sew"], op.attrs["lmul"],
+                    self._const_value_of[avl.rid])
+        return (op.attrs["sew"], op.attrs["lmul"], ("rid", avl.rid))
+
+    def _vsetvli_dedup(self, op: mir.MOp) -> Optional[mir.VReg]:
+        """The established region's vl-result vreg when this vsetvli
+        request exactly matches the active region (the op is skipped);
+        None when it must be appended."""
+        if not self.local_materialization:
+            return None
+        key = self._region_key(op)
+        if key is None or key != self.active_region:
+            return None
+        return self._region_result
+
+    def _track_vsetvli(self, op: mir.MOp) -> None:
+        """Exact region tracking after one appended vsetvli."""
+        key = self._region_key(op)
+        if key is None:
+            self.active_region = None
+            self._region_result = None
+        else:
+            self.active_region = key
+            self._region_result = op.results[0] if op.results else None
 
     def _note_region(self, op: mir.MOp) -> None:
         if op.opcode == "vsetvli":
             if self.cur is not None:
                 self._region_known.add(id(self.cur))
-            self.active_region = (op.attrs["sew"], op.attrs["lmul"], None)
         elif op.opcode in mir.VEC_OPS and self.cur is not None \
                 and id(self.cur) not in self._region_known:
             # the block's first vector op: open the pass's data region
@@ -287,12 +380,17 @@ class _Ctx:
                               [self.vreg(mir.I32, hint="bvl", loc=op.loc)],
                               attrs={"value": int(vl)}, loc=op.loc)
                 self.cur.ops.append(avl)
-                self.cur.ops.append(mir.MOp(
+                vs = mir.MOp(
                     "vsetvli", [avl.results[0]],
                     [self.vreg(mir.I32, hint="brg", loc=op.loc)],
                     attrs={"sew": sew, "lmul": lmul,
-                           "policy": "ta,ma"}, loc=op.loc))
-                self.active_region = (sew, lmul, vl)
+                           "policy": "ta,ma"}, loc=op.loc)
+                self.cur.ops.append(vs)
+                self.active_region = (sew, lmul, int(vl))
+                self._region_result = vs.results[0] if vs.results else None
+                self._const_value_of[avl.results[0].rid] = int(vl)
+                self._const_cache.setdefault(
+                    (int(vl), mir.I32), avl.results[0])
             self._region_known.add(id(self.cur))
 
     def vreg(self, mtype, hint: str = "t", loc=None,
@@ -303,19 +401,49 @@ class _Ctx:
                         loc=loc)
 
     def emit(self, op: mir.MOp) -> mir.VReg:
+        if op.opcode == "vsetvli":
+            hit = self._vsetvli_dedup(op)
+            if hit is not None:
+                # the region is already exactly what this op requests:
+                # the skipped op's vl result equals the establishing
+                # op's, so every use of the returned vreg reads the
+                # same value
+                if self.cur is not None:
+                    self._region_known.add(id(self.cur))
+                return hit
         self._note_region(op)
         self.cur.ops.append(op)
+        if op.opcode == "vsetvli":
+            self._track_vsetvli(op)
         assert len(op.results) == 1, op.opcode
         return op.results[0]
 
     def emit0(self, op: mir.MOp) -> None:
+        if op.opcode == "vsetvli":
+            hit = self._vsetvli_dedup(op)
+            if hit is not None:
+                if self.cur is not None:
+                    self._region_known.add(id(self.cur))
+                return
         self._note_region(op)
         self.cur.ops.append(op)
+        if op.opcode == "vsetvli":
+            self._track_vsetvli(op)
 
     def const(self, bits: int, mtype: mir.ScalarType, loc) -> mir.VReg:
-        return self.emit(mir.MOp("sconst", [],
-                                 [self.vreg(mtype, hint="k", loc=loc)],
-                                 attrs={"value": int(bits)}, loc=loc))
+        key = None
+        if self.local_materialization:
+            key = (int(bits), mtype)
+            hit = self._const_cache.get(key)
+            if hit is not None:
+                return hit
+        vreg = self.emit(mir.MOp(
+            "sconst", [], [self.vreg(mtype, hint="k", loc=loc)],
+            attrs={"value": int(bits)}, loc=loc))
+        if key is not None:
+            self._const_cache[key] = vreg
+            self._const_value_of[vreg.rid] = int(bits)
+        return vreg
 
 
 def ctx_emit_view_load(sl: "SliceLowering", loc, view_index: int) -> mir.VReg:
@@ -685,6 +813,37 @@ class SliceLowering:
                             "use (use-before-definition in the lowering)")
         return reg
 
+    def _chunk_lane_index(self, ctx: _Ctx, ity: mir.VectorType,
+                          vl: int, loc) -> mir.VReg:
+        """The chunk position's lane index (vid + the chunk's element
+        base) at one (index type, vl): ONE chain per block under the
+        local-materialization switch -- the load and store staging paths
+        of one chunk body share it (the vid's lane ids are the first vl
+        positions of the region whichever site executes it, and the
+        chunk element is one block param, so identical (ity, vl, elem)
+        is the identical value)."""
+        elem = self._chunk["elem"]
+        key = (ity, int(vl), elem.rid)
+        if ctx.local_materialization:
+            hit = ctx._lane_index_cache.get(key)
+            if hit is not None:
+                # the consumers run at ity's region: establish it on the
+                # hit too (the emission chokepoint makes a redundant
+                # request a no-op -- the region discipline is what makes
+                # the shared value legal at every use site)
+                self._vregion(ctx, ity, loc, vl=vl)
+                return hit
+        self._vregion(ctx, ity, loc, vl=vl)
+        vid = ctx.emit(mir.MOp(
+            "vid", [], [ctx.vreg(ity, hint="svid", loc=loc)], loc=loc))
+        idx = ctx.emit(mir.MOp(
+            "vbinx", [vid, elem],
+            [ctx.vreg(ity, hint="sidx", loc=loc)],
+            attrs={"op": "add"}, loc=loc))
+        if ctx.local_materialization:
+            ctx._lane_index_cache[key] = idx
+        return idx
+
     def _staged_lane_index(self, ctx: _Ctx, t: tir.Value, consumer_shape,
                            loc) -> mir.VReg:
         """The staged-region lane index at the current chunk position.
@@ -701,13 +860,7 @@ class SliceLowering:
         garbage and the indexed access went out of bounds."""
         vl = self._vl
         ity = self._idx_vtype(vl)
-        self._vregion(ctx, ity, loc)
-        vid = ctx.emit(mir.MOp(
-            "vid", [], [ctx.vreg(ity, hint="svid", loc=loc)], loc=loc))
-        idx = ctx.emit(mir.MOp(
-            "vbinx", [vid, self._chunk["elem"]],
-            [ctx.vreg(ity, hint="sidx", loc=loc)],
-            attrs={"op": "add"}, loc=loc))
+        idx = self._chunk_lane_index(ctx, ity, vl, loc)
         if consumer_shape is None:
             return idx
         cext = [e.value for e in consumer_shape]
@@ -984,7 +1137,6 @@ class SliceLowering:
             self._restore_region(ctx, loc)
             return
         ity = self._idx_vtype(vl)
-        self._vregion(ctx, ity, loc)
         if rec.get("extent") == 1:
             # T039 (the deconv3d typical-case defect): an extent-1 record
             # holds ONE element -- the store writes element 0 from every
@@ -992,14 +1144,10 @@ class SliceLowering:
             # carries the same element; the previous raw (elem + lane)
             # index wrote vl lanes PER PASS far past the one-element
             # allocation and smashed the neighbouring staged regions)
+            self._vregion(ctx, ity, loc)
             idx = self._splat_const(ctx, 0, ity, loc)
         else:
-            vid = ctx.emit(mir.MOp(
-                "vid", [], [ctx.vreg(ity, hint="tvid", loc=loc)], loc=loc))
-            idx = ctx.emit(mir.MOp(
-                "vbinx", [vid, self._chunk["elem"]],
-                [ctx.vreg(ity, hint="tidx", loc=loc)],
-                attrs={"op": "add"}, loc=loc))
+            idx = self._chunk_lane_index(ctx, ity, vl, loc)
         scaled, _ = self._ws_scaled(ctx, idx, rec["esz"], loc, vl)
         ws = self._workspace_private_reg(ctx, loc)
         base = ctx.emit(mir.MOp(
@@ -1576,7 +1724,8 @@ class SliceLowering:
         launch = mir.VReg(mir.I64, name="launch")
         function = mir.MFunction("operator_entry", [launch], fn.loc)
         module.functions.append(function)
-        ctx = _Ctx(module, function)
+        ctx = _Ctx(module, function,
+                   local_materialization=self.options.local_materialization)
         self._ctx = ctx
         # the implicit-region provider: the pass parameters active when a
         # block's first vector op is emitted (T014's per-block region fix)
@@ -4179,9 +4328,24 @@ class SliceLowering:
             kreg = ctx.const(bits, sty, loc)
         else:
             mask = (1 << vtype.sew) - 1
-            kreg = ctx.const(int(value) & mask, sty, loc)
-        return ctx.emit(mir.MOp(
+            bits = int(value) & mask
+            kreg = ctx.const(bits, sty, loc)
+        # the s2v executes at the caller's active region: under the
+        # local-materialization switch the result is cached per (bits,
+        # type, active region) -- the SAME region (same sew, lmul and
+        # avl) gives the identical lanes, while a different-vl reuse
+        # would read tail lanes a ta,ma splat never wrote
+        key = None
+        if ctx.local_materialization and ctx.active_region is not None:
+            key = (bits, vtype, ctx.active_region)
+            hit = ctx._splat_cache.get(key)
+            if hit is not None:
+                return hit
+        res = ctx.emit(mir.MOp(
             "s2v", [kreg], [ctx.vreg(vtype, hint="ids", loc=loc)], loc=loc))
+        if key is not None:
+            ctx._splat_cache[key] = res
+        return res
 
     def _combine_value(self, ctx: _Ctx, acc: mir.VReg, cand: mir.VReg,
                        kind: str, loc) -> mir.VReg:
@@ -10406,10 +10570,12 @@ class SliceLowering:
             # forms (exp, ...) -- the internal-compute width
             if vtype.sew == 32:
                 fn = fn + "f"
-                # W1 (the unified optimization round): the fp32
-                # vector-polynomial path.  Six functions with fitted
-                # polynomial sequences replace the per-element libm
-                # call; sin/cos/ceil keep vmath.  The guard is (fn, sew)
+                # W1 (the unified optimization round) + P7 (this round):
+                # the fp32 vector-polynomial path.  Eight functions with
+                # fitted polynomial sequences replace the per-element
+                # libm call (sinf/cosf through the whole-op domain
+                # guard with the libm fallback inside one op); ceil and
+                # every other width keep vmath.  The guard is (fn, sew)
                 # only -- never an operator/kernel name.
                 if fn in _VMATH_POLY_FNS and not self.options.vmath_libm:
                     return self._vmath_poly(ctx, fn, operand, vtype, loc)
@@ -10621,6 +10787,100 @@ class SliceLowering:
         res = self._pf_sel(ctx, isz, ninf, res, "lgC", loc)
         return self._pf_sel(ctx, isp, pinf, res, "lgD", loc)
 
+    def _poly_sincos(self, ctx: _Ctx, x: mir.VReg, vtype: mir.VectorType,
+                     loc, is_cos: bool) -> mir.VReg:
+        """sinf/cosf: the guarded fp32 vector-polynomial path.
+
+        Every lane inside the domain (|x| < _POLY_SINCOS_XMAX) takes the
+        fitted sequence -- rint(x*2/pi) by the 1.5*2^23 magic, the 3-way
+        Cody-Waite reduction to r in [-pi/4, pi/4], one Horner pair in
+        z = r*r, the quadrant pick and the sign flip through the i32
+        view -- and ANY out-of-range lane routes the WHOLE op to the
+        per-element libm path (the structural guard and its correct
+        fallback: the fp32-only reduction's ~ulp(|x|)/2 error stays
+        bounded and nothing outside the guard ever reads a polynomial
+        value).  The branch keeps the operand in the dominating prefix,
+        so the arms need no block params; the join carries the result.
+        """
+        f32 = vtype
+        i32 = mir.VectorType(32, vtype.lmul, "int")
+        # -- the domain guard: ALL lanes |x| < XMAX ------------------------
+        ax = ctx.emit(mir.MOp(
+            "vunary", [x], [ctx.vreg(f32, hint="sca", loc=loc)],
+            attrs={"op": "fabs"}, loc=loc))
+        in_m = self._pf_cmp(
+            ctx, ax, self._pf_splat(ctx, _POLY_SINCOS_XMAX, f32, loc),
+            "lt", True, "scg", loc)
+        n_in = ctx.emit(mir.MOp(
+            "vpopc", [in_m], [ctx.vreg(mir.I64, hint="scn", loc=loc)],
+            loc=loc))
+        vl = min(self._vl, self.target.vlmax(vtype.sew, vtype.lmul))
+        # all_in = (n_in >= vl) as the i64 0/1 a brc tests (vl-1 < n_in)
+        all_in = ctx.emit(mir.MOp(
+            "sltu", [ctx.const(int(vl) - 1, mir.I64, loc), n_in],
+            [ctx.vreg(mir.I64, hint="scl", loc=loc)], loc=loc))
+        tag = self._tag("sincos")
+        join_name = f"{tag}.join"
+        frame = scalar_mod.begin_if(ctx, all_in, loc, tag)
+        # -- the polynomial arm --------------------------------------------
+        ctx.switch(frame.then_block)
+        self._vregion(ctx, vtype, loc)
+        t = self._pf_bin(ctx, x, self._pf_splat(
+            ctx, _POLY_SINCOS_R2PI, f32, loc), "mul", "sct", loc)
+        magic = self._pf_splat(ctx, _POLY_MAGIC_RINT, f32, loc)
+        tq = self._pf_bin(ctx, t, magic, "add", "scq", loc)
+        q = self._pf_bin(ctx, tq, magic, "sub", "scQ", loc)
+        r = self._pf_bin(ctx, x, self._pf_bin(ctx, q, self._pf_splat(
+            ctx, _POLY_SINCOS_PIO2_1, f32, loc), "mul", "sc1", loc),
+                         "sub", "scr", loc)
+        r = self._pf_bin(ctx, r, self._pf_bin(ctx, q, self._pf_splat(
+            ctx, _POLY_SINCOS_PIO2_2, f32, loc), "mul", "sc2", loc),
+                         "sub", "scR", loc)
+        r = self._pf_bin(ctx, r, self._pf_bin(ctx, q, self._pf_splat(
+            ctx, _POLY_SINCOS_PIO2_3, f32, loc), "mul", "sc3", loc),
+                         "sub", "scs", loc)
+        qi = ctx.emit(mir.MOp(
+            "vunary", [q], [ctx.vreg(i32, hint="sci", loc=loc)],
+            attrs={"op": "fcvt.xf"}, loc=loc))
+        three = self._pf_splat(ctx, 3, i32, loc)
+        quad = self._pf_bin(ctx, qi, three, "and", "scd", loc)
+        one_i = self._pf_splat(ctx, 1, i32, loc)
+        two_i = self._pf_splat(ctx, 2, i32, loc)
+        zero_i = self._pf_splat(ctx, 0, i32, loc)
+        z = self._pf_bin(ctx, r, r, "mul", "scz", loc)
+        sp = self._pf_horner(ctx, z, _POLY_SIN_S, "scS", loc)
+        s = self._pf_bin(ctx, r, sp, "mul", "scm", loc)
+        c = self._pf_horner(ctx, z, _POLY_COS_C, "scC", loc)
+        pick = self._pf_bin(ctx, quad, one_i, "and", "scp", loc)
+        pick_m = self._pf_cmp(ctx, pick, zero_i, "ne", False, "sck", loc)
+        if is_cos:
+            base = self._pf_sel(ctx, pick_m, s, c, "scb", loc)
+            qf = self._pf_bin(ctx, self._pf_bin(
+                ctx, quad, one_i, "add", "scq1", loc), two_i, "and",
+                "scf", loc)
+        else:
+            base = self._pf_sel(ctx, pick_m, c, s, "scb", loc)
+            qf = self._pf_bin(ctx, quad, two_i, "and", "scf", loc)
+        shift30 = self._pf_splat(ctx, 30, i32, loc)
+        signbits = self._pf_bin(ctx, qf, shift30, "sll", "scs2", loc)
+        ib = self._vmovv(ctx, base, i32, loc)
+        ibx = self._pf_bin(ctx, ib, signbits, "xor", "scx", loc)
+        res_poly = self._vmovv(ctx, ibx, f32, loc)
+        scalar_mod.close_arm(ctx, frame, join_name, [res_poly])
+        # -- the libm arm (the fallback any out-of-range lane takes) -------
+        ctx.switch(frame.else_block)
+        self._vregion(ctx, vtype, loc)
+        res_libm = ctx.emit(mir.MOp(
+            "vmath", [x], [ctx.vreg(f32, hint="mth", loc=loc)],
+            attrs={"fn": "cosf" if is_cos else "sinf", "sew": f32.sew,
+                   "vl": vl},
+            loc=loc))
+        scalar_mod.close_arm(ctx, frame, join_name, [res_libm])
+        params = scalar_mod.join_if(ctx, frame, join_name,
+                                    [[res_poly], [res_libm]], loc)
+        ctx.switch(ctx.blocks[join_name])
+        return params[0]
+
     def _poly_floor(self, ctx: _Ctx, x: mir.VReg, vtype: mir.VectorType,
                     loc) -> mir.VReg:
         """floorf in three bands (NaN propagates: the compare is false
@@ -10713,6 +10973,8 @@ class SliceLowering:
             return self._poly_log(ctx, operand, vtype, loc, fn == "log2f")
         if fn == "floorf":
             return self._poly_floor(ctx, operand, vtype, loc)
+        if fn in ("sinf", "cosf"):
+            return self._poly_sincos(ctx, operand, vtype, loc, fn == "cosf")
         return self._poly_erf(ctx, operand, vtype, loc)
 
     def _vector_abs(self, ctx: _Ctx, code: str, operand: mir.VReg,

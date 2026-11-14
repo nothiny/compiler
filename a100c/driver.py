@@ -123,6 +123,12 @@ class CompileOptions:
     matrix_row_reuse: bool = True
     guarded_narrow_access: bool = True
     elementwise_width: bool = True
+    #: Block-scoped materialization reuse in the lowering's emission
+    #: context (the loop-body cost round): per-block sconst / lane-index
+    #: / splat caches and exact vsetvli deduplication at the emission
+    #: chokepoint.  Env route (the A100C_PASS_* switches' pattern):
+    #: A100C_LOCAL_MATERIALIZATION=off.
+    local_materialization: bool = True
 
     def __post_init__(self):
         if os.environ.get("A100C_MATRIX_PACK", "").strip().lower() in \
@@ -136,7 +142,8 @@ class CompileOptions:
                 ("neutral_reduction_trim", "A100C_NEUTRAL_REDUCTION_TRIM"),
                 ("matrix_row_reuse", "A100C_MATRIX_ROW_REUSE"),
                 ("guarded_narrow_access", "A100C_GUARDED_NARROW_ACCESS"),
-                ("elementwise_width", "A100C_ELEMENTWISE_WIDTH")):
+                ("elementwise_width", "A100C_ELEMENTWISE_WIDTH"),
+                ("local_materialization", "A100C_LOCAL_MATERIALIZATION")):
             if os.environ.get(env_name, "").strip().lower() in \
                     ("off", "0", "false", "no"):
                 setattr(self, field_name, False)
@@ -154,7 +161,7 @@ class CompileOptions:
             parts.append("vmath-libm")
         for field_name in ("kept_axis_reduction", "neutral_reduction_trim",
                            "matrix_row_reuse", "guarded_narrow_access",
-                           "elementwise_width"):
+                           "elementwise_width", "local_materialization"):
             if not getattr(self, field_name):
                 parts.append("no-" + field_name.replace("_", "-"))
         if not self.dumps:
@@ -350,7 +357,8 @@ class Compiler:
             neutral_reduction_trim=self.options.neutral_reduction_trim,
             matrix_row_reuse=self.options.matrix_row_reuse,
             guarded_narrow_access=self.options.guarded_narrow_access,
-            elementwise_width=self.options.elementwise_width)
+            elementwise_width=self.options.elementwise_width,
+            local_materialization=self.options.local_materialization)
         try:
             mir_module = vectorize.lower_to_mir(tir_module, plan, self.target,
                                                 layout, grid, options)

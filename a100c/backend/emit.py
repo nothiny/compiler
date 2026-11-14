@@ -245,6 +245,26 @@ def _peephole(lines: List[str]) -> List[str]:
                 vresult = dst if dst not in ('x0', 'zero') else None
                 written_since_v = set()
                 written_since_v.add(dst)
+                if src == 'x0':
+                    # the x0-form reads no AVL register and overwrites
+                    # dst with vl: a `li dst, imm` immediately above is
+                    # dead (its value is never read; the vsetvli's own
+                    # dst write supersedes it).  Walk back over comment
+                    # lines only -- any real instruction between the li
+                    # and this vsetvli keeps the li.
+                    j = len(out) - 1
+                    while j >= 0 and out[j].strip().startswith('#'):
+                        j -= 1
+                    if j >= 0:
+                        lm_ = _LI_RE.match(out[j])
+                        if lm_ and lm_.group(1) == dst:
+                            comment = out[j].split('#', 1)
+                            if len(comment) > 1:
+                                out[j] = (f'    # [peephole-dead-li] '
+                                          f'{comment[1].strip()}')
+                            else:
+                                out.pop(j)
+                            n_li_removed += 1
                 # the vsetvli writes vl (= min(avl, VLMAX)) into dst --
                 # NOT the avl.  When the avl exceeds VLMAX (an e64,m1
                 # region at avl 32 on VLEN 1024 writes 16) the register
@@ -636,6 +656,15 @@ class _Emitter:
             avl = self._const_of.get(op.operands[0].rid) \
                 if op.operands else None
             self._cur_region = (op.attrs["sew"], op.attrs["lmul"], avl)
+            if avl is not None:
+                # an AVL at or above the region's VLMAX requests exactly
+                # vl=VLMAX -- the value the x0 form sets -- and the x0
+                # form reads no AVL register (the feeding li becomes
+                # dead and the peephole's dead-li rule removes it)
+                vlmax = (self.target.vlen_bits // op.attrs["sew"]) \
+                    * op.attrs["lmul"]
+                if int(avl) >= vlmax:
+                    values["rs1"] = "x0"
         elif op.opcode in ("sspill", "sreload", "vspill", "vreload"):
             values["slot"] = str(self.slot_offsets[op.attrs["slot"]])
         text = _fmt(entry.form, values)
@@ -1090,6 +1119,11 @@ class _Emitter:
                                 "restore it (a located refusal)")
         if 0 <= int(avl) <= 31:
             self.emit(f"vsetivli x0, {int(avl)}, e{int(sew)}, "
+                      f"m{int(lmul)}, ta, ma", op)
+        elif int(avl) >= (self.target.vlen_bits // int(sew)) * int(lmul):
+            # an avl at or above VLMAX restores exactly vl=VLMAX: the x0
+            # form needs no scratch register
+            self.emit(f"vsetvli x0, x0, e{int(sew)}, "
                       f"m{int(lmul)}, ta, ma", op)
         else:
             # the CSR-immediate form's avl is 5 bits: a wider vl restores

@@ -154,7 +154,8 @@ class FactoryCompiler(Compiler):
             neutral_reduction_trim=self.options.neutral_reduction_trim,
             matrix_row_reuse=self.options.matrix_row_reuse,
             elementwise_width=self.options.elementwise_width,
-            guarded_narrow_access=self.options.guarded_narrow_access)
+            guarded_narrow_access=self.options.guarded_narrow_access,
+            local_materialization=self.options.local_materialization)
         try:
             mir_module = vectorize.lower_to_mir(tir_module, plan, self.target,
                                                 layout, grid, options)
