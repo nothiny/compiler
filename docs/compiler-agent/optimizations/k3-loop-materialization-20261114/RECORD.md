@@ -249,6 +249,17 @@ a100c/cache/: 970a8e53... (pre) vs 21d1106c.../0620280a.../7e5442520c8e
 region setter) but is CLOSED for this line until the spill-restore
 interplay is traced; any restart should begin from the trace, not from
 the text diff.
+
+**Closed permanently (the empirical bisect).**  An op-index-parity
+bisect (the A100C_X0DST_MASK harness: rewrite only setters whose op
+index has bit k = v) ran all four half-subsets -- EVERY 60-rewrite
+subset mismatches all three matmul [16,16,16] cases.  A single bad
+setter cannot explain that: the deadness premise is systemically
+unsound at runtime for this kernel class, in a way three sessions of
+analysis (MIR-unchanged text diffs, rid-liveness, emitter op traces,
+li-dedup and block-end eliminations) could not isolate.  Direction
+closed; the bisect harness and the four broken artifacts remain
+reproducible for any future revisit.
 ## P2 (the full/tail chunk-body split): implemented, fully validated, DEFAULT OFF
 
 The scoped design landed: when the ELEMENTWISE clamp owns the chunk loop
