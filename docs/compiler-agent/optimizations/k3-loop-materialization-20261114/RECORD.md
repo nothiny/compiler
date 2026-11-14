@@ -393,6 +393,42 @@ dance -- the K/V staging loops (chunk9/chunk18 bodies: 4.1M/3.9M total,
 950k vsetvli each per call) hold ~30 region switches per iteration.
 That needs the region-dance restructure or the staging workspace
 round-trip elimination (softmax W4/W5), both design-class changes.
+## The superseded-setter elimination (commit d167b67): -5.00% attention-f16
+
+The vsetvli region-dance target from the fixed cost table, landed as a
+bounded emitter fix instead of a region-scheduler redesign.  The static
+audit of the emitted attention program found 43 consecutive-setter
+pairs of which 35 are DEAD: the next vsetvli arrives with only
+state-transparent instructions between (li/add/sconst -- no vector op
+reads the region), so the first setter's region state is never
+observable.  The peephole now removes such a setter when a purely
+TEXTUAL block-bounded scan of the FINAL emitted stream proves its dst
+register is unread until overwritten (any label, branch, store-operand
+read or unmodeled instruction keeps it).  The textual proof sees
+allocator-inserted remat/reload readers that MIR-liveness deadness (the
+closed x0-dst direction) does not -- that is precisely why this
+transformation is safe where x0-dst was not.
+
+Same-tree program-region totals (fixed tooling):
+
+| case | before | after | change |
+|---|---:|---:|---:|
+| attention-f16 [4,4,32,64] | 23,787,102 | 22,597,262 | **-5.00%** |
+| softmax97 [4,97] f16 | 9,092 | 8,728 | -4.01% |
+| linear-dropout [16,128,128] f16 | 7,389,432 | 7,217,136 | -2.33% |
+| matmul16 [16,16,16] f16 | 24,273 | 23,837 | -1.80% |
+| sin16 / synthesis | 1,335 / 224,627 | unchanged | +0.00% |
+
+attention's vsetvli fell 4.30M -> 3.35M/call (-22% of the region
+churn) and sconst 4.03M -> 3.80M.  Verification: 23/23 smoke, both
+round test modules, no-name-dispatch PASS, the elementwise+softmax
+family scan 861/861 (evidence/ss-family-scan/), metrics in
+evidence/ss-metrics/.  Switchless (provably-dead work removal).
+
+The REMAINING region churn (3.35M vsetvli/call) is the live dance:
+each staging access legitimately crosses e16(data)-e64m2(address)-e16
+-- reducing it needs the region-scheduler restructure or the staging
+workspace round-trip elimination (softmax W4/W5), both design-class.
 ## What is NOT claimed / pending
 
 - No full 2734-case input regression this round (user-directed scope);
