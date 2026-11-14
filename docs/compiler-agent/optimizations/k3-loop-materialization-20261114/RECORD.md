@@ -801,6 +801,28 @@ contiguity proof for the staging pattern, or a bulk-mirror form),
 recorded as the headline next-session target with this measurement
 attached.
 
+THE sconst CLOSING ANALYSIS (li 4: 385k/call, li 2048: 301k/call):
+the consumers are now identified -- li 4 is the esz byte-scale
+(``vmul.vx v, v, 4`` at 18 static sites, the staging index's
+multiply in _ws_scaled/materialize_address) and li 2048 is the
+staging loop bound (``slt elem, 2048`` at 9 static sites, the 32x64
+flat plane extent, plus one scalar mul).  BOTH are already shared by
+the per-block const cache; their per-iteration re-materialization is
+the allocator's remat decision (a fresh sconst per use beats holding
+the register across the block's pressure), and the alternative --
+hoisting the constants out of the loop -- is exactly P3b, re-measured
+NET NEGATIVE on this tree (evidence/p3b2-metrics: attention +0.27%,
+softmax +2.05%).  No algebraic lever exists either: the x4 multiply
+is the semantic byte scale of the indexed access, and the loop bound
+is load-bearing per iteration.  VERDICT: the remaining sconst mass
+(3.43M/call on attention) is structural under the current remat
+policy; every sub-design-class lever has been either shipped (the
+avl-li x0-dst round, the zero-splat round) or measured negative
+(P3b twice).  The next-session levers are the two design-class
+items: the guarded-narrow-access restructure (18.4% of the program,
+quantified above) and a compile-time contiguity proof for the
+staging pattern that would delete the guard entirely.
+
 ## Replay
 
 ```bash
