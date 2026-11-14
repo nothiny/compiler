@@ -764,6 +764,24 @@ or an argload-remat re-emission of an sreload-defining chain).  The
 next session hooks _remat_argload's INSERTED PRODUCTS and every
 _split_value call regardless of name.]
 
+RESOLVED (the budget's final minutes -- the rid-annotated all-block
+scan): NO DEFECT.  At ws-split time the victim's uses spread over
+chunk9_body (tb6/sb4/sb5/sb6), ngl.t1 (ng29), ngl.e1 (nws1) and
+ngl.j1 (tb7) -- the r9/r10 reloads are the block-scoped reloads of
+THE GUARD BLOCKS (the fresh counter runs r8=chunk9_body, r9=ngl.t1,
+r10=ngl.e1 sequentially), and the "3-4 loads inside chunk9_body"
+observation was a TOOLING ARTIFACT: both block-membership instruments
+(the MIR-dump header regex and the assembly label-span extraction)
+misattributed the guard sub-blocks' ops to chunk9_body -- the guard
+blocks nest inside the chunk9_body label range in program.S.  The
+block-scoped reload behaved EXACTLY as designed (one reload per
+def-free block, guard blocks included).  The remaining 649k
+slot-240/280 reloads are therefore the guard machinery's own cost
+(many small def-free blocks per staging iteration, each correctly
+reloading once) -- reducible only by restructuring the guard's block
+count or hoisting ws across the guard cluster (the measured-negative
+P3b class), which is where the boundary honestly sits.]
+
 ## Replay
 
 ```bash
