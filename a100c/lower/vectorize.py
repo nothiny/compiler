@@ -331,6 +331,12 @@ class _Ctx:
         #: inside one chunk body share both
         self._ws_base_cache: Dict[tuple, mir.VReg] = {}
         self._scaled_index_cache: Dict[tuple, tuple] = {}
+        #: one unit-stride scalar byte base (view load + the elem/terms
+        #: chain) per (pointer root, scalar terms, esz) per block: the
+        #: body block's ops re-execute with the CURRENT chunk elem each
+        #: iteration, so a compile-time per-block share is exactly the
+        #: per-iteration value
+        self._unit_base_cache: Dict[tuple, mir.VReg] = {}
         #: the vl-result vreg of the vsetvli that established
         #: ``active_region`` (None when the establishing avl was not
         #: tracked): a deduplicated request returns it -- identical
@@ -354,6 +360,7 @@ class _Ctx:
         self._splat_cache = {}
         self._ws_base_cache = {}
         self._scaled_index_cache = {}
+        self._unit_base_cache = {}
 
     def _region_key(self, op: mir.MOp) -> Optional[tuple]:
         """(sew, lmul, avl-key) of one vsetvli request, or None when the
@@ -11735,6 +11742,14 @@ class SliceLowering:
                 [ctx.vreg(mir.I64, hint="rwa", loc=loc)], loc=loc))
         return total
 
+    @staticmethod
+    def _ptr_root(ptr: tir.Value) -> int:
+        """The root pointer value's vid of one address expression (walk
+        the ptradd chains to the underlying view/pointer variable)."""
+        while ptr.producer is not None and ptr.producer.op == "ptradd":
+            ptr = ptr.producer.operands[0]
+        return ptr.vid
+
     def _address_of(self, ctx: _Ctx, ptr: tir.Value, loc):
         """Resolve one TIR pointer value to (base reg, offset reg, pointee).
 
@@ -12045,8 +12060,10 @@ class SliceLowering:
         # the unit-stride form; an unproven one keeps the indexed form
         # (MECH-MASKED-VECTOR-ACCESS -- the proof never guesses)
         wide = scalar_mod.prove_wide_access(self, ptr, self._vl)
-        unit_base = self._unit_stride_base(ctx, wide, base_reg, pointee,
-                                           loc) if wide is not None else None
+        unit_base = self._unit_stride_base(
+            ctx, wide, base_reg, pointee, loc,
+            root_key=self._ptr_root(ptr)) \
+            if wide is not None else None
         if unit_base is not None:
             # T014: the unit-stride base must carry the uniform pointer
             # recurrences' adjustment (the proof's scalar terms do not
@@ -12526,7 +12543,8 @@ class SliceLowering:
         stype = self._vtype(storage)
         wide = scalar_mod.prove_wide_access(self, ptr, self._vl)
         unit_base = self._unit_stride_base(ctx, wide, base_reg, storage,
-                                           loc) if wide is not None else None
+                                           loc,
+                                           root_key=self._ptr_root(ptr)) if wide is not None else None
         if unit_base is not None:
             adjust = self._recurrence_byte_adjust(ctx, ptr, storage, loc)
             if adjust is not None:
@@ -12594,7 +12612,8 @@ class SliceLowering:
                                  stype, loc)
         wide = scalar_mod.prove_wide_access(self, ptr, self._vl)
         unit_base = self._unit_stride_base(ctx, wide, base_reg, storage,
-                                           loc) if wide is not None else None
+                                           loc,
+                                           root_key=self._ptr_root(ptr)) if wide is not None else None
         if unit_base is not None:
             adjust = self._recurrence_byte_adjust(ctx, ptr, storage, loc)
             if adjust is not None:
@@ -12683,11 +12702,28 @@ class SliceLowering:
         return mask_reg
 
     def _unit_stride_base(self, ctx: _Ctx, wide, base_reg: mir.VReg,
-                          pointee: tir.Type, loc) -> Optional[mir.VReg]:
+                          pointee: tir.Type, loc,
+                          root_key=None) -> Optional[mir.VReg]:
         """The scalar byte base of one proven-contiguous access:
         ``base + (elem + scalar terms) * esz`` (the arange's lanes are the
-        consecutive elements from there)."""
+        consecutive elements from there).
+
+        Under the local-materialization switch, one (pointer root, scalar
+        terms, esz) shares the WHOLE base per block -- the view's own
+        base load included (a fresh sload per use site otherwise).  The
+        share is a compile-time property of the body block: its ops
+        re-execute each iteration with the CURRENT chunk elem, so the
+        shared register always holds this iteration's base (the load and
+        store paths of one view inside one chunk body are the same
+        address)."""
         esz = 1 if pointee.is_bool() else pointee.bitwidth() // 8
+        key = None
+        if root_key is not None and ctx.local_materialization:
+            key = (root_key, tuple(sorted(t.vid for t in
+                                          wide.scalar_terms)), esz)
+            hit = ctx._unit_base_cache.get(key)
+            if hit is not None:
+                return hit
         elem = self._chunk["elem"]
         acc = ctx.emit(mir.MOp(
             "smove", [elem],
@@ -12712,9 +12748,12 @@ class SliceLowering:
             acc = ctx.emit(mir.MOp(
                 "smul", [acc, ctx.const(esz, mir.I64, loc)],
                 [ctx.vreg(mir.I64, hint="us3", loc=loc)], loc=loc))
-        return ctx.emit(mir.MOp(
+        result = ctx.emit(mir.MOp(
             "sadd", [base_reg, acc],
             [ctx.vreg(mir.I64, hint="usb", loc=loc)], loc=loc))
+        if key is not None:
+            ctx._unit_base_cache[key] = result
+        return result
 
     def _lower_store(self, ctx: _Ctx, op: tir.Op, loc) -> Optional[mir.VReg]:
         ptr, value = op.operands[0], op.operands[1]
@@ -12756,8 +12795,10 @@ class SliceLowering:
         # the wide-access proof (T011): the store side selects the same
         # unit-stride form a proven-contiguous access proves
         wide = scalar_mod.prove_wide_access(self, ptr, self._vl)
-        unit_base = self._unit_stride_base(ctx, wide, base_reg, pointee,
-                                           loc) if wide is not None else None
+        unit_base = self._unit_stride_base(
+            ctx, wide, base_reg, pointee, loc,
+            root_key=self._ptr_root(ptr)) \
+            if wide is not None else None
         if unit_base is not None:
             # T014: the store's unit-stride base carries the same
             # recurrence adjustment
