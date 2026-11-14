@@ -319,6 +319,38 @@ and re-verify every headline claim STRONGER:
 The recorded softmax16-f32 "+1.34% regression" was runtime noise: its
 program region improved **-13.05%**.  Future small-case comparisons read
 the program-region field, not the per-call total.
+## The profiling pc->MIR join repair (2026-11-15, commit e3b9365)
+
+Target selection from the joined tables found a contradiction: the
+tables reported vslidedn=1.31M/vextract=1.30M per call for attention
+while the RAW per-pc plugin counts contain ZERO vslidedown.vi and
+vmv.x.s=149,505 -- the narrow-data GUARDED path takes its fast arm
+every time (the K/V per-lane walk never execute; C8's residual is
+already covered).  The join (insn_manifest.py) keyed pcs by DUMP
+POSITION, but op.index is neither positional (the allocator inserts
+~500 index=-1 ops after select.py's renumber) nor unique (build
+history repeats indices).  Every pre-fix origin/opcode table from
+collect_metrics is therefore unreliable; per-call totals and raw
+per-pc counts were always correct (all measured claims in this round
+used those and stand).
+
+Fixed three ways (dump '; op=<index>' annotation; the post-allocation
+renumber + identity-based selection re-key in BOTH the driver and the
+factory pipeline -- the factory is the path A100_COMPILER_FACTORY
+actually runs; the manifest resolves by the true index).  A/B: the
+emitted instruction stream is identical (only .Lbrc label numbers
+change); 17/17 smoke, both test modules, no-name-dispatch PASS; the
+FIXED table matches the raw counts EXACTLY (vextract==vmv.x.s==
+149,505/call, s2v==vmv.v.x==950,785, vslidedn absent on both sides).
+
+**The REAL attention-f16 cost structure (per call, fixed tooling):**
+vsetvli 4.30M (18%), sconst 4.03M (17%), sadd 2.13M, vbinx 1.65M,
+sreload 1.18M, brc 0.98M, s2v 0.95M, br 0.77M, vid 0.76M.  The next
+round's targets, in order: the vsetvli e16-e32-e64 alternation (the
+staging/convert region dance), loop-invariant sconst hoisting (the
+mir-licm lesson applies -- pressure-bounded only), and the sreload
+class.  The x0-dst direction is closed (see the negative-result
+section); P2 is validated and default-off (see its section).
 ## What is NOT claimed / pending
 
 - No full 2734-case input regression this round (user-directed scope);
