@@ -129,9 +129,10 @@ distributions), 3.05e-5 at the cap -- the corpus tolerances (atol >=
   Final-tree spot check (attention + softmax_single_block + matmul):
   21/21 PASS (`evidence/final-spotcheck.json`).
 - `tools/check_no_name_dispatch.py`: import scan + behavioral
-  name-generality PASS (alpha/beta probes emit identical bodies).  The
-  `--witness` run was terminated by its 300s bound before verdict --
-  rerun with a longer bound is pending (recorded, not claimed).
+  name-generality PASS (alpha/beta probes emit identical bodies), and
+  the `--witness` run FAILS as it must (exit 1, locating the injected
+  operator-file literal at `a100c/backend/select.py:138`) -- the check
+  is load-bearing at this revision.
 - Full a100c test suite at the final tree: 56/59 modules exit 0.
   `test_compile_sweep` (the full-corpus compile sweep) and
   `test_t039_repairs` time out at their bounds -- BOTH pre-existing
