@@ -896,7 +896,16 @@ estimate: row widths in the corpus staging are powers of two (16/32/
 every staging shape the family scan exercised; the fallback class is
 expected to be the rare odd-width or vl-misaligned kernel, and its
 size is measurable in one compile sweep by counting predicate
-declines (a counter, not a semantic change).
+declines (a counter, not a semantic change).  [MEASURED AT CLOSE,
+over the full-input scan's 2,108 cached programs: 626 (30%) contain
+guarded narrow accesses (ngl blocks); the sdiv/srem divisor pool
+feeding their vdiv/vrem decompositions totals 7,929 sites of which
+5,600 (71%) are power-of-two multiples (16 x1551, 128 x1393, 32
+x1288, 64 x1152, 256 x216) -- the predicate's expected accept class;
+the decline class is bounded by the small-divisor remainder (2/4/8,
+2,271 sites, 29%).  The heaviest guard programs carry 108 ngl.t
+blocks each -- the attention family -- where the 12-15% ceiling
+concentrates.]
 
 ## Replay
 
