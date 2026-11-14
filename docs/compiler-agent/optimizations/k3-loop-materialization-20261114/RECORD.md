@@ -735,7 +735,25 @@ were UNRELIABLE INSTRUMENTATION (the same pipeline, unhooke, produces
 the 608/3 dump); the r9/r10 producers therefore live INSIDE the
 allocation rounds, not in any post-allocation step -- the next
 session's hunt starts inside _allocate_function's round loop with
-that constraint.
+that constraint.  THE CLOSING TRACE narrows it to a precise paradox
+and one strong lead: at ws-split time chunk9_body holds exactly 4
+uses of the victim rid (the scoped consolidation is CORRECT -- 1
+reload, 103 ops immediately after), the constant remats add no
+sreloads (the fn-wide count is stable at 26 across them), yet the
+final dump's chunk9_body carries 6 uses served by 3 reloads (r8->4
+uses, r9/r10->1 each, products of the SAME single split call whose
+per-block paths cannot write other blocks' operand slots).  The
+strongest lead: _drop_ws_caches (a100c/lower/vectorize.py:4063)
+resets _ws_private at scope closes, so _workspace_private_reg can
+emit FRESH sload-defined ws values -- same hint name, DIFFERENT rids
+-- and the ng29/nws1 uses in the pre-allocation MIR may belong to a
+second instance the split never saw (name-identical in every dump,
+distinguishable only by rid).  The next session should dump
+rid-annotated operands (a one-line dump_op change) and re-run the
+split hook: if ng29/nws1 carry a different rid, the r9/r10 producers
+are a SECOND split of that instance through a path the name-matched
+hook missed, and the fix is to make the block-scoped consolidation
+apply to it as well.
 
 ## Replay
 
