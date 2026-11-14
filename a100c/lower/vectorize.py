@@ -156,6 +156,21 @@ class LowerOptions:
     #: a use-density filter that removes the loss also removes the win
     #: (attn +0.00%).  A100C_LOOP_CONST_HOIST=on opts in.
     loop_const_hoist: bool = False
+    #: The staging lane index materializes natively at the 64-bit index
+    #: class (vid.v + the widened element base, the sdiv/srem axis
+    #: decomposition and the esz scale in ONE e64 region) instead of the
+    #: 32-bit lane class followed by a per-consumer vwiden: each staging
+    #: access group drops its e32 index episode and its widening (the
+    #: live region-dance boundary the superseded-setter round recorded).
+    #: The lane index is the lowering's own addressing machinery, never
+    #: a TIR-observable value: the intended position is the TRUE
+    #: (elem + lane) sum the staging loop bounds and the boundary mask
+    #: guarantee in-range, and every consumer is an address computation
+    #: (a masked lane never accesses).  The wide class is exactly the
+    #: doubled form the per-consumer vwiden produced (e32m1 -> e64m2),
+    #: so every indexed access's EEW/EMUL relationship is unchanged.
+    #: False restores the e32 + vwiden form.  Env: A100C_WIDE_LANE_INDEX=off.
+    wide_lane_index: bool = True
 
     def identity_part(self) -> str:
         parts = []
@@ -187,6 +202,8 @@ class LowerOptions:
             parts.append("no-chunk-mask-split")
         if not self.loop_const_hoist:
             parts.append("no-loop-const-hoist")
+        if not self.wide_lane_index:
+            parts.append("no-wide-lane-index")
         return ",".join(parts) if parts else "default"
 
 
@@ -865,6 +882,23 @@ class SliceLowering:
                             "use (use-before-definition in the lowering)")
         return reg
 
+    def _staging_idx_type(self, vl: int) -> mir.VectorType:
+        """The staging lane-index class: under the wide-lane-index
+        switch the 64-bit doubled form (exactly the per-consumer
+        vwiden's destination class, e32m1 -> e64m2, so every indexed
+        access's EEW/EMUL relationship is unchanged), the 32-bit lane
+        class otherwise."""
+        narrow = self._idx_vtype(vl)
+        if not self.options.wide_lane_index:
+            return narrow
+        lmul = narrow.lmul * 2
+        if lmul not in (1, 2, 4, 8):
+            raise self._err(
+                None, "index",
+                f"the wide index class needs LMUL {lmul} at vl {vl} "
+                "(outside 1..8; a located refusal)")
+        return mir.VectorType(64, lmul, "int")
+
     def _chunk_lane_index(self, ctx: _Ctx, ity: mir.VectorType,
                           vl: int, loc) -> mir.VReg:
         """The chunk position's lane index (vid + the chunk's element
@@ -873,7 +907,13 @@ class SliceLowering:
         of one chunk body share it (the vid's lane ids are the first vl
         positions of the region whichever site executes it, and the
         chunk element is one block param, so identical (ity, vl, elem)
-        is the identical value)."""
+        is the identical value).
+
+        At the 64-bit class (the wide-lane-index switch) the element
+        base joins the chain directly: i32 scalars live sign-extended in
+        64-bit registers (the scalar core's A003 invariant), so the e64
+        vadd.vx reads exactly the widened value -- no view materiali-
+        zation, no e32 episode, no per-consumer vwiden."""
         elem = self._chunk["elem"]
         key = (ity, int(vl), elem.rid)
         if ctx.local_materialization:
@@ -911,7 +951,7 @@ class SliceLowering:
         the neighbouring staged regions, the materialized offsets were
         garbage and the indexed access went out of bounds."""
         vl = self._vl
-        ity = self._idx_vtype(vl)
+        ity = self._staging_idx_type(vl)
         idx = self._chunk_lane_index(ctx, ity, vl, loc)
         if consumer_shape is None:
             return idx
@@ -994,7 +1034,10 @@ class SliceLowering:
             bstrides[ax] = bstrides[ax + 1] * int(bext[ax + 1])
 
         def _splat(value: int, hint: str) -> mir.VReg:
-            c = ctx.const(int(value), mir.I32, loc)
+            # the decomposition constants follow the index class (i64
+            # scalars at the wide class -- s2v at e64 takes the GPR)
+            c = ctx.const(int(value),
+                          mir.ScalarType(ity.sew, signed=True), loc)
             return ctx.emit(mir.MOp(
                 "s2v", [c], [ctx.vreg(ity, hint=hint, loc=loc)], loc=loc))
 
@@ -1081,7 +1124,7 @@ class SliceLowering:
             # neighbouring staged regions and the matching store below
             # smashed them, corrupting the div/mod decomposition lanes
             # of the consumers that followed)
-            ity = self._idx_vtype(vl)
+            ity = self._staging_idx_type(vl)
             self._vregion(ctx, ity, loc)
             idx = self._splat_const(ctx, 0, ity, loc)
         else:
@@ -1179,7 +1222,7 @@ class SliceLowering:
             ctx.emit0(mir.MOp(opcode, [addr, reg], [], loc=loc))
             self._restore_region(ctx, loc)
             return
-        ity = self._idx_vtype(vl)
+        ity = self._staging_idx_type(vl)
         if rec.get("extent") == 1:
             # T039 (the deconv3d typical-case defect): an extent-1 record
             # holds ONE element -- the store writes element 0 from every
@@ -6674,9 +6717,12 @@ class SliceLowering:
         return mir.VectorType(32, lmul, "int")
 
     def _lane_index(self, ctx: _Ctx, elem: mir.VReg, vl: int, loc) -> mir.VReg:
-        """``vid + elem`` at the i32 index class with avl=vl: the flat
-        element index of each lane of the current staging iteration."""
-        ity = self._idx_vtype(vl)
+        """``vid + elem`` at the staging index class with avl=vl: the flat
+        element index of each lane of the current staging iteration (the
+        64-bit doubled class under the wide-lane-index switch; the i32
+        element base joins directly -- A003's sign-extended register
+        invariant makes the e64 vadd.vx read exactly the widened value)."""
+        ity = self._staging_idx_type(vl)
         self._vregion(ctx, ity, loc, vl=vl)
         vid = ctx.emit(mir.MOp(
             "vid", [], [ctx.vreg(ity, hint="lvid", loc=loc)], loc=loc))
@@ -6686,16 +6732,16 @@ class SliceLowering:
             attrs={"op": "add"}, loc=loc))
 
     def _staging_const(self, ctx: _Ctx, value: int, vl: int, loc) -> mir.VReg:
-        ity = self._idx_vtype(vl)
+        ity = self._staging_idx_type(vl)
         self._vregion(ctx, ity, loc, vl=vl)
-        sty = mir.ScalarType(32, signed=True)
+        sty = mir.ScalarType(ity.sew, signed=True)
         kreg = ctx.const(value, sty, loc)
         return ctx.emit(mir.MOp(
             "s2v", [kreg], [ctx.vreg(ity, hint="lsc", loc=loc)], loc=loc))
 
     def _staging_vbin(self, ctx: _Ctx, op: str, a: mir.VReg, b: mir.VReg,
                       vl: int, loc) -> mir.VReg:
-        ity = self._idx_vtype(vl)
+        ity = self._staging_idx_type(vl)
         self._vregion(ctx, ity, loc, vl=vl)
         return ctx.emit(mir.MOp(
             "vbin", [a, b],
@@ -6770,12 +6816,16 @@ class SliceLowering:
         # at e32 data is the safe form (the region re-opens at the value
         # type AFTER the byte-index computation -- _ws_scaled leaves the
         # region at the e64 index class)
-        ity = self._idx_vtype(vl)
+        ity = self._staging_idx_type(vl)
         self._vregion(ctx, ity, loc, vl=vl)
+        # the wide class reuses the body's existing elem64 view (the
+        # loop's own i32 element param stays untouched for the step)
+        wbase = elem if ity.sew == 32 or elem.type.width == 64 \
+            else elem64
         vid = ctx.emit(mir.MOp(
             "vid", [], [ctx.vreg(ity, hint="nmv2", loc=loc)], loc=loc))
         widx = ctx.emit(mir.MOp(
-            "vbinx", [vid, elem],
+            "vbinx", [vid, wbase],
             [ctx.vreg(ity, hint="nmi", loc=loc)],
             attrs={"op": "add"}, loc=loc))
         scaled, _ = self._ws_scaled(ctx, widx, 4, loc, vl)
@@ -7126,10 +7176,12 @@ class SliceLowering:
 
         def selector(ctx, idx, vl, loc):
             # the minor-axis parity: even lanes take a, odd lanes take b
+            # (the compare runs at the staging index class -- e64m2 under
+            # the wide-lane-index switch, never a hardcoded e32m1)
             one = self._staging_const(ctx, 1, vl, loc)
             parity = self._staging_vbin(ctx, "and", idx, one, vl, loc)
             zero = self._staging_const(ctx, 0, vl, loc)
-            self._staging_region(ctx, 32, vl, loc)
+            self._vregion(ctx, parity.type, loc, vl=vl)
             return ctx.emit(mir.MOp(
                 "vcmp", [parity, zero],
                 [ctx.vreg(mir.MaskType(), hint="lsp", loc=loc)],
@@ -10044,25 +10096,44 @@ class SliceLowering:
                        loc, esz: int = 4) -> mir.VReg:
         """The byte-offset index vector for a workspace access at the
         current chunk: (elem + vid) * element size, at EEW=64."""
-        # the index lanes' own region (the ambient region at the call site
-        # may sit at another SEW -- the scan's own-width path)
-        self._vregion(ctx, mir.VectorType(32, 1, "int"), loc)
-        vid = ctx.emit(mir.MOp(
-            "vid", [], [ctx.vreg(mir.VectorType(32, 1, "int"),
-                                 hint="wid", loc=loc)], loc=loc))
-        offs = ctx.emit(mir.MOp(
-            "vbinx", [vid, elem],
-            [ctx.vreg(mir.VectorType(32, 1, "int"), hint="wo", loc=loc)],
-            attrs={"op": "add"}, loc=loc))
-        wide = ctx.emit(mir.MOp(
-            "vwaddx0", [offs],
-            [ctx.vreg(mir.VectorType(64, 2, "int"), hint="ww", loc=loc)],
-            attrs={"mode": "sext"}, loc=loc))
-        avl = ctx.const(self._vl, mir.I32, loc)
-        ctx.emit(mir.MOp("vsetvli", [avl],
-                         [ctx.vreg(mir.I32, hint="wvl", loc=loc)],
-                         attrs={"sew": 64, "lmul": 2, "policy": "ta,ma"},
-                         loc=loc))
+        wty = mir.VectorType(64, 2, "int")
+        if self.options.wide_lane_index:
+            # the whole chain in ONE e64m2 region: vid.v at the wide
+            # class + the scalar base directly (A003: an i32 scalar
+            # lives sign-extended, the e64 vadd.vx reads the widened
+            # value) -- no e32 episode, no vwadd, no view move (the wide
+            # class is exactly the doubled form the widening below
+            # produced, so the access form is unchanged)
+            self._vregion(ctx, wty, loc)
+            vid = ctx.emit(mir.MOp(
+                "vid", [], [ctx.vreg(wty, hint="wid", loc=loc)], loc=loc))
+            wide = ctx.emit(mir.MOp(
+                "vbinx", [vid, elem],
+                [ctx.vreg(wty, hint="ww", loc=loc)],
+                attrs={"op": "add"}, loc=loc))
+        else:
+            # the index lanes' own region (the ambient region at the call
+            # site may sit at another SEW -- the scan's own-width path)
+            self._vregion(ctx, mir.VectorType(32, 1, "int"), loc)
+            vid = ctx.emit(mir.MOp(
+                "vid", [], [ctx.vreg(mir.VectorType(32, 1, "int"),
+                                     hint="wid", loc=loc)], loc=loc))
+            offs = ctx.emit(mir.MOp(
+                "vbinx", [vid, elem],
+                [ctx.vreg(mir.VectorType(32, 1, "int"), hint="wo",
+                          loc=loc)],
+                attrs={"op": "add"}, loc=loc))
+            wide = ctx.emit(mir.MOp(
+                "vwaddx0", [offs],
+                [ctx.vreg(mir.VectorType(64, 2, "int"), hint="ww",
+                          loc=loc)],
+                attrs={"mode": "sext"}, loc=loc))
+            avl = ctx.const(self._vl, mir.I32, loc)
+            ctx.emit(mir.MOp("vsetvli", [avl],
+                             [ctx.vreg(mir.I32, hint="wvl", loc=loc)],
+                             attrs={"sew": 64, "lmul": 2,
+                                    "policy": "ta,ma"},
+                             loc=loc))
         scaled = ctx.emit(mir.MOp(
             "vbinx", [wide, ctx.const(esz, mir.I64, loc)],
             [ctx.vreg(mir.VectorType(64, 2, "int"), hint="wsx", loc=loc)],

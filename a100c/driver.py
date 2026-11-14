@@ -140,6 +140,17 @@ class CompileOptions:
     #: OFF (the on/off contrast: attention -0.98% vs matmul16 +2.44%,
     #: inseparable by structure).  Env: A100C_LOOP_CONST_HOIST=on opts in.
     loop_const_hoist: bool = False
+    #: The staging lane index materializes natively at the 64-bit index
+    #: class (one e64 episode per access group: vid.v + the widened
+    #: element base, the sdiv/srem axis decomposition and the esz scale
+    #: together) instead of the 32-bit lane class followed by a
+    #: per-consumer vwiden -- the live region-dance boundary the
+    #: superseded-setter round recorded.  The wide class is exactly the
+    #: doubled form the vwiden produced, so every indexed access's
+    #: EEW/EMUL relationship is unchanged; the lane index is the
+    #: lowering's own addressing machinery (never a TIR-observable
+    #: value).  Env: A100C_WIDE_LANE_INDEX=off restores e32 + vwiden.
+    wide_lane_index: bool = True
 
     def __post_init__(self):
         if os.environ.get("A100C_MATRIX_PACK", "").strip().lower() in \
@@ -154,7 +165,8 @@ class CompileOptions:
                 ("matrix_row_reuse", "A100C_MATRIX_ROW_REUSE"),
                 ("guarded_narrow_access", "A100C_GUARDED_NARROW_ACCESS"),
                 ("elementwise_width", "A100C_ELEMENTWISE_WIDTH"),
-                ("local_materialization", "A100C_LOCAL_MATERIALIZATION")):
+                ("local_materialization", "A100C_LOCAL_MATERIALIZATION"),
+                ("wide_lane_index", "A100C_WIDE_LANE_INDEX")):
             if os.environ.get(env_name, "").strip().lower() in \
                     ("off", "0", "false", "no"):
                 setattr(self, field_name, False)
@@ -180,7 +192,8 @@ class CompileOptions:
         for field_name in ("kept_axis_reduction", "neutral_reduction_trim",
                            "matrix_row_reuse", "guarded_narrow_access",
                            "elementwise_width", "local_materialization",
-                           "chunk_mask_split", "loop_const_hoist"):
+                           "chunk_mask_split", "loop_const_hoist",
+                           "wide_lane_index"):
             if not getattr(self, field_name):
                 parts.append("no-" + field_name.replace("_", "-"))
         if not self.dumps:
@@ -379,7 +392,8 @@ class Compiler:
             elementwise_width=self.options.elementwise_width,
             local_materialization=self.options.local_materialization,
             chunk_mask_split=self.options.chunk_mask_split,
-            loop_const_hoist=self.options.loop_const_hoist)
+            loop_const_hoist=self.options.loop_const_hoist,
+            wide_lane_index=self.options.wide_lane_index)
         try:
             mir_module = vectorize.lower_to_mir(tir_module, plan, self.target,
                                                 layout, grid, options)

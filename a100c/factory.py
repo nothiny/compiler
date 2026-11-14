@@ -157,7 +157,8 @@ class FactoryCompiler(Compiler):
             guarded_narrow_access=self.options.guarded_narrow_access,
             local_materialization=self.options.local_materialization,
             chunk_mask_split=self.options.chunk_mask_split,
-            loop_const_hoist=self.options.loop_const_hoist)
+            loop_const_hoist=self.options.loop_const_hoist,
+            wide_lane_index=self.options.wide_lane_index)
         try:
             mir_module = vectorize.lower_to_mir(tir_module, plan, self.target,
                                                 layout, grid, options)
