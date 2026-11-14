@@ -217,6 +217,24 @@ already carries merge params).  The clamp analysis already walks every
 statement, so the view set is collectable at `_ensure_chunk` time.
 Recorded as the second next candidate.
 
+## Negative result (attempted, reverted): the x0-destination vsetvli
+
+Hypothesis: a vsetvli whose vl result is dead could write x0 instead of
+its allocated register, preserving its own AVL register so one li serves
+every same-AVL setter in a block (the per-setter rematerialized `li`
+the dst==avl clobber forces).  The emitted-text change (MIR identical)
+broke 14 of 17 smoke cases (MISMATCH from element 0 + one SIGSEGV:
+matmul/attention wrong, sin_kernel unaffected) -- some dst registers of
+MIR-dead vsetvli results are still load-bearing at runtime, most
+plausibly through allocator-INSERTED code (the T029 remat / T032
+reload class) or the emitter's li/vl-state expectations, neither of
+which the op-indexed `_live_after_at` liveness sees.  Reverted the same
+hour; the pre/post artifact pair for the bisection is preserved
+(matmul [16,16,16] f32: 970a8e53.../program.S vs 21d1106c.../program.S
+under a100c/cache/ -- instruction streams differ by exactly the 120
+dst rewrites + 13 li elisions).  Recorded: the idea stays attractive
+(~1 li per region setter saved) but needs the interaction understood
+first.
 ## What is NOT claimed / pending
 
 - No full 2734-case input regression this round (user-directed scope);
