@@ -141,36 +141,20 @@ def _peephole_dst_reg(line: str) -> Optional[str]:
     return reg if reg else None
 
 
-def _superseded_setter_is_dead(lines: List[str], i: int, dst: str) -> bool:
-    """Whether the vsetvli at ``lines[i]`` (dst register ``dst``) is
-    superseded before use: the NEXT vsetvli follows with only
-    state-transparent instructions between, and ``dst`` is never READ
-    after it inside this block before something else writes it.
+def _setter_dst_is_dead(lines: List[str], i: int, dst: str) -> bool:
+    """Whether ``dst`` (the vsetvli at ``lines[i]``'s vl result) is never
+    READ after it inside this straight-line block before something else
+    writes it.
 
     The scan is purely textual over the final emitted stream, so it sees
     every reader -- allocator-inserted remat/reload code included, which
     MIR-liveness-based deadness (the closed x0-dst direction) does not.
-    Conservative: any label, branch, or unmodeled instruction keeps the
-    setter; a store's first operand is a READ, not a write.
+    Conservative: any label, branch, or unmodeled instruction concludes
+    "not dead"; a store's first operand is a READ, not a write; a later
+    vsetvli whose AVL SOURCE is ``dst`` READS it (the avl-reuse form --
+    the vl value is load-bearing exactly there).
     """
     n = len(lines)
-    j = i + 1
-    # 1. the next vsetvli must arrive with only transparent instructions
-    while j < n:
-        t = lines[j].split('#')[0].strip()
-        if not t or t.startswith('.') or t.startswith('#') or t.endswith(':'):
-            return False
-        parts = t.split()
-        op = parts[0]
-        if op == 'vsetvli':
-            break
-        if op in _BRANCH_OPS or op in ('vsetivli', 'vsetvl') \
-                or op.startswith('v'):
-            return False          # a consumer (or unmodeled setter) wins
-        j += 1
-    else:
-        return False
-    # 2. dst must not be read anywhere in the block before a write of it
     k = i + 1
     while k < n:
         t = lines[k].split('#')[0].strip()
@@ -181,13 +165,12 @@ def _superseded_setter_is_dead(lines: List[str], i: int, dst: str) -> bool:
         if op in _BRANCH_OPS or op in ('vsetivli', 'vsetvl'):
             return False
         if op == 'vsetvli':
-            # writes its OWN dst; check it is not ours (ours would make
-            # the value observable at the second setter's own write --
-            # the first setter's value is dead only if overwritten by a
-            # DIFFERENT register write or its own dst re-write)
             mm = _VSETVLI_RE.match(t)
-            if mm and mm.group(1) == dst:
-                return True      # re-written before any read: dead
+            if mm:
+                if mm.group(1) == dst:
+                    return True   # rewritten before any read: dead
+                if mm.group(2) == dst:
+                    return False  # read as the later setter's AVL
             k += 1
             continue
         ops_txt = t.split(None, 1)[1] if len(t.split(None, 1)) > 1 else ''
@@ -209,6 +192,33 @@ def _superseded_setter_is_dead(lines: List[str], i: int, dst: str) -> bool:
                     return False      # read
         k += 1
     return False
+
+
+def _superseded_setter_is_dead(lines: List[str], i: int, dst: str) -> bool:
+    """Whether the vsetvli at ``lines[i]`` (dst register ``dst``) is
+    superseded before use: the NEXT vsetvli follows with only
+    state-transparent instructions between, and ``dst`` is never READ
+    after it inside this block before something else writes it.
+    """
+    n = len(lines)
+    j = i + 1
+    # 1. the next vsetvli must arrive with only transparent instructions
+    while j < n:
+        t = lines[j].split('#')[0].strip()
+        if not t or t.startswith('.') or t.startswith('#') or t.endswith(':'):
+            return False
+        parts = t.split()
+        op = parts[0]
+        if op == 'vsetvli':
+            break
+        if op in _BRANCH_OPS or op in ('vsetivli', 'vsetvl') \
+                or op.startswith('v'):
+            return False          # a consumer (or unmodeled setter) wins
+        j += 1
+    else:
+        return False
+    # 2. dst must not be read anywhere in the block before a write of it
+    return _setter_dst_is_dead(lines, i, dst)
 
 
 def _peephole(lines: List[str]) -> List[str]:
@@ -247,6 +257,7 @@ def _peephole(lines: List[str]) -> List[str]:
 
     n_vsetvli_removed = 0
     n_li_removed = 0
+    n_x0dst_rewritten = 0
 
     for idx, line in enumerate(lines):
         stripped = line.strip()
@@ -307,6 +318,27 @@ def _peephole(lines: List[str]) -> List[str]:
                         out.append(f'    # [peephole-superseded-vsetvli] '
                                    f'{comment[1].strip()}')
                     continue
+                # the x0-dst form (REGISTER-avl setters only): a vl
+                # result that is provably unread (the textual dst-reader
+                # scan of the final stream) is DISCARDED -- the setter
+                # then writes no register, so its AVL source survives it
+                # and both dedup rules below can fire across it (the
+                # `li avl, 32; vsetvli rd==rs1` self-destroying form
+                # paid one li per setter: 463k avl li's/call on
+                # attention).  The avl-reuse reader (a later setter
+                # whose AVL IS this dst) is a READ the scan sees, so the
+                # value stays materialized exactly where it is
+                # load-bearing.  x0-AVL setters are EXCLUDED: their dst
+                # materializes VLMAX (state-derived, entangled with the
+                # dead-li walk-back's world) and they carry no avl li to
+                # save -- the measured bisect isolated real miscompiles
+                # in exactly that class and zero benefit.
+                if dst not in ('x0', 'zero') and src != 'x0' \
+                        and _setter_dst_is_dead(lines, idx, dst):
+                    line = line.replace(f"vsetvli {dst},",
+                                        "vsetvli x0,", 1)
+                    dst = 'x0'
+                    n_x0dst_rewritten += 1
                 if (vstate is not None
                         and vstate[1] == sew and vstate[2] == lmul
                         and vstate[3] == policy
@@ -326,7 +358,8 @@ def _peephole(lines: List[str]) -> List[str]:
                 vstate = (src, sew, lmul, policy)
                 vresult = dst if dst not in ('x0', 'zero') else None
                 written_since_v = set()
-                written_since_v.add(dst)
+                if dst not in ('x0', 'zero'):
+                    written_since_v.add(dst)
                 if src == 'x0':
                     # the x0-form reads no AVL register and overwrites
                     # dst with vl: a `li dst, imm` immediately above is
@@ -355,13 +388,16 @@ def _peephole(lines: List[str]) -> List[str]:
                 # staged N-splat lost its upper lanes when a removed
                 # `li avl, 32` let the store run at vl 16).  Modeling
                 # vl exactly would need the target's VLEN here; the
-                # conservative unknown costs a few un-deduped li.
-                if dst in li_state:
-                    del li_state[dst]
-                if dst in written_since_li:
-                    written_since_li[dst].add(dst)
-                else:
-                    written_since_li[dst] = {dst}
+                # conservative unknown costs a few un-deduped li.  The
+                # x0-dst rewrite writes NO register: the AVL source's
+                # li-dedup state stays valid across the setter.
+                if dst not in ('x0', 'zero'):
+                    if dst in li_state:
+                        del li_state[dst]
+                    if dst in written_since_li:
+                        written_since_li[dst].add(dst)
+                    else:
+                        written_since_li[dst] = {dst}
                 out.append(line)
                 continue
             out.append(line)
@@ -407,9 +443,10 @@ def _peephole(lines: List[str]) -> List[str]:
 
         out.append(line)
 
-    if n_vsetvli_removed or n_li_removed:
+    if n_vsetvli_removed or n_li_removed or n_x0dst_rewritten:
         out.insert(0, f'    # [peephole] removed {n_vsetvli_removed} '
-                      f'redundant vsetvli, {n_li_removed} redundant li')
+                      f'redundant vsetvli, {n_li_removed} redundant li, '
+                      f'{n_x0dst_rewritten} dead-vl setters to x0-dst')
     return out
 
 
