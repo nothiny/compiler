@@ -310,6 +310,13 @@ class _Ctx:
         self._const_value_of: Dict[int, int] = {}
         self._lane_index_cache: Dict[tuple, mir.VReg] = {}
         self._splat_cache: Dict[tuple, mir.VReg] = {}
+        #: one workspace record base (ws + the record's constant offset)
+        #: per (workspace reg, offset) per block, and one scaled index
+        #: chain (the e64 widen + esz multiply) per (index reg, esz, vl)
+        #: per block -- the load and store staging paths of one record
+        #: inside one chunk body share both
+        self._ws_base_cache: Dict[tuple, mir.VReg] = {}
+        self._scaled_index_cache: Dict[tuple, tuple] = {}
         #: the vl-result vreg of the vsetvli that established
         #: ``active_region`` (None when the establishing avl was not
         #: tracked): a deduplicated request returns it -- identical
@@ -331,6 +338,8 @@ class _Ctx:
         self._const_value_of = {}
         self._lane_index_cache = {}
         self._splat_cache = {}
+        self._ws_base_cache = {}
+        self._scaled_index_cache = {}
 
     def _region_key(self, op: mir.MOp) -> Optional[tuple]:
         """(sew, lmul, avl-key) of one vsetvli request, or None when the
@@ -1001,10 +1010,7 @@ class SliceLowering:
             lmul = max(1, vl * lane_sew // self.target.vlen_bits)
             vtype = mir.VectorType(lane_sew, lmul, kind)
             self._vregion(ctx, vtype, loc, vl=vl)
-            ws = self._workspace_private_reg(ctx, loc)
-            base = ctx.emit(mir.MOp(
-                "sadd", [ws, ctx.const(rec["offset"], mir.I64, loc)],
-                [ctx.vreg(mir.I64, hint="nlb", loc=loc)], loc=loc))
+            base = self._ws_record_base(ctx, rec["offset"], loc, "nlb")
             elem64 = scalar_mod.widen_to(ctx, self._chunk["elem"], 64, loc)
             byteoff = ctx.emit(mir.MOp(
                 "smul", [elem64, ctx.const(rec["esz"], mir.I64, loc)],
@@ -1038,10 +1044,7 @@ class SliceLowering:
         else:
             idx = self._staged_lane_index(ctx, t, consumer_shape, loc)
         scaled, _ = self._ws_scaled(ctx, idx, rec["esz"], loc, vl)
-        ws = self._workspace_private_reg(ctx, loc)
-        base = ctx.emit(mir.MOp(
-            "sadd", [ws, ctx.const(rec["offset"], mir.I64, loc)],
-            [ctx.vreg(mir.I64, hint="sb", loc=loc)], loc=loc))
+        base = self._ws_record_base(ctx, rec["offset"], loc, "sb")
         avl = ctx.const(vl, mir.I32, loc)
         ctx.emit(mir.MOp(
             "vsetvli", [avl], [ctx.vreg(mir.I32, hint="slr", loc=loc)],
@@ -1121,10 +1124,7 @@ class SliceLowering:
                 ("uint" if rec["type"].is_int_unsigned() else "int")
             vtype = mir.VectorType(rec["lane_sew"], 1, kind)
             self._vregion(ctx, vtype, loc, vl=vl)
-            ws = self._workspace_private_reg(ctx, loc)
-            base = ctx.emit(mir.MOp(
-                "sadd", [ws, ctx.const(rec["offset"], mir.I64, loc)],
-                [ctx.vreg(mir.I64, hint="nsb", loc=loc)], loc=loc))
+            base = self._ws_record_base(ctx, rec["offset"], loc, "nsb")
             elem64 = scalar_mod.widen_to(ctx, self._chunk["elem"], 64, loc)
             byteoff = ctx.emit(mir.MOp(
                 "smul", [elem64, ctx.const(rec["esz"], mir.I64, loc)],
@@ -1149,10 +1149,7 @@ class SliceLowering:
         else:
             idx = self._chunk_lane_index(ctx, ity, vl, loc)
         scaled, _ = self._ws_scaled(ctx, idx, rec["esz"], loc, vl)
-        ws = self._workspace_private_reg(ctx, loc)
-        base = ctx.emit(mir.MOp(
-            "sadd", [ws, ctx.const(rec["offset"], mir.I64, loc)],
-            [ctx.vreg(mir.I64, hint="tb", loc=loc)], loc=loc))
+        base = self._ws_record_base(ctx, rec["offset"], loc, "tb")
         if not reg.is_vector() and not reg.is_mask():
             # T038: an EXTENT-1 block may hold its value in a scalar
             # register (the full-axis keep_dims reduce binds the [1]
@@ -6416,7 +6413,41 @@ class SliceLowering:
         """The EEW=64 byte-offset vector of ``idx`` (element counts) times
         ``esz``, at the lane count ``vl``.  The widening form follows the
         double-LMUL convention (the vwiden's destination group); an i64
-        index keeps its own LMUL."""
+        index keeps its own LMUL.  Under the local-materialization switch
+        one (index reg, esz, vl) is cached per block: the load and store
+        staging paths of one record share the whole widen-and-scale chain
+        (its e64 region switches included)."""
+        key = (idx.rid, int(esz), int(vl))
+        if ctx.local_materialization:
+            hit = ctx._scaled_index_cache.get(key)
+            if hit is not None:
+                return hit
+        result = self._ws_scaled_uncached(ctx, idx, esz, loc, vl)
+        if ctx.local_materialization:
+            ctx._scaled_index_cache[key] = result
+        return result
+
+    def _ws_record_base(self, ctx: _Ctx, offset, loc,
+                        hint: str) -> mir.VReg:
+        """One workspace record base (the private workspace register plus
+        the record's constant offset) per (workspace reg, offset) per
+        block under the local-materialization switch -- the load, store
+        and native staging paths of one record share it."""
+        ws = self._workspace_private_reg(ctx, loc)
+        key = (ws.rid, int(offset))
+        if ctx.local_materialization:
+            hit = ctx._ws_base_cache.get(key)
+            if hit is not None:
+                return hit
+        base = ctx.emit(mir.MOp(
+            "sadd", [ws, ctx.const(int(offset), mir.I64, loc)],
+            [ctx.vreg(mir.I64, hint=hint, loc=loc)], loc=loc))
+        if ctx.local_materialization:
+            ctx._ws_base_cache[key] = base
+        return base
+
+    def _ws_scaled_uncached(self, ctx: _Ctx, idx: mir.VReg, esz: int, loc,
+                            vl: int) -> mir.VReg:
         if idx.type.sew == 32:
             lmul = idx.type.lmul * 2
             avl0 = ctx.const(vl, mir.I32, loc)
