@@ -300,6 +300,25 @@ test modules ALL PASS; the elementwise+softmax family scan (167
 operators, 4 independent roots, the switch ON) **861/861 PASS**,
 0 non-PASS (`evidence/p2-family-scan/`, `evidence/p2-contrast-metrics/`).
 
+## Program-region re-verification (the measurement lesson, 2026-11-15)
+
+The round's criterion table used PER-CALL totals; the tiny cases' totals
+carry the invariant ~500-600-op runtime dispatch floor plus a +-10-25%
+RUNTIME-region noise band (identical programs measured 1069 vs 1327 on
+sin16; amax17 985 vs 1170).  The PROGRAM-REGION counts are deterministic
+and re-verify every headline claim STRONGER:
+
+| case | baseline | candidate | program-region change |
+|---|---:|---:|---:|
+| attention [4,4,32,64] bf16/f16/f32 | 37.2M/29.6M/17.7M | 28.9M/23.3M/14.0M | **-21.3 .. -22.2%** |
+| matmul16 [16,16,16] bf16/f16/f32 | 26.6k/22.1k/19.1k | 21.9k/17.3k/16.1k | **-15.8 .. -21.9%** |
+| matmul-tail [8,32,24] bf16/f16/f32 | 53.1k/44.2k/38.2k | 43.8k/34.5k/32.1k | **-15.8 .. -21.9%** |
+| softmax97 [4,97] bf16/f16/f32 | 6.9k/6.2k/5.1k | 5.7k/5.1k/4.3k | **-14.0 .. -18.9%** |
+| softmax16 [4,16] bf16/f16/f32 | 2.0k/1.8k/1.5k | 1.7k/1.5k/1.3k | **-13.1 .. -17.2%** |
+
+The recorded softmax16-f32 "+1.34% regression" was runtime noise: its
+program region improved **-13.05%**.  Future small-case comparisons read
+the program-region field, not the per-call total.
 ## What is NOT claimed / pending
 
 - No full 2734-case input regression this round (user-directed scope);
