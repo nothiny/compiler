@@ -514,6 +514,58 @@ spot checks in evidence/wli-family-scan/.
   +0.86% kept (recorded regressions, small-case allocation perturbation
   class).
 
+## The block-scoped split reload: -3.75% attention-f16, -4.12% linear-dropout
+
+The staging workspace base reload chain the verifier's boundary named
+(1.18M reload/call): the victim policy picks the MOST-USED live value
+to split (one round relieves every point its range crosses -- the T036
+convergence repair), and ``_split_value`` then reloaded the value
+before EVERY use -- so the most-used value paid the most loads:
+attention's chunk9/chunk18 bodies reloaded the workspace base 5-6x per
+iteration (946k of the 1.19M sp-relative loads sat in slot 232 alone).
+
+The fix is one equivalence: a straight-line MIR block containing NO
+definition of the split value cannot observe the spill slot changing
+between its uses -- ONE reload at the block's first use (shared by
+every later use in the block, including the terminator's carried
+args) is observationally identical to per-use reloads.  Blocks that
+define the value keep the per-use form.  The spill DECISIONS are
+untouched (attention's allocation stats are byte-identical: same 22
+spilled values, same slots, same rounds) -- only the reload placement
+changed, which is what makes this a pure performance heuristic:
+any placement respecting the def-use chain passes the same verifier.
+
+Same-tree paired program-region totals (the off side is the committed
+1f0c508 tree's measurements above):
+
+| case | 1f0c508 | block-scoped | change |
+|---|---:|---:|---:|
+| attention-f16 [4,4,32,64] | 21,775,466 | 20,959,344 | **-3.75%** |
+| linear-dropout [16,128,128] f16 | 7,087,860 | 6,795,488 | **-4.12%** |
+| synthesis [1,4,16,64] f32 | 224,019 | 214,233 | **-4.37%** |
+| matmul16 [16,16,16] f16 | 23,309 | 23,026 | -1.21% |
+| softmax-inner [97] f16 | 8,408 | 8,416 | +0.10% |
+| softmax [20,17] f16 | 76,449 | 76,429 | -0.03% |
+| softmax_log [4,97] f32 | 122,232 | 122,232 | +0.00% |
+
+attention's reload fell 1.18M -> 728k/call (-38.6%; spill stores
+37.4k -> 4.6k), linear-dropout's 484k -> 159k (-67%), synthesis's
+12.2k -> 4.8k (-61%); chunk9's static body loads fell 44 -> 6 (the
+second access group now reuses the block's single reload:
+``add t5, t1, t5`` with no preceding ``ld``).  No new regression:
+softmax_log's recorded +0.86% is unchanged (+0.00% here) and
+softmax-inner is +0.10% (noise level).  The REMAINING 728k/call on
+attention sits in two other split values (slots 240/280, 649k
+combined) -- the next round of the same class.
+
+Verification: smoke 30/30 (fresh cache); test_allocate PASS (the
+allocator's own module) plus both round test modules; no-name-dispatch
+positive 0 / witness 1; multi-worker spot checks 18/18 at threads=2,
+4 and 8 (attention + linear-dropout + the join-family fht case); the
+elementwise+softmax+attention family scan 1,269/1,269 PASS over 233
+operators (the full set of the wide-lane-index round).  Metrics in
+evidence/bsr-metrics/, scans in evidence/bsr-family-scan/.
+
 ## Replay
 
 ```bash
@@ -547,6 +599,11 @@ python3 -B tools/run_scan.py run \
   --operator suite/dev/fht_kernel_256_4row_native.py \
   --operator suite/dev/complex_pack.py \
   --report <report.json> --run-id <id> --journal <journal>
+# the block-scoped split reload contrast (the off side is 1f0c508's
+# committed measurements, evidence/wli-metrics/on/)
+python3 -B tools/profiling/collect_metrics.py \
+  --operator suite/perf/attention_forward_triton.py --shape 4,4,32,64 \
+  --dtype float16 --threads 1 --out <dir>
 ```
 
 Baseline root: git worktree at `a06dc37`; candidate root: the applied
