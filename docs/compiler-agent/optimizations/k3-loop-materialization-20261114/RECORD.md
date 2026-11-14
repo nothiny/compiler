@@ -429,6 +429,78 @@ The REMAINING region churn (3.35M vsetvli/call) is the live dance:
 each staging access legitimately crosses e16(data)-e64m2(address)-e16
 -- reducing it needs the region-scheduler restructure or the staging
 workspace round-trip elimination (softmax W4/W5), both design-class.
+
+## The wide staging lane index: -3.64% attention-f16, DEFAULT ON
+
+The live-dance boundary above, landed as a bounded LOWERING change
+instead of the region-scheduler redesign.  The staging lane index
+(``vid + elem`` and its sdiv/srem axis decomposition, in both staging
+machines -- the materialization chunks and the scan/mirror loops) now
+materializes NATIVELY at the 64-bit index class: ONE e64m2 episode per
+access group carrying ``vid.v`` + ``vadd.vx`` + the esz ``vmul.vx``
+together, the per-consumer ``vwadd`` widening and its whole e32 index
+episode gone.  The wide class is EXACTLY the doubled form the old
+widening produced (e32m1 -> e64m2), so every indexed access's
+EEW/EMUL relationship is unchanged.  ``A100C_WIDE_LANE_INDEX=off``
+restores the e32 + vwiden form (identity part ``no-wide-lane-index``).
+
+Legality: the lane index is the lowering's own addressing machinery,
+never a TIR-observable value -- the intended position is the TRUE
+``(elem + lane)`` sum the staging loop bounds and the boundary mask
+keep in range, every consumer is an address computation (a masked lane
+never accesses), and an i32 wraparound could only deviate from the
+in-bounds position of an already ill-formed access.  The element base
+joins the chain as an i32 SCALAR directly: the scalar core's A003
+invariant (i32 values live sign-extended in 64-bit registers) makes
+the e64 ``vadd.vx`` read exactly the widened value.  The first
+implementation materialized that view with ``widen_to``'s smove -- the
+paired measurement exposed it as +366,080 instructions/call on
+attention (one mv per lane-index chain per block) for IDENTICAL bits;
+removed (a pure-ceremony op deleted, not a semantic change).
+
+One real defect the family scan caught: ``_stage_join``'s parity
+selector hard-coded an e32m1 region for its ``vcmp``; under the wide
+index its operands are e64m2 and 18 cases (fht_kernel_1d/256_1d/
+256_4row, complex_pack) refused at the MIR verifier.  Fixed by making
+the compare's region follow the staging class (the T038 consumer-side
+pattern); 18/18 PASS after the fix, and byte-identity checks confirm
+the fix changes nothing for join-free cases (attention and synthesis
+artifacts byte-identical modulo the revision comment; the one join
+user in the main 596 set, flash_varlen, likewise).
+
+Same-tree paired program-region totals (the off side reproduces the
+ss round's numbers exactly):
+
+| case | off | on | change |
+|---|---:|---:|---:|
+| attention-f16 [4,4,32,64] | 22,597,214 | 21,775,466 | **-3.64%** |
+| softmax [20,17] f16 | 78,774 | 76,449 | -2.95% |
+| matmul16 [16,16,16] f16 | 23,845 | 23,309 | -2.25% |
+| linear-dropout [16,128,128] f16 | 7,217,136 | 7,087,860 | -1.79% |
+| softmax-inner [97] f16 | 8,451 | 8,408 | -0.50% |
+| synthesis [1,4,16,64] f32 | 224,627 | 224,019 | -0.27% |
+| softmax_log [4,97] f32 | 121,188 | 122,232 | +0.86% (recorded) |
+
+attention's vsetvli fell 3.35M -> 2.99M/call (-10.7% of the region
+churn) and vec-arith -10.0% (the vwidens plus the T032 view-moves the
+mixed-class sums no longer need).  The one regression is the
+small-case allocation-perturbation class again: the wide index's
+2-register live range tips the allocator into splitting in
+softmax_log's particular body (+1,024 branches / +768 vsetvli, against
+-768 vec-arith); softmax-inner's -0.50% on the same machinery shows
+the class is case-specific, not structural.  Kept DEFAULT ON (the ss
+round's softmax16-f32 +1.34% precedent).
+
+Verification: smoke 30/30 (wide on, fresh cache) and 36/36 (off
+contrast); both round test modules PASS; no-name-dispatch positive
+exit 0 / witness exit 1; multi-worker spot checks 21/21 at threads=2
+and 21/21 at threads=4 (attention + linear-dropout + softmax); the
+elementwise+softmax+attention family scan 1,269/1,269 PASS over 233
+operators (the ss round's 861-case set plus the 133 supplementary
+operators, 673/673; the main 596 re-verified byte-identical under the
+join fix).  Metrics in evidence/wli-metrics/{on,off}/, scans and
+spot checks in evidence/wli-family-scan/.
+
 ## What is NOT claimed / pending
 
 - No full 2734-case input regression this round (user-directed scope);
@@ -438,8 +510,9 @@ workspace round-trip elimination (softmax W4/W5), both design-class.
 - No board timing, no speedup ratio, no engine G8/G9 claim; QEMU guest
   instruction counts only.  matmul128/256 + gelu/sigmoid-large (the
   additional shapes) unmeasured (manifest limitation above).
-- softmax16-f32 +1.34% kept (recorded regression, small-case allocation
-  perturbation class).
+- softmax16-f32 +1.34% and (this increment) softmax_log [4,97] f32
+  +0.86% kept (recorded regressions, small-case allocation perturbation
+  class).
 
 ## Replay
 
@@ -458,6 +531,21 @@ python3 -B a100c/tests/test_local_materialization.py
 python3 -B a100c/tests/test_vmath_sincos.py
 # the family regression (one shard form)
 python3 -B tools/run_scan.py run --operator <op...> \
+  --report <report.json> --run-id <id> --journal <journal>
+# the wide-lane-index paired contrast (same tree; the off side is the
+# ss-round baseline reproduction)
+A100C_WIDE_LANE_INDEX=off python3 -B tools/profiling/collect_metrics.py \
+  --operator suite/perf/attention_forward_triton.py --shape 4,4,32,64 \
+  --dtype float16 --threads 1 --out <off-dir>
+python3 -B tools/profiling/collect_metrics.py \
+  --operator suite/perf/attention_forward_triton.py --shape 4,4,32,64 \
+  --dtype float16 --threads 1 --out <on-dir>
+# the join-selector repair check (the 18 refused cases)
+python3 -B tools/run_scan.py run \
+  --operator suite/dev/fht_kernel_256_1d_native.py \
+  --operator suite/dev/fht_kernel_1d_native.py \
+  --operator suite/dev/fht_kernel_256_4row_native.py \
+  --operator suite/dev/complex_pack.py \
   --report <report.json> --run-id <id> --journal <journal>
 ```
 
