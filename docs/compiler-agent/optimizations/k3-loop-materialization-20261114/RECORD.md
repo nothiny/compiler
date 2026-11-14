@@ -501,6 +501,55 @@ operators, 673/673; the main 596 re-verified byte-identical under the
 join fix).  Metrics in evidence/wli-metrics/{on,off}/, scans and
 spot checks in evidence/wli-family-scan/.
 
+## The x0-dst vsetvli (register-avl setters): -0.94% attention-f16
+
+The avl-li self-destroying form the block-scoped-reload record named:
+463k/call on attention sat in `li reg, 32` immediately before e16
+setters whose ``rd == rs1`` -- the setter WRITES ITS OWN avl register
+(the vl result), so the register can never survive to the next setter
+and every setter re-pays the li.  The fix: when a REGISTER-avl
+setter's vl result is provably unread (the superseded-setter round's
+textual dst-reader scan, factored into ``_setter_dst_is_dead`` with a
+new check: a later setter whose AVL SOURCE is the dst READS it -- this
+also closes a latent hole in the superseded proof's step 2), the
+emitter rewrites the setter to ``rd = x0``: no register is written,
+the avl register survives, and the EXISTING li-dedup and vsetvli-dedup
+rules fire across the setter (one ``li reg, 32`` serves a whole
+same-register cluster).
+
+THE NEGATIVE RESULT THAT SHAPED THE SCOPE: the first implementation
+rewrote x0-AVL setters too and the smoke FAILED (23 LAUNCH_FAIL, 2
+MISMATCH -- SIGSEGV in the narrow-fallback cascade).  Two bisect steps
+localized the defect class to exactly the x0-AVL rewrites (register-
+avl rewrites with the dedup extension blocked still crashed; excluding
+x0-AVL rewrites passed 6/6), and the x0-AVL class has ZERO benefit by
+construction: those setters carry no avl li (their preceding li is
+dead-value materialization the walk-back already removes).  The class
+is excluded with the reason recorded at the rule; the register-avl
+class -- where the 463k cost actually lives -- is the shipped form.
+
+Same-tree paired program-region totals (the off side is the committed
+block-scoped-reload tree's measurements above):
+
+| case | 5523567 | x0-dst | change |
+|---|---:|---:|---:|
+| attention-f16 [4,4,32,64] | 20,959,344 | 20,761,700 | **-0.94%** |
+| linear-dropout [16,128,128] f16 | 6,795,488 | 6,770,400 | -0.37% |
+| softmax-inner [97] f16 | 8,416 | 8,396 | -0.24% |
+| softmax [20,17] f16 | 76,429 | 76,237 | -0.25% |
+| matmul16 [16,16,16] f16 | 23,026 | 22,988 | -0.17% |
+| synthesis / softmax_log [4,97] | 214,233 / 122,232 | unchanged | +0.00% |
+
+attention's sconst fell 3.67M -> 3.50M/call (-165k li's) and
+vec-config 2.89M -> 2.85M (33k extra setter dedups); 97 static
+register-avl setters rewritten, 82 li's and 69 vsetvlis removed.
+Uniform small wins, zero regression.  Verification: smoke 41/41 (8
+operators incl. the previously-crashing family); test_emit (the
+emitter's own module) plus both round test modules PASS;
+no-name-dispatch positive 0 / witness 1; multi-worker 18/18 at
+threads=2/4/8; the family scan 1,269/1,269 PASS over 233 operators.  Metrics in
+evidence/x0d-metrics/, scans in evidence/x0d-family-scan/.
+
 ## What is NOT claimed / pending
 
 - No full 2734-case input regression this round (user-directed scope);
