@@ -782,6 +782,25 @@ reloading once) -- reducible only by restructuring the guard's block
 count or hoisting ws across the guard cluster (the measured-negative
 P3b class), which is where the boundary honestly sits.]
 
+THE CLOSING QUANTIFICATION (the budget's last analysis, existing
+per-pc data): the ngl-guard blocks (fast + slow + join per guarded
+narrow access) carry 3,801,088 instructions/call -- 18.4% of the
+whole attention program, far larger than the reload count alone
+suggested (the fast path holds the actual vector loads; the 387-op
+cold slow path multiplies by its execution count).  Reload split by
+block class: chunk/stg blocks 596k, guard blocks 131k, other 4.6k.
+FEASIBILITY VERDICT on the two candidate levers: (1) a fast+join
+block merge saves one ws reload per guarded access (~40-60k/call,
+0.2-0.3%) -- LOW value, and the join carries the result block
+parameter (the merge duplicates the join body or restructures the
+phi) -- not worth the surgery; (2) the real boundary is the
+guarded-narrow-access DESIGN (the runtime contiguity proof plus both
+paths at every masked narrow staging access) -- 18.4% of the program
+-- whose reduction is a design-class change (a compile-time
+contiguity proof for the staging pattern, or a bulk-mirror form),
+recorded as the headline next-session target with this measurement
+attached.
+
 ## Replay
 
 ```bash
