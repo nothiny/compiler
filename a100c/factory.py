@@ -155,7 +155,8 @@ class FactoryCompiler(Compiler):
             matrix_row_reuse=self.options.matrix_row_reuse,
             elementwise_width=self.options.elementwise_width,
             guarded_narrow_access=self.options.guarded_narrow_access,
-            local_materialization=self.options.local_materialization)
+            local_materialization=self.options.local_materialization,
+            chunk_mask_split=self.options.chunk_mask_split)
         try:
             mir_module = vectorize.lower_to_mir(tir_module, plan, self.target,
                                                 layout, grid, options)

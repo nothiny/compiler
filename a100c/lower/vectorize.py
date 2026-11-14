@@ -126,13 +126,25 @@ class LowerOptions:
     #: Block-scoped materialization reuse in the emission context (the
     #: loop-body cost round): one sconst per (value, type) per block, one
     #: lane-index chain (vid + the chunk's element base) per (index
-    #: type, vl) per block, one splat per (bits, type, active region)
-    #: per block, and exact vsetvli deduplication at the emission
-    #: chokepoint (a request matching the active region's (sew, lmul,
-    #: avl) returns the establishing setter's vl result -- identical
-    #: config and avl give an identical vl).  False preserves per-use
-    #: materialization everywhere.
+    #: type, vl, element) per block, one splat per (bits, type, active
+    #: region) per block, and exact vsetvli deduplication at the
+    #: emission chokepoint (a request matching the active region's (sew,
+    #: lmul, avl) returns the establishing setter's vl result --
+    #: identical config and avl give an identical vl).  False preserves
+    #: per-use materialization everywhere.
     local_materialization: bool = True
+    #: P2 (the loop-body cost round): when the elementwise clamp fires,
+    #: split the chunk loop into a FULL-chunk loop whose body lowers the
+    #: region statements with the shared prefix mask bypassed (every
+    #: executed lane of a full chunk is live: elem + vl <= live) and one
+    #: masked TAIL chunk (today's body, unchanged).  The measured
+    #: manifest geometry is 1 chunk per program (grid = cdiv(n, BLOCK)),
+    #: where the ~4-op per-program head/tail-test overhead exceeds the
+    #: 3-5-op per-chunk saving -- the split only wins on multi-chunk-
+    #: per-program shapes, so the default is OFF and the switch enables
+    #: it for those (the mechanism is fully validated; see the round
+    #: record).
+    chunk_mask_split: bool = False
 
     def identity_part(self) -> str:
         parts = []
@@ -160,6 +172,8 @@ class LowerOptions:
             parts.append("no-guarded-narrow-access")
         if not self.local_materialization:
             parts.append("no-local-materialization")
+        if not self.chunk_mask_split:
+            parts.append("no-chunk-mask-split")
         return ",".join(parts) if parts else "default"
 
 
@@ -582,6 +596,11 @@ class SliceLowering:
         self._body_split: Optional[Tuple[list, list, list]] = None
         #: open chunk-region merge frames (vid -> spec), in slot order
         self._chunk_merges: List[dict] = []
+        #: True only while a top-level PASS opens its chunk (the only
+        #: site the full/tail split may activate: the scalar-segment
+        #: chunks and the nested region passes have no replayable
+        #: statement list of their own)
+        self._split_candidate = False
         #: every wide-access selection (T011): the proven-contiguous loads
         #: and stores that selected the unit-stride form, with the proof's
         #: source (structural / hint) and detail -- the counter that
@@ -4667,7 +4686,8 @@ class SliceLowering:
         ordinary = self._elementwise_chunk_clamp_bound(fn)
         if ordinary is not None or not self.options.neutral_reduction_trim:
             return ordinary
-        return self._neutral_reduction_clamp_bound(fn)
+        r = self._neutral_reduction_clamp_bound(fn)
+        return None if r is None else (r[0], r[1], None)
 
     def _neutral_reduction_clamp_bound(self, fn: tir.Function):
         """Prove a common live prefix across a rank-one reduction pipeline.
@@ -4855,7 +4875,7 @@ class SliceLowering:
                 return None     # not a prologue-bound register
             if t.type.width != s_val.type.width:
                 return None     # mixed-width terms: decline (never guessed)
-        return s_val, terms
+        return s_val, terms, mask_vid
 
     def _ensure_chunk(self, ctx: _Ctx, fn: tir.Function,
                       strided: Optional[bool] = None) -> None:
@@ -4958,8 +4978,9 @@ class SliceLowering:
         # work.  upper = min(B, S - block_base); a negative live count
         # makes the test false -- the loop is simply zero-trip.
         clamp = self._chunk_clamp_bound(fn)
+        split = None
         if clamp is not None:
-            s_val, terms = clamp
+            s_val, terms, mask_vid = clamp
             w = s_val.type.width
             sty = mir.ScalarType(w, signed=True)
             base = None
@@ -5006,6 +5027,35 @@ class SliceLowering:
                 ccont = ctx.emit(mir.MOp(
                     "slt", [elemw, upper],
                     [ctx.vreg(mir.I64, hint="cgo", loc=loc)], loc=loc))
+            # P2: the full/tail split -- when the ELEMENTWISE clamp owns
+            # this loop (mask_vid is not None: every memory op shares one
+            # prefix mask; the neutral trim only skips wholly-inactive
+            # chunks and keeps partial-chunk masks, so it never splits),
+            # the loop splits at full_end = upper & -vl: every chunk in
+            # [0, full_end) is FULL (elem + vl <= live -- its mask is
+            # provably all-true and the body may bypass the mask
+            # machinery), and ONE masked tail chunk covers [full_end,
+            # upper).  The split needs a power-of-two vl for the mask
+            # and declines the worker-strided path (its per-worker ranges
+            # would need their own tail threading).
+            if mask_vid is not None and self.options.chunk_mask_split \
+                    and self._split_candidate and not strided \
+                    and not self._chunk_merges \
+                    and vl & (vl - 1) == 0:
+                neg_vl = ctx.const(-vl, sty, loc)
+                full_end = ctx.emit(mir.MOp(
+                    "sand", [upper, neg_vl],
+                    [ctx.vreg(sty, hint="spf", loc=loc)], loc=loc))
+                if w == 32:
+                    cfull = ctx.emit(mir.MOp(
+                        "slt", [elem_h, full_end],
+                        [ctx.vreg(mir.I64, hint="spc", loc=loc)], loc=loc))
+                else:
+                    elemw2 = scalar_mod.widen_to(ctx, elem_h, 64, loc)
+                    cfull = ctx.emit(mir.MOp(
+                        "slt", [elemw2, full_end],
+                        [ctx.vreg(mir.I64, hint="spc", loc=loc)], loc=loc))
+                split = {"mask_vid": mask_vid, "unmasked": True}
         else:
             extent = ctx.const(B, mir.I32, loc)
             ccont = ctx.emit(mir.MOp(
@@ -5024,6 +5074,16 @@ class SliceLowering:
         # no parallel moves -- and no move cycles -- exist on it
         cbody = ctx.add_block(f"{tag}_body", [elem_h, items_c] +
                               list(acc_params), loc)
+        if split is not None:
+            # the tail path shares them the same way: the head's false
+            # edge enters tail_head with the head's own params, and
+            # tail_head's true edge enters the tail body with its own
+            tail_head = ctx.add_block(f"{tag}_tail", [elem_h, items_c] +
+                                      list(acc_params), loc)
+            body_tail = ctx.add_block(f"{tag}_tbody", [elem_h, items_c] +
+                                      list(acc_params), loc)
+            split["tail_head"] = tail_head.name
+            split["body_tail"] = body_tail.name
         ctx.switch(cbody)
         elem_b = elem_h
 
@@ -5044,7 +5104,8 @@ class SliceLowering:
                        # the pass) re-filters self._chunk_merges, and the
                        # close/exit must stay aligned with the head's
                        # accumulator params, never with the later filter
-                       "frames": list(self._chunk_merges)}
+                       "frames": list(self._chunk_merges),
+                       "split": split}
         # frame -> its accumulator params (shared head/body: the value
         # entering this chunk iteration).  T036: the per-chunk slot state
         # RESETS here -- a scan's acc_now / a plan frame's cand_val left
@@ -5071,13 +5132,33 @@ class SliceLowering:
         # the head's test (emitted from the head's position)
         saved = ctx.cur
         ctx.switch(head)
-        ctx.emit0(mir.MOp(
-            "brc", [ccont], [],
-            attrs={"true_target": cbody.name,
-                   "true_args": [elem_h, items_c] + acc_params,
-                   "false_target": exitb.name,
-                   "false_args": [self._pid_b, items_c] + acc_params},
-            loc=loc))
+        if split is not None:
+            # full chunk -> the unmasked body; else the tail head, which
+            # retests today's bound: a live tail -> the masked tail body,
+            # an exhausted one -> the exit with the head's own items
+            ctx.emit0(mir.MOp(
+                "brc", [cfull], [],
+                attrs={"true_target": cbody.name,
+                       "true_args": [elem_h, items_c] + acc_params,
+                       "false_target": split["tail_head"],
+                       "false_args": [elem_h, items_c] + acc_params},
+                loc=loc))
+            ctx.switch(ctx.blocks[split["tail_head"]])
+            ctx.emit0(mir.MOp(
+                "brc", [ccont], [],
+                attrs={"true_target": split["body_tail"],
+                       "true_args": [elem_h, items_c] + acc_params,
+                       "false_target": exitb.name,
+                       "false_args": [self._pid_b, items_c] + acc_params},
+                loc=loc))
+        else:
+            ctx.emit0(mir.MOp(
+                "brc", [ccont], [],
+                attrs={"true_target": cbody.name,
+                       "true_args": [elem_h, items_c] + acc_params,
+                       "false_target": exitb.name,
+                       "false_args": [self._pid_b, items_c] + acc_params},
+                loc=loc))
         ctx.switch(saved)
 
     def _items_in_scope(self, ctx: _Ctx) -> mir.VReg:
@@ -5297,7 +5378,34 @@ class SliceLowering:
                 # red.3: the segment between two passes opened the chunk
                 # with the earlier filter)
                 self._close_pass(ctx, fn, strided)
+            # P2's split candidate: straight-line regions only.  A
+            # region with nested control flow (an If's branch-edge
+            # parallel moves, a Loop's own carried values) doubles the
+            # register demand of the replayed tail body and the emission
+            # can run out of scratch for the cyclic moves (igamma's
+            # located refusal in the first revision) -- those regions
+            # keep today's single masked body
+            self._split_candidate = not any(
+                isinstance(st, (tir.If, tir.Loop)) for st in seg[1])
             self._open_pass(ctx, fn, params)
+            self._split_candidate = False
+            if self._chunk is not None \
+                    and self._chunk.get("split") is not None:
+                # P2: the full/tail split owns this chunk -- the tail
+                # body replays THIS pass's statements (the same list the
+                # full body just lowered) with the mask bypass off
+                sp = self._chunk["split"]
+                sp["stmts"] = seg[1]
+                sp["view_regs"] = view_regs
+                sp["fn"] = fn
+                # exact items accounting needs the count register, which
+                # today's body creates only when a MASKED store sits at
+                # the body's top level (nested stores count chunk-
+                # granular instead); the same statements decide both
+                # bodies' increments identically
+                sp["counts_exact"] = any(
+                    isinstance(st, tir.Op) and st.op == "store"
+                    and len(st.operands) > 2 for st in seg[1])
             self._lower_statements(ctx, seg[1], fn, view_regs)
             if seen_pass < n_passes or close_all:
                 self._close_pass(ctx, fn, strided)
@@ -7074,6 +7182,11 @@ class SliceLowering:
         with the body's current value under the source's own merge rule."""
         loc = fn.loc
         chunk = self._chunk
+        if chunk.get("split") is not None:
+            # P2: the full/tail split owns this close (the full body's
+            # back edge, the tail body's masked replay and exit edge)
+            self._close_split_chunk(ctx, fn, chunk)
+            return
         # T032: a frame that reached this edge without its accumulator
         # initialized (the chunk opened under a different per-pass filter
         # than the one active at the close -- a block statement opening
@@ -7195,6 +7308,80 @@ class SliceLowering:
                           attrs={"target": chunk["head"].name,
                                  "args": [elem_next, items_next] +
                                  merge_next}, loc=loc))
+
+    def _close_split_chunk(self, ctx: _Ctx, fn: tir.Function,
+                           chunk: dict) -> None:
+        """Close the P2 full/tail chunk loop: the full body's back edge
+        (the region statements already lowered into it with the shared
+        mask bypassed), then the masked tail body -- a replay of the same
+        statements with the bypass off, in a block the tail head enters
+        for the ONE partial chunk -- and its exit edge.
+
+        The items accounting mirrors today's single body exactly: a full
+        chunk contributes what an all-true mask's count would (vl when
+        today creates the count register or counts chunk-granular, else
+        0), and the tail replays today's count machinery itself.
+        """
+        loc = fn.loc
+        sp = chunk["split"]
+        vl = chunk["vl"]
+        elem_b, items_b = chunk["elem"], chunk["items"]
+        full_end_block = ctx.cur
+        # -- the full body's back edge (the liveout stores read the FULL
+        #    body's bindings; the replay below overwrites them)
+        self._store_liveouts(ctx, loc)
+        if sp["counts_exact"] or self.plan.counts_elements:
+            items_full = ctx.emit(mir.MOp(
+                "sadd", [items_b, ctx.const(vl, mir.I64, loc)],
+                [ctx.vreg(mir.I64, hint="spif", loc=loc)], loc=loc))
+        else:
+            items_full = items_b
+        elem_next = ctx.emit(mir.MOp(
+            "sadd", [elem_b, ctx.const(vl, mir.I32, loc)],
+            [ctx.vreg(mir.I32, hint="spen", loc=loc)], loc=loc))
+        ctx.emit0(mir.MOp("br", [], [],
+                          attrs={"target": chunk["head"].name,
+                                 "args": [elem_next, items_full]},
+                          loc=loc))
+        # -- the tail body: snapshot the lowering state, replay the same
+        #    statements with the mask bypass off, close to the exit
+        saved_values = dict(self.values)
+        saved_staged = {k: (dict(v) if isinstance(v, dict) else v)
+                        for k, v in self._staged.items()}
+        saved_count = self._count_reg
+        saved_body = chunk["body"]
+        ctx.switch(ctx.blocks[sp["body_tail"]])
+        chunk["body"] = sp["body_tail"]
+        self._count_reg = None
+        sp["unmasked"] = False
+        avl = ctx.const(vl, mir.I32, loc)
+        ctx.emit(mir.MOp(
+            "vsetvli", [avl], [ctx.vreg(mir.I32, hint="vl", loc=loc)],
+            attrs={"sew": self._sew, "lmul": 1, "policy": "ta,ma"},
+            loc=loc))
+        self._lower_statements(ctx, sp["stmts"], sp["fn"], sp["view_regs"])
+        self._store_liveouts(ctx, loc)
+        if self._count_reg is not None:
+            items_tail = ctx.emit(mir.MOp(
+                "sadd", [items_b, self._count_reg],
+                [ctx.vreg(mir.I64, hint="spit", loc=loc)], loc=loc))
+        elif self.plan.counts_elements:
+            items_tail = ctx.emit(mir.MOp(
+                "sadd", [items_b, ctx.const(vl, mir.I64, loc)],
+                [ctx.vreg(mir.I64, hint="spit", loc=loc)], loc=loc))
+            self._stats_chunk_granular = True
+        else:
+            items_tail = items_b
+        ctx.emit0(mir.MOp("br", [], [],
+                          attrs={"target": chunk["exit"],
+                                 "args": [self._pid_b, items_tail]},
+                          loc=loc))
+        # -- restore the lowering state (the exit bindings in the pass
+        #    close rebind every value the suffix consumes)
+        chunk["body"] = saved_body
+        self._count_reg = saved_count
+        self.values = saved_values
+        self._staged = saved_staged
 
     def _cand_of_reg(self, ctx: _Ctx, reg: mir.VReg, acc: mir.VReg,
                      loc) -> mir.VReg:
@@ -11813,6 +12000,20 @@ class SliceLowering:
         mask = op.operands[1] if len(op.operands) > 1 else None
         other = op.operands[2] if len(op.operands) > 2 else None
         default = op.attrs.get("masked_default")
+        # P2: inside the split loop's FULL body the shared prefix mask
+        # is provably all-true (elem + vl <= live), so the masked
+        # access lowers as its unmasked form -- the mask machinery (the
+        # compare, the v0 pin, the .t access, the other-merge) is pure
+        # avoided work there; the tail body replays this statement with
+        # the mask intact
+        if mask is not None and mask.rank == 1 \
+                and self._chunk is not None \
+                and self._chunk.get("split") is not None \
+                and self._chunk["split"].get("unmasked") \
+                and mask.vid == self._chunk["split"]["mask_vid"]:
+            mask = None
+            other = None
+            default = None
         base_reg, offset_reg, pointee = self._address_of(ctx, ptr, loc)
         if ptr.rank == 0 and (mask is None or mask.rank == 0):
             # a rank-0 load: the scalar core
@@ -12518,6 +12719,14 @@ class SliceLowering:
     def _lower_store(self, ctx: _Ctx, op: tir.Op, loc) -> Optional[mir.VReg]:
         ptr, value = op.operands[0], op.operands[1]
         mask = op.operands[2] if len(op.operands) > 2 else None
+        # P2: the split loop's FULL body bypasses the shared prefix mask
+        # (provably all-true there; the tail body replays masked)
+        if mask is not None and mask.rank == 1 \
+                and self._chunk is not None \
+                and self._chunk.get("split") is not None \
+                and self._chunk["split"].get("unmasked") \
+                and mask.vid == self._chunk["split"]["mask_vid"]:
+            mask = None
         base_reg, offset_reg, pointee = self._address_of(ctx, ptr, loc)
         if ptr.rank == 0 and (mask is None or mask.rank == 0):
             if mask is not None:

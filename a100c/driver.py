@@ -129,6 +129,13 @@ class CompileOptions:
     #: chokepoint.  Env route (the A100C_PASS_* switches' pattern):
     #: A100C_LOCAL_MATERIALIZATION=off.
     local_materialization: bool = True
+    #: P2 (the loop-body cost round): the elementwise-clamped chunk loop
+    #: splits into a full-chunk loop (the shared prefix mask bypassed)
+    #: plus one masked tail chunk.  Default OFF (the manifest geometry is
+    #: 1 chunk/program: the per-program overhead exceeds the per-chunk
+    #: saving); A100C_CHUNK_MASK_SPLIT=on enables it for multi-chunk
+    #: shapes.
+    chunk_mask_split: bool = False
 
     def __post_init__(self):
         if os.environ.get("A100C_MATRIX_PACK", "").strip().lower() in \
@@ -147,6 +154,10 @@ class CompileOptions:
             if os.environ.get(env_name, "").strip().lower() in \
                     ("off", "0", "false", "no"):
                 setattr(self, field_name, False)
+        # the opt-in switch (default off): A100C_CHUNK_MASK_SPLIT=on
+        if os.environ.get("A100C_CHUNK_MASK_SPLIT", "").strip().lower() in \
+                ("on", "1", "true", "yes"):
+            self.chunk_mask_split = True
     def identity_part(self) -> str:
         parts = []
         if self.witness_drop_tail_predicates:
@@ -161,7 +172,8 @@ class CompileOptions:
             parts.append("vmath-libm")
         for field_name in ("kept_axis_reduction", "neutral_reduction_trim",
                            "matrix_row_reuse", "guarded_narrow_access",
-                           "elementwise_width", "local_materialization"):
+                           "elementwise_width", "local_materialization",
+                           "chunk_mask_split"):
             if not getattr(self, field_name):
                 parts.append("no-" + field_name.replace("_", "-"))
         if not self.dumps:
@@ -358,7 +370,8 @@ class Compiler:
             matrix_row_reuse=self.options.matrix_row_reuse,
             guarded_narrow_access=self.options.guarded_narrow_access,
             elementwise_width=self.options.elementwise_width,
-            local_materialization=self.options.local_materialization)
+            local_materialization=self.options.local_materialization,
+            chunk_mask_split=self.options.chunk_mask_split)
         try:
             mir_module = vectorize.lower_to_mir(tir_module, plan, self.target,
                                                 layout, grid, options)

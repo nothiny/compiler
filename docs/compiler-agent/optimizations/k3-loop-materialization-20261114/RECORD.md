@@ -249,6 +249,46 @@ a100c/cache/: 970a8e53... (pre) vs 21d1106c.../0620280a.../7e5442520c8e
 region setter) but is CLOSED for this line until the spill-restore
 interplay is traced; any restart should begin from the trace, not from
 the text diff.
+## P2 (the full/tail chunk-body split): implemented, fully validated, DEFAULT OFF
+
+The scoped design landed: when the ELEMENTWISE clamp owns the chunk loop
+(mask_vid present; the neutral trim never splits) and the region is
+straight-line (no nested If/Loop -- the first revision's igamma
+regression: a replayed branchy body doubles the register demand and the
+emission ran out of scratch for a cyclic branch-edge move, a located
+refusal), the loop splits at `full_end = upper & -vl` into a full-chunk
+loop whose body lowers the region statements with the shared prefix
+mask bypassed (a full chunk's mask is provably all-true) plus ONE masked
+tail chunk -- the tail REPLAYS the same statement list with the bypass
+off (state snapshotted/restored around the replay; the items accounting
+mirrors today's exactly, decided by the same statements' count-register
+behavior).  `A100C_CHUNK_MASK_SPLIT=on` enables it; the default is OFF.
+
+**The honest measurement flipped the default.**  The per-body saving is
+real (sin16's body: 30 -> 27 instructions, the pin/.t/merge/count chain
+gone; the compare stays for its non-memory consumers), but the manifest
+geometry is 1 chunk per program (grid = cdiv(n, BLOCK)): the split's
+~4-op per-program overhead (the head's full_end/sand/slt + the tail
+head's retest) exceeds the 3-5-op per-chunk saving, and the same-tree
+on/off contrast measures **+0.3%..+1.5% on the tiny masked cases, 0.0%
+on the mid ones** (sin16 1327->1331, sin19 1599->1623, cos128
+2783->2815, cos103 2525->2537, smx97/cos/sells 0.0%; the first
+amax17-on reading of -15.8% was a NOISE-CLASS OUTLIER -- the on/off
+artifacts are byte-identical programs (1218 instructions, zero diff)
+and the re-measure gives on=1170.2 vs off=1178.6, inside the +-0.7%
+band).  The split only wins on multi-chunk-per-program shapes (the
+clamp's original motivation: a small-n instance of a large-BLOCK
+kernel), which the manifest does not carry.  Per the round's rule --
+no reproduced benefit on the observable surface, no default ship -- the
+mechanism stays behind the switch with the geometry finding recorded.
+
+Validation of the ON path (the shipped-off mechanism is still fully
+exercised): the 54-case cross-family smoke (attention/matmul/softmax/
+sin/cos/blackman/synthesis/igamma/linear_dropout) 54/54 PASS; both round
+test modules ALL PASS; the elementwise+softmax family scan (167
+operators, 4 independent roots, the switch ON) **861/861 PASS**,
+0 non-PASS (`evidence/p2-family-scan/`, `evidence/p2-contrast-metrics/`).
+
 ## What is NOT claimed / pending
 
 - No full 2734-case input regression this round (user-directed scope);
