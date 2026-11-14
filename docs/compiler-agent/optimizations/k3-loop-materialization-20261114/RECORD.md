@@ -197,7 +197,12 @@ The correct shape is either (a) a full-chunk loop with the UNMASKED
 body over `[0, (live/vl)*vl)` plus one masked tail chunk (the body
 lowered twice), or (b) a per-chunk dynamic avl `min(vl, live - elem)`
 carried as a register through every region setter (the avl leaves the
-sconst domain; ~25 emission sites).  Both are half-day-class changes;
+sconst domain; ~25 emission sites).  Both are day-class changes.  MEASURED (52b9ded, sin_kernel [16]'s
+chunk body): the mask machinery is 6 of 30 instructions (20% of the
+body; per masked access ~4-5 ops -- two v0 pins, the .t access, the
+vmerge, the amortized mask compute -- plus the count popcount), so the
+expected saving for the masked-elementwise class is 15-20% of the
+chunk-body cost.
 the win is the per-access pin + masked-access + merge (~4 vector ops
 per masked memory op per chunk) across the corpus's commonest pattern
 (`i < n` masks).  Recorded as the next round's primary candidate.
