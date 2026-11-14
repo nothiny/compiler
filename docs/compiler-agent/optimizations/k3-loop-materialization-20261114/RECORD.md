@@ -651,6 +651,55 @@ Session tally (the four shipped candidates): attention-f16
 23,787,102 -> 20,761,700 (-12.7%), all committed (d167b67, 1f0c508,
 7556932, e505061) with their records above.
 
+## The zero-bit splat + dead-li removal: -0.33% attention-f16, all 7 paired cases improve
+
+The sconst boundary's zero share (li 0: 330k/call on attention): a
+zero-BIT constant source (int 0, or +0.0 at any float width -- the
+sconst's value attr carries the raw bit pattern, so -0.0's 0x8000..
+bits never match) now splats from the ARCHITECTURAL zero register:
+``vmv.v.x vd, zero`` -- identical lanes, and the feeding ``li`` becomes
+removable.  The removal rides a new peephole rule: a ``li`` whose
+register is never read before written (the same textual dst-reader
+proof as the setter rules) is dead.
+
+TWO REAL HOLES THE FAILING SMOKE EXPOSED AND CLOSED in the shared
+``_setter_dst_is_dead`` scan (both latent in the already-shipped
+superseded/x0-dst rules, both now fixed at the source):
+1. the vsetvli branch checked the dst write before the AVL read -- an
+   rd==rs1 setter (``vsetvli t0, t0``) READS t0 as its avl before
+   writing it, so a preceding ``li t0, 32`` was concluded dead and the
+   avl ran on garbage (25 LAUNCH_FAIL in the first smoke);
+2. the generic branch matched only the FIRST register occurrence --
+   ``slt t0, t1, t0`` reads t0 as rs2 before writing it as rd, so a
+   live loop bound was concluded "overwritten" and dropped (9
+   LAUNCH_FAIL + 6 TIMEOUT in the second smoke).  Every occurrence is
+   now checked: a non-first appearance is a read.
+Both fixes make the SHIPPED setter rules strictly more conservative in
+exactly those corners (the family scans had passed because the
+patterns are rare, not because they were sound).
+
+Same-tree paired program-region totals (the off side is the committed
+e505061 tree's measurements above):
+
+| case | e505061 | zero-splat | change |
+|---|---:|---:|---:|
+| softmax-inner [97] f16 | 8,396 | 8,313 | **-0.99%** |
+| softmax_log [4,97] f32 | 122,232 | 121,056 | **-0.96%** |
+| synthesis [1,4,16,64] f32 | 214,233 | 212,873 | -0.63% |
+| matmul16 [16,16,16] f16 | 22,988 | 22,895 | -0.40% |
+| attention-f16 [4,4,32,64] | 20,761,700 | 20,692,564 | -0.33% |
+| softmax [20,17] f16 | 76,237 | 75,984 | -0.33% |
+| linear-dropout [16,128,128] f16 | 6,770,400 | 6,752,608 | -0.26% |
+
+ALL SEVEN cases improve (attention's sconst fell 3.50M -> 3.43M/call;
+softmax_log's previously-recorded +0.86% regression narrows).  The
+dead-li rule also catches incidental orphaned li's beyond the splat
+class.  Verification: smoke 15/15 + 32/32 extended (10 operators incl.
+the join family and the previously-crashing set); test_emit plus both
+round test modules PASS; no-name-dispatch positive 0 / witness 1;
+multi-worker 18/18 at threads=2/4/8; the family scan 1,269/1,269 PASS over 233 operators.
+Metrics in evidence/zs-metrics/, scans in evidence/zs-family-scan/.
+
 ## Replay
 
 ```bash
