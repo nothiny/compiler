@@ -672,8 +672,14 @@ def _spill_attrs(reg: mir.VReg, slot: int) -> dict:
 
 def _split_value(fn: mir.MFunction, reg: mir.VReg, slot: int) -> bool:
     """Split one live range: store after every definition (block parameters
-    get a store at block entry), reload before every use.  Returns False
-    when the split is not implementable."""
+    get a store at block entry), reload before every use -- except that a
+    block containing NO definition of the value reloads ONCE at its first
+    use and shares that register for the whole block (a straight-line
+    block's uses cannot observe the slot changing between them, so one
+    load is observationally identical to per-use loads; the hot loop
+    bodies otherwise pay one load per use for the most-used values --
+    attention's staging bodies reloaded the workspace base 5-6x per
+    iteration).  Returns False when the split is not implementable."""
     if reg.is_mask():
         return False
     if reg.is_vector() and reg.type.lmul not in (1, 2, 4, 8):
@@ -686,6 +692,43 @@ def _split_value(fn: mir.MFunction, reg: mir.VReg, slot: int) -> bool:
                 new_ops.append(mir.MOp(
                     "vspill" if reg.is_vector() else "sspill", [p], [],
                     attrs=_spill_attrs(reg, slot), loc=p.loc))
+        # the block-scoped reload: no definition of the value inside this
+        # block means the spill slot's content is constant throughout the
+        # block -- one reload before the first use serves every use,
+        # including the terminator's carried args
+        has_def = any(r.rid == reg.rid
+                      for op in b.ops for r in op.results)
+        first_use = None
+        if not has_def:
+            for i, op in enumerate(b.ops):
+                if any(o.rid == reg.rid for o in op.operands) or (
+                        op is b.ops[-1] and any(
+                            a.rid == reg.rid for args in
+                            b.branch_args().values() for a in args)):
+                    first_use = i
+                    break
+        if first_use is not None:
+            fresh[0] += 1
+            value = mir.VReg(reg.type, name=f"{reg.name}.r{fresh[0]}",
+                             loc=reg.loc)
+            reload_op = mir.MOp(
+                "vreload" if reg.is_vector() else "sreload", [], [value],
+                attrs=_spill_attrs(reg, slot), loc=b.ops[first_use].loc)
+            for i, op in enumerate(b.ops):
+                if i == first_use:
+                    new_ops.append(reload_op)
+                op.operands = tuple(value if o.rid == reg.rid else o
+                                    for o in op.operands)
+                if op is b.ops[-1]:
+                    op.attrs = dict(op.attrs)
+                    for key in ("args", "true_args", "false_args"):
+                        if key in op.attrs:
+                            op.attrs[key] = [
+                                value if a.rid == reg.rid else a
+                                for a in op.attrs[key]]
+                new_ops.append(op)
+            b.ops = new_ops
+            continue
         for i, op in enumerate(b.ops):
             is_term = op is b.ops[-1]
             uses_it = any(o.rid == reg.rid for o in op.operands)
