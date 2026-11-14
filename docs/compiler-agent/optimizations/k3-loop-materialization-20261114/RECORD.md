@@ -169,6 +169,49 @@ Both round test modules stay green (execution-match ON/OFF identical at
 matmul spot scans 27/27 PASS after the increment
 (`evidence/addrcse-metrics/`).
 
+## Post-round re-measurements (the recorded follow-ups, resolved or scoped)
+
+**The unified round's W1 spill regressions are gone** (re-measured at
+52b9ded, same protocol; the const/materialization caches are in effect
+the pressure-aware sharing that round called for):
+
+| case | pre-W1 (4217b79) | unified round end | current (52b9ded) |
+|---|---:|---:|---:|
+| linear-dropout-f16 [16,128,128] | 15,326,685 | +9.1% | 7,390,024 (**-51.8%**) |
+| log-softmax-linear-f16 [17,33] | 2,072,263 | +2.9% | 1,010,936 (**-51.2%**) |
+| naive_attn-f16 [2,17,4,8,16,13] | ~920,000 | +13.7% | 318,899 (**~ -65%**) |
+
+**The runtime dispatch floor, attributed** (attention-f16 at 52b9ded):
+the runtime region's `operator_entry` is 1,048,064 instructions per call
+(4.4% of 23.79M; `main` 198k, loader 55k) -- material on the smallest
+cases (~600 ops of a ~2.2k call), minor on large ones.  The cheap part
+(the whole-image byte loops) was taken by the unified round; what
+remains is the pool dispatch itself (wake/handoff), a shared surface
+with diminishing returns -- recorded, not pursued.
+
+**P2 (prefix mask -> exact vl), scoped but not landed.**  The P1 clamp
+bounds the chunk LOOP (`upper = min(live, B)`); the final PARTIAL chunk
+still executes at the static plan vl and NEEDS its mask, so "drop the
+mask machinery inside clamped bodies" is only valid for FULL chunks.
+The correct shape is either (a) a full-chunk loop with the UNMASKED
+body over `[0, (live/vl)*vl)` plus one masked tail chunk (the body
+lowered twice), or (b) a per-chunk dynamic avl `min(vl, live - elem)`
+carried as a register through every region setter (the avl leaves the
+sconst domain; ~25 emission sites).  Both are half-day-class changes;
+the win is the per-access pin + masked-access + merge (~4 vector ops
+per masked memory op per chunk) across the corpus's commonest pattern
+(`i < n` masks).  Recorded as the next round's primary candidate.
+
+**Elementwise pointer recurrence, scoped.**  The (non-staged) view
+load/store path still rebuilds a 6-op scalar address chain per access
+per chunk (`base + (elem + block_start) * esz`: the sin_kernel body's
+mv/mv/add/li/mul/add).  The affine-in-elem address is the
+matrix-row-reuse pattern applied to the chunk loop: carry one pointer
+per view as a loop param (`p += vl*esz` at the back edge; the loop
+already carries merge params).  The clamp analysis already walks every
+statement, so the view set is collectable at `_ensure_chunk` time.
+Recorded as the second next candidate.
+
 ## What is NOT claimed / pending
 
 - No full 2734-case input regression this round (user-directed scope);
