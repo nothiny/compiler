@@ -141,6 +141,76 @@ def _peephole_dst_reg(line: str) -> Optional[str]:
     return reg if reg else None
 
 
+def _superseded_setter_is_dead(lines: List[str], i: int, dst: str) -> bool:
+    """Whether the vsetvli at ``lines[i]`` (dst register ``dst``) is
+    superseded before use: the NEXT vsetvli follows with only
+    state-transparent instructions between, and ``dst`` is never READ
+    after it inside this block before something else writes it.
+
+    The scan is purely textual over the final emitted stream, so it sees
+    every reader -- allocator-inserted remat/reload code included, which
+    MIR-liveness-based deadness (the closed x0-dst direction) does not.
+    Conservative: any label, branch, or unmodeled instruction keeps the
+    setter; a store's first operand is a READ, not a write.
+    """
+    n = len(lines)
+    j = i + 1
+    # 1. the next vsetvli must arrive with only transparent instructions
+    while j < n:
+        t = lines[j].split('#')[0].strip()
+        if not t or t.startswith('.') or t.startswith('#') or t.endswith(':'):
+            return False
+        parts = t.split()
+        op = parts[0]
+        if op == 'vsetvli':
+            break
+        if op in _BRANCH_OPS or op in ('vsetivli', 'vsetvl') \
+                or op.startswith('v'):
+            return False          # a consumer (or unmodeled setter) wins
+        j += 1
+    else:
+        return False
+    # 2. dst must not be read anywhere in the block before a write of it
+    k = i + 1
+    while k < n:
+        t = lines[k].split('#')[0].strip()
+        if not t or t.startswith('.') or t.startswith('#') or t.endswith(':'):
+            return False          # block boundary: stop conservatively
+        parts = t.split()
+        op = parts[0]
+        if op in _BRANCH_OPS or op in ('vsetivli', 'vsetvl'):
+            return False
+        if op == 'vsetvli':
+            # writes its OWN dst; check it is not ours (ours would make
+            # the value observable at the second setter's own write --
+            # the first setter's value is dead only if overwritten by a
+            # DIFFERENT register write or its own dst re-write)
+            mm = _VSETVLI_RE.match(t)
+            if mm and mm.group(1) == dst:
+                return True      # re-written before any read: dead
+            k += 1
+            continue
+        ops_txt = t.split(None, 1)[1] if len(t.split(None, 1)) > 1 else ''
+        regs = _re.findall(r'\b(?:x\d+|zero|ra|sp|gp|tp|t[0-6]|s[0-9]|s1[01]|a[0-7])\b', ops_txt)
+        if op in _STORE_OPS:
+            if dst in regs:
+                return False      # a store reads all its operands
+        else:
+            # dst-first convention: the FIRST register is written; any
+            # OTHER appearance is a read
+            first = None
+            f = _re.match(r'^\s*[\w.]+\s+([\w]+)\s*,', t)
+            if f:
+                first = f.group(1)
+            for r in regs:
+                if r == dst:
+                    if r == first:
+                        return True  # overwritten before any read: dead
+                    return False      # read
+        k += 1
+    return False
+
+
 def _peephole(lines: List[str]) -> List[str]:
     """Safe peephole optimizations on the emitted straight-line code.
 
@@ -178,7 +248,7 @@ def _peephole(lines: List[str]) -> List[str]:
     n_vsetvli_removed = 0
     n_li_removed = 0
 
-    for line in lines:
+    for idx, line in enumerate(lines):
         stripped = line.strip()
 
         # labels / directives / branches: reset everything
@@ -225,6 +295,18 @@ def _peephole(lines: List[str]) -> List[str]:
             if m:
                 dst, src, sew, lmul, policy = m.groups()
                 policy = policy.replace(" ", "").replace("\t", "")
+                if dst not in ('x0', 'zero') \
+                        and _superseded_setter_is_dead(lines, idx, dst):
+                    # a region setter that another vsetvli supersedes
+                    # before any vector op reads the state, with the
+                    # dst provably unread until overwritten (textual
+                    # scan of the final stream): pure avoided work
+                    n_vsetvli_removed += 1
+                    comment = line.split('#', 1)
+                    if len(comment) > 1:
+                        out.append(f'    # [peephole-superseded-vsetvli] '
+                                   f'{comment[1].strip()}')
+                    continue
                 if (vstate is not None
                         and vstate[1] == sew and vstate[2] == lmul
                         and vstate[3] == policy
