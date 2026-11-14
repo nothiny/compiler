@@ -615,6 +615,42 @@ elementwise+softmax+attention family scan 1,269/1,269 PASS over 233
 operators (the full set of the wide-lane-index round).  Metrics in
 evidence/bsr-metrics/, scans in evidence/bsr-family-scan/.
 
+## Post-round session record (2026-11-15, no code change): the P3b re-measurement negative and the located ws-reload anomaly
+
+Two investigations from the recorded boundaries, both documented
+without a shipped change (the honest outcome of the remaining budget):
+
+1. THE P3b RE-MEASUREMENT (the sconst boundary, `li 4/2048/64/16`
+   inside loop bodies): the loop-const hoist was re-measured on the
+   four-candidate tree (A100C_LOOP_CONST_HOIST=on, same-tree paired,
+   evidence/p3b2-metrics/) -- the tradeoff is STILL two-sided and now
+   NET NEGATIVE: attention-f16 +0.27%, matmul16 +1.09%, softmax
+   [20,17] +2.05%, linear-dropout +1.10%, softmax-inner +0.43% against
+   synthesis -0.46% and softmax_log -0.31%.  The evolved tree (wide
+   index, block-scoped reloads, x0-dst) RAISED the GPR pressure the
+   hoist's live-range extension pays -- the win side shrank and the
+   loss side grew.  DEFAULT OFF stands; the li-churn reduction needs a
+   different lever (the per-use constant REMAT multiplication, below).
+
+2. THE LOCATED ws-RELOAD ANOMALY (the slot 240/280 boundary, 649k
+   reloads/call): slot 240 is the workspace base again (433k; the
+   block-scoped reload cut it from 946k) and slot 280 is pid.body
+   (216k).  Instrumented allocation on the exact harness case shows
+   the ws split consolidating chunk9_body to ONE reload at split time
+   (block then 103 ops) -- but the FINAL allocated MIR carries THREE
+   same-slot sreloads in that block (r8 serving 4 uses, r9/r10 one
+   each) and the block has GROWN to 608 ops (~505 per-use remat
+   sconsts inserted by later rounds).  The exact producer of r9/r10 --
+   one _split_value call is logged, the per-use path cannot run for a
+   block the scoped path took, and no remat names match -- remains
+   UNEXPLAINED; it is a real, located, reproducible behavior (same
+   tree, deterministic, key 19f2f190c5489d74) worth the next session's
+   first investigation.  No fix was attempted blind.
+
+Session tally (the four shipped candidates): attention-f16
+23,787,102 -> 20,761,700 (-12.7%), all committed (d167b67, 1f0c508,
+7556932, e505061) with their records above.
+
 ## Replay
 
 ```bash
