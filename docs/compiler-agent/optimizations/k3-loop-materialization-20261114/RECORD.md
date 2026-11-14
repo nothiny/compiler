@@ -934,7 +934,17 @@ concentrates.]
    share is proportionally large) for two-sided effects.
 6. RECORD: results + declines histogram here; the fallback semantics
    (the guard's located fallback, never a refusal) is the declared
-   contract.
+   contract.  THE DECLINE CLASS, CLASSIFIED (the closing refinement,
+   static over the full-scan caches): 4,459 small-divisor (2/4/8)
+   vdiv/vrem sites across 85 distinct operators, concentrated in
+   parallel_attn_fwd (450), fht_kernel_256_4row (408),
+   chunk_gdn2_inter_solve_fused (324), parallel_based_fwd (241),
+   small4_square_svd (215), chunk_generalized_iplr (160),
+   chunk_transform_qk (153), argmin_split_K (132) -- these carry
+   genuinely narrow decompositions (row widths 2-8) where windows
+   span rows by construction and the runtime guard is the correct
+   form; the attention-family staging (the ceiling carriers) is NOT
+   in this class.
 
 ## Replay
 
