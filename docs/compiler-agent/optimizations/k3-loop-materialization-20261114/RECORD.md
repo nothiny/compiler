@@ -351,6 +351,48 @@ staging/convert region dance), loop-invariant sconst hoisting (the
 mir-licm lesson applies -- pressure-bounded only), and the sreload
 class.  The x0-dst direction is closed (see the negative-result
 section); P2 is validated and default-off (see its section).
+## P3b (the pressure-bounded loop-invariant sconst hoist): implemented, measured, DEFAULT OFF (commit 3ea2363)
+
+The first candidate from the FIXED cost table (sconst 4.03M/call = 17%
+of attention-f16).  At every counted loop's close, the body block's
+top-cap most-used sconst ops move to just before the preheader's entry
+br: every sconst is loop-invariant and a def inside the loop only
+dominates uses inside it, so the relocation is dominance-safe; the cap
+(4, the mir-licm convergent bound) limits the extra cross-loop GPR live
+ranges.  `A100C_LOOP_CONST_HOIST=on` opts in; the option rides the
+artifact identity.
+
+**The same-tree on/off contrast (fixed tooling, program-region
+totals):**
+
+| case | off | on (cap 4) | on (cap 2) |
+|---|---:|---:|---:|
+| attention-f16 [4,4,32,64] | 23,787,102 | **23,553,130 (-0.98%)** | 23,553,149 (-0.98%) |
+| matmul16 [16,16,16] f16 | 24,273 | **24,882 (+2.51%)** | 24,866 (+2.44%) |
+
+The win and the loss come from the SAME single-use vsetvli-AVL
+constants: attention's long staging loops amortize the preheader across
+16k iterations (sconst 4.03M -> 3.57M/call) while matmul's tight tile
+loops pay the allocator's sreload bill (1.18M -> 1.40M/call).  A
+use-density filter (uses >= 3) removes the loss and the win together
+(attn +0.00%, mm16 +0.43%): no structural gate separates the two
+families, so the mir-licm negative result extends to the bounded
+lowering-level form.  DEFAULT OFF; the mechanism stays validated
+behind the switch.
+
+Validation of the shipped default (behavior-identical to HEAD): the
+default-off attention program is INSTRUCTION-IDENTICAL to the
+pre-change build (2663 lines, byte-equal); 32/32 cross-family smoke,
+both round test modules, and the elementwise+softmax family scan
+**861/861 PASS** (167 operators, 4 roots, `evidence/p3b-family-scan/`,
+`evidence/p3b-metrics/`).
+
+**The remaining big target after P3b** is the vsetvli alternation
+itself (4.30M/call, 18%): the e16-e32-e64 conversion/staging region
+dance -- the K/V staging loops (chunk9/chunk18 bodies: 4.1M/3.9M total,
+950k vsetvli each per call) hold ~30 region switches per iteration.
+That needs the region-dance restructure or the staging workspace
+round-trip elimination (softmax W4/W5), both design-class changes.
 ## What is NOT claimed / pending
 
 - No full 2734-case input regression this round (user-directed scope);
