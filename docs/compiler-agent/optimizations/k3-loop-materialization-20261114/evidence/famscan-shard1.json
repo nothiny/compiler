@@ -1,0 +1,4140 @@
+{
+  "schema": "input-regression/v1",
+  "run_id": "opt3-fam1",
+  "command": "tools/run_scan.py run --operator suite/dev/backends__ascend__ops__grpo_loss__selective_log_softmax_kernel.py --operator suite/dev/chunk_gdn2_fwd_kernel_intra_sub_chunk.py --operator suite/dev/cross_entropy_kernel.py --operator suite/dev/fused_gemm_gn_min_kernel.py --operator suite/dev/fused_recurrent_gsa_inference_kernel.py --operator suite/dev/generalized_delta_rule__dplr__wy_fast_fwd__wu_fwd_kernel.py --operator suite/dev/grpo_loss__selective_log_softmax_kernel.py --operator suite/dev/matmul_at_b_kernel_043f2a05.py --operator suite/dev/matmul_atb_optimized_kernel_2044087e.py --operator suite/dev/matmul_k32_persistent_n_2stage_kernel_c11d9a2d.py --operator suite/dev/matmul_k32_splitn8_kernel_7756e27e.py --operator suite/dev/matmul_k64_kernel_0ab65594.py --operator suite/dev/matmul_kernel.py --operator suite/dev/matmul_kernel_10d5c480.py --operator suite/dev/matmul_kernel_2d_nomask_tc_5d3cdcfe.py --operator suite/dev/matmul_kernel_689cb6a4.py --operator suite/dev/matmul_kernel_8d68babe.py --operator suite/dev/naive_attn_decoding_kernel.py --operator suite/dev/prepare_wy_repr_fwd_kernel_safe.py --operator suite/dev/softmax_kernel_inner.py --operator suite/dev/transposed_conv3d.py --operator suite/perf/attention_kernel.py --operator suite/perf/context_attn_fwd.py --operator suite/perf/fused_repeat_interleave_log_softmax.py --operator suite/perf/matmul_triton2.py --report /tmp/a100-opt3/famscan-shard1.json --run-id opt3-fam1 --journal /tmp/a100-opt3/famscan-shard1.jsonl",
+  "partial": false,
+  "missing_case_ids": [],
+  "cases": [
+    {
+      "id": "suite/dev/backends__ascend__ops__grpo_loss__selective_log_softmax_kernel.py#[2, 7, 17]#float32",
+      "group": "suite/dev",
+      "operator": "suite/dev/backends__ascend__ops__grpo_loss__selective_log_softmax_kernel.py",
+      "shape": [
+        2,
+        7,
+        17
+      ],
+      "dtype": "float32",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "e2b2cd821915",
+      "artifact_sha256": "e6db02632e0ae104d1168bb0865367a05203e300a9d9bb37771d7109fbc7c78b",
+      "artifact_key": "db9ec96d02db1f2eb03bbeee1f14fdbd0b6872870ef463b6ddd22b6b988e4d4a",
+      "cache_hit": false,
+      "launch_seconds": 0.055,
+      "max_abs_error": {
+        "LOG_P": 2.384185791015625e-07
+      },
+      "seconds": 1.006
+    },
+    {
+      "id": "suite/dev/backends__ascend__ops__grpo_loss__selective_log_softmax_kernel.py#[2, 7, 17]#float16",
+      "group": "suite/dev",
+      "operator": "suite/dev/backends__ascend__ops__grpo_loss__selective_log_softmax_kernel.py",
+      "shape": [
+        2,
+        7,
+        17
+      ],
+      "dtype": "float16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "4cb6e72f5e38",
+      "artifact_sha256": "5d8ad5716bb3520a9f1e9b72d4db0669a24455c5fffbdc69af5a9375c7441930",
+      "artifact_key": "5b7dc7111fe9ce4976016d756b4da30de81a1d5a14b167253872d2d2ec9e4564",
+      "cache_hit": false,
+      "launch_seconds": 0.059,
+      "max_abs_error": {
+        "LOG_P": 0.0
+      },
+      "seconds": 0.658
+    },
+    {
+      "id": "suite/dev/backends__ascend__ops__grpo_loss__selective_log_softmax_kernel.py#[2, 7, 17]#bfloat16",
+      "group": "suite/dev",
+      "operator": "suite/dev/backends__ascend__ops__grpo_loss__selective_log_softmax_kernel.py",
+      "shape": [
+        2,
+        7,
+        17
+      ],
+      "dtype": "bfloat16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "ac866eb55331",
+      "artifact_sha256": "c99e043fa44f94bca1a947c95eea06db96ba7d9386225e6e4cc13781261fb433",
+      "artifact_key": "1f13c12ed8108d172674dc4065711af8ff03934ad228a7ef5a240e15e0523376",
+      "cache_hit": false,
+      "launch_seconds": 0.056,
+      "max_abs_error": {
+        "LOG_P": 0.0073089599609375
+      },
+      "seconds": 0.703
+    },
+    {
+      "id": "suite/dev/backends__ascend__ops__grpo_loss__selective_log_softmax_kernel.py#[3, 7, 17]#float32",
+      "group": "suite/dev",
+      "operator": "suite/dev/backends__ascend__ops__grpo_loss__selective_log_softmax_kernel.py",
+      "shape": [
+        3,
+        7,
+        17
+      ],
+      "dtype": "float32",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "e2b2cd821915",
+      "artifact_sha256": "e6db02632e0ae104d1168bb0865367a05203e300a9d9bb37771d7109fbc7c78b",
+      "artifact_key": "db9ec96d02db1f2eb03bbeee1f14fdbd0b6872870ef463b6ddd22b6b988e4d4a",
+      "cache_hit": true,
+      "launch_seconds": 0.053,
+      "max_abs_error": {
+        "LOG_P": 4.76837158203125e-07
+      },
+      "seconds": 0.061
+    },
+    {
+      "id": "suite/dev/backends__ascend__ops__grpo_loss__selective_log_softmax_kernel.py#[3, 7, 17]#float16",
+      "group": "suite/dev",
+      "operator": "suite/dev/backends__ascend__ops__grpo_loss__selective_log_softmax_kernel.py",
+      "shape": [
+        3,
+        7,
+        17
+      ],
+      "dtype": "float16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "4cb6e72f5e38",
+      "artifact_sha256": "5d8ad5716bb3520a9f1e9b72d4db0669a24455c5fffbdc69af5a9375c7441930",
+      "artifact_key": "5b7dc7111fe9ce4976016d756b4da30de81a1d5a14b167253872d2d2ec9e4564",
+      "cache_hit": true,
+      "launch_seconds": 0.051,
+      "max_abs_error": {
+        "LOG_P": 0.0
+      },
+      "seconds": 0.059
+    },
+    {
+      "id": "suite/dev/backends__ascend__ops__grpo_loss__selective_log_softmax_kernel.py#[3, 7, 17]#bfloat16",
+      "group": "suite/dev",
+      "operator": "suite/dev/backends__ascend__ops__grpo_loss__selective_log_softmax_kernel.py",
+      "shape": [
+        3,
+        7,
+        17
+      ],
+      "dtype": "bfloat16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "ac866eb55331",
+      "artifact_sha256": "c99e043fa44f94bca1a947c95eea06db96ba7d9386225e6e4cc13781261fb433",
+      "artifact_key": "1f13c12ed8108d172674dc4065711af8ff03934ad228a7ef5a240e15e0523376",
+      "cache_hit": true,
+      "launch_seconds": 0.051,
+      "max_abs_error": {
+        "LOG_P": 0.011816978454589844
+      },
+      "seconds": 0.061
+    },
+    {
+      "id": "suite/dev/chunk_gdn2_fwd_kernel_intra_sub_chunk.py#[2, 17, 3, 7, 8, 4]#float32",
+      "group": "suite/dev",
+      "operator": "suite/dev/chunk_gdn2_fwd_kernel_intra_sub_chunk.py",
+      "shape": [
+        2,
+        17,
+        3,
+        7,
+        8,
+        4
+      ],
+      "dtype": "float32",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "b6d2a8770961",
+      "artifact_sha256": "720f9057ed7fc0ee6fd69335a0514a223603aec39d4af153bfded3b412c9133c",
+      "artifact_key": "074ed0045dc285be671daf643823c990f09182497ba238832312803c75b75b33",
+      "cache_hit": false,
+      "launch_seconds": 0.065,
+      "max_abs_error": {
+        "Akk": 3.725290298461914e-09,
+        "Aqk": 1.4901161193847656e-08
+      },
+      "seconds": 3.421
+    },
+    {
+      "id": "suite/dev/chunk_gdn2_fwd_kernel_intra_sub_chunk.py#[2, 17, 3, 7, 8, 4]#float16",
+      "group": "suite/dev",
+      "operator": "suite/dev/chunk_gdn2_fwd_kernel_intra_sub_chunk.py",
+      "shape": [
+        2,
+        17,
+        3,
+        7,
+        8,
+        4
+      ],
+      "dtype": "float16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "60a289297508",
+      "artifact_sha256": "cf0b3306ee9ed0ea0ee2ed0d85bd7d122cbea9e968d428177886f1e34cd4d537",
+      "artifact_key": "6606bde6150e0918d6f4fb656b1c9726fd9549bf7523b31bcb0a5b23271c7a73",
+      "cache_hit": false,
+      "launch_seconds": 0.078,
+      "max_abs_error": {
+        "Akk": 3.0517578125e-05,
+        "Aqk": 0.0001220703125
+      },
+      "seconds": 5.493
+    },
+    {
+      "id": "suite/dev/chunk_gdn2_fwd_kernel_intra_sub_chunk.py#[2, 17, 3, 7, 8, 4]#bfloat16",
+      "group": "suite/dev",
+      "operator": "suite/dev/chunk_gdn2_fwd_kernel_intra_sub_chunk.py",
+      "shape": [
+        2,
+        17,
+        3,
+        7,
+        8,
+        4
+      ],
+      "dtype": "bfloat16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "0b90236d00a9",
+      "artifact_sha256": "86a0f32a8ccc51be244e88fab759f89df85e151eed0b8c7bfea0c8b0b6d31c53",
+      "artifact_key": "554d6ba917689b78ae0190c6afab16ab46aac80cdb09017b3f2d7ad53c1c08c0",
+      "cache_hit": false,
+      "launch_seconds": 0.095,
+      "max_abs_error": {
+        "Akk": 0.0001987665891647339,
+        "Aqk": 0.00023545324802398682
+      },
+      "seconds": 5.982
+    },
+    {
+      "id": "suite/dev/chunk_gdn2_fwd_kernel_intra_sub_chunk.py#[3, 17, 3, 7, 8, 4]#float32",
+      "group": "suite/dev",
+      "operator": "suite/dev/chunk_gdn2_fwd_kernel_intra_sub_chunk.py",
+      "shape": [
+        3,
+        17,
+        3,
+        7,
+        8,
+        4
+      ],
+      "dtype": "float32",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "b6d2a8770961",
+      "artifact_sha256": "720f9057ed7fc0ee6fd69335a0514a223603aec39d4af153bfded3b412c9133c",
+      "artifact_key": "074ed0045dc285be671daf643823c990f09182497ba238832312803c75b75b33",
+      "cache_hit": true,
+      "launch_seconds": 0.069,
+      "max_abs_error": {
+        "Akk": 7.450580596923828e-09,
+        "Aqk": 1.4901161193847656e-08
+      },
+      "seconds": 0.079
+    },
+    {
+      "id": "suite/dev/chunk_gdn2_fwd_kernel_intra_sub_chunk.py#[3, 17, 3, 7, 8, 4]#float16",
+      "group": "suite/dev",
+      "operator": "suite/dev/chunk_gdn2_fwd_kernel_intra_sub_chunk.py",
+      "shape": [
+        3,
+        17,
+        3,
+        7,
+        8,
+        4
+      ],
+      "dtype": "float16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "60a289297508",
+      "artifact_sha256": "cf0b3306ee9ed0ea0ee2ed0d85bd7d122cbea9e968d428177886f1e34cd4d537",
+      "artifact_key": "6606bde6150e0918d6f4fb656b1c9726fd9549bf7523b31bcb0a5b23271c7a73",
+      "cache_hit": true,
+      "launch_seconds": 0.075,
+      "max_abs_error": {
+        "Akk": 3.0517578125e-05,
+        "Aqk": 0.0001220703125
+      },
+      "seconds": 0.087
+    },
+    {
+      "id": "suite/dev/chunk_gdn2_fwd_kernel_intra_sub_chunk.py#[3, 17, 3, 7, 8, 4]#bfloat16",
+      "group": "suite/dev",
+      "operator": "suite/dev/chunk_gdn2_fwd_kernel_intra_sub_chunk.py",
+      "shape": [
+        3,
+        17,
+        3,
+        7,
+        8,
+        4
+      ],
+      "dtype": "bfloat16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "0b90236d00a9",
+      "artifact_sha256": "86a0f32a8ccc51be244e88fab759f89df85e151eed0b8c7bfea0c8b0b6d31c53",
+      "artifact_key": "554d6ba917689b78ae0190c6afab16ab46aac80cdb09017b3f2d7ad53c1c08c0",
+      "cache_hit": true,
+      "launch_seconds": 0.075,
+      "max_abs_error": {
+        "Akk": 0.00023508816957473755,
+        "Aqk": 0.0003174096345901489
+      },
+      "seconds": 0.086
+    },
+    {
+      "id": "suite/dev/cross_entropy_kernel.py#[1, 17]#float32",
+      "group": "suite/dev",
+      "operator": "suite/dev/cross_entropy_kernel.py",
+      "shape": [
+        1,
+        17
+      ],
+      "dtype": "float32",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "1dcddd87ff00",
+      "artifact_sha256": "697e40cddcf195ddfcf43cca1de4c486ac4fdd98c486623996f003596dbbab5c",
+      "artifact_key": "592250da7c5e57718afa89a8f3ead6fe05637a0b24a1fefa9c9b3f092d599c6a",
+      "cache_hit": false,
+      "launch_seconds": 0.054,
+      "max_abs_error": {
+        "X_ptr": 2.9802322387695312e-08,
+        "loss_ptr": 0.0,
+        "z_loss_ptr": 0.0,
+        "token_accuracy_ptr": 0.0,
+        "predicted_tokens_ptr": 0.0
+      },
+      "seconds": 1.382
+    },
+    {
+      "id": "suite/dev/cross_entropy_kernel.py#[1, 17]#float16",
+      "group": "suite/dev",
+      "operator": "suite/dev/cross_entropy_kernel.py",
+      "shape": [
+        1,
+        17
+      ],
+      "dtype": "float16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "d2bf44317d30",
+      "artifact_sha256": "f62151394814711396faad0f26dcc88561a532649b6be347f5357ae6c5f4862f",
+      "artifact_key": "314b4fe19966dbf80335659e88609a35a51d368375fdd33f1be31f0e8c1ed89d",
+      "cache_hit": false,
+      "launch_seconds": 0.054,
+      "max_abs_error": {
+        "X_ptr": 0.0,
+        "loss_ptr": 0.0,
+        "z_loss_ptr": 0.0,
+        "token_accuracy_ptr": 0.0,
+        "predicted_tokens_ptr": 0.0
+      },
+      "seconds": 1.718
+    },
+    {
+      "id": "suite/dev/cross_entropy_kernel.py#[1, 17]#bfloat16",
+      "group": "suite/dev",
+      "operator": "suite/dev/cross_entropy_kernel.py",
+      "shape": [
+        1,
+        17
+      ],
+      "dtype": "bfloat16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "26281fc1d294",
+      "artifact_sha256": "2a4a679dbbf9291957055da39ab5eea252c07c0b1a83bf7fa574b0d7b027068a",
+      "artifact_key": "6a57b22219f2a9472f8296c37d6740e7cfcff431afadf44f2aee00ec328780e4",
+      "cache_hit": false,
+      "launch_seconds": 0.057,
+      "max_abs_error": {
+        "X_ptr": 0.0008166730403900146,
+        "loss_ptr": 0.0004687309265136719,
+        "z_loss_ptr": 0.0,
+        "token_accuracy_ptr": 0.0,
+        "predicted_tokens_ptr": 0.0
+      },
+      "seconds": 2.101
+    },
+    {
+      "id": "suite/dev/cross_entropy_kernel.py#[17, 97]#float32",
+      "group": "suite/dev",
+      "operator": "suite/dev/cross_entropy_kernel.py",
+      "shape": [
+        17,
+        97
+      ],
+      "dtype": "float32",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "74cc8c46d9c5",
+      "artifact_sha256": "530d0a4413ed157b34b9dcacf23a23adfad75b28c7293473dcfd8b9f4a7f526e",
+      "artifact_key": "7e46219860d2494ba9f4fc39ee61af14b23b7ae0665aae6594a6f8b837da6d7c",
+      "cache_hit": false,
+      "launch_seconds": 0.06,
+      "max_abs_error": {
+        "X_ptr": 3.725290298461914e-09,
+        "loss_ptr": 5.960464477539063e-08,
+        "z_loss_ptr": 0.0,
+        "token_accuracy_ptr": 0.0,
+        "predicted_tokens_ptr": 0.0
+      },
+      "seconds": 1.426
+    },
+    {
+      "id": "suite/dev/cross_entropy_kernel.py#[17, 97]#float16",
+      "group": "suite/dev",
+      "operator": "suite/dev/cross_entropy_kernel.py",
+      "shape": [
+        17,
+        97
+      ],
+      "dtype": "float16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "e99ccf2d8c3c",
+      "artifact_sha256": "22c5f4beef53a7d1e7d6f50572e4c67a368f9801abbbbac78e60835378437f90",
+      "artifact_key": "56654e6a8cad73b42fda4d008397e615c3891b5a80b50c41b139e12f10d14a31",
+      "cache_hit": false,
+      "launch_seconds": 0.059,
+      "max_abs_error": {
+        "X_ptr": 0.0,
+        "loss_ptr": 0.0,
+        "z_loss_ptr": 0.0,
+        "token_accuracy_ptr": 0.0,
+        "predicted_tokens_ptr": 0.0
+      },
+      "seconds": 1.841
+    },
+    {
+      "id": "suite/dev/cross_entropy_kernel.py#[17, 97]#bfloat16",
+      "group": "suite/dev",
+      "operator": "suite/dev/cross_entropy_kernel.py",
+      "shape": [
+        17,
+        97
+      ],
+      "dtype": "bfloat16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "2ebd06afc85b",
+      "artifact_sha256": "17cb69a095e3a70a3d3188b5087248011a8400724da8f1554a7d7ae5895ffc90",
+      "artifact_key": "0c57839607efae5f39e731ab6e84bde52d04d27599f85e4a6f810195670d5af6",
+      "cache_hit": false,
+      "launch_seconds": 0.064,
+      "max_abs_error": {
+        "X_ptr": 0.00012025237083435059,
+        "loss_ptr": 0.001714169979095459,
+        "z_loss_ptr": 0.0,
+        "token_accuracy_ptr": 0.0,
+        "predicted_tokens_ptr": 0.0
+      },
+      "seconds": 2.215
+    },
+    {
+      "id": "suite/dev/fused_gemm_gn_min_kernel.py#[64, 128, 128]#float32",
+      "group": "suite/dev",
+      "operator": "suite/dev/fused_gemm_gn_min_kernel.py",
+      "shape": [
+        64,
+        128,
+        128
+      ],
+      "dtype": "float32",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "25768ee9a721",
+      "artifact_sha256": "ebf34a6f12fb32f4ab817e3b37ede566111368dbf29387d8766ec72f9d9209db",
+      "artifact_key": "c8682597e8261cd5715369ff38aeb5fcb7719afa8fc81db63e054e051b226a09",
+      "cache_hit": false,
+      "launch_seconds": 0.215,
+      "max_abs_error": {
+        "Mins_ptr": 7.152557373046875e-07
+      },
+      "seconds": 1.858
+    },
+    {
+      "id": "suite/dev/fused_gemm_gn_min_kernel.py#[128, 128, 128]#float32",
+      "group": "suite/dev",
+      "operator": "suite/dev/fused_gemm_gn_min_kernel.py",
+      "shape": [
+        128,
+        128,
+        128
+      ],
+      "dtype": "float32",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "25768ee9a721",
+      "artifact_sha256": "ebf34a6f12fb32f4ab817e3b37ede566111368dbf29387d8766ec72f9d9209db",
+      "artifact_key": "c8682597e8261cd5715369ff38aeb5fcb7719afa8fc81db63e054e051b226a09",
+      "cache_hit": true,
+      "launch_seconds": 0.412,
+      "max_abs_error": {
+        "Mins_ptr": 4.76837158203125e-07
+      },
+      "seconds": 0.422
+    },
+    {
+      "id": "suite/dev/fused_recurrent_gsa_inference_kernel.py#[4, 3, 7, 9, 5]#float32",
+      "group": "suite/dev",
+      "operator": "suite/dev/fused_recurrent_gsa_inference_kernel.py",
+      "shape": [
+        4,
+        3,
+        7,
+        9,
+        5
+      ],
+      "dtype": "float32",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "c6b3665e0d52",
+      "artifact_sha256": "a3dae0a202ce66dd86e5765f0cd64303d548b77c99dacb6494c6b92ff7c3d4d0",
+      "artifact_key": "4c7de903ba4148bddde9b7868dcfc5e5f703c8580db671b27627a064d92096f2",
+      "cache_hit": false,
+      "launch_seconds": 0.063,
+      "max_abs_error": {
+        "hkt": 1.4901161193847656e-08,
+        "hvt": 2.9802322387695312e-08,
+        "o": 1.4901161193847656e-08
+      },
+      "seconds": 3.789
+    },
+    {
+      "id": "suite/dev/fused_recurrent_gsa_inference_kernel.py#[4, 3, 7, 9, 5]#float16",
+      "group": "suite/dev",
+      "operator": "suite/dev/fused_recurrent_gsa_inference_kernel.py",
+      "shape": [
+        4,
+        3,
+        7,
+        9,
+        5
+      ],
+      "dtype": "float16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "aeae67502175",
+      "artifact_sha256": "af2c08ee659bae22294a94cdf9670dfbc11d0ead72fc1c18c13300443c7f6033",
+      "artifact_key": "5055c5d20095b8a85f3dd8c6e255fe221f6af4c75da67ad259c49bb14bd124af",
+      "cache_hit": false,
+      "launch_seconds": 0.063,
+      "max_abs_error": {
+        "hkt": 0.0001220703125,
+        "hvt": 0.000244140625,
+        "o": 6.014108657836914e-05
+      },
+      "seconds": 7.064
+    },
+    {
+      "id": "suite/dev/fused_recurrent_gsa_inference_kernel.py#[4, 3, 7, 9, 5]#bfloat16",
+      "group": "suite/dev",
+      "operator": "suite/dev/fused_recurrent_gsa_inference_kernel.py",
+      "shape": [
+        4,
+        3,
+        7,
+        9,
+        5
+      ],
+      "dtype": "bfloat16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "cc740806cb0a",
+      "artifact_sha256": "96c8d9c0155fe73a40b82dff12aff4fbb5eb7deec151f8c0c6eb04201fe03772",
+      "artifact_key": "c56714a3e0af82d49cecdef7123ef4800e8c97fcec788a59d1b499cabd981fcd",
+      "cache_hit": false,
+      "launch_seconds": 0.063,
+      "max_abs_error": {
+        "hkt": 0.0004412829875946045,
+        "hvt": 0.0007441043853759766,
+        "o": 0.00018130242824554443
+      },
+      "seconds": 7.761
+    },
+    {
+      "id": "suite/dev/fused_recurrent_gsa_inference_kernel.py#[6, 4, 11, 13, 7]#float32",
+      "group": "suite/dev",
+      "operator": "suite/dev/fused_recurrent_gsa_inference_kernel.py",
+      "shape": [
+        6,
+        4,
+        11,
+        13,
+        7
+      ],
+      "dtype": "float32",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "2c76c3c821c3",
+      "artifact_sha256": "87a8644b29fcb4bdbf7afc6595f7ad813a7985772584fc7ba486d07f652a83fd",
+      "artifact_key": "ad3a1a5ef67ef0773256df0aab2ea44adc9aea839c3e0dbec08655f80597a7b9",
+      "cache_hit": false,
+      "launch_seconds": 0.063,
+      "max_abs_error": {
+        "hkt": 2.9802322387695312e-08,
+        "hvt": 2.9802322387695312e-08,
+        "o": 1.6763806343078613e-08
+      },
+      "seconds": 2.825
+    },
+    {
+      "id": "suite/dev/fused_recurrent_gsa_inference_kernel.py#[6, 4, 11, 13, 7]#float16",
+      "group": "suite/dev",
+      "operator": "suite/dev/fused_recurrent_gsa_inference_kernel.py",
+      "shape": [
+        6,
+        4,
+        11,
+        13,
+        7
+      ],
+      "dtype": "float16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "000e97ccfb99",
+      "artifact_sha256": "bf5f0f1b2951949b50611a3ea022efbe866b1e20ba6b2c11cf1250d61b4b1167",
+      "artifact_key": "012af5ff4d51c926f0ccabf9469e2487f520cf280271a935e64da84d8aa83f78",
+      "cache_hit": false,
+      "launch_seconds": 0.075,
+      "max_abs_error": {
+        "hkt": 0.0001220703125,
+        "hvt": 0.000244140625,
+        "o": 5.9992074966430664e-05
+      },
+      "seconds": 5.343
+    },
+    {
+      "id": "suite/dev/fused_recurrent_gsa_inference_kernel.py#[6, 4, 11, 13, 7]#bfloat16",
+      "group": "suite/dev",
+      "operator": "suite/dev/fused_recurrent_gsa_inference_kernel.py",
+      "shape": [
+        6,
+        4,
+        11,
+        13,
+        7
+      ],
+      "dtype": "bfloat16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "d767b8127335",
+      "artifact_sha256": "0350f4ab085cae5327877fd196042fb620e2b69471963d5aa552f8de7e3ae465",
+      "artifact_key": "6ba4b3fffab044645cd2092794d3cc8e3112282402c62ffc2dad38c25b961452",
+      "cache_hit": false,
+      "launch_seconds": 0.078,
+      "max_abs_error": {
+        "hkt": 0.0008108317852020264,
+        "hvt": 0.0009717941284179688,
+        "o": 0.00022268295288085938
+      },
+      "seconds": 5.891
+    },
+    {
+      "id": "suite/dev/generalized_delta_rule__dplr__wy_fast_fwd__wu_fwd_kernel.py#[17]#float32",
+      "group": "suite/dev",
+      "operator": "suite/dev/generalized_delta_rule__dplr__wy_fast_fwd__wu_fwd_kernel.py",
+      "shape": [
+        17
+      ],
+      "dtype": "float32",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "de3c4780ba4d",
+      "artifact_sha256": "a15d13a9d1bf692e7ad3be624bfc2ff381dc9e36ccd96ff48612bfdaa26bd6a5",
+      "artifact_key": "8d8d8de7d40f6eefc50be319ef033b90567a2bf475290ddeb8ca51e42c2ad27d",
+      "cache_hit": false,
+      "launch_seconds": 0.062,
+      "max_abs_error": {
+        "u": 0.0,
+        "w": 0.0
+      },
+      "seconds": 2.438
+    },
+    {
+      "id": "suite/dev/generalized_delta_rule__dplr__wy_fast_fwd__wu_fwd_kernel.py#[17]#float16",
+      "group": "suite/dev",
+      "operator": "suite/dev/generalized_delta_rule__dplr__wy_fast_fwd__wu_fwd_kernel.py",
+      "shape": [
+        17
+      ],
+      "dtype": "float16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "53d9c86da33a",
+      "artifact_sha256": "b706fd6b5649d1da2ab0a22109721285532dbfbb85762d878b6a3c14462f2d40",
+      "artifact_key": "24a7f343711f1cbfab2d5fd6dcb0173387d3a84bc6d4b254e11faa791b19b223",
+      "cache_hit": false,
+      "launch_seconds": 0.072,
+      "max_abs_error": {
+        "u": 1.4813616871833801e-05,
+        "w": 0.00019419193267822266
+      },
+      "seconds": 4.031
+    },
+    {
+      "id": "suite/dev/generalized_delta_rule__dplr__wy_fast_fwd__wu_fwd_kernel.py#[17]#bfloat16",
+      "group": "suite/dev",
+      "operator": "suite/dev/generalized_delta_rule__dplr__wy_fast_fwd__wu_fwd_kernel.py",
+      "shape": [
+        17
+      ],
+      "dtype": "bfloat16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "ca3a45e71a5d",
+      "artifact_sha256": "33f731442c236702a2eb4ef3329b52d789903a554fc74d279d2cc36d059acbd0",
+      "artifact_key": "68db4899dfc0c2298ca894106b88cd946a5d95e31961c6c2b5a4c1954c4a3861",
+      "cache_hit": false,
+      "launch_seconds": 0.071,
+      "max_abs_error": {
+        "u": 0.00024931132793426514,
+        "w": 0.0013580322265625
+      },
+      "seconds": 4.486
+    },
+    {
+      "id": "suite/dev/generalized_delta_rule__dplr__wy_fast_fwd__wu_fwd_kernel.py#[97]#float32",
+      "group": "suite/dev",
+      "operator": "suite/dev/generalized_delta_rule__dplr__wy_fast_fwd__wu_fwd_kernel.py",
+      "shape": [
+        97
+      ],
+      "dtype": "float32",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "de3c4780ba4d",
+      "artifact_sha256": "a15d13a9d1bf692e7ad3be624bfc2ff381dc9e36ccd96ff48612bfdaa26bd6a5",
+      "artifact_key": "8d8d8de7d40f6eefc50be319ef033b90567a2bf475290ddeb8ca51e42c2ad27d",
+      "cache_hit": true,
+      "launch_seconds": 0.064,
+      "max_abs_error": {
+        "u": 0.0,
+        "w": 0.0
+      },
+      "seconds": 0.073
+    },
+    {
+      "id": "suite/dev/generalized_delta_rule__dplr__wy_fast_fwd__wu_fwd_kernel.py#[97]#float16",
+      "group": "suite/dev",
+      "operator": "suite/dev/generalized_delta_rule__dplr__wy_fast_fwd__wu_fwd_kernel.py",
+      "shape": [
+        97
+      ],
+      "dtype": "float16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "53d9c86da33a",
+      "artifact_sha256": "b706fd6b5649d1da2ab0a22109721285532dbfbb85762d878b6a3c14462f2d40",
+      "artifact_key": "24a7f343711f1cbfab2d5fd6dcb0173387d3a84bc6d4b254e11faa791b19b223",
+      "cache_hit": true,
+      "launch_seconds": 0.07,
+      "max_abs_error": {
+        "u": 4.704296588897705e-05,
+        "w": 0.00022792816162109375
+      },
+      "seconds": 0.081
+    },
+    {
+      "id": "suite/dev/generalized_delta_rule__dplr__wy_fast_fwd__wu_fwd_kernel.py#[97]#bfloat16",
+      "group": "suite/dev",
+      "operator": "suite/dev/generalized_delta_rule__dplr__wy_fast_fwd__wu_fwd_kernel.py",
+      "shape": [
+        97
+      ],
+      "dtype": "bfloat16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "ca3a45e71a5d",
+      "artifact_sha256": "33f731442c236702a2eb4ef3329b52d789903a554fc74d279d2cc36d059acbd0",
+      "artifact_key": "68db4899dfc0c2298ca894106b88cd946a5d95e31961c6c2b5a4c1954c4a3861",
+      "cache_hit": true,
+      "launch_seconds": 0.076,
+      "max_abs_error": {
+        "u": 0.0003528296947479248,
+        "w": 0.0017333030700683594
+      },
+      "seconds": 0.086
+    },
+    {
+      "id": "suite/dev/grpo_loss__selective_log_softmax_kernel.py#[2, 7, 17]#float32",
+      "group": "suite/dev",
+      "operator": "suite/dev/grpo_loss__selective_log_softmax_kernel.py",
+      "shape": [
+        2,
+        7,
+        17
+      ],
+      "dtype": "float32",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "8489e1c5a084",
+      "artifact_sha256": "8f690c86fb19c9e33f3ca3de1a9a00e6dd08496a50885e5724ed73568d3608bb",
+      "artifact_key": "f7706f0254c1153195df96e912dc4881123fb3df80656c171d043a460f499f6b",
+      "cache_hit": false,
+      "launch_seconds": 0.058,
+      "max_abs_error": {
+        "LOG_P": 2.384185791015625e-07
+      },
+      "seconds": 0.422
+    },
+    {
+      "id": "suite/dev/grpo_loss__selective_log_softmax_kernel.py#[2, 7, 17]#float16",
+      "group": "suite/dev",
+      "operator": "suite/dev/grpo_loss__selective_log_softmax_kernel.py",
+      "shape": [
+        2,
+        7,
+        17
+      ],
+      "dtype": "float16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "23a48d2a0873",
+      "artifact_sha256": "33a0f9881a18cd6dd79a054e0bf75093407eff7be5528d90e75ac5405cf507b7",
+      "artifact_key": "adab9ff1713852ac7a4e779e0cab0a7ba192c92c4a417b85d1544e831a6ee3d7",
+      "cache_hit": false,
+      "launch_seconds": 0.058,
+      "max_abs_error": {
+        "LOG_P": 0.0
+      },
+      "seconds": 0.428
+    },
+    {
+      "id": "suite/dev/grpo_loss__selective_log_softmax_kernel.py#[2, 7, 17]#bfloat16",
+      "group": "suite/dev",
+      "operator": "suite/dev/grpo_loss__selective_log_softmax_kernel.py",
+      "shape": [
+        2,
+        7,
+        17
+      ],
+      "dtype": "bfloat16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "8e8ea4e3b20e",
+      "artifact_sha256": "b5af614b1494471c8538addde370cbbf4fab4cdccbceaa802fda74a34ece3986",
+      "artifact_key": "20edcae90f617bf5c3c3eb656071c510f9b919bc501083f97371265292e967be",
+      "cache_hit": false,
+      "launch_seconds": 0.053,
+      "max_abs_error": {
+        "LOG_P": 0.0073089599609375
+      },
+      "seconds": 0.477
+    },
+    {
+      "id": "suite/dev/grpo_loss__selective_log_softmax_kernel.py#[3, 11, 67]#float32",
+      "group": "suite/dev",
+      "operator": "suite/dev/grpo_loss__selective_log_softmax_kernel.py",
+      "shape": [
+        3,
+        11,
+        67
+      ],
+      "dtype": "float32",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "fe3d1a002dda",
+      "artifact_sha256": "32e4b4c3571092a11fd1d5b638d43c7fc869538b1534990041fd4d7ee7abbf06",
+      "artifact_key": "f04d06a88aaeca5f91581109f208247022761c9e6bbf2aa0e0c7e145387beef3",
+      "cache_hit": false,
+      "launch_seconds": 0.055,
+      "max_abs_error": {
+        "LOG_P": 4.76837158203125e-07
+      },
+      "seconds": 0.386
+    },
+    {
+      "id": "suite/dev/grpo_loss__selective_log_softmax_kernel.py#[3, 11, 67]#float16",
+      "group": "suite/dev",
+      "operator": "suite/dev/grpo_loss__selective_log_softmax_kernel.py",
+      "shape": [
+        3,
+        11,
+        67
+      ],
+      "dtype": "float16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "144104b2c270",
+      "artifact_sha256": "b2e8255fbf273b71bd94d8ed32c6dd594f51541392028d6a5b4219a1145080a4",
+      "artifact_key": "2c4230fb1ab448e75544a26a498f4ab5f6cedc013e836261400909af5625ba0d",
+      "cache_hit": false,
+      "launch_seconds": 0.061,
+      "max_abs_error": {
+        "LOG_P": 0.0
+      },
+      "seconds": 0.443
+    },
+    {
+      "id": "suite/dev/grpo_loss__selective_log_softmax_kernel.py#[3, 11, 67]#bfloat16",
+      "group": "suite/dev",
+      "operator": "suite/dev/grpo_loss__selective_log_softmax_kernel.py",
+      "shape": [
+        3,
+        11,
+        67
+      ],
+      "dtype": "bfloat16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "b11f905468ba",
+      "artifact_sha256": "27e02f3a5806025ec516bca0479cb1bfde77920240eb50b1c45645ee091f7896",
+      "artifact_key": "73652fe04b0d93bff64ea2936495aa6a64ff07e7c672348ed26e9b1e4b63209b",
+      "cache_hit": false,
+      "launch_seconds": 0.061,
+      "max_abs_error": {
+        "LOG_P": 0.014001846313476562
+      },
+      "seconds": 0.453
+    },
+    {
+      "id": "suite/dev/matmul_at_b_kernel_043f2a05.py#[128]#float32",
+      "group": "suite/dev",
+      "operator": "suite/dev/matmul_at_b_kernel_043f2a05.py",
+      "shape": [
+        128
+      ],
+      "dtype": "float32",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "7e39cb1cef55",
+      "artifact_sha256": "83206da0b6a219740e8f9a53c26687a05c1e547c8428bbf282a2e0102215f5a5",
+      "artifact_key": "0e78b4842c6e53e5bc9cca64305d68a278207a0ae272b9be597c85940ad99940",
+      "cache_hit": false,
+      "launch_seconds": 0.853,
+      "max_abs_error": {
+        "c_ptr": 7.62939453125e-06
+      },
+      "seconds": 3.595
+    },
+    {
+      "id": "suite/dev/matmul_at_b_kernel_043f2a05.py#[128]#float16",
+      "group": "suite/dev",
+      "operator": "suite/dev/matmul_at_b_kernel_043f2a05.py",
+      "shape": [
+        128
+      ],
+      "dtype": "float16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "7ea87dee146e",
+      "artifact_sha256": "8ae98ca660d1f65f6bd10c6dfa512671807235956529fa9823fecad3712f56a2",
+      "artifact_key": "b05efb5f41fa1ff2b1cface427ca09c0aa5c40376a6c2ce7b701fc8ee41fae20",
+      "cache_hit": false,
+      "launch_seconds": 0.364,
+      "max_abs_error": {
+        "c_ptr": 0.015380859375
+      },
+      "seconds": 3.82
+    },
+    {
+      "id": "suite/dev/matmul_at_b_kernel_043f2a05.py#[128]#bfloat16",
+      "group": "suite/dev",
+      "operator": "suite/dev/matmul_at_b_kernel_043f2a05.py",
+      "shape": [
+        128
+      ],
+      "dtype": "bfloat16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "506696d22520",
+      "artifact_sha256": "4ae58755255a8280fb46a7df111d32cb186fbd8e584fcf3eb498e9ec75f6c33b",
+      "artifact_key": "b6b048999ad7024b03913418ae1381af767e486576350e7604f201bc598dffff",
+      "cache_hit": false,
+      "launch_seconds": 0.864,
+      "max_abs_error": {
+        "c_ptr": 0.12344741821289062
+      },
+      "seconds": 5.882
+    },
+    {
+      "id": "suite/dev/matmul_at_b_kernel_043f2a05.py#[127]#float32",
+      "group": "suite/dev",
+      "operator": "suite/dev/matmul_at_b_kernel_043f2a05.py",
+      "shape": [
+        127
+      ],
+      "dtype": "float32",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "84b5570673f4",
+      "artifact_sha256": "5d72f8262bbb09368342f952fb370196be8118b57a3f33af6319b96945ecd5e6",
+      "artifact_key": "ede9f103e29693652c2b0fb004d1200bbc8b8077682b87d956d3a2a9111d9400",
+      "cache_hit": false,
+      "launch_seconds": 0.85,
+      "max_abs_error": {
+        "c_ptr": 7.62939453125e-06
+      },
+      "seconds": 3.575
+    },
+    {
+      "id": "suite/dev/matmul_at_b_kernel_043f2a05.py#[127]#float16",
+      "group": "suite/dev",
+      "operator": "suite/dev/matmul_at_b_kernel_043f2a05.py",
+      "shape": [
+        127
+      ],
+      "dtype": "float16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "493e46cc3693",
+      "artifact_sha256": "5e535ea5c852323db2c7d28f69d60399869021f7f2a3b917f15fa6e174d2a64f",
+      "artifact_key": "b4413ea08889895c2cf9ef15564180fcd1031038831de6b9e22de02543c67a07",
+      "cache_hit": false,
+      "launch_seconds": 0.352,
+      "max_abs_error": {
+        "c_ptr": 0.015628814697265625
+      },
+      "seconds": 3.773
+    },
+    {
+      "id": "suite/dev/matmul_at_b_kernel_043f2a05.py#[127]#bfloat16",
+      "group": "suite/dev",
+      "operator": "suite/dev/matmul_at_b_kernel_043f2a05.py",
+      "shape": [
+        127
+      ],
+      "dtype": "bfloat16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "410731ea5951",
+      "artifact_sha256": "d645951ae093d802877ea8982cf4feb78ea83af87a4a1127a6f0030820c7e0dc",
+      "artifact_key": "81fe03437dce7a49c34c588448b1795786d4c1b3221c48216e4088aff8e69ab4",
+      "cache_hit": false,
+      "launch_seconds": 0.853,
+      "max_abs_error": {
+        "c_ptr": 0.12408447265625
+      },
+      "seconds": 5.867
+    },
+    {
+      "id": "suite/dev/matmul_atb_optimized_kernel_2044087e.py#[128]#float32",
+      "group": "suite/dev",
+      "operator": "suite/dev/matmul_atb_optimized_kernel_2044087e.py",
+      "shape": [
+        128
+      ],
+      "dtype": "float32",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "b5cc82f7c161",
+      "artifact_sha256": "2528ab5ee4e6d8d1bd062c3c32159ac9ac8d5f7b97745e327744e23628e6c5e3",
+      "artifact_key": "f381de6f58da0769bb55671e72895d92edcf55aeba72d4ecdbe070e490c5a50b",
+      "cache_hit": false,
+      "launch_seconds": 0.847,
+      "max_abs_error": {
+        "C_ptr": 7.62939453125e-06
+      },
+      "seconds": 1.904
+    },
+    {
+      "id": "suite/dev/matmul_atb_optimized_kernel_2044087e.py#[128]#float16",
+      "group": "suite/dev",
+      "operator": "suite/dev/matmul_atb_optimized_kernel_2044087e.py",
+      "shape": [
+        128
+      ],
+      "dtype": "float16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "4b78ac1d0878",
+      "artifact_sha256": "6fb721987deca670062e828fef04a30275dc80935c92ad1fd6be2705b2a629de",
+      "artifact_key": "82988382c1bf41c65e9a4ab971676e3dfbe6b13782ca1b4e7e52ece8cfa8ef0a",
+      "cache_hit": false,
+      "launch_seconds": 0.86,
+      "max_abs_error": {
+        "C_ptr": 0.015380859375
+      },
+      "seconds": 3.527
+    },
+    {
+      "id": "suite/dev/matmul_atb_optimized_kernel_2044087e.py#[128]#bfloat16",
+      "group": "suite/dev",
+      "operator": "suite/dev/matmul_atb_optimized_kernel_2044087e.py",
+      "shape": [
+        128
+      ],
+      "dtype": "bfloat16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "6b9a37fa095d",
+      "artifact_sha256": "3186c413b7d4c36a4c762553429269bfb23c854bc149ec43a0703e3376920695",
+      "artifact_key": "485714865c5c0c9b6c72d442f7adfe8f74403e57188a4a3c949174aa164b5b14",
+      "cache_hit": false,
+      "launch_seconds": 0.858,
+      "max_abs_error": {
+        "C_ptr": 0.12344741821289062
+      },
+      "seconds": 3.617
+    },
+    {
+      "id": "suite/dev/matmul_atb_optimized_kernel_2044087e.py#[127]#float32",
+      "group": "suite/dev",
+      "operator": "suite/dev/matmul_atb_optimized_kernel_2044087e.py",
+      "shape": [
+        127
+      ],
+      "dtype": "float32",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "ed579d5fd091",
+      "artifact_sha256": "23c23dc87d9d6fd793a989a34c667eaf5cc26321eb91a4778f771f44db13b592",
+      "artifact_key": "d193ab6c6ddc2fe7f9e1bc4ef9ea541e50c25d6e6ecaec21c398df2c8772efb8",
+      "cache_hit": false,
+      "launch_seconds": 0.845,
+      "max_abs_error": {
+        "C_ptr": 7.62939453125e-06
+      },
+      "seconds": 1.863
+    },
+    {
+      "id": "suite/dev/matmul_atb_optimized_kernel_2044087e.py#[127]#float16",
+      "group": "suite/dev",
+      "operator": "suite/dev/matmul_atb_optimized_kernel_2044087e.py",
+      "shape": [
+        127
+      ],
+      "dtype": "float16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "c8747095fcbd",
+      "artifact_sha256": "ce0f7d14b7f26d5d3c7690c41aa5df768789fc230b7948d54423f57a439f6f63",
+      "artifact_key": "c00e9b5b03433b41748f8f6a72f8755be8e94cf855692c363c90c815c5d95875",
+      "cache_hit": false,
+      "launch_seconds": 0.852,
+      "max_abs_error": {
+        "C_ptr": 0.015628814697265625
+      },
+      "seconds": 3.451
+    },
+    {
+      "id": "suite/dev/matmul_atb_optimized_kernel_2044087e.py#[127]#bfloat16",
+      "group": "suite/dev",
+      "operator": "suite/dev/matmul_atb_optimized_kernel_2044087e.py",
+      "shape": [
+        127
+      ],
+      "dtype": "bfloat16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "817b3c848109",
+      "artifact_sha256": "f2172af2aa7c3c8d6f91011da7a1f8ca7c7d709be5ee0ed8d755486476f77d19",
+      "artifact_key": "5af2f0319c930f629d788d037a5ee615633490917128f87262014ad8d9b923e0",
+      "cache_hit": false,
+      "launch_seconds": 0.853,
+      "max_abs_error": {
+        "C_ptr": 0.12408447265625
+      },
+      "seconds": 3.595
+    },
+    {
+      "id": "suite/dev/matmul_k32_persistent_n_2stage_kernel_c11d9a2d.py#[128]#float32",
+      "group": "suite/dev",
+      "operator": "suite/dev/matmul_k32_persistent_n_2stage_kernel_c11d9a2d.py",
+      "shape": [
+        128
+      ],
+      "dtype": "float32",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "81d61b8d87b0",
+      "artifact_sha256": "c323791c8448c6b365476aa9d45333b93152d7d67a1bb36ad54e76842e5e7b84",
+      "artifact_key": "90335d1c5ade3eae872531ae89b96343048b17193b3e9638fcd5243b8cd661a7",
+      "cache_hit": false,
+      "launch_seconds": 0.45,
+      "max_abs_error": {
+        "C_ptr": 5.7220458984375e-06
+      },
+      "seconds": 1.01
+    },
+    {
+      "id": "suite/dev/matmul_k32_persistent_n_2stage_kernel_c11d9a2d.py#[128]#float16",
+      "group": "suite/dev",
+      "operator": "suite/dev/matmul_k32_persistent_n_2stage_kernel_c11d9a2d.py",
+      "shape": [
+        128
+      ],
+      "dtype": "float16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "f6f60fac2fc6",
+      "artifact_sha256": "353a79018920809a9a669796057c72c7342617ff29369de9f111fe65e8d7309c",
+      "artifact_key": "e4183f395c888db4459379671ba84977bb0a827badfd2c08dc81b88a755c54f5",
+      "cache_hit": false,
+      "launch_seconds": 0.2,
+      "max_abs_error": {
+        "C_ptr": 0.0077915191650390625
+      },
+      "seconds": 3.622
+    },
+    {
+      "id": "suite/dev/matmul_k32_persistent_n_2stage_kernel_c11d9a2d.py#[128]#bfloat16",
+      "group": "suite/dev",
+      "operator": "suite/dev/matmul_k32_persistent_n_2stage_kernel_c11d9a2d.py",
+      "shape": [
+        128
+      ],
+      "dtype": "bfloat16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "4fdb2ba66db9",
+      "artifact_sha256": "d3d7e81fb516e8f0d09a131e3db135022e9ad51f2ed049e5fc907156d886e6f5",
+      "artifact_key": "d5e88d989bf0931b2728073bc47339bdaa53bcdfe5dc0cc256bb405934a6aedb",
+      "cache_hit": false,
+      "launch_seconds": 0.449,
+      "max_abs_error": {
+        "C_ptr": 0.061847686767578125
+      },
+      "seconds": 1.805
+    },
+    {
+      "id": "suite/dev/matmul_k32_persistent_n_2stage_kernel_c11d9a2d.py#[256]#float32",
+      "group": "suite/dev",
+      "operator": "suite/dev/matmul_k32_persistent_n_2stage_kernel_c11d9a2d.py",
+      "shape": [
+        256
+      ],
+      "dtype": "float32",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "81d61b8d87b0",
+      "artifact_sha256": "c323791c8448c6b365476aa9d45333b93152d7d67a1bb36ad54e76842e5e7b84",
+      "artifact_key": "90335d1c5ade3eae872531ae89b96343048b17193b3e9638fcd5243b8cd661a7",
+      "cache_hit": true,
+      "launch_seconds": 0.834,
+      "max_abs_error": {
+        "C_ptr": 5.7220458984375e-06
+      },
+      "seconds": 0.845
+    },
+    {
+      "id": "suite/dev/matmul_k32_persistent_n_2stage_kernel_c11d9a2d.py#[256]#float16",
+      "group": "suite/dev",
+      "operator": "suite/dev/matmul_k32_persistent_n_2stage_kernel_c11d9a2d.py",
+      "shape": [
+        256
+      ],
+      "dtype": "float16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "f6f60fac2fc6",
+      "artifact_sha256": "353a79018920809a9a669796057c72c7342617ff29369de9f111fe65e8d7309c",
+      "artifact_key": "e4183f395c888db4459379671ba84977bb0a827badfd2c08dc81b88a755c54f5",
+      "cache_hit": true,
+      "launch_seconds": 0.336,
+      "max_abs_error": {
+        "C_ptr": 0.0078029632568359375
+      },
+      "seconds": 0.347
+    },
+    {
+      "id": "suite/dev/matmul_k32_persistent_n_2stage_kernel_c11d9a2d.py#[256]#bfloat16",
+      "group": "suite/dev",
+      "operator": "suite/dev/matmul_k32_persistent_n_2stage_kernel_c11d9a2d.py",
+      "shape": [
+        256
+      ],
+      "dtype": "bfloat16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "4fdb2ba66db9",
+      "artifact_sha256": "d3d7e81fb516e8f0d09a131e3db135022e9ad51f2ed049e5fc907156d886e6f5",
+      "artifact_key": "d5e88d989bf0931b2728073bc47339bdaa53bcdfe5dc0cc256bb405934a6aedb",
+      "cache_hit": true,
+      "launch_seconds": 0.835,
+      "max_abs_error": {
+        "C_ptr": 0.06233787536621094
+      },
+      "seconds": 0.847
+    },
+    {
+      "id": "suite/dev/matmul_k32_splitn8_kernel_7756e27e.py#[128]#float32",
+      "group": "suite/dev",
+      "operator": "suite/dev/matmul_k32_splitn8_kernel_7756e27e.py",
+      "shape": [
+        128
+      ],
+      "dtype": "float32",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "60adc3c78373",
+      "artifact_sha256": "fffffd00c9785fc1a3d0cea15aa83af5bfd120934ba888ca95803d82ac36a3f9",
+      "artifact_key": "78f03fe51819d85de3246250d19d02add2b02416c05f76808c25360b34a19266",
+      "cache_hit": false,
+      "launch_seconds": 0.452,
+      "max_abs_error": {
+        "C_ptr": 5.7220458984375e-06
+      },
+      "seconds": 1.123
+    },
+    {
+      "id": "suite/dev/matmul_k32_splitn8_kernel_7756e27e.py#[128]#float16",
+      "group": "suite/dev",
+      "operator": "suite/dev/matmul_k32_splitn8_kernel_7756e27e.py",
+      "shape": [
+        128
+      ],
+      "dtype": "float16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "456cdd2139cf",
+      "artifact_sha256": "8ba30b2887e74f2210dd5717d9a7e57a1e695b509bf9fae2308cf531ca53c6f6",
+      "artifact_key": "e0ade82f94ea06b2cf39a80f700b2e8be02212c5413e51e550e336c2e8adc607",
+      "cache_hit": false,
+      "launch_seconds": 0.203,
+      "max_abs_error": {
+        "C_ptr": 0.0077915191650390625
+      },
+      "seconds": 2.698
+    },
+    {
+      "id": "suite/dev/matmul_k32_splitn8_kernel_7756e27e.py#[128]#bfloat16",
+      "group": "suite/dev",
+      "operator": "suite/dev/matmul_k32_splitn8_kernel_7756e27e.py",
+      "shape": [
+        128
+      ],
+      "dtype": "bfloat16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "cc4be1da5bb2",
+      "artifact_sha256": "be882438073d8c491558f79c34c6588ad637d548c1684cc69f3f2e1d160e36e2",
+      "artifact_key": "213858ce5c3d0397b08b57da1c2e7891eab71590cdd006f8a34a4f47ae8402f8",
+      "cache_hit": false,
+      "launch_seconds": 0.46,
+      "max_abs_error": {
+        "C_ptr": 0.061847686767578125
+      },
+      "seconds": 1.701
+    },
+    {
+      "id": "suite/dev/matmul_k32_splitn8_kernel_7756e27e.py#[256]#float32",
+      "group": "suite/dev",
+      "operator": "suite/dev/matmul_k32_splitn8_kernel_7756e27e.py",
+      "shape": [
+        256
+      ],
+      "dtype": "float32",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "60adc3c78373",
+      "artifact_sha256": "fffffd00c9785fc1a3d0cea15aa83af5bfd120934ba888ca95803d82ac36a3f9",
+      "artifact_key": "78f03fe51819d85de3246250d19d02add2b02416c05f76808c25360b34a19266",
+      "cache_hit": true,
+      "launch_seconds": 0.84,
+      "max_abs_error": {
+        "C_ptr": 5.7220458984375e-06
+      },
+      "seconds": 0.852
+    },
+    {
+      "id": "suite/dev/matmul_k32_splitn8_kernel_7756e27e.py#[256]#float16",
+      "group": "suite/dev",
+      "operator": "suite/dev/matmul_k32_splitn8_kernel_7756e27e.py",
+      "shape": [
+        256
+      ],
+      "dtype": "float16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "456cdd2139cf",
+      "artifact_sha256": "8ba30b2887e74f2210dd5717d9a7e57a1e695b509bf9fae2308cf531ca53c6f6",
+      "artifact_key": "e0ade82f94ea06b2cf39a80f700b2e8be02212c5413e51e550e336c2e8adc607",
+      "cache_hit": true,
+      "launch_seconds": 0.342,
+      "max_abs_error": {
+        "C_ptr": 0.0078029632568359375
+      },
+      "seconds": 0.354
+    },
+    {
+      "id": "suite/dev/matmul_k32_splitn8_kernel_7756e27e.py#[256]#bfloat16",
+      "group": "suite/dev",
+      "operator": "suite/dev/matmul_k32_splitn8_kernel_7756e27e.py",
+      "shape": [
+        256
+      ],
+      "dtype": "bfloat16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "cc4be1da5bb2",
+      "artifact_sha256": "be882438073d8c491558f79c34c6588ad637d548c1684cc69f3f2e1d160e36e2",
+      "artifact_key": "213858ce5c3d0397b08b57da1c2e7891eab71590cdd006f8a34a4f47ae8402f8",
+      "cache_hit": true,
+      "launch_seconds": 0.854,
+      "max_abs_error": {
+        "C_ptr": 0.06233787536621094
+      },
+      "seconds": 0.864
+    },
+    {
+      "id": "suite/dev/matmul_k64_kernel_0ab65594.py#[128]#float32",
+      "group": "suite/dev",
+      "operator": "suite/dev/matmul_k64_kernel_0ab65594.py",
+      "shape": [
+        128
+      ],
+      "dtype": "float32",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "989a60550f54",
+      "artifact_sha256": "c93a1e62cf17616401c88e9af011472f173b61db9d22e88d7e878be6729e75f1",
+      "artifact_key": "35baa7de7333e054044b286e3089e0e0a3ceb22ded521b08a4f4c78a7a84e350",
+      "cache_hit": false,
+      "launch_seconds": 0.852,
+      "max_abs_error": {
+        "c_ptr": 1.1444091796875e-05
+      },
+      "seconds": 1.161
+    },
+    {
+      "id": "suite/dev/matmul_k64_kernel_0ab65594.py#[128]#float16",
+      "group": "suite/dev",
+      "operator": "suite/dev/matmul_k64_kernel_0ab65594.py",
+      "shape": [
+        128
+      ],
+      "dtype": "float16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "8d681a03286e",
+      "artifact_sha256": "e92725984b0619d58a1f0debf7f2b912fd6dfa50de0d876aae2bad705d4f5e34",
+      "artifact_key": "a07b0167b0a4ce9e44b357fb11b443b235546fec48e33091dbdc77809c33db17",
+      "cache_hit": false,
+      "launch_seconds": 0.359,
+      "max_abs_error": {
+        "c_ptr": 0.015026092529296875
+      },
+      "seconds": 2.205
+    },
+    {
+      "id": "suite/dev/matmul_k64_kernel_0ab65594.py#[128]#bfloat16",
+      "group": "suite/dev",
+      "operator": "suite/dev/matmul_k64_kernel_0ab65594.py",
+      "shape": [
+        128
+      ],
+      "dtype": "bfloat16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "c0cf391114ae",
+      "artifact_sha256": "0862a51f5cf790befa235cb495404ef2b28d4348c5dde00a48b41ebb92c38f00",
+      "artifact_key": "d8b1e9d750f208e53d1e8574473ba4b0467b3c4f456446ec6ac2386b33b446d1",
+      "cache_hit": false,
+      "launch_seconds": 0.854,
+      "max_abs_error": {
+        "c_ptr": 0.1194915771484375
+      },
+      "seconds": 1.381
+    },
+    {
+      "id": "suite/dev/matmul_k64_kernel_0ab65594.py#[127]#float32",
+      "group": "suite/dev",
+      "operator": "suite/dev/matmul_k64_kernel_0ab65594.py",
+      "shape": [
+        127
+      ],
+      "dtype": "float32",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "0f0f217c6e23",
+      "artifact_sha256": "9e5a4c35641854bafc77d8a432f281a4dce6e2f615460d74cf173f593c6ceb55",
+      "artifact_key": "e18c4a3deb2b4edff50ab8ad9c70371436f883cf083c1a9be31de00d2cd37142",
+      "cache_hit": false,
+      "launch_seconds": 0.836,
+      "max_abs_error": {
+        "c_ptr": 1.1444091796875e-05
+      },
+      "seconds": 1.124
+    },
+    {
+      "id": "suite/dev/matmul_k64_kernel_0ab65594.py#[127]#float16",
+      "group": "suite/dev",
+      "operator": "suite/dev/matmul_k64_kernel_0ab65594.py",
+      "shape": [
+        127
+      ],
+      "dtype": "float16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "e209ffdcdcc8",
+      "artifact_sha256": "4e02dfb54f883451b3b448ef51d8d199cf1adaeeaeb7d8027017ffea8619165b",
+      "artifact_key": "d8bbac3c8efdbddd84696f9bb29036b91758a2f7f2be2a4aca0558bb330b0229",
+      "cache_hit": false,
+      "launch_seconds": 0.354,
+      "max_abs_error": {
+        "c_ptr": 0.008060455322265625
+      },
+      "seconds": 2.231
+    },
+    {
+      "id": "suite/dev/matmul_k64_kernel_0ab65594.py#[127]#bfloat16",
+      "group": "suite/dev",
+      "operator": "suite/dev/matmul_k64_kernel_0ab65594.py",
+      "shape": [
+        127
+      ],
+      "dtype": "bfloat16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "8625a423f3d5",
+      "artifact_sha256": "86375c7e6148a04c85482320806fa9651b4943b2fced3e0a27e86d8b7becc40c",
+      "artifact_key": "1f94968e9d60c50b5ea51bd20bc6c019da42326b628ce3d8d5126f36f792f9d2",
+      "cache_hit": false,
+      "launch_seconds": 0.848,
+      "max_abs_error": {
+        "c_ptr": 0.1194915771484375
+      },
+      "seconds": 1.373
+    },
+    {
+      "id": "suite/dev/matmul_kernel.py#[128, 128, 128]#float16",
+      "group": "suite/dev",
+      "operator": "suite/dev/matmul_kernel.py",
+      "shape": [
+        128,
+        128,
+        128
+      ],
+      "dtype": "float16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "d6087dcb37f8",
+      "artifact_sha256": "2074cd98a74fcb6670cd47ffffde6e5898679b4f6e87d256510af4638d3ca124",
+      "artifact_key": "7d4f6c69b7682d88350a6ad0bd846fa13d8dc4b1ef65bfc398c7c6c703703a62",
+      "cache_hit": false,
+      "launch_seconds": 0.212,
+      "max_abs_error": {
+        "C_ptr": 0.0
+      },
+      "seconds": 8.715
+    },
+    {
+      "id": "suite/dev/matmul_kernel.py#[128, 128, 128]#bfloat16",
+      "group": "suite/dev",
+      "operator": "suite/dev/matmul_kernel.py",
+      "shape": [
+        128,
+        128,
+        128
+      ],
+      "dtype": "bfloat16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "ade8580453db",
+      "artifact_sha256": "abf98f25ce5d9a5ae17d045972f774d4d4226e0c2deb72ec33e13f17b417f0af",
+      "artifact_key": "38d39e1e0e32e2c87425babe629f13c52c698a1fd1334cc4c2c5a5ea73e5978e",
+      "cache_hit": false,
+      "launch_seconds": 0.17,
+      "max_abs_error": {
+        "C_ptr": 0.0625
+      },
+      "seconds": 1.352
+    },
+    {
+      "id": "suite/dev/matmul_kernel.py#[128, 128, 128]#float32",
+      "group": "suite/dev",
+      "operator": "suite/dev/matmul_kernel.py",
+      "shape": [
+        128,
+        128,
+        128
+      ],
+      "dtype": "float32",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "729c7349f903",
+      "artifact_sha256": "1389f45a073912974a912f8369a4cc1f645725a368d88112c31672e4c79c04a9",
+      "artifact_key": "c30fb717aa9f9fd0e322bb218676f05c2ce5f365928df073bfec43173f5244ae",
+      "cache_hit": false,
+      "launch_seconds": 0.166,
+      "max_abs_error": {
+        "C_ptr": 0.0
+      },
+      "seconds": 0.741
+    },
+    {
+      "id": "suite/dev/matmul_kernel.py#[17, 33, 100]#float16",
+      "group": "suite/dev",
+      "operator": "suite/dev/matmul_kernel.py",
+      "shape": [
+        17,
+        33,
+        100
+      ],
+      "dtype": "float16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "963928fa916a",
+      "artifact_sha256": "b68cd6004f2a2e522a1798828458fa6556276316255051ad5d2116aa4a610ae1",
+      "artifact_key": "13f912a9aeb1e2fd6a7302fbdb91b5b19e77b55832f7371c06fcde419408e978",
+      "cache_hit": false,
+      "launch_seconds": 0.098,
+      "max_abs_error": {
+        "C_ptr": 0.0
+      },
+      "seconds": 13.495
+    },
+    {
+      "id": "suite/dev/matmul_kernel.py#[17, 33, 100]#bfloat16",
+      "group": "suite/dev",
+      "operator": "suite/dev/matmul_kernel.py",
+      "shape": [
+        17,
+        33,
+        100
+      ],
+      "dtype": "bfloat16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "b4ec048005a8",
+      "artifact_sha256": "12452f50970e06b0e2661813a2b2bf5b9928f5fbf73007728f75112f7911a93a",
+      "artifact_key": "85d87384311898716c749c079ff90a27f91c0eacc40c591bc8ebded5619f55a8",
+      "cache_hit": false,
+      "launch_seconds": 0.092,
+      "max_abs_error": {
+        "C_ptr": 0.02734375
+      },
+      "seconds": 2.599
+    },
+    {
+      "id": "suite/dev/matmul_kernel.py#[17, 33, 100]#float32",
+      "group": "suite/dev",
+      "operator": "suite/dev/matmul_kernel.py",
+      "shape": [
+        17,
+        33,
+        100
+      ],
+      "dtype": "float32",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "cb9ac0522d2c",
+      "artifact_sha256": "940cc05f429a04acb863c9e51d397b2ac0b7944481912d4f426cb7f7ae58d201",
+      "artifact_key": "c0559d91a37c92eda14adb595dce2b8954a38eaf253084d133f36be9ca251876",
+      "cache_hit": false,
+      "launch_seconds": 0.085,
+      "max_abs_error": {
+        "C_ptr": 0.0
+      },
+      "seconds": 1.221
+    },
+    {
+      "id": "suite/dev/matmul_kernel_10d5c480.py#[128]#float32",
+      "group": "suite/dev",
+      "operator": "suite/dev/matmul_kernel_10d5c480.py",
+      "shape": [
+        128
+      ],
+      "dtype": "float32",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "e34c7a093b10",
+      "artifact_sha256": "a27936db409d6f6aa8c6d0b0e5ee844844c41805a3ff2f37d6ec8504e4aa18a7",
+      "artifact_key": "03c31642dd70a7f82707034d23ec1c12188a2bd7998edd0ffad7094081c0ec5b",
+      "cache_hit": false,
+      "launch_seconds": 0.867,
+      "max_abs_error": {
+        "C_ptr": 1.1444091796875e-05
+      },
+      "seconds": 1.719
+    },
+    {
+      "id": "suite/dev/matmul_kernel_10d5c480.py#[128]#float16",
+      "group": "suite/dev",
+      "operator": "suite/dev/matmul_kernel_10d5c480.py",
+      "shape": [
+        128
+      ],
+      "dtype": "float16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "97cfc76c36e9",
+      "artifact_sha256": "89aeb87d44e3d885508a3ea5fddbfa72fdda4a18f926fa462158720a2bef095a",
+      "artifact_key": "c734eb9dadc4746abdea2877fb111c0d1160206d20e86a1ce8f9a6b2a8b18e19",
+      "cache_hit": false,
+      "launch_seconds": 0.373,
+      "max_abs_error": {
+        "C_ptr": 0.015026092529296875
+      },
+      "seconds": 3.389
+    },
+    {
+      "id": "suite/dev/matmul_kernel_10d5c480.py#[128]#bfloat16",
+      "group": "suite/dev",
+      "operator": "suite/dev/matmul_kernel_10d5c480.py",
+      "shape": [
+        128
+      ],
+      "dtype": "bfloat16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "5e35991861f9",
+      "artifact_sha256": "ecba08e776ceee3ee3cd5ed3e67578cbedada66b98dcdd2ddc8295a450ecf258",
+      "artifact_key": "42a2ef2a13f3c5fa4e6554416007a079da8baa90a585446855761371e1e5bed0",
+      "cache_hit": false,
+      "launch_seconds": 0.875,
+      "max_abs_error": {
+        "C_ptr": 0.1194915771484375
+      },
+      "seconds": 2.479
+    },
+    {
+      "id": "suite/dev/matmul_kernel_10d5c480.py#[127]#float32",
+      "group": "suite/dev",
+      "operator": "suite/dev/matmul_kernel_10d5c480.py",
+      "shape": [
+        127
+      ],
+      "dtype": "float32",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "90eb20607ca7",
+      "artifact_sha256": "684c1fb936038a44227e1e41c67b448f4c0e6d362836b5692cc159f8613db10c",
+      "artifact_key": "d10eb9e043a8db3ca5ba6c23fecc10ff41a88706451d95fd6e7116c75fd0c2c6",
+      "cache_hit": false,
+      "launch_seconds": 0.861,
+      "max_abs_error": {
+        "C_ptr": 1.1444091796875e-05
+      },
+      "seconds": 1.691
+    },
+    {
+      "id": "suite/dev/matmul_kernel_10d5c480.py#[127]#float16",
+      "group": "suite/dev",
+      "operator": "suite/dev/matmul_kernel_10d5c480.py",
+      "shape": [
+        127
+      ],
+      "dtype": "float16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "742f51e78c29",
+      "artifact_sha256": "d66d4e4348316aa4720173e5b35fa399313983de300a89b92e5445af253fae67",
+      "artifact_key": "b205a37bfc250a4ac3cd2dcd552b81d2ff356d0fa91fa0dbaef456a03f6cc9be",
+      "cache_hit": false,
+      "launch_seconds": 0.371,
+      "max_abs_error": {
+        "C_ptr": 0.008060455322265625
+      },
+      "seconds": 3.405
+    },
+    {
+      "id": "suite/dev/matmul_kernel_10d5c480.py#[127]#bfloat16",
+      "group": "suite/dev",
+      "operator": "suite/dev/matmul_kernel_10d5c480.py",
+      "shape": [
+        127
+      ],
+      "dtype": "bfloat16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "4436080b3a95",
+      "artifact_sha256": "59db6fcb84a3311959331838fb304a86c7b94cc792d89fe8422580ae5c01836b",
+      "artifact_key": "f0f35119ce394b43d2b79f2d53b7c7ac327efe874508cfc5a47fcf3b74ec8937",
+      "cache_hit": false,
+      "launch_seconds": 0.875,
+      "max_abs_error": {
+        "C_ptr": 0.1194915771484375
+      },
+      "seconds": 2.548
+    },
+    {
+      "id": "suite/dev/matmul_kernel_2d_nomask_tc_5d3cdcfe.py#[128]#float32",
+      "group": "suite/dev",
+      "operator": "suite/dev/matmul_kernel_2d_nomask_tc_5d3cdcfe.py",
+      "shape": [
+        128
+      ],
+      "dtype": "float32",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "73e4d51d14bb",
+      "artifact_sha256": "b7040d605ef11d84a28e356d0eaa1b4d465b95f4e54b819154cd542e38418a4c",
+      "artifact_key": "905ce483d16e8af9bfca03095a5f7a173f442dcc1ddcee7950e9c39435973787",
+      "cache_hit": false,
+      "launch_seconds": 0.837,
+      "max_abs_error": {
+        "C_ptr": 1.430511474609375e-05
+      },
+      "seconds": 2.671
+    },
+    {
+      "id": "suite/dev/matmul_kernel_2d_nomask_tc_5d3cdcfe.py#[128]#float16",
+      "group": "suite/dev",
+      "operator": "suite/dev/matmul_kernel_2d_nomask_tc_5d3cdcfe.py",
+      "shape": [
+        128
+      ],
+      "dtype": "float16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "f5f5a224d667",
+      "artifact_sha256": "e124c7419a7b06b14aee1c349399c035cf882456aeb84e283ee34194bc1512fa",
+      "artifact_key": "686dcc94e768eaa076d5f5af8656ef15404b9c7a8969c50a4a5c983dcbfcd58c",
+      "cache_hit": false,
+      "launch_seconds": 0.338,
+      "max_abs_error": {
+        "C_ptr": 0.015567779541015625
+      },
+      "seconds": 3.566
+    },
+    {
+      "id": "suite/dev/matmul_kernel_2d_nomask_tc_5d3cdcfe.py#[128]#bfloat16",
+      "group": "suite/dev",
+      "operator": "suite/dev/matmul_kernel_2d_nomask_tc_5d3cdcfe.py",
+      "shape": [
+        128
+      ],
+      "dtype": "bfloat16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "2fbcd80b6775",
+      "artifact_sha256": "a204c231a28733a5adeede30fb310c1099780368af541b1259a35949e8192d21",
+      "artifact_key": "c9803cc8dedb1d8f69e3fd17f694c7a6a81017921bb5951bd607b271c6676699",
+      "cache_hit": false,
+      "launch_seconds": 0.836,
+      "max_abs_error": {
+        "C_ptr": 0.124969482421875
+      },
+      "seconds": 4.28
+    },
+    {
+      "id": "suite/dev/matmul_kernel_689cb6a4.py#[128]#float32",
+      "group": "suite/dev",
+      "operator": "suite/dev/matmul_kernel_689cb6a4.py",
+      "shape": [
+        128
+      ],
+      "dtype": "float32",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "09263a59674f",
+      "artifact_sha256": "46285dd66be7f5f48b992e40bd632ad3bd1768205bb576ff1f916c1291551371",
+      "artifact_key": "50f4ab5b33f5ddf91d8525fcc531b7a5a3a2200ea4d563d6f3bcefbe860c2701",
+      "cache_hit": false,
+      "launch_seconds": 0.868,
+      "max_abs_error": {
+        "C_ptr": 7.62939453125e-06
+      },
+      "seconds": 1.377
+    },
+    {
+      "id": "suite/dev/matmul_kernel_689cb6a4.py#[128]#float16",
+      "group": "suite/dev",
+      "operator": "suite/dev/matmul_kernel_689cb6a4.py",
+      "shape": [
+        128
+      ],
+      "dtype": "float16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "d8a8640bd383",
+      "artifact_sha256": "ef5b855276ddcc38377335bdc84acdc390ec52ad2387bd49dc7645cf211e5f22",
+      "artifact_key": "9e1c16dd921fb61f72dbbee3e27db6fece8dd2682af853e2d84986ae5242eaeb",
+      "cache_hit": false,
+      "launch_seconds": 0.354,
+      "max_abs_error": {
+        "C_ptr": 0.015026092529296875
+      },
+      "seconds": 2.134
+    },
+    {
+      "id": "suite/dev/matmul_kernel_689cb6a4.py#[128]#bfloat16",
+      "group": "suite/dev",
+      "operator": "suite/dev/matmul_kernel_689cb6a4.py",
+      "shape": [
+        128
+      ],
+      "dtype": "bfloat16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "441922229281",
+      "artifact_sha256": "7ffcae909cc0f06357c6c87620b0081b50e71a6cde5ae4bfa0ee5c3ccdacb6a5",
+      "artifact_key": "4f393a394ddb2d665b1d5295c70ed63be6d8b79ce62f9fd0767170b4d0098365",
+      "cache_hit": false,
+      "launch_seconds": 0.873,
+      "max_abs_error": {
+        "C_ptr": 0.1194915771484375
+      },
+      "seconds": 1.698
+    },
+    {
+      "id": "suite/dev/matmul_kernel_689cb6a4.py#[256]#float32",
+      "group": "suite/dev",
+      "operator": "suite/dev/matmul_kernel_689cb6a4.py",
+      "shape": [
+        256
+      ],
+      "dtype": "float32",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "09263a59674f",
+      "artifact_sha256": "46285dd66be7f5f48b992e40bd632ad3bd1768205bb576ff1f916c1291551371",
+      "artifact_key": "50f4ab5b33f5ddf91d8525fcc531b7a5a3a2200ea4d563d6f3bcefbe860c2701",
+      "cache_hit": true,
+      "launch_seconds": 1.666,
+      "max_abs_error": {
+        "C_ptr": 7.62939453125e-06
+      },
+      "seconds": 1.679
+    },
+    {
+      "id": "suite/dev/matmul_kernel_689cb6a4.py#[256]#float16",
+      "group": "suite/dev",
+      "operator": "suite/dev/matmul_kernel_689cb6a4.py",
+      "shape": [
+        256
+      ],
+      "dtype": "float16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "d8a8640bd383",
+      "artifact_sha256": "ef5b855276ddcc38377335bdc84acdc390ec52ad2387bd49dc7645cf211e5f22",
+      "artifact_key": "9e1c16dd921fb61f72dbbee3e27db6fece8dd2682af853e2d84986ae5242eaeb",
+      "cache_hit": true,
+      "launch_seconds": 0.651,
+      "max_abs_error": {
+        "C_ptr": 0.015533447265625
+      },
+      "seconds": 0.667
+    },
+    {
+      "id": "suite/dev/matmul_kernel_689cb6a4.py#[256]#bfloat16",
+      "group": "suite/dev",
+      "operator": "suite/dev/matmul_kernel_689cb6a4.py",
+      "shape": [
+        256
+      ],
+      "dtype": "bfloat16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "441922229281",
+      "artifact_sha256": "7ffcae909cc0f06357c6c87620b0081b50e71a6cde5ae4bfa0ee5c3ccdacb6a5",
+      "artifact_key": "4f393a394ddb2d665b1d5295c70ed63be6d8b79ce62f9fd0767170b4d0098365",
+      "cache_hit": true,
+      "launch_seconds": 1.669,
+      "max_abs_error": {
+        "C_ptr": 0.12339019775390625
+      },
+      "seconds": 1.681
+    },
+    {
+      "id": "suite/dev/matmul_kernel_8d68babe.py#[128]#float32",
+      "group": "suite/dev",
+      "operator": "suite/dev/matmul_kernel_8d68babe.py",
+      "shape": [
+        128
+      ],
+      "dtype": "float32",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "418d3d61bbc9",
+      "artifact_sha256": "6d88b49c736a6705cf1ee01cb61a02aec0dc4f81c0e5acce0e82483c80782582",
+      "artifact_key": "b002565f36a105be1491c5a3653ed20cd9236942e069bc85a42298fb7ef7345e",
+      "cache_hit": false,
+      "launch_seconds": 0.507,
+      "max_abs_error": {
+        "C_ptr": 1.1444091796875e-05
+      },
+      "seconds": 2.811
+    },
+    {
+      "id": "suite/dev/matmul_kernel_8d68babe.py#[128]#float16",
+      "group": "suite/dev",
+      "operator": "suite/dev/matmul_kernel_8d68babe.py",
+      "shape": [
+        128
+      ],
+      "dtype": "float16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "16b366e56e63",
+      "artifact_sha256": "299cf701fbfca5474400caf5e30ace34728a5b0f127da9551f2eaf83eff07b0f",
+      "artifact_key": "59b4922e6c3c904eb2c812fcca41af6df1fdef7f65eed2c3d304b2ef05eb1770",
+      "cache_hit": false,
+      "launch_seconds": 0.332,
+      "max_abs_error": {
+        "C_ptr": 0.0155181884765625
+      },
+      "seconds": 3.584
+    },
+    {
+      "id": "suite/dev/matmul_kernel_8d68babe.py#[128]#bfloat16",
+      "group": "suite/dev",
+      "operator": "suite/dev/matmul_kernel_8d68babe.py",
+      "shape": [
+        128
+      ],
+      "dtype": "bfloat16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "cec46761560f",
+      "artifact_sha256": "5293c23d42805b77454d63f136a11e4fed8f7f9449ddefa1fa2d2514b54f4f69",
+      "artifact_key": "ba0c8a06ffbe09354ff6c400b95713b2649c9f639af8a097660af0845cce362c",
+      "cache_hit": false,
+      "launch_seconds": 0.511,
+      "max_abs_error": {
+        "C_ptr": 0.12385940551757812
+      },
+      "seconds": 5.292
+    },
+    {
+      "id": "suite/dev/matmul_kernel_8d68babe.py#[127]#float32",
+      "group": "suite/dev",
+      "operator": "suite/dev/matmul_kernel_8d68babe.py",
+      "shape": [
+        127
+      ],
+      "dtype": "float32",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "9bb29781ae67",
+      "artifact_sha256": "502989516631a6a50b10f0eabe6a61f3379747a57c78265aa7501fe8761507f2",
+      "artifact_key": "805a44c17193a05785dd00abbfc0b6b83d416f66acae6d4f387fd61b44aa3101",
+      "cache_hit": false,
+      "launch_seconds": 0.498,
+      "max_abs_error": {
+        "C_ptr": 1.049041748046875e-05
+      },
+      "seconds": 2.78
+    },
+    {
+      "id": "suite/dev/matmul_kernel_8d68babe.py#[127]#float16",
+      "group": "suite/dev",
+      "operator": "suite/dev/matmul_kernel_8d68babe.py",
+      "shape": [
+        127
+      ],
+      "dtype": "float16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "01778d523233",
+      "artifact_sha256": "fb693ae320eced1e94f4e7ec9018c753853cb32231d5223793dca771af10b10e",
+      "artifact_key": "2f4eec95942d7df54776bc05f3cd709013d9dceab7fd66042efca703ba30c9b0",
+      "cache_hit": false,
+      "launch_seconds": 0.326,
+      "max_abs_error": {
+        "C_ptr": 0.015476226806640625
+      },
+      "seconds": 3.654
+    },
+    {
+      "id": "suite/dev/matmul_kernel_8d68babe.py#[127]#bfloat16",
+      "group": "suite/dev",
+      "operator": "suite/dev/matmul_kernel_8d68babe.py",
+      "shape": [
+        127
+      ],
+      "dtype": "bfloat16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "95824705c595",
+      "artifact_sha256": "1f778d5afa5c1b7a74c9b86ab2a628fdd28bef2d8769003483af715fd3d0552c",
+      "artifact_key": "c176f89a0468dabf980b3912a39ff27e0f8fe75ab513aca0ef758aaf7f03c4cc",
+      "cache_hit": false,
+      "launch_seconds": 0.5,
+      "max_abs_error": {
+        "C_ptr": 0.12296295166015625
+      },
+      "seconds": 5.719
+    },
+    {
+      "id": "suite/dev/naive_attn_decoding_kernel.py#[2, 17, 4, 8, 16, 13]#float16",
+      "group": "suite/dev",
+      "operator": "suite/dev/naive_attn_decoding_kernel.py",
+      "shape": [
+        2,
+        17,
+        4,
+        8,
+        16,
+        13
+      ],
+      "dtype": "float16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "237d674f9c47",
+      "artifact_sha256": "f0db397d54ecb4e0d58961ec633861b0f0f2a81f582a218ca1b11615b5ceac9e",
+      "artifact_key": "df7d0d115d2921ff140b148fdc5729147bae997ae5ce5fab80cf0362dc303c27",
+      "cache_hit": false,
+      "launch_seconds": 0.066,
+      "max_abs_error": {
+        "o": 6.103515625e-05
+      },
+      "seconds": 5.204
+    },
+    {
+      "id": "suite/dev/naive_attn_decoding_kernel.py#[2, 17, 4, 8, 16, 13]#float32",
+      "group": "suite/dev",
+      "operator": "suite/dev/naive_attn_decoding_kernel.py",
+      "shape": [
+        2,
+        17,
+        4,
+        8,
+        16,
+        13
+      ],
+      "dtype": "float32",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "53d959f313a0",
+      "artifact_sha256": "ec4fa8cc71eefb36ab85042fefcc72d2ab500e15148667530ef203079ec70033",
+      "artifact_key": "d6dacc14db7be63bb513ccf4ef173ac5534442f86aa0ac9ed8770f1ed4dc4e71",
+      "cache_hit": false,
+      "launch_seconds": 0.069,
+      "max_abs_error": {
+        "o": 4.470348358154297e-08
+      },
+      "seconds": 4.172
+    },
+    {
+      "id": "suite/dev/naive_attn_decoding_kernel.py#[2, 17, 4, 8, 16, 13]#bfloat16",
+      "group": "suite/dev",
+      "operator": "suite/dev/naive_attn_decoding_kernel.py",
+      "shape": [
+        2,
+        17,
+        4,
+        8,
+        16,
+        13
+      ],
+      "dtype": "bfloat16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "2f2efd61eba1",
+      "artifact_sha256": "23dbb5e7ce949e1b8ce5004e21ec50656992cf8f8a494112eb9fd9963ff08a64",
+      "artifact_key": "cb708cc590a851fb4a07f3453d545e3e02fba3a6bc17e6380a50b0d95ef00971",
+      "cache_hit": false,
+      "launch_seconds": 0.069,
+      "max_abs_error": {
+        "o": 0.00048382580280303955
+      },
+      "seconds": 7.526
+    },
+    {
+      "id": "suite/dev/naive_attn_decoding_kernel.py#[3, 33, 6, 12, 32, 65]#float16",
+      "group": "suite/dev",
+      "operator": "suite/dev/naive_attn_decoding_kernel.py",
+      "shape": [
+        3,
+        33,
+        6,
+        12,
+        32,
+        65
+      ],
+      "dtype": "float16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "d82222d31d59",
+      "artifact_sha256": "d7fbb39b51efd3592ad9b671561da535d1ea3606cad2887cf56ca7c62d2e6c26",
+      "artifact_key": "202aa0e4f92fb4e7354b4ae17c288d24532f5ae6a2ccc2e2b87e03f5ff80c81a",
+      "cache_hit": false,
+      "launch_seconds": 0.196,
+      "max_abs_error": {
+        "o": 6.103515625e-05
+      },
+      "seconds": 5.461
+    },
+    {
+      "id": "suite/dev/naive_attn_decoding_kernel.py#[3, 33, 6, 12, 32, 65]#float32",
+      "group": "suite/dev",
+      "operator": "suite/dev/naive_attn_decoding_kernel.py",
+      "shape": [
+        3,
+        33,
+        6,
+        12,
+        32,
+        65
+      ],
+      "dtype": "float32",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "044c58c4aeff",
+      "artifact_sha256": "6f1386f916d2bb116d9ec97ff1fac0efde8448d448786cdfc74f13bd344cfecb",
+      "artifact_key": "6375cbfcfd40e18aec624869ac2303ca7fe851940e2006c4af703f96d3d922fe",
+      "cache_hit": false,
+      "launch_seconds": 0.153,
+      "max_abs_error": {
+        "o": 2.9802322387695312e-08
+      },
+      "seconds": 3.285
+    },
+    {
+      "id": "suite/dev/naive_attn_decoding_kernel.py#[3, 33, 6, 12, 32, 65]#bfloat16",
+      "group": "suite/dev",
+      "operator": "suite/dev/naive_attn_decoding_kernel.py",
+      "shape": [
+        3,
+        33,
+        6,
+        12,
+        32,
+        65
+      ],
+      "dtype": "bfloat16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "ee36ab4d2d73",
+      "artifact_sha256": "427a06bbef57ce8eaf62b18eb61783cd7b0c98863246e7f496d8b18b6955c653",
+      "artifact_key": "e732f0ee932a98e526e59554cda68937c03663707e04ae2bc3d208816fd8b17a",
+      "cache_hit": false,
+      "launch_seconds": 0.198,
+      "max_abs_error": {
+        "o": 0.0004811882972717285
+      },
+      "seconds": 6.662
+    },
+    {
+      "id": "suite/dev/prepare_wy_repr_fwd_kernel_safe.py#[2, 33, 3, 16]#float32",
+      "group": "suite/dev",
+      "operator": "suite/dev/prepare_wy_repr_fwd_kernel_safe.py",
+      "shape": [
+        2,
+        33,
+        3,
+        16
+      ],
+      "dtype": "float32",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "f8b30dbf1b8c",
+      "artifact_sha256": "346c71ef384457b55b7bf9502a398e21f447b95b51e754db705f25019d0394c8",
+      "artifact_key": "a1afe80ad9f65e21c31d45e379d3b91a6da4fa287bb3dea2f717efbca5ef7009",
+      "cache_hit": false,
+      "launch_seconds": 0.085,
+      "max_abs_error": {
+        "A_ab_inv": 0.0
+      },
+      "seconds": 7.649
+    },
+    {
+      "id": "suite/dev/prepare_wy_repr_fwd_kernel_safe.py#[2, 33, 3, 16]#float16",
+      "group": "suite/dev",
+      "operator": "suite/dev/prepare_wy_repr_fwd_kernel_safe.py",
+      "shape": [
+        2,
+        33,
+        3,
+        16
+      ],
+      "dtype": "float16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "63066d58b826",
+      "artifact_sha256": "d3d614b91616167694f76778e6ed979a7d83bfad56d3f9f325bd61ce4d6bec58",
+      "artifact_key": "8d7eac78a1c6b8af30a7cb94ceae436c9911817aa96457b5876ff1067ff16862",
+      "cache_hit": false,
+      "launch_seconds": 0.085,
+      "max_abs_error": {
+        "A_ab_inv": 0.0
+      },
+      "seconds": 9.45
+    },
+    {
+      "id": "suite/dev/prepare_wy_repr_fwd_kernel_safe.py#[2, 33, 3, 16]#bfloat16",
+      "group": "suite/dev",
+      "operator": "suite/dev/prepare_wy_repr_fwd_kernel_safe.py",
+      "shape": [
+        2,
+        33,
+        3,
+        16
+      ],
+      "dtype": "bfloat16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "7d1939c41f11",
+      "artifact_sha256": "28072adc2e9e59f7894ad9887dd7133802e16ae01f6fc4f98d1bb989ecbcfc32",
+      "artifact_key": "4409378513e7f48183cdbec51c38f3865fe86ea239f6457eba11e8aeb5077bdd",
+      "cache_hit": false,
+      "launch_seconds": 0.09,
+      "max_abs_error": {
+        "A_ab_inv": 0.0001220703125
+      },
+      "seconds": 9.471
+    },
+    {
+      "id": "suite/dev/prepare_wy_repr_fwd_kernel_safe.py#[3, 33, 3, 16]#float32",
+      "group": "suite/dev",
+      "operator": "suite/dev/prepare_wy_repr_fwd_kernel_safe.py",
+      "shape": [
+        3,
+        33,
+        3,
+        16
+      ],
+      "dtype": "float32",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "f8b30dbf1b8c",
+      "artifact_sha256": "346c71ef384457b55b7bf9502a398e21f447b95b51e754db705f25019d0394c8",
+      "artifact_key": "a1afe80ad9f65e21c31d45e379d3b91a6da4fa287bb3dea2f717efbca5ef7009",
+      "cache_hit": true,
+      "launch_seconds": 0.099,
+      "max_abs_error": {
+        "A_ab_inv": 0.0
+      },
+      "seconds": 0.108
+    },
+    {
+      "id": "suite/dev/prepare_wy_repr_fwd_kernel_safe.py#[3, 33, 3, 16]#float16",
+      "group": "suite/dev",
+      "operator": "suite/dev/prepare_wy_repr_fwd_kernel_safe.py",
+      "shape": [
+        3,
+        33,
+        3,
+        16
+      ],
+      "dtype": "float16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "63066d58b826",
+      "artifact_sha256": "d3d614b91616167694f76778e6ed979a7d83bfad56d3f9f325bd61ce4d6bec58",
+      "artifact_key": "8d7eac78a1c6b8af30a7cb94ceae436c9911817aa96457b5876ff1067ff16862",
+      "cache_hit": true,
+      "launch_seconds": 0.102,
+      "max_abs_error": {
+        "A_ab_inv": 0.0
+      },
+      "seconds": 0.112
+    },
+    {
+      "id": "suite/dev/prepare_wy_repr_fwd_kernel_safe.py#[3, 33, 3, 16]#bfloat16",
+      "group": "suite/dev",
+      "operator": "suite/dev/prepare_wy_repr_fwd_kernel_safe.py",
+      "shape": [
+        3,
+        33,
+        3,
+        16
+      ],
+      "dtype": "bfloat16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "7d1939c41f11",
+      "artifact_sha256": "28072adc2e9e59f7894ad9887dd7133802e16ae01f6fc4f98d1bb989ecbcfc32",
+      "artifact_key": "4409378513e7f48183cdbec51c38f3865fe86ea239f6457eba11e8aeb5077bdd",
+      "cache_hit": true,
+      "launch_seconds": 0.101,
+      "max_abs_error": {
+        "A_ab_inv": 0.00018310546875
+      },
+      "seconds": 0.11
+    },
+    {
+      "id": "suite/dev/softmax_kernel_inner.py#[17]#float32",
+      "group": "suite/dev",
+      "operator": "suite/dev/softmax_kernel_inner.py",
+      "shape": [
+        17
+      ],
+      "dtype": "float32",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "ae6733dc4f0e",
+      "artifact_sha256": "e5450fcfd8ebfcf4b366129fe76dfb5a6ba9c36b7cafe7006538b8ba2bc816d8",
+      "artifact_key": "bcfa5fd4a2805214907cc78334c5715b3803ee81c3733292005493195ec3037d",
+      "cache_hit": false,
+      "launch_seconds": 0.053,
+      "max_abs_error": {
+        "output_ptr": 5.960464477539063e-08
+      },
+      "seconds": 0.312
+    },
+    {
+      "id": "suite/dev/softmax_kernel_inner.py#[17]#float16",
+      "group": "suite/dev",
+      "operator": "suite/dev/softmax_kernel_inner.py",
+      "shape": [
+        17
+      ],
+      "dtype": "float16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "bf67ce749c6f",
+      "artifact_sha256": "87908a5f8783a1c772f5e2028e8ce718fa628d9a934500f3279986a583a6e1c5",
+      "artifact_key": "6bc3a8b3c4a92b7ded132479d3504e3558541faaea868d8c9e67ee68fc684b73",
+      "cache_hit": false,
+      "launch_seconds": 0.054,
+      "max_abs_error": {
+        "output_ptr": 0.000244140625
+      },
+      "seconds": 0.338
+    },
+    {
+      "id": "suite/dev/softmax_kernel_inner.py#[17]#bfloat16",
+      "group": "suite/dev",
+      "operator": "suite/dev/softmax_kernel_inner.py",
+      "shape": [
+        17
+      ],
+      "dtype": "bfloat16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "fae309a3d2e0",
+      "artifact_sha256": "41430c62a3065e8c15e24031e09fd74d65ba86091c99dc7da0a552a58f397ed8",
+      "artifact_key": "f5782d2a13616758ca1998d5145712f0e346789ccce03dfdb28a9debadcfa921",
+      "cache_hit": false,
+      "launch_seconds": 0.052,
+      "max_abs_error": {
+        "output_ptr": 0.0009560286998748779
+      },
+      "seconds": 0.381
+    },
+    {
+      "id": "suite/dev/softmax_kernel_inner.py#[97]#float32",
+      "group": "suite/dev",
+      "operator": "suite/dev/softmax_kernel_inner.py",
+      "shape": [
+        97
+      ],
+      "dtype": "float32",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "05f4ffb9c77b",
+      "artifact_sha256": "f781f36a9c364edb86c980ae3a46d2761c665857ea0e8001ff0ddb709da43cf9",
+      "artifact_key": "1c249acbaefe62ea6ea8e130ad21cef15e8e9c344a08d2fc02c132c8be47f3ee",
+      "cache_hit": false,
+      "launch_seconds": 0.051,
+      "max_abs_error": {
+        "output_ptr": 3.725290298461914e-08
+      },
+      "seconds": 0.305
+    },
+    {
+      "id": "suite/dev/softmax_kernel_inner.py#[97]#float16",
+      "group": "suite/dev",
+      "operator": "suite/dev/softmax_kernel_inner.py",
+      "shape": [
+        97
+      ],
+      "dtype": "float16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "52cf271fd45d",
+      "artifact_sha256": "a7fd6c6f756df931bdb8c62d8d16155f1d2bb52dab51e996586990ebab365b5c",
+      "artifact_key": "81c4100558238e5bf109567bcfa01a1a933bdf16bedae7f2c14425bf2afd5459",
+      "cache_hit": false,
+      "launch_seconds": 0.052,
+      "max_abs_error": {
+        "output_ptr": 0.0001220703125
+      },
+      "seconds": 0.335
+    },
+    {
+      "id": "suite/dev/softmax_kernel_inner.py#[97]#bfloat16",
+      "group": "suite/dev",
+      "operator": "suite/dev/softmax_kernel_inner.py",
+      "shape": [
+        97
+      ],
+      "dtype": "bfloat16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "2ea2ea5e0b2c",
+      "artifact_sha256": "edf135cba2d1252ca2473b6aba6d550027898199adb970964f90034751aefd6a",
+      "artifact_key": "7ea33776c848b6d3445890cd67852c5e807ab282d8ea2bbc71e53382dbdcbfa4",
+      "cache_hit": false,
+      "launch_seconds": 0.054,
+      "max_abs_error": {
+        "output_ptr": 0.0004744678735733032
+      },
+      "seconds": 0.346
+    },
+    {
+      "id": "suite/dev/transposed_conv3d.py#[1, 3, 5, 2, 3, 4, 1, 0]#float16",
+      "group": "suite/dev",
+      "operator": "suite/dev/transposed_conv3d.py",
+      "shape": [
+        1,
+        3,
+        5,
+        2,
+        3,
+        4,
+        1,
+        0
+      ],
+      "dtype": "float16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "77842cc1a08a",
+      "artifact_sha256": "c5314e45cd9a991f08d53761d868d4c858d38b5ddc544199010bbd7d07bbb246",
+      "artifact_key": "c94c4edda0d6019a341386a4622baa0a6f6369dd27eb7c1af3bb8be3fd7d9376",
+      "cache_hit": false,
+      "launch_seconds": 0.073,
+      "max_abs_error": {
+        "Out": 0.0
+      },
+      "seconds": 13.926
+    },
+    {
+      "id": "suite/dev/transposed_conv3d.py#[1, 3, 5, 2, 3, 4, 1, 0]#float32",
+      "group": "suite/dev",
+      "operator": "suite/dev/transposed_conv3d.py",
+      "shape": [
+        1,
+        3,
+        5,
+        2,
+        3,
+        4,
+        1,
+        0
+      ],
+      "dtype": "float32",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "0dd28ef6ac63",
+      "artifact_sha256": "21b22671dc939dad25fc9a2613927fb5220c023ac97c0d9726bf141b4d7bde7c",
+      "artifact_key": "11a0c5ac40e8992bca78e611eda3807adbfa5c36f8c5fadf1d184f56d2c9201a",
+      "cache_hit": false,
+      "launch_seconds": 0.069,
+      "max_abs_error": {
+        "Out": 1.1920928955078125e-07
+      },
+      "seconds": 8.742
+    },
+    {
+      "id": "suite/dev/transposed_conv3d.py#[1, 3, 5, 2, 3, 4, 1, 0]#bfloat16",
+      "group": "suite/dev",
+      "operator": "suite/dev/transposed_conv3d.py",
+      "shape": [
+        1,
+        3,
+        5,
+        2,
+        3,
+        4,
+        1,
+        0
+      ],
+      "dtype": "bfloat16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "e100f5d7fd0e",
+      "artifact_sha256": "acf7c507aa0b1278b129f98b67cd64b4ac907a24c0389978503a17685acd0778",
+      "artifact_key": "5c40d4b2cf277529a60563e66a97ea14aa8dda73f2feb525385a0c1812d946e1",
+      "cache_hit": false,
+      "launch_seconds": 0.075,
+      "max_abs_error": {
+        "Out": 0.0037047863006591797
+      },
+      "seconds": 14.222
+    },
+    {
+      "id": "suite/dev/transposed_conv3d.py#[1, 3, 10, 2, 3, 4, 1, 0]#float16",
+      "group": "suite/dev",
+      "operator": "suite/dev/transposed_conv3d.py",
+      "shape": [
+        1,
+        3,
+        10,
+        2,
+        3,
+        4,
+        1,
+        0
+      ],
+      "dtype": "float16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "77842cc1a08a",
+      "artifact_sha256": "c5314e45cd9a991f08d53761d868d4c858d38b5ddc544199010bbd7d07bbb246",
+      "artifact_key": "c94c4edda0d6019a341386a4622baa0a6f6369dd27eb7c1af3bb8be3fd7d9376",
+      "cache_hit": true,
+      "launch_seconds": 0.078,
+      "max_abs_error": {
+        "Out": 0.0
+      },
+      "seconds": 0.087
+    },
+    {
+      "id": "suite/dev/transposed_conv3d.py#[1, 3, 10, 2, 3, 4, 1, 0]#float32",
+      "group": "suite/dev",
+      "operator": "suite/dev/transposed_conv3d.py",
+      "shape": [
+        1,
+        3,
+        10,
+        2,
+        3,
+        4,
+        1,
+        0
+      ],
+      "dtype": "float32",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "0dd28ef6ac63",
+      "artifact_sha256": "21b22671dc939dad25fc9a2613927fb5220c023ac97c0d9726bf141b4d7bde7c",
+      "artifact_key": "11a0c5ac40e8992bca78e611eda3807adbfa5c36f8c5fadf1d184f56d2c9201a",
+      "cache_hit": true,
+      "launch_seconds": 0.065,
+      "max_abs_error": {
+        "Out": 1.1920928955078125e-07
+      },
+      "seconds": 0.074
+    },
+    {
+      "id": "suite/dev/transposed_conv3d.py#[1, 3, 10, 2, 3, 4, 1, 0]#bfloat16",
+      "group": "suite/dev",
+      "operator": "suite/dev/transposed_conv3d.py",
+      "shape": [
+        1,
+        3,
+        10,
+        2,
+        3,
+        4,
+        1,
+        0
+      ],
+      "dtype": "bfloat16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "e100f5d7fd0e",
+      "artifact_sha256": "acf7c507aa0b1278b129f98b67cd64b4ac907a24c0389978503a17685acd0778",
+      "artifact_key": "5c40d4b2cf277529a60563e66a97ea14aa8dda73f2feb525385a0c1812d946e1",
+      "cache_hit": true,
+      "launch_seconds": 0.073,
+      "max_abs_error": {
+        "Out": 0.002811908721923828
+      },
+      "seconds": 0.083
+    },
+    {
+      "id": "suite/dev/transposed_conv3d.py#[3, 3, 5, 2, 3, 4, 1, 0]#float16",
+      "group": "suite/dev",
+      "operator": "suite/dev/transposed_conv3d.py",
+      "shape": [
+        3,
+        3,
+        5,
+        2,
+        3,
+        4,
+        1,
+        0
+      ],
+      "dtype": "float16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "77842cc1a08a",
+      "artifact_sha256": "c5314e45cd9a991f08d53761d868d4c858d38b5ddc544199010bbd7d07bbb246",
+      "artifact_key": "c94c4edda0d6019a341386a4622baa0a6f6369dd27eb7c1af3bb8be3fd7d9376",
+      "cache_hit": true,
+      "launch_seconds": 0.107,
+      "max_abs_error": {
+        "Out": 0.0
+      },
+      "seconds": 0.117
+    },
+    {
+      "id": "suite/dev/transposed_conv3d.py#[3, 3, 5, 2, 3, 4, 1, 0]#float32",
+      "group": "suite/dev",
+      "operator": "suite/dev/transposed_conv3d.py",
+      "shape": [
+        3,
+        3,
+        5,
+        2,
+        3,
+        4,
+        1,
+        0
+      ],
+      "dtype": "float32",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "0dd28ef6ac63",
+      "artifact_sha256": "21b22671dc939dad25fc9a2613927fb5220c023ac97c0d9726bf141b4d7bde7c",
+      "artifact_key": "11a0c5ac40e8992bca78e611eda3807adbfa5c36f8c5fadf1d184f56d2c9201a",
+      "cache_hit": true,
+      "launch_seconds": 0.083,
+      "max_abs_error": {
+        "Out": 1.1920928955078125e-07
+      },
+      "seconds": 0.092
+    },
+    {
+      "id": "suite/dev/transposed_conv3d.py#[3, 3, 5, 2, 3, 4, 1, 0]#bfloat16",
+      "group": "suite/dev",
+      "operator": "suite/dev/transposed_conv3d.py",
+      "shape": [
+        3,
+        3,
+        5,
+        2,
+        3,
+        4,
+        1,
+        0
+      ],
+      "dtype": "bfloat16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "e100f5d7fd0e",
+      "artifact_sha256": "acf7c507aa0b1278b129f98b67cd64b4ac907a24c0389978503a17685acd0778",
+      "artifact_key": "5c40d4b2cf277529a60563e66a97ea14aa8dda73f2feb525385a0c1812d946e1",
+      "cache_hit": true,
+      "launch_seconds": 0.092,
+      "max_abs_error": {
+        "Out": 0.0034285783767700195
+      },
+      "seconds": 0.102
+    },
+    {
+      "id": "suite/perf/attention_kernel.py#[2, 2, 16, 32]#bfloat16",
+      "group": "suite/perf",
+      "operator": "suite/perf/attention_kernel.py",
+      "shape": [
+        2,
+        2,
+        16,
+        32
+      ],
+      "dtype": "bfloat16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "cabb9ff095fa",
+      "artifact_sha256": "16b4ea6e97bd3834501342cd3a482f064ae5f66295d303ee0dcab0dc1e7bf769",
+      "artifact_key": "931340e9947212f9e259311c415be07dc9dd5333200b439c4f3bb24b9fcec84e",
+      "cache_hit": false,
+      "launch_seconds": 0.084,
+      "max_abs_error": {
+        "out_ptr": 0.0011122524738311768
+      },
+      "seconds": 3.383
+    },
+    {
+      "id": "suite/perf/attention_kernel.py#[2, 2, 16, 32]#float32",
+      "group": "suite/perf",
+      "operator": "suite/perf/attention_kernel.py",
+      "shape": [
+        2,
+        2,
+        16,
+        32
+      ],
+      "dtype": "float32",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "bc4a22e0c5fd",
+      "artifact_sha256": "933158b0d67f09f4e04a2b6a5313c5c8bb6629bb4affae65ac1e4b5467e445fd",
+      "artifact_key": "fcfe66b521ca6cb75934b18b6e8db797ff0dad01c733d8c682c4002efec8cd7b",
+      "cache_hit": false,
+      "launch_seconds": 0.072,
+      "max_abs_error": {
+        "out_ptr": 8.940696716308594e-08
+      },
+      "seconds": 1.639
+    },
+    {
+      "id": "suite/perf/attention_kernel.py#[2, 2, 16, 32]#float16",
+      "group": "suite/perf",
+      "operator": "suite/perf/attention_kernel.py",
+      "shape": [
+        2,
+        2,
+        16,
+        32
+      ],
+      "dtype": "float16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "7963a3366d36",
+      "artifact_sha256": "b4327b37dcbd5c2c43cdd8deefae85c389caad5c5da23461b1735bc420fa54c2",
+      "artifact_key": "717b08f3523e7065300ac42ef328e5165621ef84ca34f36a86cfd3832a31b519",
+      "cache_hit": false,
+      "launch_seconds": 0.083,
+      "max_abs_error": {
+        "out_ptr": 0.000244140625
+      },
+      "seconds": 3.262
+    },
+    {
+      "id": "suite/perf/attention_kernel.py#[4, 4, 32, 64]#bfloat16",
+      "group": "suite/perf",
+      "operator": "suite/perf/attention_kernel.py",
+      "shape": [
+        4,
+        4,
+        32,
+        64
+      ],
+      "dtype": "bfloat16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "808559b24f53",
+      "artifact_sha256": "f507305c44132aaaf825e7dac348a4afc655ec83a3ff033e4958b5ba30c57152",
+      "artifact_key": "bc343f5a4f08767ec4bf5b685a9e9f971e980c526ba6b1638ea0ce4a84ad9c58",
+      "cache_hit": false,
+      "launch_seconds": 0.858,
+      "max_abs_error": {
+        "out_ptr": 0.0010949373245239258
+      },
+      "seconds": 4.416
+    },
+    {
+      "id": "suite/perf/attention_kernel.py#[4, 4, 32, 64]#float32",
+      "group": "suite/perf",
+      "operator": "suite/perf/attention_kernel.py",
+      "shape": [
+        4,
+        4,
+        32,
+        64
+      ],
+      "dtype": "float32",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "bd7f8db0f0ec",
+      "artifact_sha256": "bee76eaf0cec1be8ace3f6c13250bee709fd254f7736dd2dd5d46f97a341bf50",
+      "artifact_key": "43fa752015986df54c12be5033a1bff1d906f0f864c01614c1b30f3151f237de",
+      "cache_hit": false,
+      "launch_seconds": 0.531,
+      "max_abs_error": {
+        "out_ptr": 8.940696716308594e-08
+      },
+      "seconds": 2.18
+    },
+    {
+      "id": "suite/perf/attention_kernel.py#[4, 4, 32, 64]#float16",
+      "group": "suite/perf",
+      "operator": "suite/perf/attention_kernel.py",
+      "shape": [
+        4,
+        4,
+        32,
+        64
+      ],
+      "dtype": "float16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "e098e381c01e",
+      "artifact_sha256": "9859adec40488ad5943ba10cdb523ef4fb37a9b3663e062e4a5471e6aea19f3f",
+      "artifact_key": "2adf1b1f30f5d962d5022159e936909d9823f4980bd7871f0341ed03d13f602f",
+      "cache_hit": false,
+      "launch_seconds": 0.864,
+      "max_abs_error": {
+        "out_ptr": 0.000244140625
+      },
+      "seconds": 4.071
+    },
+    {
+      "id": "suite/perf/attention_kernel.py#[1, 1, 8, 16]#bfloat16",
+      "group": "suite/perf",
+      "operator": "suite/perf/attention_kernel.py",
+      "shape": [
+        1,
+        1,
+        8,
+        16
+      ],
+      "dtype": "bfloat16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "160075a161fb",
+      "artifact_sha256": "bd87fbf23254b1609f00cd8a5b6f259f4a8f4ccf4008626abd866044ac8d57cb",
+      "artifact_key": "75f796cccde608c47276b2027b24dd121f9164cdf5749171b890cb724708e344",
+      "cache_hit": false,
+      "launch_seconds": 0.055,
+      "max_abs_error": {
+        "out_ptr": 0.0010816454887390137
+      },
+      "seconds": 2.831
+    },
+    {
+      "id": "suite/perf/attention_kernel.py#[1, 1, 8, 16]#float32",
+      "group": "suite/perf",
+      "operator": "suite/perf/attention_kernel.py",
+      "shape": [
+        1,
+        1,
+        8,
+        16
+      ],
+      "dtype": "float32",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "61531a31d965",
+      "artifact_sha256": "d1f0fc004c3d0bfd178d3232264fda4043b92c83d0cc2d1df5e127637c9079ad",
+      "artifact_key": "88dfacdc33a084aaeda086ea118008c23a4786e08b77d553acd1fbd68f0dd405",
+      "cache_hit": false,
+      "launch_seconds": 0.057,
+      "max_abs_error": {
+        "out_ptr": 5.960464477539063e-08
+      },
+      "seconds": 1.501
+    },
+    {
+      "id": "suite/perf/attention_kernel.py#[1, 1, 8, 16]#float16",
+      "group": "suite/perf",
+      "operator": "suite/perf/attention_kernel.py",
+      "shape": [
+        1,
+        1,
+        8,
+        16
+      ],
+      "dtype": "float16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "df2337848d40",
+      "artifact_sha256": "c3ca22f31ff49f0fa6bb5bdf352a20f2c33c34be20c933536a5c9f017930fce4",
+      "artifact_key": "e120c8ecd42729ced211b02434ab62ccf48d934b15ab54144eb1f279aa422df0",
+      "cache_hit": false,
+      "launch_seconds": 0.052,
+      "max_abs_error": {
+        "out_ptr": 0.0001220703125
+      },
+      "seconds": 2.521
+    },
+    {
+      "id": "suite/perf/context_attn_fwd.py#[2, 2, 16, 32]#bfloat16",
+      "group": "suite/perf",
+      "operator": "suite/perf/context_attn_fwd.py",
+      "shape": [
+        2,
+        2,
+        16,
+        32
+      ],
+      "dtype": "bfloat16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "876fb3aa084f",
+      "artifact_sha256": "89b70c5e04aa1202869d7ae2b7a6a9b42564e62d976564c033384ce181a12c46",
+      "artifact_key": "4a485b439e44f35056eb657a94de84e7927173a2bf19bc740d1947c14010f3e6",
+      "cache_hit": false,
+      "launch_seconds": 0.091,
+      "max_abs_error": {
+        "out_ptr": 0.0011122524738311768
+      },
+      "seconds": 3.674
+    },
+    {
+      "id": "suite/perf/context_attn_fwd.py#[2, 2, 16, 32]#float32",
+      "group": "suite/perf",
+      "operator": "suite/perf/context_attn_fwd.py",
+      "shape": [
+        2,
+        2,
+        16,
+        32
+      ],
+      "dtype": "float32",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "61f0025bb96b",
+      "artifact_sha256": "a88987d1a8d3deb84cfe4f72b79e928b223a5be2c52cec6d70b88e0419e7a7b5",
+      "artifact_key": "0f1e1a36e9fc2027b76e23753476a7839e506ca8de0af92ea5d476179c8c3e84",
+      "cache_hit": false,
+      "launch_seconds": 0.071,
+      "max_abs_error": {
+        "out_ptr": 8.940696716308594e-08
+      },
+      "seconds": 1.605
+    },
+    {
+      "id": "suite/perf/context_attn_fwd.py#[2, 2, 16, 32]#float16",
+      "group": "suite/perf",
+      "operator": "suite/perf/context_attn_fwd.py",
+      "shape": [
+        2,
+        2,
+        16,
+        32
+      ],
+      "dtype": "float16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "ef6fda37d733",
+      "artifact_sha256": "03c8140c6f110eaa22411a9eab6284b025e6251ed786a5364210f2bf5d80b314",
+      "artifact_key": "08ad7954d3f3dcb02cb6665ce11f503bd845e4fd9aec18d53842ee563eba84dd",
+      "cache_hit": false,
+      "launch_seconds": 0.093,
+      "max_abs_error": {
+        "out_ptr": 0.000244140625
+      },
+      "seconds": 3.337
+    },
+    {
+      "id": "suite/perf/context_attn_fwd.py#[4, 4, 32, 64]#bfloat16",
+      "group": "suite/perf",
+      "operator": "suite/perf/context_attn_fwd.py",
+      "shape": [
+        4,
+        4,
+        32,
+        64
+      ],
+      "dtype": "bfloat16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "a31b3d861053",
+      "artifact_sha256": "2fb422db62f8e61ff9d917d25f6c6204fef0e1cf6487313090338b58f65dc174",
+      "artifact_key": "0519edb93f8d3189eb4aabe1091a865f1c2acabca58e59723b6c40bddf66fd89",
+      "cache_hit": false,
+      "launch_seconds": 0.857,
+      "max_abs_error": {
+        "out_ptr": 0.0010949373245239258
+      },
+      "seconds": 4.392
+    },
+    {
+      "id": "suite/perf/context_attn_fwd.py#[4, 4, 32, 64]#float32",
+      "group": "suite/perf",
+      "operator": "suite/perf/context_attn_fwd.py",
+      "shape": [
+        4,
+        4,
+        32,
+        64
+      ],
+      "dtype": "float32",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "33c4bb854ddb",
+      "artifact_sha256": "ab4e21de0ac8fb77b67707296edb389970bbed5aa29897d5213711e91ccd9857",
+      "artifact_key": "baaa1c903a34bb254dfa99919900dadbecce5353d51def0cccb7a0edbe664fc7",
+      "cache_hit": false,
+      "launch_seconds": 0.537,
+      "max_abs_error": {
+        "out_ptr": 8.940696716308594e-08
+      },
+      "seconds": 2.203
+    },
+    {
+      "id": "suite/perf/context_attn_fwd.py#[4, 4, 32, 64]#float16",
+      "group": "suite/perf",
+      "operator": "suite/perf/context_attn_fwd.py",
+      "shape": [
+        4,
+        4,
+        32,
+        64
+      ],
+      "dtype": "float16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "8ac0f09074c9",
+      "artifact_sha256": "4e4e5d6419af25ba435374fcf8b5921a813ef15d7435243d545ebff80f3a4128",
+      "artifact_key": "92df31a8a381d9ed4ef656ab7cb3ae236deddad1c47faee44dbb80f20d7a69ac",
+      "cache_hit": false,
+      "launch_seconds": 0.865,
+      "max_abs_error": {
+        "out_ptr": 0.000244140625
+      },
+      "seconds": 4.144
+    },
+    {
+      "id": "suite/perf/context_attn_fwd.py#[1, 1, 8, 16]#bfloat16",
+      "group": "suite/perf",
+      "operator": "suite/perf/context_attn_fwd.py",
+      "shape": [
+        1,
+        1,
+        8,
+        16
+      ],
+      "dtype": "bfloat16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "650497f06a62",
+      "artifact_sha256": "d2c79f8dec5c4313937ed8ebe976d341611a3d1c0ff55197ce88e85b6956aec2",
+      "artifact_key": "c7f612138eda395acc7ffc9d4feb1d47744c0867d49d6f3dc059c3d9a1c3d88c",
+      "cache_hit": false,
+      "launch_seconds": 0.057,
+      "max_abs_error": {
+        "out_ptr": 0.0010816454887390137
+      },
+      "seconds": 2.816
+    },
+    {
+      "id": "suite/perf/context_attn_fwd.py#[1, 1, 8, 16]#float32",
+      "group": "suite/perf",
+      "operator": "suite/perf/context_attn_fwd.py",
+      "shape": [
+        1,
+        1,
+        8,
+        16
+      ],
+      "dtype": "float32",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "93ec20b277bd",
+      "artifact_sha256": "760f6f60ca9f2667a67668adaafad360ffc2961599a2f818ba9f5f565ade9c9e",
+      "artifact_key": "fb0f8015c58bf5f47914b2a9528196efa3f21f838332d642df99338aa8802e73",
+      "cache_hit": false,
+      "launch_seconds": 0.059,
+      "max_abs_error": {
+        "out_ptr": 5.960464477539063e-08
+      },
+      "seconds": 1.382
+    },
+    {
+      "id": "suite/perf/context_attn_fwd.py#[1, 1, 8, 16]#float16",
+      "group": "suite/perf",
+      "operator": "suite/perf/context_attn_fwd.py",
+      "shape": [
+        1,
+        1,
+        8,
+        16
+      ],
+      "dtype": "float16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "1f54b3ec8da9",
+      "artifact_sha256": "f38049d39f0f8ced936c6e2401ecad0cc27124f1149517c63353e6072a8db873",
+      "artifact_key": "8e3c30f7f9848957a588eeffbd5bf0989cedb93ad12b1ddf78d2991c749362b6",
+      "cache_hit": false,
+      "launch_seconds": 0.059,
+      "max_abs_error": {
+        "out_ptr": 0.0001220703125
+      },
+      "seconds": 2.526
+    },
+    {
+      "id": "suite/perf/fused_repeat_interleave_log_softmax.py#[3, 4]#bfloat16",
+      "group": "suite/perf",
+      "operator": "suite/perf/fused_repeat_interleave_log_softmax.py",
+      "shape": [
+        3,
+        4
+      ],
+      "dtype": "bfloat16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "c33a07f6d456",
+      "artifact_sha256": "23ebbf9665bc917683f87d45e1ec45bbf5c83c7c8a2b8293a53f5156592f01df",
+      "artifact_key": "63c9aaf121dc4a38322101d23b0812b7bcb56354aca7f9411e5123bfc4beb55e",
+      "cache_hit": false,
+      "launch_seconds": 0.049,
+      "max_abs_error": {
+        "y_ptr": 0.007264137268066406
+      },
+      "seconds": 0.169
+    },
+    {
+      "id": "suite/perf/fused_repeat_interleave_log_softmax.py#[3, 4]#float32",
+      "group": "suite/perf",
+      "operator": "suite/perf/fused_repeat_interleave_log_softmax.py",
+      "shape": [
+        3,
+        4
+      ],
+      "dtype": "float32",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "a59c5fc7423d",
+      "artifact_sha256": "3daf3e87c6988079b0bd37a624c03cbc6f8b5113ac76724a4b5246f7fb36a509",
+      "artifact_key": "e1371dc04db4bec8a2bcb5428007ce06897bb8a4bdd3ec7d90d76824b6498f84",
+      "cache_hit": false,
+      "launch_seconds": 0.05,
+      "max_abs_error": {
+        "y_ptr": 1.1920928955078125e-07
+      },
+      "seconds": 0.152
+    },
+    {
+      "id": "suite/perf/fused_repeat_interleave_log_softmax.py#[3, 4]#float16",
+      "group": "suite/perf",
+      "operator": "suite/perf/fused_repeat_interleave_log_softmax.py",
+      "shape": [
+        3,
+        4
+      ],
+      "dtype": "float16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "037e0e1c3e79",
+      "artifact_sha256": "1eaafbbead132671693f46895446c46a27f9e820c0cbe84d6fde19566fa15fd9",
+      "artifact_key": "d444ac39f294e978f3843f0ab0ee0427e305745d77486d32709ffc658a242995",
+      "cache_hit": false,
+      "launch_seconds": 0.047,
+      "max_abs_error": {
+        "y_ptr": 0.0009288787841796875
+      },
+      "seconds": 0.161
+    },
+    {
+      "id": "suite/perf/fused_repeat_interleave_log_softmax.py#[4, 5]#bfloat16",
+      "group": "suite/perf",
+      "operator": "suite/perf/fused_repeat_interleave_log_softmax.py",
+      "shape": [
+        4,
+        5
+      ],
+      "dtype": "bfloat16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "695dfc8ef973",
+      "artifact_sha256": "9f6e7b531603748885d2d8bef699c4ebffb542d8dedc58c4355ce6f50c2d1470",
+      "artifact_key": "889436512ab44dfcfcff6f6397a6a8d87850b6916619798175846dcd0da40395",
+      "cache_hit": false,
+      "launch_seconds": 0.05,
+      "max_abs_error": {
+        "y_ptr": 0.007238626480102539
+      },
+      "seconds": 0.178
+    },
+    {
+      "id": "suite/perf/fused_repeat_interleave_log_softmax.py#[4, 5]#float32",
+      "group": "suite/perf",
+      "operator": "suite/perf/fused_repeat_interleave_log_softmax.py",
+      "shape": [
+        4,
+        5
+      ],
+      "dtype": "float32",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "4a68cb45e381",
+      "artifact_sha256": "1089c9df5ab29c4c56333cde432a0f10a7405ac65e481d3f38056dc11d82b282",
+      "artifact_key": "a830fe2b726eac4f77beba6d747e2421398331079da63fdadbc9304a11670dcf",
+      "cache_hit": false,
+      "launch_seconds": 0.045,
+      "max_abs_error": {
+        "y_ptr": 2.384185791015625e-07
+      },
+      "seconds": 0.132
+    },
+    {
+      "id": "suite/perf/fused_repeat_interleave_log_softmax.py#[4, 5]#float16",
+      "group": "suite/perf",
+      "operator": "suite/perf/fused_repeat_interleave_log_softmax.py",
+      "shape": [
+        4,
+        5
+      ],
+      "dtype": "float16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "eec9ed9ffc37",
+      "artifact_sha256": "9da9280518360924652479f8def491e9580529907aa8bd2b7ffd5edbe1f8fc54",
+      "artifact_key": "dc11fb23b8b5daa1125c764cbe33c9c2ca9f0e7bf3327d18d21ca4741b033367",
+      "cache_hit": false,
+      "launch_seconds": 0.048,
+      "max_abs_error": {
+        "y_ptr": 0.0009152889251708984
+      },
+      "seconds": 0.194
+    },
+    {
+      "id": "suite/perf/matmul_triton2.py#[32, 32, 32]#bfloat16",
+      "group": "suite/perf",
+      "operator": "suite/perf/matmul_triton2.py",
+      "shape": [
+        32,
+        32,
+        32
+      ],
+      "dtype": "bfloat16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "156774cf8e11",
+      "artifact_sha256": "41e25e1b4d0551783062ce1a8f866444902ab597d38d72ab9ecb09bc4906bfec",
+      "artifact_key": "8dd763b5e389d99a8ec46b6e2010787db2a6cbd3724516a7ba92c9b875492456",
+      "cache_hit": false,
+      "launch_seconds": 0.065,
+      "max_abs_error": {
+        "c_ptr": 0.0560760498046875
+      },
+      "seconds": 2.647
+    },
+    {
+      "id": "suite/perf/matmul_triton2.py#[32, 32, 32]#float32",
+      "group": "suite/perf",
+      "operator": "suite/perf/matmul_triton2.py",
+      "shape": [
+        32,
+        32,
+        32
+      ],
+      "dtype": "float32",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "d5c1d769e3fc",
+      "artifact_sha256": "aa42d6905bc52e36ed98faa79ffa953bf29f5672424f6ebed9e1bc7bf4fbd85c",
+      "artifact_key": "92edf059d0e9842d0cbb17b46b6d4912a8fa50e1076973f1d17b36f584bd3c72",
+      "cache_hit": false,
+      "launch_seconds": 0.063,
+      "max_abs_error": {
+        "c_ptr": 3.814697265625e-06
+      },
+      "seconds": 1.12
+    },
+    {
+      "id": "suite/perf/matmul_triton2.py#[32, 32, 32]#float16",
+      "group": "suite/perf",
+      "operator": "suite/perf/matmul_triton2.py",
+      "shape": [
+        32,
+        32,
+        32
+      ],
+      "dtype": "float16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "d6ea198fbd1b",
+      "artifact_sha256": "d20feaf0b703312afe3e26788c64278e25818f543fefdfa9dec19955bebc7a3c",
+      "artifact_key": "502a8bec17e2c80dd216cb8beb1e2bde9960909d693be872c52e4bed60a55b12",
+      "cache_hit": false,
+      "launch_seconds": 0.061,
+      "max_abs_error": {
+        "c_ptr": 0.0
+      },
+      "seconds": 3.142
+    },
+    {
+      "id": "suite/perf/matmul_triton2.py#[33, 33, 33]#bfloat16",
+      "group": "suite/perf",
+      "operator": "suite/perf/matmul_triton2.py",
+      "shape": [
+        33,
+        33,
+        33
+      ],
+      "dtype": "bfloat16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "aa5f157ea654",
+      "artifact_sha256": "4f296d6f467dbdd72394d383d4863ee6e6e8c723e23d79cdb021fc0c68c463f1",
+      "artifact_key": "b766ae6ebd369879c50eb542571d85127ed7340a6611032653a2198ce1f99275",
+      "cache_hit": false,
+      "launch_seconds": 0.074,
+      "max_abs_error": {
+        "c_ptr": 0.057888031005859375
+      },
+      "seconds": 2.659
+    },
+    {
+      "id": "suite/perf/matmul_triton2.py#[33, 33, 33]#float32",
+      "group": "suite/perf",
+      "operator": "suite/perf/matmul_triton2.py",
+      "shape": [
+        33,
+        33,
+        33
+      ],
+      "dtype": "float32",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "0192fff2f056",
+      "artifact_sha256": "12fa846efef654f51fe26365e88f232e4d3438a16cf6aff22098a78e7aec7648",
+      "artifact_key": "5424c212216b0506dabe65c1c33a042b5f03c6dd383819cfc00d344bf6659c89",
+      "cache_hit": false,
+      "launch_seconds": 0.074,
+      "max_abs_error": {
+        "c_ptr": 2.86102294921875e-06
+      },
+      "seconds": 1.101
+    },
+    {
+      "id": "suite/perf/matmul_triton2.py#[33, 33, 33]#float16",
+      "group": "suite/perf",
+      "operator": "suite/perf/matmul_triton2.py",
+      "shape": [
+        33,
+        33,
+        33
+      ],
+      "dtype": "float16",
+      "compiled": true,
+      "executed": true,
+      "compared": true,
+      "passed": true,
+      "status": "PASS",
+      "detail": "",
+      "threads": 1,
+      "identity": "4f98b13a8e11",
+      "artifact_sha256": "fccce67036dc069aee5ee497e0314abfb5c9aff753f59db7bce4a87ce50cebc6",
+      "artifact_key": "eea422b272469f66cf65c37f56ff6d643f98e9fd627a95422002f09cdfcd88a6",
+      "cache_hit": false,
+      "launch_seconds": 0.079,
+      "max_abs_error": {
+        "c_ptr": 4.76837158203125e-07
+      },
+      "seconds": 3.151
+    }
+  ]
+}

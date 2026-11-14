@@ -1,0 +1,661 @@
+{
+  "schema": "a100c-matmul-metrics/v1",
+  "case": "suite/perf/attention_forward_triton.py#[4, 4, 32, 64]#float16",
+  "threads": 1,
+  "seed": 30,
+  "steady_repeats": 5,
+  "artifact": {
+    "key": "a9966905eba448e3006ae104a1ec60ed83b5ff7bfe0f4a7258f7d86c4b1587e6",
+    "sha256": "af01c03e5cef543997697543252ba0da99c7fe3bb6977da7b6d88aed92997310",
+    "identity": "802bbf92b2f06632",
+    "cache_entry": "/tmp/a100-opt3-candidate/a100c/cache/a9966905eba448e3006ae104a1ec60ed83b5ff7bfe0f4a7258f7d86c4b1587e6"
+  },
+  "environment": {
+    "qemu": "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64",
+    "qemu_version": "qemu-riscv64 version 10.0.2",
+    "cpu": "max,vlen=1024,elen=64,vext_spec=v1.0",
+    "plugin": "/tmp/a100-opt3-candidate/tools/profiling/full_instruction_counts.so"
+  },
+  "asm_join": {
+    "listing_instruction_rows": 2621,
+    "program_instructions": 2621,
+    "affine_offset": 70918,
+    "region": [
+      70918,
+      79904
+    ],
+    "byte_identity": true
+  },
+  "runs": {
+    "r1": {
+      "repeats": 1,
+      "exit_code": 0,
+      "wall_s": 1.317,
+      "command": "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64 -L /home/i_yinzida/.local/opt/a100/toolchain-1.1.2/sysroot -cpu max,vlen=1024,elen=64,vext_spec=v1.0 -plugin /tmp/a100-opt3-candidate/tools/profiling/full_instruction_counts.so,out=/tmp/a100-opt3/candidate-metrics/attention-float16-t1/counts.r1.json /tmp/a100-opt3-candidate/a100c/cache/a9966905eba448e3006ae104a1ec60ed83b5ff7bfe0f4a7258f7d86c4b1587e6/operator_exec --bundle /tmp/a100-native-case-xda2z2tj/bundle.bin --threads 1 --repeats 1",
+      "stdout_last_json": {
+        "runtime": "a100rt/v1",
+        "status": "ok",
+        "threads": 1,
+        "repeats": 1,
+        "pool_initializations": 1,
+        "repeats_all_equal": true,
+        "workers": [
+          {
+            "id": 0,
+            "guest_tid": 3534119,
+            "items": 6569984
+          }
+        ],
+        "bundle_bytes": 262912
+      },
+      "total": 24547858,
+      "per_vcpu_totals": [
+        200856,
+        24347002,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "categories": {
+        "scalar-arith": 7793774,
+        "scalar-load": 1459822,
+        "branch": 1483379,
+        "scalar-store": 113432,
+        "vec-config": 4742671,
+        "vec-mem": 1261679,
+        "vec-arith": 7692805,
+        "system": 140,
+        "atomic": 156
+      }
+    },
+    "r2": {
+      "repeats": 6,
+      "exit_code": 0,
+      "wall_s": 7.315,
+      "command": "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64 -L /home/i_yinzida/.local/opt/a100/toolchain-1.1.2/sysroot -cpu max,vlen=1024,elen=64,vext_spec=v1.0 -plugin /tmp/a100-opt3-candidate/tools/profiling/full_instruction_counts.so,out=/tmp/a100-opt3/candidate-metrics/attention-float16-t1/counts.r2.json /tmp/a100-opt3-candidate/a100c/cache/a9966905eba448e3006ae104a1ec60ed83b5ff7bfe0f4a7258f7d86c4b1587e6/operator_exec --bundle /tmp/a100-native-case-xda2z2tj/bundle.bin --threads 1 --repeats 6",
+      "stdout_last_json": {
+        "runtime": "a100rt/v1",
+        "status": "ok",
+        "threads": 1,
+        "repeats": 6,
+        "pool_initializations": 1,
+        "repeats_all_equal": true,
+        "workers": [
+          {
+            "id": 0,
+            "guest_tid": 3534964,
+            "items": 6569984
+          }
+        ],
+        "bundle_bytes": 262912
+      },
+      "total": 147331148,
+      "per_vcpu_totals": [
+        1267426,
+        146063722,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "categories": {
+        "scalar-arith": 46746229,
+        "scalar-load": 8856407,
+        "branch": 9049519,
+        "scalar-store": 500132,
+        "vec-config": 28454681,
+        "vec-mem": 7566959,
+        "vec-arith": 46156825,
+        "system": 180,
+        "atomic": 216
+      }
+    }
+  },
+  "steady_state": {
+    "per_call_total": 24556658.0,
+    "init_total": -8800.0,
+    "per_call_categories": {
+      "scalar-arith": 7804188.800000551,
+      "scalar-load": 1488443.3999999298,
+      "branch": 1520505.799999944,
+      "scalar-store": 86879.59999999647,
+      "vec-config": 4742402.0,
+      "vec-mem": 1261056.0,
+      "vec-arith": 7692804.0,
+      "system": 33.999999999999986,
+      "atomic": 43.00000000000002
+    },
+    "indivisible_pc_deltas": 11888,
+    "note": "per-call = (repeats=1+R minus repeats=1)/R; indivisible deltas indicate run-to-run variation (e.g. barrier spin) and are kept as fractions"
+  },
+  "program_region": {
+    "origins_per_call": {
+      "frame": 1609834.0,
+      "reload": 1743888.0,
+      "scalar-mem": 2483745.0,
+      "spill": 140805.0,
+      "op:swext": 44039.0,
+      "const-materialization": 4297743.0,
+      "vec-config": 3576834.0,
+      "vec-arith": 5099012.0,
+      "op:vfncvt": 131073.0,
+      "op:smul": 138240.0,
+      "op:smove": 99328.0,
+      "branch": 893952.0,
+      "op:slt": 297472.0,
+      "op:ssub": 34304.0,
+      "op:sdivu": 1024.0,
+      "op:sdiv": 1024.0,
+      "op:sadd": 2107392.0,
+      "vec-mem": 365056.0,
+      "op:vunit_load": 66048.0,
+      "op:vfwcvt": 164352.0
+    },
+    "opcodes_per_call": {
+      "frame": 1609834.0,
+      "sreload": 1743888.0,
+      "sload": 751137.0,
+      "sspill": 140805.0,
+      "swext": 44039.0,
+      "sconst": 4297743.0,
+      "vsetvli": 3576834.0,
+      "s2v": 329217.0,
+      "vmovv": 262657.0,
+      "vfncvt": 131073.0,
+      "vextract": 1562114.0,
+      "smul": 138240.0,
+      "smove": 99328.0,
+      "br": 596992.0,
+      "slt": 297472.0,
+      "brc": 296960.0,
+      "ssub": 34304.0,
+      "sdivu": 1024.0,
+      "sdiv": 1024.0,
+      "vid": 166400.0,
+      "vbinx": 531968.0,
+      "vwaddx0": 363008.0,
+      "sadd": 2107392.0,
+      "vstoreix": 166912.0,
+      "sstore": 1732608.0,
+      "vloadix": 198144.0,
+      "vunit_load": 66048.0,
+      "vfwcvt": 164352.0,
+      "vcmp": 32768.0,
+      "vmovmask": 32768.0,
+      "vsel": 65536.0,
+      "vbin": 165376.0,
+      "vslidedn": 1554432.0,
+      "vred": 32768.0
+    },
+    "spill_traffic": {
+      "spill_instructions": 140805.0,
+      "reload_instructions": 1743888.0,
+      "spill_bytes_model": 4196360.0,
+      "reload_bytes_model": 51669032.0,
+      "bytes_model_note": "scalar=8B; vector=VLEN/8*lmul at vlmax"
+    },
+    "vsetvli": {
+      "static": {
+        "e64,m1": 1,
+        "e32,m1": 107,
+        "e64,m2": 108,
+        "e16,m1": 112
+      },
+      "dynamic_call": 3576834.0
+    },
+    "static": {
+      "instructions": 2621,
+      "frame_bytes": 304,
+      "saved_regs": [
+        "s1",
+        "s2",
+        "s3",
+        "s4",
+        "s5",
+        "s6",
+        "s7",
+        "s8",
+        "s9",
+        "s10",
+        "s11"
+      ],
+      "spill_slots": 23,
+      "spilled_values": 23,
+      "gprs_used": 25,
+      "vector_regs_used": 12,
+      "vector_bytes_used": 1536
+    }
+  },
+  "runtime_region_per_call": {
+    "_PROCEDURE_LINKAGE_TABLE_": 21.0,
+    "main": 198418.0,
+    "operator_entry": 1048064.0,
+    "a100rt_worker_main": 12.0,
+    "a100rt_pool_call": 25.0
+  },
+  "loader_unknown_per_call": 54651.599999997445,
+  "hot_pcs_per_call": [
+    {
+      "pc": 75862,
+      "per_call": 49152.0,
+      "mnemonic": "bnez",
+      "region": "program",
+      "origin": "vec-config",
+      "opcode": "vsetvli",
+      "loc": "/tmp/a100-opt3-candidate/ops/suite/perf/attention_forward_triton.py:42:9",
+      "text": "bne s11, zero, .Lbrc1112_true  # [op1112] /tmp/a100-opt3-candidate/ops/suite/perf/attention_forward_triton.py:44:10"
+    },
+    {
+      "pc": 75858,
+      "per_call": 49152.0,
+      "mnemonic": "slt",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/tmp/a100-opt3-candidate/ops/suite/perf/attention_forward_triton.py:42:9",
+      "text": "slt s11, t0, t1  # [op1111] /tmp/a100-opt3-candidate/ops/suite/perf/attention_forward_triton.py:44:10"
+    },
+    {
+      "pc": 79610,
+      "per_call": 33792.0,
+      "mnemonic": "bnez",
+      "region": "program",
+      "origin": "vec-arith",
+      "opcode": "vextract",
+      "loc": "/tmp/a100-opt3-candidate/ops/suite/perf/attention_forward_triton.py:51:9",
+      "text": "bne t3, zero, .Lbrc2065_true  # [op2065] /tmp/a100-opt3-candidate/ops/suite/perf/attention_forward_triton.py:53:11"
+    },
+    {
+      "pc": 79606,
+      "per_call": 33792.0,
+      "mnemonic": "slt",
+      "region": "program",
+      "origin": "vec-config",
+      "opcode": "vsetvli",
+      "loc": "/tmp/a100-opt3-candidate/ops/suite/perf/attention_forward_triton.py:51:9",
+      "text": "slt t3, t1, s11  # [op2064] /tmp/a100-opt3-candidate/ops/suite/perf/attention_forward_triton.py:53:11"
+    },
+    {
+      "pc": 79342,
+      "per_call": 33280.0,
+      "mnemonic": "bnez",
+      "region": "program",
+      "origin": "vec-arith",
+      "opcode": "vextract",
+      "loc": "/tmp/a100-opt3-candidate/ops/suite/perf/attention_forward_triton.py:51:9",
+      "text": "bne t0, zero, .Lbrc1999_true  # [op1999] /tmp/a100-opt3-candidate/ops/suite/perf/attention_forward_triton.py:20:1"
+    },
+    {
+      "pc": 79340,
+      "per_call": 33280.0,
+      "mnemonic": "ld",
+      "region": "program",
+      "origin": "frame",
+      "opcode": null,
+      "loc": null,
+      "text": "ld s1, 288(sp)  # [op-1] /tmp/a100-opt3-candidate/ops/suite/perf/attention_forward_triton.py:20:1"
+    },
+    {
+      "pc": 79336,
+      "per_call": 33280.0,
+      "mnemonic": "slt",
+      "region": "program",
+      "origin": "vec-config",
+      "opcode": "vsetvli",
+      "loc": "/tmp/a100-opt3-candidate/ops/suite/perf/attention_forward_triton.py:51:9",
+      "text": "slt t0, t1, t0  # [op1998] /tmp/a100-opt3-candidate/ops/suite/perf/attention_forward_triton.py:20:1"
+    },
+    {
+      "pc": 79332,
+      "per_call": 33280.0,
+      "mnemonic": "addiw",
+      "region": "operator_entry",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 79330,
+      "per_call": 33280.0,
+      "mnemonic": "lui",
+      "region": "program",
+      "origin": "op:sadd",
+      "opcode": "sadd",
+      "loc": "/tmp/a100-opt3-candidate/ops/suite/perf/attention_forward_triton.py:51:9",
+      "text": "li t0, 2048  # [op1997] /tmp/a100-opt3-candidate/ops/suite/perf/attention_forward_triton.py:20:1"
+    },
+    {
+      "pc": 79200,
+      "per_call": 33280.0,
+      "mnemonic": "bnez",
+      "region": "program",
+      "origin": "vec-arith",
+      "opcode": "vextract",
+      "loc": "/tmp/a100-opt3-candidate/ops/suite/perf/attention_forward_triton.py:51:9",
+      "text": "bne t0, zero, .Lbrc1966_true  # [op1966] /tmp/a100-opt3-candidate/ops/suite/perf/attention_forward_triton.py:53:18"
+    },
+    {
+      "pc": 79196,
+      "per_call": 33280.0,
+      "mnemonic": "slt",
+      "region": "program",
+      "origin": "vec-config",
+      "opcode": "vsetvli",
+      "loc": "/tmp/a100-opt3-candidate/ops/suite/perf/attention_forward_triton.py:51:9",
+      "text": "slt t0, t1, t0  # [op1965] /tmp/a100-opt3-candidate/ops/suite/perf/attention_forward_triton.py:53:18"
+    },
+    {
+      "pc": 79192,
+      "per_call": 33280.0,
+      "mnemonic": "addiw",
+      "region": "operator_entry",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 79190,
+      "per_call": 33280.0,
+      "mnemonic": "lui",
+      "region": "program",
+      "origin": "op:sadd",
+      "opcode": "sadd",
+      "loc": "/tmp/a100-opt3-candidate/ops/suite/perf/attention_forward_triton.py:51:9",
+      "text": "li t0, 2048  # [op1964] /tmp/a100-opt3-candidate/ops/suite/perf/attention_forward_triton.py:53:18"
+    },
+    {
+      "pc": 79048,
+      "per_call": 33280.0,
+      "mnemonic": "bnez",
+      "region": "program",
+      "origin": "vec-arith",
+      "opcode": "vslidedn",
+      "loc": "/tmp/a100-opt3-candidate/ops/suite/perf/attention_forward_triton.py:51:9",
+      "text": "bne t0, zero, .Lbrc1928_true  # [op1928] /tmp/a100-opt3-candidate/ops/suite/perf/attention_forward_triton.py:20:1"
+    },
+    {
+      "pc": 79046,
+      "per_call": 33280.0,
+      "mnemonic": "ld",
+      "region": "program",
+      "origin": "frame",
+      "opcode": null,
+      "loc": null,
+      "text": "ld s1, 288(sp)  # [op-1] /tmp/a100-opt3-candidate/ops/suite/perf/attention_forward_triton.py:20:1"
+    },
+    {
+      "pc": 79042,
+      "per_call": 33280.0,
+      "mnemonic": "slt",
+      "region": "program",
+      "origin": "vec-config",
+      "opcode": "vsetvli",
+      "loc": "/tmp/a100-opt3-candidate/ops/suite/perf/attention_forward_triton.py:51:9",
+      "text": "slt t0, t1, t0  # [op1927] /tmp/a100-opt3-candidate/ops/suite/perf/attention_forward_triton.py:20:1"
+    },
+    {
+      "pc": 79038,
+      "per_call": 33280.0,
+      "mnemonic": "addiw",
+      "region": "operator_entry",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 79036,
+      "per_call": 33280.0,
+      "mnemonic": "lui",
+      "region": "program",
+      "origin": "scalar-mem",
+      "opcode": "sstore",
+      "loc": "/tmp/a100-opt3-candidate/ops/suite/perf/attention_forward_triton.py:51:9",
+      "text": "li t0, 2048  # [op1926] /tmp/a100-opt3-candidate/ops/suite/perf/attention_forward_triton.py:20:1"
+    },
+    {
+      "pc": 76838,
+      "per_call": 33280.0,
+      "mnemonic": "bnez",
+      "region": "program",
+      "origin": "op:sadd",
+      "opcode": "sadd",
+      "loc": "/tmp/a100-opt3-candidate/ops/suite/perf/attention_forward_triton.py:44:17",
+      "text": "bne t0, zero, .Lbrc1349_true  # [op1349] /tmp/a100-opt3-candidate/ops/suite/perf/attention_forward_triton.py:20:1"
+    },
+    {
+      "pc": 76836,
+      "per_call": 33280.0,
+      "mnemonic": "ld",
+      "region": "program",
+      "origin": "frame",
+      "opcode": null,
+      "loc": null,
+      "text": "ld t1, 288(sp)  # [op-1] /tmp/a100-opt3-candidate/ops/suite/perf/attention_forward_triton.py:20:1"
+    },
+    {
+      "pc": 76832,
+      "per_call": 33280.0,
+      "mnemonic": "slt",
+      "region": "program",
+      "origin": "vec-mem",
+      "opcode": "vstoreix",
+      "loc": "/tmp/a100-opt3-candidate/ops/suite/perf/attention_forward_triton.py:44:17",
+      "text": "slt t0, s1, t0  # [op1348] /tmp/a100-opt3-candidate/ops/suite/perf/attention_forward_triton.py:20:1"
+    },
+    {
+      "pc": 76828,
+      "per_call": 33280.0,
+      "mnemonic": "addiw",
+      "region": "operator_entry",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 76826,
+      "per_call": 33280.0,
+      "mnemonic": "lui",
+      "region": "program",
+      "origin": "vec-config",
+      "opcode": "vsetvli",
+      "loc": "/tmp/a100-opt3-candidate/ops/suite/perf/attention_forward_triton.py:44:17",
+      "text": "li t0, 2048  # [op1347] /tmp/a100-opt3-candidate/ops/suite/perf/attention_forward_triton.py:20:1"
+    },
+    {
+      "pc": 75538,
+      "per_call": 33280.0,
+      "mnemonic": "bnez",
+      "region": "program",
+      "origin": "vec-arith",
+      "opcode": "vslidedn",
+      "loc": "/tmp/a100-opt3-candidate/ops/suite/perf/attention_forward_triton.py:42:9",
+      "text": "bne t0, zero, .Lbrc1031_true  # [op1031] /tmp/a100-opt3-candidate/ops/suite/perf/attention_forward_triton.py:20:1"
+    },
+    {
+      "pc": 75536,
+      "per_call": 33280.0,
+      "mnemonic": "ld",
+      "region": "program",
+      "origin": "frame",
+      "opcode": null,
+      "loc": null,
+      "text": "ld s1, 288(sp)  # [op-1] /tmp/a100-opt3-candidate/ops/suite/perf/attention_forward_triton.py:20:1"
+    },
+    {
+      "pc": 75532,
+      "per_call": 33280.0,
+      "mnemonic": "slt",
+      "region": "program",
+      "origin": "scalar-mem",
+      "opcode": "sstore",
+      "loc": "/tmp/a100-opt3-candidate/ops/suite/perf/attention_forward_triton.py:42:9",
+      "text": "slt t0, t1, t0  # [op1030] /tmp/a100-opt3-candidate/ops/suite/perf/attention_forward_triton.py:20:1"
+    },
+    {
+      "pc": 75528,
+      "per_call": 33280.0,
+      "mnemonic": "addiw",
+      "region": "operator_entry",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 75526,
+      "per_call": 33280.0,
+      "mnemonic": "lui",
+      "region": "program",
+      "origin": "vec-arith",
+      "opcode": "vextract",
+      "loc": "/tmp/a100-opt3-candidate/ops/suite/perf/attention_forward_triton.py:42:9",
+      "text": "li t0, 2048  # [op1029] /tmp/a100-opt3-candidate/ops/suite/perf/attention_forward_triton.py:20:1"
+    },
+    {
+      "pc": 75398,
+      "per_call": 33280.0,
+      "mnemonic": "bnez",
+      "region": "program",
+      "origin": "op:sadd",
+      "opcode": "sadd",
+      "loc": "/tmp/a100-opt3-candidate/ops/suite/perf/attention_forward_triton.py:42:9",
+      "text": "bne t0, zero, .Lbrc998_true  # [op998] /tmp/a100-opt3-candidate/ops/suite/perf/attention_forward_triton.py:44:17"
+    },
+    {
+      "pc": 75394,
+      "per_call": 33280.0,
+      "mnemonic": "slt",
+      "region": "program",
+      "origin": "reload",
+      "opcode": "sreload",
+      "loc": "/tmp/a100-opt3-candidate/ops/suite/perf/attention_forward_triton.py:42:9",
+      "text": "slt t0, t1, t0  # [op997] /tmp/a100-opt3-candidate/ops/suite/perf/attention_forward_triton.py:44:17"
+    },
+    {
+      "pc": 75390,
+      "per_call": 33280.0,
+      "mnemonic": "addiw",
+      "region": "operator_entry",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 75388,
+      "per_call": 33280.0,
+      "mnemonic": "lui",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/tmp/a100-opt3-candidate/ops/suite/perf/attention_forward_triton.py:42:9",
+      "text": "li t0, 2048  # [op996] /tmp/a100-opt3-candidate/ops/suite/perf/attention_forward_triton.py:44:17"
+    },
+    {
+      "pc": 73000,
+      "per_call": 33280.0,
+      "mnemonic": "bnez",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/tmp/a100-opt3-candidate/ops/suite/perf/attention_forward_triton.py:40:9",
+      "text": "bne t0, zero, .Lbrc424_true  # [op424] /tmp/a100-opt3-candidate/ops/suite/perf/attention_forward_triton.py:20:1"
+    },
+    {
+      "pc": 72998,
+      "per_call": 33280.0,
+      "mnemonic": "ld",
+      "region": "program",
+      "origin": "frame",
+      "opcode": null,
+      "loc": null,
+      "text": "ld t2, 288(sp)  # [op-1] /tmp/a100-opt3-candidate/ops/suite/perf/attention_forward_triton.py:20:1"
+    },
+    {
+      "pc": 72994,
+      "per_call": 33280.0,
+      "mnemonic": "slt",
+      "region": "program",
+      "origin": "vec-config",
+      "opcode": "vsetvli",
+      "loc": "/tmp/a100-opt3-candidate/ops/suite/perf/attention_forward_triton.py:40:9",
+      "text": "slt t0, t1, t0  # [op423] /tmp/a100-opt3-candidate/ops/suite/perf/attention_forward_triton.py:20:1"
+    },
+    {
+      "pc": 72990,
+      "per_call": 33280.0,
+      "mnemonic": "addiw",
+      "region": "operator_entry",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 72988,
+      "per_call": 33280.0,
+      "mnemonic": "lui",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/tmp/a100-opt3-candidate/ops/suite/perf/attention_forward_triton.py:40:9",
+      "text": "li t0, 2048  # [op422] /tmp/a100-opt3-candidate/ops/suite/perf/attention_forward_triton.py:20:1"
+    },
+    {
+      "pc": 72862,
+      "per_call": 33280.0,
+      "mnemonic": "bnez",
+      "region": "program",
+      "origin": "branch",
+      "opcode": "br",
+      "loc": "/tmp/a100-opt3-candidate/ops/suite/perf/attention_forward_triton.py:20:1",
+      "text": "bne t0, zero, .Lbrc391_true  # [op391] /tmp/a100-opt3-candidate/ops/suite/perf/attention_forward_triton.py:42:9"
+    },
+    {
+      "pc": 72858,
+      "per_call": 33280.0,
+      "mnemonic": "slt",
+      "region": "program",
+      "origin": "scalar-mem",
+      "opcode": "sstore",
+      "loc": "/tmp/a100-opt3-candidate/ops/suite/perf/attention_forward_triton.py:20:1",
+      "text": "slt t0, t1, t0  # [op390] /tmp/a100-opt3-candidate/ops/suite/perf/attention_forward_triton.py:42:9"
+    },
+    {
+      "pc": 72854,
+      "per_call": 33280.0,
+      "mnemonic": "addiw",
+      "region": "operator_entry",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    }
+  ],
+  "problems": []
+}

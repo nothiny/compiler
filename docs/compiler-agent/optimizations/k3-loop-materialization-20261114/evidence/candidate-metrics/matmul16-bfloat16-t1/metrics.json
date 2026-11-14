@@ -1,0 +1,661 @@
+{
+  "schema": "a100c-matmul-metrics/v1",
+  "case": "suite/perf/matmul.py#[16, 16, 16]#bfloat16",
+  "threads": 1,
+  "seed": 30,
+  "steady_repeats": 5,
+  "artifact": {
+    "key": "4bf64581a0c9e63774624f5b4aa4bbcf7101524fd16d69391d4405d8e1c027d9",
+    "sha256": "f254c888728e220f343f7a2824f62c2a647686b3c486e26cc4aae551fa061fc7",
+    "identity": "24b9b3c21ab8cdb6",
+    "cache_entry": "/tmp/a100-opt3-candidate/a100c/cache/4bf64581a0c9e63774624f5b4aa4bbcf7101524fd16d69391d4405d8e1c027d9"
+  },
+  "environment": {
+    "qemu": "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64",
+    "qemu_version": "qemu-riscv64 version 10.0.2",
+    "cpu": "max,vlen=1024,elen=64,vext_spec=v1.0",
+    "plugin": "/tmp/a100-opt3-candidate/tools/profiling/full_instruction_counts.so"
+  },
+  "asm_join": {
+    "listing_instruction_rows": 3056,
+    "program_instructions": 3056,
+    "affine_offset": 70918,
+    "region": [
+      70918,
+      81470
+    ],
+    "byte_identity": true
+  },
+  "runs": {
+    "r1": {
+      "repeats": 1,
+      "exit_code": 0,
+      "wall_s": 0.115,
+      "command": "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64 -L /home/i_yinzida/.local/opt/a100/toolchain-1.1.2/sysroot -cpu max,vlen=1024,elen=64,vext_spec=v1.0 -plugin /tmp/a100-opt3-candidate/tools/profiling/full_instruction_counts.so,out=/tmp/a100-opt3/candidate-metrics/matmul16-bfloat16-t1/counts.r1.json /tmp/a100-opt3-candidate/a100c/cache/4bf64581a0c9e63774624f5b4aa4bbcf7101524fd16d69391d4405d8e1c027d9/operator_exec --bundle /tmp/a100-native-case-0o5pi66o/bundle.bin --threads 1 --repeats 1",
+      "stdout_last_json": {
+        "runtime": "a100rt/v1",
+        "status": "ok",
+        "threads": 1,
+        "repeats": 1,
+        "pool_initializations": 1,
+        "repeats_all_equal": true,
+        "workers": [
+          {
+            "id": 0,
+            "guest_tid": 3516117,
+            "items": 2000
+          }
+        ],
+        "bundle_bytes": 1856
+      },
+      "total": 205319,
+      "per_vcpu_totals": [
+        179060,
+        26259,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "categories": {
+        "scalar-arith": 75270,
+        "scalar-load": 47839,
+        "branch": 36809,
+        "scalar-store": 33924,
+        "vec-config": 3066,
+        "vec-mem": 1140,
+        "vec-arith": 6983,
+        "system": 135,
+        "atomic": 153
+      }
+    },
+    "r2": {
+      "repeats": 6,
+      "exit_code": 0,
+      "wall_s": 0.122,
+      "command": "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64 -L /home/i_yinzida/.local/opt/a100/toolchain-1.1.2/sysroot -cpu max,vlen=1024,elen=64,vext_spec=v1.0 -plugin /tmp/a100-opt3-candidate/tools/profiling/full_instruction_counts.so,out=/tmp/a100-opt3/candidate-metrics/matmul16-bfloat16-t1/counts.r2.json /tmp/a100-opt3-candidate/a100c/cache/4bf64581a0c9e63774624f5b4aa4bbcf7101524fd16d69391d4405d8e1c027d9/operator_exec --bundle /tmp/a100-native-case-0o5pi66o/bundle.bin --threads 1 --repeats 6",
+      "stdout_last_json": {
+        "runtime": "a100rt/v1",
+        "status": "ok",
+        "threads": 1,
+        "repeats": 6,
+        "pool_initializations": 1,
+        "repeats_all_equal": true,
+        "workers": [
+          {
+            "id": 0,
+            "guest_tid": 3516213,
+            "items": 2000
+          }
+        ],
+        "bundle_bytes": 1856
+      },
+      "total": 355009,
+      "per_vcpu_totals": [
+        215760,
+        139249,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "categories": {
+        "scalar-arith": 119905,
+        "scalar-load": 59159,
+        "branch": 50874,
+        "scalar-store": 58059,
+        "vec-config": 18336,
+        "vec-mem": 6395,
+        "vec-arith": 41893,
+        "system": 175,
+        "atomic": 213
+      }
+    }
+  },
+  "steady_state": {
+    "per_call_total": 29938.0,
+    "init_total": 175381.0,
+    "per_call_categories": {
+      "scalar-arith": 22247.400000001584,
+      "scalar-load": 11393.800000000154,
+      "branch": 9738.200000000093,
+      "scalar-store": 11571.800000000108,
+      "vec-config": 3054.0,
+      "vec-mem": 1051.0,
+      "vec-arith": 6982.0,
+      "system": 32.999999999999986,
+      "atomic": 42.40000000000003
+    },
+    "indivisible_pc_deltas": 11860,
+    "note": "per-call = (repeats=1+R minus repeats=1)/R; indivisible deltas indicate run-to-run variation (e.g. barrier spin) and are kept as fractions"
+  },
+  "program_region": {
+    "origins_per_call": {
+      "frame": 1335.0,
+      "spill": 21.0,
+      "reload": 785.0,
+      "scalar-mem": 2893.0,
+      "op:swext": 7.0,
+      "const-materialization": 3414.0,
+      "op:sadd": 1979.0,
+      "op:sdivu": 6.0,
+      "op:smul": 61.0,
+      "op:smove": 2.0,
+      "branch": 866.0,
+      "op:slt": 301.0,
+      "op:ssub": 2.0,
+      "op:sshl": 2.0,
+      "vec-config": 3601.0,
+      "vec-arith": 5851.0,
+      "vec-mem": 699.0,
+      "op:vmand": 32.0,
+      "op:vunit_load": 45.0,
+      "op:vfmacc": 17.0,
+      "op:vunit_store": 16.0
+    },
+    "opcodes_per_call": {
+      "frame": 1335.0,
+      "sspill": 21.0,
+      "sreload": 785.0,
+      "sload": 1733.0,
+      "swext": 7.0,
+      "sconst": 3414.0,
+      "sadd": 1979.0,
+      "sdivu": 6.0,
+      "smul": 61.0,
+      "smove": 2.0,
+      "br": 574.0,
+      "slt": 301.0,
+      "brc": 292.0,
+      "ssub": 2.0,
+      "sshl": 2.0,
+      "vsetvli": 3601.0,
+      "vid": 252.0,
+      "vbinx": 961.0,
+      "s2v": 540.0,
+      "vbin": 380.0,
+      "vwaddx0": 707.0,
+      "vstoreix": 284.0,
+      "vloadix": 415.0,
+      "vcmp": 129.0,
+      "vmovmask": 113.0,
+      "vsel": 113.0,
+      "vmovv": 110.0,
+      "vmand": 32.0,
+      "sstore": 1160.0,
+      "vslidedn": 1389.0,
+      "vextract": 1157.0,
+      "vunit_load": 45.0,
+      "vfmacc": 17.0,
+      "vunit_store": 16.0
+    },
+    "spill_traffic": {
+      "spill_instructions": 21.0,
+      "reload_instructions": 785.0,
+      "spill_bytes_model": 16.0,
+      "reload_bytes_model": 34184.0,
+      "bytes_model_note": "scalar=8B; vector=VLEN/8*lmul at vlmax"
+    },
+    "vsetvli": {
+      "static": {
+        "e32,m1": 182,
+        "e64,m2": 161,
+        "e16,m1": 131
+      },
+      "dynamic_call": 3601.0
+    },
+    "static": {
+      "instructions": 3056,
+      "frame_bytes": 160,
+      "saved_regs": [
+        "s1",
+        "s2",
+        "s3",
+        "s4",
+        "s5",
+        "s6",
+        "s7",
+        "s8",
+        "s9",
+        "s10",
+        "s11"
+      ],
+      "spill_slots": 5,
+      "spilled_values": 5,
+      "gprs_used": 25,
+      "vector_regs_used": 12,
+      "vector_bytes_used": 1536
+    }
+  },
+  "runtime_region_per_call": {
+    "_PROCEDURE_LINKAGE_TABLE_": 21.0,
+    "main": 1184.0,
+    "operator_entry": 548.0,
+    "a100rt_worker_main": 12.0,
+    "a100rt_pool_call": 25.0
+  },
+  "loader_unknown_per_call": 42388.59999999585,
+  "hot_pcs_per_call": [
+    {
+      "pc": 138388080328900,
+      "per_call": 837.2,
+      "mnemonic": "bgtu",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 138388080328896,
+      "per_call": 837.2,
+      "mnemonic": "addi",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 138388080328894,
+      "per_call": 837.2,
+      "mnemonic": "sd",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 138388080328892,
+      "per_call": 837.2,
+      "mnemonic": "sd",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 138388080328890,
+      "per_call": 837.2,
+      "mnemonic": "sd",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 138388080328888,
+      "per_call": 837.2,
+      "mnemonic": "sd",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 138388080328886,
+      "per_call": 837.2,
+      "mnemonic": "sd",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 138388080328884,
+      "per_call": 837.2,
+      "mnemonic": "sd",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 138388080328882,
+      "per_call": 837.2,
+      "mnemonic": "sd",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 138388080328880,
+      "per_call": 837.2,
+      "mnemonic": "sd",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 138388081802264,
+      "per_call": 434.0,
+      "mnemonic": "beqz",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 138388081802262,
+      "per_call": 434.0,
+      "mnemonic": "mv",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 138388081802258,
+      "per_call": 434.0,
+      "mnemonic": "lbu",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 138388081802256,
+      "per_call": 434.0,
+      "mnemonic": "bnez",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 138388081802254,
+      "per_call": 434.0,
+      "mnemonic": "mv",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 138388081802250,
+      "per_call": 434.0,
+      "mnemonic": "lbu",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 138388081802246,
+      "per_call": 434.0,
+      "mnemonic": "beq",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 138388081802242,
+      "per_call": 434.0,
+      "mnemonic": "addi",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 79210,
+      "per_call": 264.0,
+      "mnemonic": "bnez",
+      "region": "program",
+      "origin": "scalar-mem",
+      "opcode": "sload",
+      "loc": "/tmp/a100-opt3-candidate/ops/suite/perf/matmul.py:33:13",
+      "text": "bne t5, zero, .Lbrc2075_true  # [op2075] /tmp/a100-opt3-candidate/ops/suite/perf/matmul.py:35:15"
+    },
+    {
+      "pc": 79206,
+      "per_call": 264.0,
+      "mnemonic": "slt",
+      "region": "program",
+      "origin": "vec-arith",
+      "opcode": "vslidedn",
+      "loc": "/tmp/a100-opt3-candidate/ops/suite/perf/matmul.py:33:13",
+      "text": "slt t5, t2, t6  # [op2074] /tmp/a100-opt3-candidate/ops/suite/perf/matmul.py:35:15"
+    },
+    {
+      "pc": 79278,
+      "per_call": 256.0,
+      "mnemonic": "j",
+      "region": "program",
+      "origin": "vec-config",
+      "opcode": "vsetvli",
+      "loc": "/tmp/a100-opt3-candidate/ops/suite/perf/matmul.py:33:13",
+      "text": "j .Lvrk28.head  # [op2093] /tmp/a100-opt3-candidate/ops/suite/perf/matmul.py:35:15"
+    },
+    {
+      "pc": 79276,
+      "per_call": 256.0,
+      "mnemonic": "add",
+      "region": "program",
+      "origin": "op:sadd",
+      "opcode": "sadd",
+      "loc": "/tmp/a100-opt3-candidate/ops/suite/perf/matmul.py:33:13",
+      "text": "add a2, a2, t5  # [op2092] /tmp/a100-opt3-candidate/ops/suite/perf/matmul.py:35:15"
+    },
+    {
+      "pc": 79272,
+      "per_call": 256.0,
+      "mnemonic": "addi",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/tmp/a100-opt3-candidate/ops/suite/perf/matmul.py:33:13",
+      "text": "li t5, 64  # [op2091] /tmp/a100-opt3-candidate/ops/suite/perf/matmul.py:35:15"
+    },
+    {
+      "pc": 79270,
+      "per_call": 256.0,
+      "mnemonic": "add",
+      "region": "program",
+      "origin": "vec-arith",
+      "opcode": "vextract",
+      "loc": "/tmp/a100-opt3-candidate/ops/suite/perf/matmul.py:33:13",
+      "text": "add t1, t1, t5  # [op2090] /tmp/a100-opt3-candidate/ops/suite/perf/matmul.py:35:15"
+    },
+    {
+      "pc": 79268,
+      "per_call": 256.0,
+      "mnemonic": "addi",
+      "region": "program",
+      "origin": "vec-arith",
+      "opcode": "vslidedn",
+      "loc": "/tmp/a100-opt3-candidate/ops/suite/perf/matmul.py:33:13",
+      "text": "li t5, 4  # [op2089] /tmp/a100-opt3-candidate/ops/suite/perf/matmul.py:35:15"
+    },
+    {
+      "pc": 79266,
+      "per_call": 256.0,
+      "mnemonic": "add",
+      "region": "program",
+      "origin": "vec-config",
+      "opcode": "vsetvli",
+      "loc": "/tmp/a100-opt3-candidate/ops/suite/perf/matmul.py:33:13",
+      "text": "add t2, t2, t5  # [op2088] /tmp/a100-opt3-candidate/ops/suite/perf/matmul.py:35:15"
+    },
+    {
+      "pc": 79264,
+      "per_call": 256.0,
+      "mnemonic": "addi",
+      "region": "program",
+      "origin": "scalar-mem",
+      "opcode": "sstore",
+      "loc": "/tmp/a100-opt3-candidate/ops/suite/perf/matmul.py:33:13",
+      "text": "li t5, 1  # [op2087] /tmp/a100-opt3-candidate/ops/suite/perf/matmul.py:35:15"
+    },
+    {
+      "pc": 79260,
+      "per_call": 256.0,
+      "mnemonic": "vfmacc.vv",
+      "region": "program",
+      "origin": "scalar-mem",
+      "opcode": "sload",
+      "loc": "/tmp/a100-opt3-candidate/ops/suite/perf/matmul.py:33:13",
+      "text": "vfmacc.vv v2, v3, v4  # [op2086] /tmp/a100-opt3-candidate/ops/suite/perf/matmul.py:35:15"
+    },
+    {
+      "pc": 79256,
+      "per_call": 256.0,
+      "mnemonic": "vmv.v.x",
+      "region": "program",
+      "origin": "vec-arith",
+      "opcode": "vslidedn",
+      "loc": "/tmp/a100-opt3-candidate/ops/suite/perf/matmul.py:33:13",
+      "text": "vmv.v.x v4, t5  # [op2085] /tmp/a100-opt3-candidate/ops/suite/perf/matmul.py:35:15"
+    },
+    {
+      "pc": 79252,
+      "per_call": 256.0,
+      "mnemonic": "lw",
+      "region": "program",
+      "origin": "scalar-mem",
+      "opcode": "sstore",
+      "loc": "/tmp/a100-opt3-candidate/ops/suite/perf/matmul.py:33:13",
+      "text": "lw t5, 0(t5)  # [op2084] /tmp/a100-opt3-candidate/ops/suite/perf/matmul.py:35:15"
+    },
+    {
+      "pc": 79250,
+      "per_call": 256.0,
+      "mnemonic": "add",
+      "region": "program",
+      "origin": "vec-arith",
+      "opcode": "vextract",
+      "loc": "/tmp/a100-opt3-candidate/ops/suite/perf/matmul.py:33:13",
+      "text": "add t5, t1, t5  # [op2083] /tmp/a100-opt3-candidate/ops/suite/perf/matmul.py:35:15"
+    },
+    {
+      "pc": 79246,
+      "per_call": 256.0,
+      "mnemonic": "addi",
+      "region": "program",
+      "origin": "vec-config",
+      "opcode": "vsetvli",
+      "loc": "/tmp/a100-opt3-candidate/ops/suite/perf/matmul.py:33:13",
+      "text": "li t5, 128  # [op2082] /tmp/a100-opt3-candidate/ops/suite/perf/matmul.py:35:15"
+    },
+    {
+      "pc": 79242,
+      "per_call": 256.0,
+      "mnemonic": "vfmacc.vv",
+      "region": "program",
+      "origin": "op:sadd",
+      "opcode": "sadd",
+      "loc": "/tmp/a100-opt3-candidate/ops/suite/perf/matmul.py:33:13",
+      "text": "vfmacc.vv v1, v3, v4  # [op2081] /tmp/a100-opt3-candidate/ops/suite/perf/matmul.py:35:15"
+    },
+    {
+      "pc": 79238,
+      "per_call": 256.0,
+      "mnemonic": "vmv.v.x",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/tmp/a100-opt3-candidate/ops/suite/perf/matmul.py:33:13",
+      "text": "vmv.v.x v4, t5  # [op2080] /tmp/a100-opt3-candidate/ops/suite/perf/matmul.py:35:15"
+    },
+    {
+      "pc": 79234,
+      "per_call": 256.0,
+      "mnemonic": "lw",
+      "region": "program",
+      "origin": "vec-arith",
+      "opcode": "vextract",
+      "loc": "/tmp/a100-opt3-candidate/ops/suite/perf/matmul.py:33:13",
+      "text": "lw t5, 0(t1)  # [op2079] /tmp/a100-opt3-candidate/ops/suite/perf/matmul.py:35:15"
+    },
+    {
+      "pc": 79230,
+      "per_call": 256.0,
+      "mnemonic": "vle32.v",
+      "region": "program",
+      "origin": "vec-arith",
+      "opcode": "vslidedn",
+      "loc": "/tmp/a100-opt3-candidate/ops/suite/perf/matmul.py:33:13",
+      "text": "vle32.v v3, 0(a2)  # [op2078] /tmp/a100-opt3-candidate/ops/suite/perf/matmul.py:35:15"
+    },
+    {
+      "pc": 79226,
+      "per_call": 256.0,
+      "mnemonic": "vsetvli",
+      "region": "program",
+      "origin": "vec-config",
+      "opcode": "vsetvli",
+      "loc": "/tmp/a100-opt3-candidate/ops/suite/perf/matmul.py:33:13",
+      "text": "vsetvli t5, t5, e32, m1, ta,ma  # [op2077] /tmp/a100-opt3-candidate/ops/suite/perf/matmul.py:35:15"
+    },
+    {
+      "pc": 79224,
+      "per_call": 256.0,
+      "mnemonic": "addi",
+      "region": "program",
+      "origin": "scalar-mem",
+      "opcode": "sstore",
+      "loc": "/tmp/a100-opt3-candidate/ops/suite/perf/matmul.py:33:13",
+      "text": "li t5, 16  # [op2076] /tmp/a100-opt3-candidate/ops/suite/perf/matmul.py:35:15"
+    },
+    {
+      "pc": 79222,
+      "per_call": 256.0,
+      "mnemonic": "j",
+      "region": "program",
+      "origin": "scalar-mem",
+      "opcode": "sload",
+      "loc": "/tmp/a100-opt3-candidate/ops/suite/perf/matmul.py:33:13",
+      "text": "j .Lvrk28.body  # [op2075] /tmp/a100-opt3-candidate/ops/suite/perf/matmul.py:35:15"
+    },
+    {
+      "pc": 138388081802180,
+      "per_call": 247.4,
+      "mnemonic": "bne",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    }
+  ],
+  "problems": []
+}

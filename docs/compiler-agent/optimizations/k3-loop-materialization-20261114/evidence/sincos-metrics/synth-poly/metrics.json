@@ -1,0 +1,667 @@
+{
+  "schema": "a100c-matmul-metrics/v1",
+  "case": "suite/dev/synthesis_kernel.py#[1, 4, 16, 64]#float32",
+  "threads": 1,
+  "seed": 30,
+  "steady_repeats": 5,
+  "artifact": {
+    "key": "ce7dbe2fc9dd35ce1e36b1b7df5796725d9ce033d477888c2dd90e564f10fc4c",
+    "sha256": "b27b49d6a1f803e5cec9f7c46da79fe632dd63d2f0f5989741d02697273b3a07",
+    "identity": "28e1baf7c8d14eac",
+    "cache_entry": "/tmp/a100-opt3-candidate/a100c/cache/ce7dbe2fc9dd35ce1e36b1b7df5796725d9ce033d477888c2dd90e564f10fc4c"
+  },
+  "environment": {
+    "qemu": "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64",
+    "qemu_version": "qemu-riscv64 version 10.0.2",
+    "cpu": "max,vlen=1024,elen=64,vext_spec=v1.0",
+    "plugin": "/tmp/a100-opt3-candidate/tools/profiling/full_instruction_counts.so"
+  },
+  "asm_join": {
+    "listing_instruction_rows": 1831,
+    "program_instructions": 1831,
+    "affine_offset": 71110,
+    "region": [
+      71110,
+      77444
+    ],
+    "byte_identity": true
+  },
+  "runs": {
+    "r1": {
+      "repeats": 1,
+      "exit_code": 0,
+      "wall_s": 0.143,
+      "command": "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64 -L /home/i_yinzida/.local/opt/a100/toolchain-1.1.2/sysroot -cpu max,vlen=1024,elen=64,vext_spec=v1.0 -plugin /tmp/a100-opt3-candidate/tools/profiling/full_instruction_counts.so,out=/tmp/a100-opt3/sincos-metrics/synth-poly/counts.r1.json /tmp/a100-opt3-candidate/a100c/cache/ce7dbe2fc9dd35ce1e36b1b7df5796725d9ce033d477888c2dd90e564f10fc4c/operator_exec --bundle /tmp/a100-native-case-4ceijsub/bundle.bin --threads 1 --repeats 1",
+      "stdout_last_json": {
+        "runtime": "a100rt/v1",
+        "status": "ok",
+        "threads": 1,
+        "repeats": 1,
+        "pool_initializations": 1,
+        "repeats_all_equal": true,
+        "workers": [
+          {
+            "id": 0,
+            "guest_tid": 4006063,
+            "items": 9216
+          }
+        ],
+        "bundle_bytes": 3648
+      },
+      "total": 436149,
+      "per_vcpu_totals": [
+        213604,
+        222545,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "categories": {
+        "scalar-arith": 159914,
+        "scalar-load": 58425,
+        "branch": 53796,
+        "scalar-store": 62703,
+        "vec-config": 24082,
+        "vec-mem": 10185,
+        "vec-arith": 66745,
+        "system": 142,
+        "atomic": 157
+      }
+    },
+    "r2": {
+      "repeats": 6,
+      "exit_code": 0,
+      "wall_s": 0.276,
+      "command": "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64 -L /home/i_yinzida/.local/opt/a100/toolchain-1.1.2/sysroot -cpu max,vlen=1024,elen=64,vext_spec=v1.0 -plugin /tmp/a100-opt3-candidate/tools/profiling/full_instruction_counts.so,out=/tmp/a100-opt3/sincos-metrics/synth-poly/counts.r2.json /tmp/a100-opt3-candidate/a100c/cache/ce7dbe2fc9dd35ce1e36b1b7df5796725d9ce033d477888c2dd90e564f10fc4c/operator_exec --bundle /tmp/a100-native-case-4ceijsub/bundle.bin --threads 1 --repeats 6",
+      "stdout_last_json": {
+        "runtime": "a100rt/v1",
+        "status": "ok",
+        "threads": 1,
+        "repeats": 6,
+        "pool_initializations": 1,
+        "repeats_all_equal": true,
+        "workers": [
+          {
+            "id": 0,
+            "guest_tid": 4006198,
+            "items": 9216
+          }
+        ],
+        "bundle_bytes": 3648
+      },
+      "total": 1657442,
+      "per_vcpu_totals": [
+        340515,
+        1316927,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "categories": {
+        "scalar-arith": 619489,
+        "scalar-load": 124099,
+        "branch": 145249,
+        "scalar-store": 163198,
+        "vec-config": 144382,
+        "vec-mem": 60165,
+        "vec-arith": 400465,
+        "system": 179,
+        "atomic": 216
+      }
+    }
+  },
+  "steady_state": {
+    "per_call_total": 244258.6,
+    "init_total": 191890.4,
+    "per_call_categories": {
+      "scalar-arith": 105922.79999999082,
+      "scalar-load": 22272.000000000793,
+      "branch": 25909.000000000968,
+      "scalar-store": 32227.600000000566,
+      "vec-config": 24060.0,
+      "vec-mem": 9996.0,
+      "vec-arith": 66744.0,
+      "system": 33.79999999999998,
+      "atomic": 43.00000000000006
+    },
+    "indivisible_pc_deltas": 11929,
+    "note": "per-call = (repeats=1+R minus repeats=1)/R; indivisible deltas indicate run-to-run variation (e.g. barrier spin) and are kept as fractions"
+  },
+  "program_region": {
+    "origins_per_call": {
+      "frame": 12239.0,
+      "scalar-mem": 438.0,
+      "spill": 80.0,
+      "reload": 9763.0,
+      "op:swext": 292.0,
+      "op:smul": 352.0,
+      "const-materialization": 38184.0,
+      "op:sadd": 13472.0,
+      "op:ssub": 48.0,
+      "op:sdivu": 36.0,
+      "op:smove": 56.0,
+      "branch": 6873.0,
+      "op:slt": 3433.0,
+      "op:sdiv": 16.0,
+      "vec-config": 16888.0,
+      "vec-arith": 61968.0,
+      "op:sshl": 8.0,
+      "vec-mem": 5864.0,
+      "op:vunit_load": 28.0,
+      "op:vmand": 256.0,
+      "op:vfmacc": 4608.0,
+      "op:vpopc": 260.0,
+      "op:sltu": 256.0,
+      "op:vmath": 256.0
+    },
+    "opcodes_per_call": {
+      "frame": 12239.0,
+      "sload": 150.0,
+      "sspill": 80.0,
+      "sreload": 9763.0,
+      "swext": 292.0,
+      "smul": 352.0,
+      "sconst": 38184.0,
+      "sadd": 13472.0,
+      "ssub": 48.0,
+      "sdivu": 36.0,
+      "smove": 56.0,
+      "br": 3984.0,
+      "slt": 3433.0,
+      "brc": 2889.0,
+      "sdiv": 16.0,
+      "vsetvli": 16888.0,
+      "s2v": 16840.0,
+      "vunary": 1044.0,
+      "vextract": 32.0,
+      "vbin": 15244.0,
+      "sshl": 8.0,
+      "vid": 2372.0,
+      "vbinx": 9480.0,
+      "vwaddx0": 5576.0,
+      "vstoreix": 3468.0,
+      "vcmp": 3092.0,
+      "vmovmask": 3632.0,
+      "vsel": 3364.0,
+      "sstore": 288.0,
+      "vloadix": 2396.0,
+      "vunit_load": 28.0,
+      "vmand": 256.0,
+      "vmovv": 1280.0,
+      "vfmacc": 4608.0,
+      "vpopc": 260.0,
+      "sltu": 256.0,
+      "vmath": 256.0,
+      "vred": 12.0
+    },
+    "spill_traffic": {
+      "spill_instructions": 80.0,
+      "reload_instructions": 9763.0,
+      "spill_bytes_model": 1072.0,
+      "reload_bytes_model": 578088.0,
+      "bytes_model_note": "scalar=8B; vector=VLEN/8*lmul at vlmax"
+    },
+    "vsetvli": {
+      "static": {
+        "e32,m1": 110,
+        "e64,m2": 70
+      },
+      "dynamic_call": 16888.0
+    },
+    "static": {
+      "instructions": 1831,
+      "frame_bytes": 400,
+      "saved_regs": [
+        "s1",
+        "s2",
+        "s3",
+        "s4",
+        "s5",
+        "s6",
+        "s7",
+        "s8",
+        "s9",
+        "s10",
+        "s11"
+      ],
+      "spill_slots": 18,
+      "spilled_values": 18,
+      "gprs_used": 21,
+      "vector_regs_used": 10,
+      "vector_bytes_used": 1280
+    }
+  },
+  "runtime_region_per_call": {
+    "_PROCEDURE_LINKAGE_TABLE_": 21.0,
+    "main": 2398.0,
+    "operator_entry": 43094.0,
+    "a100rt_worker_main": 12.0,
+    "a100rt_pool_call": 25.0
+  },
+  "loader_unknown_per_call": 65984.1999999943,
+  "hot_pcs_per_call": [
+    {
+      "pc": 132521802637508,
+      "per_call": 3194.0,
+      "mnemonic": "bgtu",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 132521802637504,
+      "per_call": 3194.0,
+      "mnemonic": "addi",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 132521802637502,
+      "per_call": 3194.0,
+      "mnemonic": "sd",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 132521802637500,
+      "per_call": 3194.0,
+      "mnemonic": "sd",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 132521802637498,
+      "per_call": 3194.0,
+      "mnemonic": "sd",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 132521802637496,
+      "per_call": 3194.0,
+      "mnemonic": "sd",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 132521802637494,
+      "per_call": 3194.0,
+      "mnemonic": "sd",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 132521802637492,
+      "per_call": 3194.0,
+      "mnemonic": "sd",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 132521802637490,
+      "per_call": 3194.0,
+      "mnemonic": "sd",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 132521802637488,
+      "per_call": 3194.0,
+      "mnemonic": "sd",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 76746,
+      "per_call": 512.0,
+      "mnemonic": "bnez",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/tmp/a100-opt3-candidate/ops/suite/dev/synthesis_kernel.py:26:1",
+      "text": "slt a6, t1, t2  # [op1294] /tmp/a100-opt3-candidate/ops/suite/dev/synthesis_kernel.py:69:25"
+    },
+    {
+      "pc": 76742,
+      "per_call": 512.0,
+      "mnemonic": "slt",
+      "region": "program",
+      "origin": "vec-mem",
+      "opcode": "vstoreix",
+      "loc": "/tmp/a100-opt3-candidate/ops/suite/dev/synthesis_kernel.py:67:25",
+      "text": "mv t2, a1  # [op1293] /tmp/a100-opt3-candidate/ops/suite/dev/synthesis_kernel.py:26:1"
+    },
+    {
+      "pc": 76154,
+      "per_call": 512.0,
+      "mnemonic": "bnez",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/tmp/a100-opt3-candidate/ops/suite/dev/synthesis_kernel.py:66:23",
+      "text": "slt a6, t1, t2  # [op1144] /tmp/a100-opt3-candidate/ops/suite/dev/synthesis_kernel.py:67:18"
+    },
+    {
+      "pc": 76150,
+      "per_call": 512.0,
+      "mnemonic": "slt",
+      "region": "program",
+      "origin": "vec-arith",
+      "opcode": "vbinx",
+      "loc": "/tmp/a100-opt3-candidate/ops/suite/dev/synthesis_kernel.py:66:23",
+      "text": "mv t2, a1  # [op1143] /tmp/a100-opt3-candidate/ops/suite/dev/synthesis_kernel.py:26:1"
+    },
+    {
+      "pc": 132521804102680,
+      "per_call": 434.0,
+      "mnemonic": "beqz",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 132521804102678,
+      "per_call": 434.0,
+      "mnemonic": "mv",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 132521804102674,
+      "per_call": 434.0,
+      "mnemonic": "lbu",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 132521804102672,
+      "per_call": 434.0,
+      "mnemonic": "bnez",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 132521804102670,
+      "per_call": 434.0,
+      "mnemonic": "mv",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 132521804102666,
+      "per_call": 434.0,
+      "mnemonic": "lbu",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 132521804102662,
+      "per_call": 434.0,
+      "mnemonic": "beq",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 132521804102658,
+      "per_call": 434.0,
+      "mnemonic": "addi",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 70342,
+      "per_call": 393.0,
+      "mnemonic": "bne",
+      "region": "main",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 70340,
+      "per_call": 393.0,
+      "mnemonic": "addi",
+      "region": "main",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 70336,
+      "per_call": 392.0,
+      "mnemonic": "bne",
+      "region": "main",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 70334,
+      "per_call": 392.0,
+      "mnemonic": "addi",
+      "region": "main",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 70332,
+      "per_call": 392.0,
+      "mnemonic": "ld",
+      "region": "main",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 70328,
+      "per_call": 392.0,
+      "mnemonic": "ld",
+      "region": "main",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 76710,
+      "per_call": 260.0,
+      "mnemonic": "bnez",
+      "region": "program",
+      "origin": "vec-config",
+      "opcode": "vsetvli",
+      "loc": "/tmp/a100-opt3-candidate/ops/suite/dev/synthesis_kernel.py:67:25",
+      "text": "slt t1, t0, a4  # [op1283] /tmp/a100-opt3-candidate/ops/suite/dev/synthesis_kernel.py:69:25"
+    },
+    {
+      "pc": 76706,
+      "per_call": 260.0,
+      "mnemonic": "slt",
+      "region": "program",
+      "origin": "op:sadd",
+      "opcode": "sadd",
+      "loc": "/tmp/a100-opt3-candidate/ops/suite/dev/synthesis_kernel.py:67:25",
+      "text": "mv t1, t0  # [op1282] /tmp/a100-opt3-candidate/ops/suite/dev/synthesis_kernel.py:26:1"
+    },
+    {
+      "pc": 76526,
+      "per_call": 260.0,
+      "mnemonic": "bnez",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/tmp/a100-opt3-candidate/ops/suite/dev/synthesis_kernel.py:67:25",
+      "text": "slt t0, t1, t0  # [op1240] /tmp/a100-opt3-candidate/ops/suite/dev/synthesis_kernel.py:26:1"
+    },
+    {
+      "pc": 76522,
+      "per_call": 260.0,
+      "mnemonic": "slt",
+      "region": "operator_entry",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 76518,
+      "per_call": 260.0,
+      "mnemonic": "addiw",
+      "region": "program",
+      "origin": "vec-config",
+      "opcode": "vsetvli",
+      "loc": "/tmp/a100-opt3-candidate/ops/suite/dev/synthesis_kernel.py:67:25",
+      "text": "j .Lchunk23_head  # [op1238] /tmp/a100-opt3-candidate/ops/suite/dev/synthesis_kernel.py:26:1"
+    },
+    {
+      "pc": 76516,
+      "per_call": 260.0,
+      "mnemonic": "lui",
+      "region": "program",
+      "origin": "vec-config",
+      "opcode": "vsetvli",
+      "loc": "/tmp/a100-opt3-candidate/ops/suite/dev/synthesis_kernel.py:67:25",
+      "text": "mv t2, a1  # [op1238] /tmp/a100-opt3-candidate/ops/suite/dev/synthesis_kernel.py:26:1"
+    },
+    {
+      "pc": 76386,
+      "per_call": 260.0,
+      "mnemonic": "bnez",
+      "region": "program",
+      "origin": "op:sadd",
+      "opcode": "sadd",
+      "loc": "/tmp/a100-opt3-candidate/ops/suite/dev/synthesis_kernel.py:66:23",
+      "text": "slt t0, t1, t0  # [op1207] /tmp/a100-opt3-candidate/ops/suite/dev/synthesis_kernel.py:69:32"
+    },
+    {
+      "pc": 76382,
+      "per_call": 260.0,
+      "mnemonic": "slt",
+      "region": "operator_entry",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 76378,
+      "per_call": 260.0,
+      "mnemonic": "addiw",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/tmp/a100-opt3-candidate/ops/suite/dev/synthesis_kernel.py:66:23",
+      "text": "j .Lchunk21_head  # [op1205] /tmp/a100-opt3-candidate/ops/suite/dev/synthesis_kernel.py:26:1"
+    },
+    {
+      "pc": 76376,
+      "per_call": 260.0,
+      "mnemonic": "lui",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/tmp/a100-opt3-candidate/ops/suite/dev/synthesis_kernel.py:66:23",
+      "text": "mv t1, t0  # [op1205] /tmp/a100-opt3-candidate/ops/suite/dev/synthesis_kernel.py:26:1"
+    },
+    {
+      "pc": 76118,
+      "per_call": 260.0,
+      "mnemonic": "bnez",
+      "region": "program",
+      "origin": "vec-arith",
+      "opcode": "s2v",
+      "loc": "/tmp/a100-opt3-candidate/ops/suite/dev/synthesis_kernel.py:66:23",
+      "text": "slt t1, t0, a4  # [op1133] /tmp/a100-opt3-candidate/ops/suite/dev/synthesis_kernel.py:67:18"
+    },
+    {
+      "pc": 76114,
+      "per_call": 260.0,
+      "mnemonic": "slt",
+      "region": "program",
+      "origin": "vec-arith",
+      "opcode": "vbinx",
+      "loc": "/tmp/a100-opt3-candidate/ops/suite/dev/synthesis_kernel.py:66:23",
+      "text": "mv t1, t0  # [op1132] /tmp/a100-opt3-candidate/ops/suite/dev/synthesis_kernel.py:26:1"
+    }
+  ],
+  "problems": []
+}
