@@ -148,6 +148,27 @@ distributions), 3.05e-5 at the cap -- the corpus tolerances (atol >=
   contracts themselves are unchanged by this round (no RNG path was
   touched).
 
+## Increment (52b9ded): address-chain block CSE
+
+The candidate profile's remaining decomposition (attention-f16 24.56M:
+op:sadd 2.11M + scale multiplies + ws reloads) showed every workspace
+staging access rebuilding `base = ws + record-offset` and the e64
+widen-and-scale chain -- the load and store paths of one record each
+built their own copy.  Under the same switch and the same block-scoped
+Context caches: one record base per (workspace reg, offset) and one
+scaled index per (index reg, esz, vl) per block.
+
+| case | 1ddb981 | 52b9ded | change |
+|---|---:|---:|---:|
+| attention [4,4,32,64] f16 | 24,556,658 | 23,787,142 | -3.13% |
+| matmul16 [16,16,16] f16 | 25,263 | 24,257 | -3.98% |
+| softmax97 [4,97] f16 | 9,518 | 9,555 | +0.39% (recorded) |
+
+Both round test modules stay green (execution-match ON/OFF identical at
+1 and 2 workers, both witnesses unchanged); attention + softmax +
+matmul spot scans 27/27 PASS after the increment
+(`evidence/addrcse-metrics/`).
+
 ## What is NOT claimed / pending
 
 - No full 2734-case input regression this round (user-directed scope);
