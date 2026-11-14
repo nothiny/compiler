@@ -167,10 +167,16 @@ def _setter_dst_is_dead(lines: List[str], i: int, dst: str) -> bool:
         if op == 'vsetvli':
             mm = _VSETVLI_RE.match(t)
             if mm:
-                if mm.group(1) == dst:
-                    return True   # rewritten before any read: dead
+                # the AVL read is checked FIRST: an rd==rs1 setter
+                # (`vsetvli t0, t0`) READS t0 as its avl before writing
+                # it -- the value is load-bearing exactly there (the
+                # li-removal round's miscompile: `li t0, 32` was
+                # dropped ahead of such a setter and the avl ran on
+                # garbage)
                 if mm.group(2) == dst:
                     return False  # read as the later setter's AVL
+                if mm.group(1) == dst:
+                    return True   # rewritten before any read: dead
             k += 1
             continue
         ops_txt = t.split(None, 1)[1] if len(t.split(None, 1)) > 1 else ''
@@ -180,16 +186,19 @@ def _setter_dst_is_dead(lines: List[str], i: int, dst: str) -> bool:
                 return False      # a store reads all its operands
         else:
             # dst-first convention: the FIRST register is written; any
-            # OTHER appearance is a read
+            # OTHER appearance is a read.  EVERY occurrence is checked:
+            # `slt t0, t1, t0` reads t0 as rs2 BEFORE writing it as rd
+            # -- matching only the first position concluded "overwritten"
+            # and dropped a live loop bound (the dead-li miscompile)
             first = None
             f = _re.match(r'^\s*[\w.]+\s+([\w]+)\s*,', t)
             if f:
                 first = f.group(1)
-            for r in regs:
-                if r == dst:
-                    if r == first:
-                        return True  # overwritten before any read: dead
-                    return False      # read
+            positions = [j for j, r in enumerate(regs) if r == dst]
+            if positions:
+                if first == dst and positions == [0]:
+                    return True   # the write slot only: overwritten
+                return False      # a non-first occurrence reads dst
         k += 1
     return False
 
@@ -415,6 +424,18 @@ def _peephole(lines: List[str]) -> List[str]:
                     comment = line.split('#', 1)
                     if len(comment) > 1:
                         out.append(f'    # [peephole-li] '
+                                   f'{comment[1].strip()}')
+                    continue
+                # a DEAD li: the register is never read before written
+                # (the same textual dst-reader proof the setter rules
+                # use) -- the zero-splat rewrite orphans exactly these
+                # (`vmv.v.x vd, zero` reads no register), and any other
+                # producer-side rewrite benefits equally
+                if _setter_dst_is_dead(lines, idx, reg):
+                    n_li_removed += 1
+                    comment = line.split('#', 1)
+                    if len(comment) > 1:
+                        out.append(f'    # [peephole-dead-li2] '
                                    f'{comment[1].strip()}')
                     continue
                 li_state[reg] = val
@@ -768,6 +789,13 @@ class _Emitter:
             values["imm"] = str(op.attrs["value"])
         elif op.opcode in ("sload", "sstore"):
             values["imm"] = str(op.attrs["offset"])
+        elif op.opcode == "s2v":
+            # a zero-BIT constant source (int 0, or +0.0 at any float
+            # width -- the sconst's value attr carries the raw bit
+            # pattern, so -0.0's 0x8000.. bits never match) splats from
+            # the architectural zero register: identical lanes, no li
+            if ops and self._const_of.get(ops[0].rid) == 0:
+                values["rs1"] = "zero"
         elif op.opcode == "vsetvli":
             values["sew"] = str(op.attrs["sew"])
             values["lmul"] = str(op.attrs["lmul"])
