@@ -71,6 +71,11 @@ def origin_of_opcode(opcode: str) -> str:
 
 
 _OP_COMMENT = re.compile(r"#\s*\[op(\d+)\]")
+#: the MIR dump's op index annotation (a100c.ir.mir.dump_op): the join's
+#: TRUE key -- the dump position is NOT the op index (build-time indices
+#: repeat across renumbering boundaries; a position-based join
+#: misattributes every pc after the first repeat)
+_OP_IDX = re.compile(r"; op=(\d+)")
 _OP_LINE = re.compile(r"^  (?:(\S+)\s*=\s*)?([a-z][\w.]*)\((.*?)\)\s*(.*)$")
 _LOC_SPLIT = re.compile(r"\s*;\s*")
 _LISTING_ROW = re.compile(
@@ -137,7 +142,10 @@ def parse_mir_dump(text: str):
                 attrs[key] = value
         loc = match.group(4).split(";", 1)[1].strip() \
             if ";" in match.group(4) else None
-        ops.append({"opcode": opcode, "attrs": attrs, "loc": loc})
+        idx_m = _OP_IDX.search(raw)
+        ops.append({"opcode": opcode, "attrs": attrs, "loc": loc,
+                   "index": int(idx_m.group(1)) if idx_m else None})
+
     return ops, allocation
 
 
@@ -221,20 +229,38 @@ class Manifest:
         self.identity = meta.get("identity")
         self.key = meta.get("key")
 
-    def opcode_of(self, op_index):
-        if op_index is None or op_index >= len(self.mir_ops):
+    def _by_true_index(self):
+        cache = getattr(self, "_idx_map", None)
+        if cache is None:
+            cache = {}
+            for pos, rec in enumerate(self.mir_ops):
+                idx = rec.get("index")
+                if idx is not None and idx not in cache:
+                    cache[idx] = pos
+            self._idx_map = cache
+        return cache
+
+    def _resolve(self, op_index):
+        if op_index is None:
             return None
-        return self.mir_ops[op_index]["opcode"]
+        idx_map = self._by_true_index()
+        if op_index in idx_map:
+            return self.mir_ops[idx_map[op_index]]
+        if 0 <= op_index < len(self.mir_ops):
+            return self.mir_ops[op_index]
+        return None
+
+    def opcode_of(self, op_index):
+        rec = self._resolve(op_index)
+        return None if rec is None else rec["opcode"]
 
     def attrs_of(self, op_index):
-        if op_index is None or op_index >= len(self.mir_ops):
-            return {}
-        return self.mir_ops[op_index].get("attrs") or {}
+        rec = self._resolve(op_index)
+        return {} if rec is None else (rec.get("attrs") or {})
 
     def loc_of(self, op_index):
-        if op_index is None or op_index >= len(self.mir_ops):
-            return None
-        return self.mir_ops[op_index].get("loc")
+        rec = self._resolve(op_index)
+        return None if rec is None else rec.get("loc")
 
     def build_pc_map(self, executable: Path, workdir: Path):
         """pc -> record for every program instruction; verified by bytes.

@@ -1242,7 +1242,14 @@ def dump_op(op: MOp, indent: str = "  ") -> str:
             items.append(f"{k}={v}")
         attrs = " " + " ".join(items)
     loc = f"  ; {_loc_text(op.loc)}" if op.loc is not None else ""
-    return f"{head}{op.opcode}({ops}){attrs}{loc}"
+    # the op index rides in the location comment (the emitter's [opN]
+    # assembly annotations use the SAME index): the profiling manifest
+    # joins executed pcs to MIR ops by it.  The index is NOT the dump
+    # position -- ops carry build-time indices that repeat across
+    # renumbering boundaries, so a position-based join misattributes
+    # every pc after the first repeat.
+    idx = f" ; op={op.index}" if op.index >= 0 else ""
+    return f"{head}{op.opcode}({ops}){attrs}{loc}{idx}"
 
 
 def dump_module(module: MModule) -> str:

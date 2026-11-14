@@ -413,6 +413,29 @@ class Compiler:
             allocation = alloc_mod.allocate(mir_module, self.target)
         except alloc_mod.AllocationError as exc:
             raise PipelineError(exc.loc, "allocation", exc.message) from None
+        # 9b. stabilize the op indices after allocation: the allocator
+        # INSERTS ops (remat sconsts, sreloads, spill pairs) whose index
+        # is -1, and pre-existing indices are not unique across the
+        # module's build history -- the emitter's [opN] annotations and
+        # the profiling manifest's pc->MIR join need one unique
+        # sequential id per op.  Renumber now (dump order == index) and
+        # re-key the selection dict by OBJECT IDENTITY (it was keyed by
+        # the pre-allocation indices, which the renumber invalidates).
+        _sel_by_id = {}
+        for fn in mir_module.functions:
+            for b in fn.blocks:
+                for op in b.ops:
+                    sel = selection.get(op.index)
+                    if sel is not None and id(op) not in _sel_by_id:
+                        _sel_by_id[id(op)] = sel
+        mir_module.renumber()
+        selection = {}
+        for fn in mir_module.functions:
+            for b in fn.blocks:
+                for op in b.ops:
+                    sel = _sel_by_id.get(id(op))
+                    if sel is not None:
+                        selection[op.index] = sel
         if dumps:
             (entry / "stage.mir.allocated.txt").write_text(
                 mir.dump_module(mir_module)
