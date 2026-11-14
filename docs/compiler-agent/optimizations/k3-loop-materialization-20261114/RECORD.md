@@ -823,6 +823,38 @@ items: the guarded-narrow-access restructure (18.4% of the program,
 quantified above) and a compile-time contiguity proof for the
 staging pattern that would delete the guard entirely.
 
+## The guard restructure feasibility sketch (the session's final analysis)
+
+The compile-time contiguity proof IS feasible, on facts already in the
+tree: the ==1 scalar specialization (T033, a100c/frontend/specialize.py:
+"an integer argument equal to 1 is a constexpr 1") already folds
+unit-stride kernel arguments to constants in the TIR env.  For the
+K/V staging pattern (offs_n*stride_n + offs_d*stride_d with the inner
+stride ==1), the folded offset tree over the 32-lane window is
+AFFINE IN vid with coefficient exactly esz (row*S + col*1 within one
+row) -- structurally contiguous.  THE SKETCH: a contiguity predicate
+over the pre-lowering offset TIR (unit-coefficient affine in the lane
+index, evaluated on the address tree the frontend already carries),
+consulted at _lower_load_narrow / narrow_access.try_load: when it
+holds, emit the DIRECT masked vector load (vle16.v base, v0.t -- the
+mask machinery already exists) and skip the guard's runtime proof and
+both path blocks entirely; otherwise fall back to today's guard (a
+structural select, no name dispatch).  ESTIMATED EFFECT: the guard
+machinery is 3.80M instructions/call (18.4% of attention); the direct
+form replaces each guarded access's whole ngl.t1/e1/j1 cluster with
+one masked load -- a ceiling of ~2.5-3M/call (12-15% on attention),
+family-wide wherever the inner stride is 1 (the corpus's contiguous
+staging majority).  RISKS: the predicate must be sound on the exact
+address-tree shapes the staging emits (the sdiv/srem row/col
+decomposition after ==1 folding), and the masked inactive lanes keep
+the scratch-redirect semantics (the direct masked load performs no
+access at disabled lanes -- exactly the declared no-access default,
+so the guard's redirect becomes unnecessary rather than needing
+re-proof).  Validation would follow the round's standard chain with
+the family scan as the gate.  This is the recorded next-session
+headline with the measurement (53c5e30) and the sconst verdict
+(6e44def) attached.
+
 ## Replay
 
 ```bash
