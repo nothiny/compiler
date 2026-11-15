@@ -1024,6 +1024,40 @@ evidence/gp-metrics/, scans and spot checks in
 evidence/gp-family-scan/.  LOADS ONLY this round; the store side of
 the same predicate (try_store) is the recorded follow-up.
 
+## The guard predicate's store half: validated machinery, ZERO accepts on the corpus
+
+The recorded store-side follow-up, implemented and fully validated --
+and the measurement is a clean NEGATIVE on the current corpus:
+``_chunk_contiguous_store`` (the shared helper beside the load side,
+wired into ``_lower_store``'s narrow branch after the strided form --
+volatile stores keep the guard -- and ``_lower_bool_store``'s wide-fail
+arm) emits the same direct masked unit store (``vse{sew}.v ... v0.t``,
+``default: no-access`` -- the pinned store semantics) when
+``prove_chunk_contiguous`` holds.  ACROSS THE FAMILY SCAN: 0 store
+accepts in 993 programs (the load side found 74).  THE DIAGNOSED
+REASON (tril_tile and chunk_gdn2, the two heaviest guarded-store
+operators, traced): their store offsets are the COMPUTED form
+``broadcast(row_expr) + broadcast(col_expr)`` inside one arith.add --
+and their blocks are GENUINELY non-contiguous (tril_tile [8,8,8]: C1=4
+rows with row stride 8, vl=16 spans 4 rows -- the runtime guard is the
+correct form there; the predicate correctly declines).  The corpus's
+contiguous 2-D staging pattern (the K/V form) manifests on the LOAD
+side; its stores go through the wide path (unmasked contiguous) and
+never reach the guard.  VERDICT: the store half is correct, validated
+machinery that no current corpus case exercises -- kept wired (future
+kernels with contiguous staged stores get it for free), with the zero
+accepts and the traced reason recorded.
+
+Verification (all green): smoke 42/42 (incl. the declining store
+classes tril_tile/gdn2/fht/complex_pack); test_emit + both round
+modules; nnd positive 0 / witness 1; masked-tails real PASS + witness
+fails as required; multi-worker 27/27 at threads=2/4/8 (incl.
+tril_tile at all counts); family scan 1,269/1,269 PASS over 233
+operators.  Paired vs the load-side tree (d87442c): attention +0.00%,
+flash_decode -0.02%, tril_tile +0.09%, chunk_gdn2 -0.00% -- unchanged
+within noise (nothing accepts).  Evidence in evidence/gs-metrics/ and
+evidence/gs-family-scan/.
+
 ## Replay
 
 ```bash
