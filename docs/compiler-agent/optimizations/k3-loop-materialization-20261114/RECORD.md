@@ -946,6 +946,84 @@ concentrates.]
    form; the attention-family staging (the ceiling carriers) is NOT
    in this class.
 
+## The guard compile-time contiguity predicate: -23.50% attention-f16, -14.15% flash_decode
+
+The next-session task list above, EXECUTED.  The predicate
+(``prove_chunk_contiguous``, a100c/lower/scalar.py) proves a staged
+2-D block access contiguous WITHIN each staging chunk: the ptradd tree
+is ``scalars + row_term(s) + col_term`` where the column term is a
+BARE reshape of one arange (the UNIT coefficient -- the ptradd adds it
+unscaled; a constexpr-1 multiply strips; broadcasts deliberately do
+NOT strip -- their axis alignment is unproven, they decline) whose
+extent C1 is the block's last-axis extent, every other vector term is
+constant along the last axis (extent 1 there), and C1 % vl == 0.  The
+chunk loop steps the element base by multiples of vl (unstrided from 0
+by vl; worker-strided from w*vl by W*vl -- both verified in _ensure_chunk
+and confirmed empirically: chunk9's step constant k154=32=vl), so every
+window [elem, elem+vl) lies in ONE block row: the row terms are
+constant across it and the column term advances by exactly 1 per lane
+-- the addresses are c + i*esz BY CONSTRUCTION, whatever the row
+strides' runtime values (the guard's runtime check is a corollary that
+always succeeds; the K/V row stride stride_kn stays runtime).
+
+THE DIRECT FORM (_lower_load, narrow branch, after the strided form):
+materialize_address as today, ONE vextract of lane 0's byte offset,
+the scalar window base (sadd), ONE masked vunit_load
+(``vle16.v vd, 0(base), v0.t``) -- no runtime proof, no branch, no
+slow block, no join, no scratch round trip, no 16-lane segment
+split.  The masked form performs no access at disabled lanes (the
+declared default -- the K load's out-of-range rows never touch
+memory) and the select writes the declared ``other``.  The predicate
+declines on any other shape: today's runtime guard is retained (a
+located fallback -- the decline class measured at 4,459 small-divisor
+sites over 85 operators, none in the attention family).
+
+EMPIRICAL FORM (attention): the ngl.t/e/j guard blocks fell 108 -> 0
+per program; the emitted direct form is exactly the five-op class
+sketched (vregion e64m2 / vmv.x.s lane-0 extract / ld+add window base
+/ vregion e16m1 / vmv1r+vle16.v v0.t).
+
+Same-tree paired program-region totals (the off side is the committed
+639ab22 tree's measurements; flash_decode's off side re-measured on
+the stashed tree):
+
+| case | 639ab22 | guard-pred | change |
+|---|---:|---:|---:|
+| attention-f16 [4,4,32,64] | 20,692,564 | 15,830,600 | **-23.50%** |
+| flash_decode [2,2,32,32] bf16 | 128,144 | 110,012 | **-14.15%** |
+| matmul16 [16,16,16] f16 | 22,895 | 22,887 | -0.04% |
+| softmax [20,17] f16 | 75,984 | 75,984 | +0.00% |
+| linear-dropout [16,128,128] f16 | 6,752,608 | 6,752,616 | +0.00% |
+| synthesis [1,4,16,64] f32 | 212,873 | 212,873 | +0.00% |
+| softmax_log [4,97] f32 | 121,056 | 121,048 | -0.01% |
+| softmax-inner [97] f16 | 8,313 | 8,321 | +0.10% |
+
+attention's origin deltas: vec-arith 5.67M -> 3.50M, vrgather 262k ->
+0 (the guard's segment slices), const-materialization 3.43M -> 2.61M,
+vec-config 2.85M -> 2.40M, reload 728k -> 609k, branch 1.82M ->
+1.63M.  The -23.50% exceeds the 12-15% ceiling estimate because the
+guard carried more than the fast-path count alone (the cold slow path
+multiplied by its execution count and the region churn around every
+proof).  The ACCEPT CLASS across the family scan: 52 of 990 programs
+(74 accesses) -- the whole attention family (attention_kernel,
+attn_fwd_causal, context_attn_fwd, flash_decode,
+chunk_gated_delta...), flash-decode and a few matmul_k32 variants --
+i.e. exactly the heaviest guard carriers; the other 574 guard-bearing
+programs decline and keep today's guard unchanged (zero regressions
+in the paired set).
+
+Verification: smoke 9/9 (attention) + 38/38 extended (10 operators
+incl. the decline class fht_256_1d and complex_pack); test_emit +
+both round test modules PASS; no-name-dispatch positive 0 / witness
+1; MASKED-TAILS real artifact PASS + witness fails as required (the
+direct form's tail predicate is load-bearing -- the check exercised
+the new masked unit load directly); multi-worker 18/18 at
+threads=2/4/8 (the worker-strided chunk form's alignment verified);
+family scan 1,269/1,269 PASS over 233 operators.  Metrics in
+evidence/gp-metrics/, scans and spot checks in
+evidence/gp-family-scan/.  LOADS ONLY this round; the store side of
+the same predicate (try_store) is the recorded follow-up.
+
 ## Replay
 
 ```bash
