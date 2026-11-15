@@ -12758,6 +12758,60 @@ class SliceLowering:
         self._restore_region(ctx, loc)
         self._bind_result(op, b)
 
+    def _chunk_contiguous_store(self, ctx: _Ctx, ptr,
+                                base_reg: mir.VReg, offset_reg: mir.VReg,
+                                pointee: tir.Type, vreg: mir.VReg,
+                                mask_reg: Optional[mir.VReg],
+                                loc) -> bool:
+        """The guard predicate's STORE half: when
+        ``prove_chunk_contiguous`` proves the staged block access
+        contiguous within the current staging chunk (the same
+        three-conjunct proof the load side uses -- the bare unit-
+        coefficient arange column over a C1 % vl == 0 last axis, the
+        row terms constant along it, the chunk element base a multiple
+        of vl), emit ONE masked unit store at the window base (lane 0's
+        byte offset via vextract, the scalar base, ``vse{sew}.v ...
+        v0.t`` with ``default: no-access`` -- the pinned store
+        semantics: no access at the disabled lanes) and return True.
+        Returns False (nothing emitted) on any decline: the caller keeps
+        today's guarded/scalar fallback."""
+        if self._chunk is None or self._chunk["vl"] != self._vl:
+            return False
+        if not vreg.is_vector() or vreg.type.lmul != 1:
+            return False
+        chunkproof = scalar_mod.prove_chunk_contiguous(
+            self, ptr, self._chunk["vl"])
+        if chunkproof is None:
+            return False
+        scaled, tree = addr_mod.materialize_address(
+            ctx, base_reg, offset_reg, pointee, loc, self._vl,
+            (self._sew, 1))
+        self.trees.append(tree)
+        self._vregion(ctx, scaled.type, loc)
+        first = ctx.emit(mir.MOp(
+            "vextract", [scaled],
+            [ctx.vreg(mir.I64, hint="c9s", loc=loc)], loc=loc))
+        wbase = ctx.emit(mir.MOp(
+            "sadd", [base_reg, first],
+            [ctx.vreg(mir.I64, hint="c9b", loc=loc)], loc=loc))
+        self._vregion(ctx, vreg.type, loc)
+        operands = [wbase, vreg]
+        attrs = {"sew": vreg.type.sew}
+        if mask_reg is not None \
+                and not self.options.witness_drop_tail_predicates:
+            v0 = ctx.emit(mir.MOp(
+                "vmovmask", [mask_reg],
+                [ctx.vreg(mir.MaskType(), hint="c9m", loc=loc,
+                          fixed_phys="v0")], loc=loc))
+            operands.append(v0)
+            attrs["default"] = "no-access"
+        ctx.emit0(mir.MOp("vunit_store", operands, [], attrs=attrs,
+                          loc=loc))
+        self._wide_selections.append(
+            {"op": "store", "source": "chunk-contiguous",
+             "detail": chunkproof.detail, "loc": str(loc)})
+        return True
+
     def _lower_bool_store(self, ctx: _Ctx, op: tir.Op, ptr,
                           base_reg: mir.VReg, offset_reg: mir.VReg,
                           vreg: mir.VReg, mask_reg: Optional[mir.VReg],
@@ -12796,6 +12850,10 @@ class SliceLowering:
             self._wide_selections.append(
                 {"op": "store", "source": wide.source,
                  "detail": wide.detail, "loc": str(loc)})
+            return
+        # the guard predicate's store half (see _chunk_contiguous_store)
+        if self._chunk_contiguous_store(ctx, ptr, base_reg, offset_reg,
+                                        storage, bytes8, mask_reg, loc):
             return
         self._lower_store_narrow(ctx, base_reg, offset_reg, storage,
                                  bytes8, mask_reg, loc)
@@ -13025,6 +13083,16 @@ class SliceLowering:
                                f" stride (x{strided.mult})"
                                f" + {len(strided.scalar_terms)} scalar term(s)",
                      "loc": str(loc)})
+                return mask_reg
+            # the guard predicate's store half (see
+            # _chunk_contiguous_store): the same within-chunk contiguity
+            # proof as the load side, emitting ONE masked unit store at
+            # the window base -- no access at the disabled lanes (the
+            # pinned store semantics).  Volatile stores keep the guard.
+            if not op.attrs.get("volatile") \
+                    and self._chunk_contiguous_store(
+                        ctx, ptr, base_reg, offset_reg, pointee, vreg,
+                        mask_reg, loc):
                 return mask_reg
             # T014: the narrow-data fallback (the store half): the value
             # goes to the workspace scratch, then per-lane scalar stores
