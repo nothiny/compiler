@@ -12243,6 +12243,77 @@ class SliceLowering:
                         loc=loc))
                 self._bind_result(op, reg)
                 return
+            # The guarded-narrow-access compile-time predicate (the
+            # guard-restructure round): a staged 2-D block access whose
+            # column term is a BARE unit-coefficient arange over a
+            # C1 % vl == 0 last axis is contiguous WITHIN each staging
+            # chunk by construction (the chunk loop steps the element
+            # base by multiples of vl -- unstrided from 0 by vl, the
+            # worker-strided form from w*vl by W*vl -- so the window
+            # [elem, elem+vl) lies in ONE block row: the row terms are
+            # constant across it and the column term advances by
+            # exactly 1 per lane; the runtime guard's check is a
+            # corollary that always succeeds).  The direct form is the
+            # guard's fast path minus the proof, the branch, the slow
+            # block and the join: lane 0's byte offset (one vextract),
+            # the scalar window base, ONE masked unit load -- the
+            # masked form performs no access at disabled lanes (the
+            # declared default) and the select writes ``other`` there.
+            # The predicate declines on any other shape: the access
+            # keeps today's runtime guard (a located fallback).
+            if self._chunk is not None \
+                    and self._chunk["vl"] == self._vl \
+                    and rtype.lmul == 1:
+                chunkproof = scalar_mod.prove_chunk_contiguous(
+                    self, ptr, self._chunk["vl"])
+                if chunkproof is not None:
+                    scaled, tree = addr_mod.materialize_address(
+                        ctx, base_reg, offset_reg, pointee, loc,
+                        self._vl, (self._sew, 1))
+                    self.trees.append(tree)
+                    self._vregion(ctx, scaled.type, loc)
+                    first = ctx.emit(mir.MOp(
+                        "vextract", [scaled],
+                        [ctx.vreg(mir.I64, hint="c9f", loc=loc)],
+                        loc=loc))
+                    wbase = ctx.emit(mir.MOp(
+                        "sadd", [base_reg, first],
+                        [ctx.vreg(mir.I64, hint="c9a", loc=loc)],
+                        loc=loc))
+                    self._vregion(ctx, rtype, loc)
+                    operands = [wbase]
+                    attrs = {"sew": rtype.sew, "default": "undef"}
+                    if mreg is not None \
+                            and not self.options.witness_drop_tail_predicates:
+                        v0 = ctx.emit(mir.MOp(
+                            "vmovmask", [mreg],
+                            [ctx.vreg(mir.MaskType(), hint="c90", loc=loc,
+                                      fixed_phys="v0")], loc=loc))
+                        operands.append(v0)
+                    reg = ctx.emit(mir.MOp(
+                        "vunit_load", operands,
+                        [ctx.vreg(rtype, hint="c9l", loc=loc)],
+                        attrs=attrs, loc=loc))
+                    self._wide_selections.append(
+                        {"op": "load", "source": "chunk-contiguous",
+                         "detail": chunkproof.detail, "loc": str(loc)})
+                    self._bind_result(op, reg)
+                    if other is not None \
+                            or default == tir.MaskedDefault.VALUE:
+                        oreg = self._need(other, loc)
+                        if not oreg.is_vector():
+                            oreg = self._splat_reg(ctx, oreg, reg.type,
+                                                   loc)
+                        v0 = ctx.emit(mir.MOp(
+                            "vmovmask", [mreg],
+                            [ctx.vreg(mir.MaskType(), hint="c9o", loc=loc,
+                                      fixed_phys="v0")], loc=loc))
+                        reg = ctx.emit(mir.MOp(
+                            "vsel", [v0, reg, oreg],
+                            [ctx.vreg(reg.type, hint="c9d", loc=loc)],
+                            loc=loc))
+                    self._bind_result(op, reg)
+                    return
             # T014: the narrow-data fallback -- an unproven-contiguous
             # sub-32-bit block load lowers as a per-lane scalar loop
             # through the workspace (every indexed form with sub-32-bit

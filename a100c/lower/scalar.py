@@ -2217,6 +2217,106 @@ def prove_strided_access(sl, ptr: "tir.Value", vl: int) -> Optional[StridedProof
 
 
 # ---------------------------------------------------------------------------
+# the staged-block within-chunk contiguity proof (the guard predicate)
+# ---------------------------------------------------------------------------
+
+@dataclass(frozen=True)
+class ChunkContiguousProof:
+    """A proven WITHIN-CHUNK-contiguous staged block access.
+
+    The ptradd tree is ``scalars + row_term(s) + col_term`` where the
+    column term is a BARE reshape of one arange (the UNIT coefficient --
+    the ptradd adds it unscaled; a constexpr-1 multiply strips) whose
+    extent C1 is the block's last-axis extent, every other vector term
+    is constant along the last axis (extent 1 there), and ``C1 % vl ==
+    0``.  The staging chunk loop steps the element base by multiples of
+    vl over the flat row-major extent (the unstrided form from 0 by vl;
+    the worker-strided form from ``w*vl`` by ``W*vl``), so every chunk
+    window ``[elem, elem+vl)`` lies in ONE block row: the row terms are
+    constant across the window and the column term advances by exactly
+    1 per lane -- the addresses are ``c + i*esz`` by construction,
+    whatever the row strides' runtime values (the runtime guard's check
+    is a corollary that always succeeds)."""
+
+    col_extent: int
+    detail: str = ""
+
+
+def _strip_to_arange(v: "tir.Value"):
+    """``(start, end)`` when ``v`` is a bare reshape of one arange (a
+    constexpr-1 multiply strips; broadcasts deliberately do NOT strip --
+    their axis alignment is not proven here, so a broadcast-wrapped term
+    declines); None otherwise."""
+    node = v
+    while True:
+        p = node.producer
+        if p is None:
+            return None
+        if p.op in ("reshape", "hint") and len(p.operands) == 1:
+            node = p.operands[0]
+            continue
+        if p.op == "arith.mul":
+            lhs, rhs = p.operands
+            for vec, other in ((lhs, rhs), (rhs, lhs)):
+                if other.rank == 0 and other.producer is not None \
+                        and other.producer.op == "const" \
+                        and int(other.producer.attrs["value"]) == 1:
+                    node = vec
+                    break
+            else:
+                return None            # a non-unit multiplier
+            continue
+        if p.op == "arange":
+            return int(p.attrs.get("start", 0)), int(p.attrs["end"])
+        return None
+
+
+def prove_chunk_contiguous(sl, ptr: "tir.Value",
+                           vl: int) -> Optional[ChunkContiguousProof]:
+    """Prove one STAGED block access contiguous WITHIN each staging
+    chunk (see :class:`ChunkContiguousProof`).  Declines (None) whenever
+    the shape does not hold: the access keeps the runtime guard, never a
+    guessed contiguity (MECH-MASKED-VECTOR-ACCESS)."""
+    base_node, offsets = _flatten_ptradd(ptr)
+    if base_node.producer is not None \
+            and base_node.producer.op != "select.where":
+        return None                      # not a ptradd-formed address
+    col_extent = None
+    row_terms = 0
+    scalar_terms = 0
+    for off in offsets:
+        if off.rank == 0:
+            scalar_terms += 1
+            continue
+        exts = [int(e.value) for e in off.shape]
+        if exts[-1] == 1:
+            row_terms += 1               # constant along the last axis
+            continue
+        if col_extent is not None:
+            return None                  # two last-axis-varying terms
+        ar = _strip_to_arange(off)
+        if ar is None:
+            return None                  # a non-unit column coefficient
+        start, end = ar
+        if end - start != exts[-1]:
+            return None                  # the arange is not the last axis
+        if any(e != 1 for e in exts[:-1]):
+            return None           # the column term varies along an earlier
+                                   # axis too (a split reshape: not this form)
+        col_extent = exts[-1]
+    if col_extent is None:
+        return None                      # no last-axis-varying term
+    if col_extent % vl != 0:
+        return None                      # the window may straddle rows
+    return ChunkContiguousProof(
+        col_extent=col_extent,
+        detail=f"staged block: bare arange column over C1={col_extent} "
+               f"(unit coefficient, C1 % vl == 0), {row_terms} row "
+               f"term(s) constant along the last axis, {scalar_terms} "
+               f"scalar term(s)")
+
+
+# ---------------------------------------------------------------------------
 # tl.gather (the register permute)
 # ---------------------------------------------------------------------------
 
