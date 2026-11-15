@@ -203,6 +203,15 @@ policy.
   current mir.py/allocate.py naming; no ARCHITECTURE_VERIFICATION.json
   record exists. Both predate this round and need their own follow-up in
   the correctness stream.
+- **Compile sweep (declared G6 check, cold, final revision)**:
+  `test_compile_sweep.py` **all checks PASS** — 2,116 identities / 2,116
+  artifacts / 0 refusals / 0 over-budget / 0 crashes; compile count 2,114
+  within the declared economics (<= 1.25 × 2,161 = 2,701); 618 repeat
+  cases recompiled with 0 no-baking violations; slowest cold compile
+  529s inside the 600s/identity budget (the same heavy class the scan's
+  tighter 180s case budget times out on — the known six); census at
+  `docs/compiler-agent/COMPILE_CENSUS.json`. This formally closes the
+  compile-time question the in-round peephole-cost incident raised.
 
 - **Compile-time impact (measured, then repaired in-round)**: the first
   implementation's stub-referent check rescanned the whole stream per
