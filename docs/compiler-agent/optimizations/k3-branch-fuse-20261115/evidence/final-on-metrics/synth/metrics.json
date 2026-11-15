@@ -1,0 +1,665 @@
+{
+  "schema": "a100c-matmul-metrics/v1",
+  "case": "suite/dev/synthesis_kernel.py#[1, 4, 16, 64]#float32",
+  "threads": 1,
+  "seed": 30,
+  "steady_repeats": 5,
+  "artifact": {
+    "key": "7b551d205294108f6406bdbf4df33547132afd019ec687c58baef0162ddfe473",
+    "sha256": "3eeab6bf1865180b3e75135e4ff56153447d3098615c5efcca3116849c7a84b6",
+    "identity": "98c5d74de997231c",
+    "cache_entry": "/home/i_yinzida/compiler-a100-experiment-001/a100c/cache/7b551d205294108f6406bdbf4df33547132afd019ec687c58baef0162ddfe473"
+  },
+  "environment": {
+    "qemu": "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64",
+    "qemu_version": "qemu-riscv64 version 10.0.2",
+    "cpu": "max,vlen=1024,elen=64,vext_spec=v1.0",
+    "plugin": "/home/i_yinzida/compiler-a100-experiment-001/tools/profiling/full_instruction_counts.so"
+  },
+  "asm_join": {
+    "listing_instruction_rows": 1479,
+    "program_instructions": 1479,
+    "affine_offset": 71110,
+    "region": [
+      71110,
+      76288
+    ],
+    "byte_identity": true
+  },
+  "runs": {
+    "r1": {
+      "repeats": 1,
+      "exit_code": 0,
+      "wall_s": 0.137,
+      "command": "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64 -L /home/i_yinzida/.local/opt/a100/toolchain-1.1.2/sysroot -cpu max,vlen=1024,elen=64,vext_spec=v1.0 -plugin /home/i_yinzida/compiler-a100-experiment-001/tools/profiling/full_instruction_counts.so,out=docs/compiler-agent/optimizations/k3-branch-fuse-20261115/evidence/final-on-metrics/synth/counts.r1.json /home/i_yinzida/compiler-a100-experiment-001/a100c/cache/7b551d205294108f6406bdbf4df33547132afd019ec687c58baef0162ddfe473/operator_exec --bundle /tmp/a100-native-case-bv6fkrho/bundle.bin --threads 1 --repeats 1",
+      "stdout_last_json": {
+        "runtime": "a100rt/v1",
+        "status": "ok",
+        "threads": 1,
+        "repeats": 1,
+        "pool_initializations": 1,
+        "repeats_all_equal": true,
+        "workers": [
+          {
+            "id": 0,
+            "guest_tid": 2021326,
+            "items": 9216
+          }
+        ],
+        "bundle_bytes": 3648
+      },
+      "total": 394904,
+      "per_vcpu_totals": [
+        213230,
+        181674,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "categories": {
+        "scalar-arith": 154904,
+        "scalar-load": 50902,
+        "branch": 49232,
+        "scalar-store": 62703,
+        "vec-config": 13594,
+        "vec-mem": 10185,
+        "vec-arith": 53085,
+        "system": 142,
+        "atomic": 157
+      }
+    },
+    "r2": {
+      "repeats": 6,
+      "exit_code": 0,
+      "wall_s": 0.264,
+      "command": "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64 -L /home/i_yinzida/.local/opt/a100/toolchain-1.1.2/sysroot -cpu max,vlen=1024,elen=64,vext_spec=v1.0 -plugin /home/i_yinzida/compiler-a100-experiment-001/tools/profiling/full_instruction_counts.so,out=docs/compiler-agent/optimizations/k3-branch-fuse-20261115/evidence/final-on-metrics/synth/counts.r2.json /home/i_yinzida/compiler-a100-experiment-001/a100c/cache/7b551d205294108f6406bdbf4df33547132afd019ec687c58baef0162ddfe473/operator_exec --bundle /tmp/a100-native-case-bv6fkrho/bundle.bin --threads 1 --repeats 6",
+      "stdout_last_json": {
+        "runtime": "a100rt/v1",
+        "status": "ok",
+        "threads": 1,
+        "repeats": 6,
+        "pool_initializations": 1,
+        "repeats_all_equal": true,
+        "workers": [
+          {
+            "id": 0,
+            "guest_tid": 2021438,
+            "items": 9216
+          }
+        ],
+        "bundle_bytes": 3648
+      },
+      "total": 1411884,
+      "per_vcpu_totals": [
+        340150,
+        1071734,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "categories": {
+        "scalar-arith": 590219,
+        "scalar-load": 79387,
+        "branch": 118557,
+        "scalar-store": 163198,
+        "vec-config": 81454,
+        "vec-mem": 60165,
+        "vec-arith": 318505,
+        "system": 182,
+        "atomic": 217
+      }
+    }
+  },
+  "steady_state": {
+    "per_call_total": 203396.0,
+    "init_total": 191508.0,
+    "per_call_categories": {
+      "scalar-arith": 101040.19999999065,
+      "scalar-load": 14817.199999999983,
+      "branch": 21456.200000000736,
+      "scalar-store": 32227.600000000566,
+      "vec-config": 13572.0,
+      "vec-mem": 9996.0,
+      "vec-arith": 53084.0,
+      "system": 34.399999999999984,
+      "atomic": 43.200000000000074
+    },
+    "indivisible_pc_deltas": 11985,
+    "note": "per-call = (repeats=1+R minus repeats=1)/R; indivisible deltas indicate run-to-run variation (e.g. barrier spin) and are kept as fractions"
+  },
+  "program_region": {
+    "origins_per_call": {
+      "frame": 14.0,
+      "spill": 27.0,
+      "reload": 4769.0,
+      "scalar-mem": 1871.0,
+      "op:swext": 20.0,
+      "op:smul": 1855.0,
+      "const-materialization": 27591.0,
+      "op:sadd": 10137.0,
+      "op:ssub": 525.0,
+      "op:sdivu": 13.0,
+      "op:smove": 98.0,
+      "branch": 11779.0,
+      "op:sdiv": 8.0,
+      "vec-config": 13568.0,
+      "vec-arith": 47680.0,
+      "op:sshl": 4.0,
+      "vec-mem": 9444.0,
+      "op:vunit_load": 528.0,
+      "op:vmand": 4.0,
+      "op:vfmacc": 4880.0,
+      "op:vpopc": 264.0,
+      "op:vunit_store": 16.0,
+      "control": 12.0
+    },
+    "opcodes_per_call": {
+      "frame": 14.0,
+      "sspill": 27.0,
+      "sreload": 4769.0,
+      "sload": 66.0,
+      "swext": 20.0,
+      "smul": 1855.0,
+      "sconst": 27591.0,
+      "sadd": 10137.0,
+      "ssub": 525.0,
+      "sdivu": 13.0,
+      "smove": 98.0,
+      "br": 9110.0,
+      "brc": 2669.0,
+      "sdiv": 8.0,
+      "vsetvli": 13568.0,
+      "s2v": 15804.0,
+      "vunary": 788.0,
+      "vextract": 528.0,
+      "vbin": 13692.0,
+      "sshl": 4.0,
+      "vid": 3400.0,
+      "vbinx": 8356.0,
+      "vstoreix": 4480.0,
+      "vcmp": 1336.0,
+      "vmovmask": 1124.0,
+      "vsel": 1092.0,
+      "sstore": 1805.0,
+      "vloadix": 4964.0,
+      "vunit_load": 528.0,
+      "vmand": 4.0,
+      "vmovv": 1032.0,
+      "vfmacc": 4880.0,
+      "vpopc": 264.0,
+      "vred": 512.0,
+      "vwaddx0": 16.0,
+      "vunit_store": 16.0,
+      "ret": 12.0
+    },
+    "spill_traffic": {
+      "spill_instructions": 27.0,
+      "reload_instructions": 4769.0,
+      "spill_bytes_model": 216.0,
+      "reload_bytes_model": 38152.0,
+      "bytes_model_note": "scalar=8B; vector=VLEN/8*lmul at vlmax"
+    },
+    "vsetvli": {
+      "static": {
+        "e32,m1": 67,
+        "e64,m2": 28
+      },
+      "dynamic_call": 13568.0
+    },
+    "static": {
+      "instructions": 1479,
+      "frame_bytes": 400,
+      "saved_regs": [
+        "s1",
+        "s2",
+        "s3",
+        "s4",
+        "s5",
+        "s6",
+        "s7",
+        "s8",
+        "s9",
+        "s10",
+        "s11"
+      ],
+      "spill_slots": 18,
+      "spilled_values": 18,
+      "gprs_used": 21,
+      "vector_regs_used": 11,
+      "vector_bytes_used": 1408
+    }
+  },
+  "runtime_region_per_call": {
+    "_PROCEDURE_LINKAGE_TABLE_": 21.0,
+    "main": 2398.0,
+    "operator_entry": 42790.0,
+    "a100rt_worker_main": 12.0,
+    "a100rt_pool_call": 25.0
+  },
+  "loader_unknown_per_call": 65917.79999999444,
+  "hot_pcs_per_call": [
+    {
+      "pc": 139921323462852,
+      "per_call": 3194.0,
+      "mnemonic": "bgtu",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 139921323462848,
+      "per_call": 3194.0,
+      "mnemonic": "addi",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 139921323462846,
+      "per_call": 3194.0,
+      "mnemonic": "sd",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 139921323462844,
+      "per_call": 3194.0,
+      "mnemonic": "sd",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 139921323462842,
+      "per_call": 3194.0,
+      "mnemonic": "sd",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 139921323462840,
+      "per_call": 3194.0,
+      "mnemonic": "sd",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 139921323462838,
+      "per_call": 3194.0,
+      "mnemonic": "sd",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 139921323462836,
+      "per_call": 3194.0,
+      "mnemonic": "sd",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 139921323462834,
+      "per_call": 3194.0,
+      "mnemonic": "sd",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 139921323462832,
+      "per_call": 3194.0,
+      "mnemonic": "sd",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 75728,
+      "per_call": 512.0,
+      "mnemonic": "bgt",
+      "region": "program",
+      "origin": "branch",
+      "opcode": "br",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/synthesis_kernel.py:26:1 ; op=1275",
+      "text": "mv t2, a1  # [op1275] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/synthesis_kernel.py:26:1"
+    },
+    {
+      "pc": 75258,
+      "per_call": 512.0,
+      "mnemonic": "bgt",
+      "region": "program",
+      "origin": "branch",
+      "opcode": "br",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/synthesis_kernel.py:26:1 ; op=1135",
+      "text": "mv t2, a1  # [op1135] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/synthesis_kernel.py:26:1"
+    },
+    {
+      "pc": 139921324928024,
+      "per_call": 427.8,
+      "mnemonic": "beqz",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 139921324928022,
+      "per_call": 427.8,
+      "mnemonic": "mv",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 139921324928018,
+      "per_call": 427.8,
+      "mnemonic": "lbu",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 139921324928016,
+      "per_call": 427.8,
+      "mnemonic": "bnez",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 139921324928014,
+      "per_call": 427.8,
+      "mnemonic": "mv",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 139921324928010,
+      "per_call": 427.8,
+      "mnemonic": "lbu",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 139921324928006,
+      "per_call": 427.8,
+      "mnemonic": "beq",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 139921324928002,
+      "per_call": 427.8,
+      "mnemonic": "addi",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 70342,
+      "per_call": 393.0,
+      "mnemonic": "bne",
+      "region": "main",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 70340,
+      "per_call": 393.0,
+      "mnemonic": "addi",
+      "region": "main",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 70336,
+      "per_call": 392.0,
+      "mnemonic": "bne",
+      "region": "main",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 70334,
+      "per_call": 392.0,
+      "mnemonic": "addi",
+      "region": "main",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 70332,
+      "per_call": 392.0,
+      "mnemonic": "ld",
+      "region": "main",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 70328,
+      "per_call": 392.0,
+      "mnemonic": "ld",
+      "region": "main",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 75698,
+      "per_call": 260.0,
+      "mnemonic": "bgt",
+      "region": "program",
+      "origin": "branch",
+      "opcode": "br",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/synthesis_kernel.py:26:1 ; op=1264",
+      "text": "mv t1, t0  # [op1264] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/synthesis_kernel.py:26:1"
+    },
+    {
+      "pc": 75562,
+      "per_call": 260.0,
+      "mnemonic": "bgt",
+      "region": "operator_entry",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 75558,
+      "per_call": 260.0,
+      "mnemonic": "addiw",
+      "region": "program",
+      "origin": "branch",
+      "opcode": "br",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/synthesis_kernel.py:26:1 ; op=1224",
+      "text": "j .Lchunk23_head  # [op1224] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/synthesis_kernel.py:26:1"
+    },
+    {
+      "pc": 75556,
+      "per_call": 260.0,
+      "mnemonic": "lui",
+      "region": "program",
+      "origin": "branch",
+      "opcode": "br",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/synthesis_kernel.py:26:1 ; op=1224",
+      "text": "mv t2, a2  # [op1224] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/synthesis_kernel.py:26:1"
+    },
+    {
+      "pc": 75438,
+      "per_call": 260.0,
+      "mnemonic": "bgt",
+      "region": "operator_entry",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 75434,
+      "per_call": 260.0,
+      "mnemonic": "addiw",
+      "region": "program",
+      "origin": "branch",
+      "opcode": "br",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/synthesis_kernel.py:26:1 ; op=1192",
+      "text": "j .Lchunk21_head  # [op1192] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/synthesis_kernel.py:26:1"
+    },
+    {
+      "pc": 75432,
+      "per_call": 260.0,
+      "mnemonic": "lui",
+      "region": "program",
+      "origin": "branch",
+      "opcode": "br",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/synthesis_kernel.py:26:1 ; op=1192",
+      "text": "mv t1, t0  # [op1192] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/synthesis_kernel.py:26:1"
+    },
+    {
+      "pc": 75228,
+      "per_call": 260.0,
+      "mnemonic": "bgt",
+      "region": "program",
+      "origin": "branch",
+      "opcode": "br",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/synthesis_kernel.py:26:1 ; op=1124",
+      "text": "mv t1, t0  # [op1124] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/synthesis_kernel.py:26:1"
+    },
+    {
+      "pc": 75098,
+      "per_call": 260.0,
+      "mnemonic": "bgt",
+      "region": "operator_entry",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 75094,
+      "per_call": 260.0,
+      "mnemonic": "addiw",
+      "region": "program",
+      "origin": "branch",
+      "opcode": "br",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/synthesis_kernel.py:26:1 ; op=1084",
+      "text": "j .Lchunk18_head  # [op1084] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/synthesis_kernel.py:26:1"
+    },
+    {
+      "pc": 75092,
+      "per_call": 260.0,
+      "mnemonic": "lui",
+      "region": "program",
+      "origin": "branch",
+      "opcode": "br",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/synthesis_kernel.py:26:1 ; op=1084",
+      "text": "mv t2, a2  # [op1084] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/synthesis_kernel.py:26:1"
+    },
+    {
+      "pc": 74974,
+      "per_call": 260.0,
+      "mnemonic": "bgt",
+      "region": "operator_entry",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 74970,
+      "per_call": 260.0,
+      "mnemonic": "addiw",
+      "region": "program",
+      "origin": "branch",
+      "opcode": "br",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/synthesis_kernel.py:26:1 ; op=1052",
+      "text": "j .Lchunk16_head  # [op1052] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/synthesis_kernel.py:26:1"
+    },
+    {
+      "pc": 74968,
+      "per_call": 260.0,
+      "mnemonic": "lui",
+      "region": "program",
+      "origin": "branch",
+      "opcode": "br",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/synthesis_kernel.py:26:1 ; op=1052",
+      "text": "mv a1, t2  # [op1052] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/synthesis_kernel.py:26:1"
+    }
+  ],
+  "problems": []
+}

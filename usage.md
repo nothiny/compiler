@@ -321,6 +321,10 @@ A100C_PASS_COPYPROP=off   # 拷贝传播
 A100C_PASS_STRENGTH=off   # 强度削减
 A100C_PASS_LICM=off       # 循环不变量外提
 # 取值 off/0/false/no；全部关闭时的产物与裸驱动字节一致
+
+# 发射阶段的分支控制 peephole（branch-fuse 轮，默认开）：空搬移 brc 边的
+# 纯 trampoline stub 直达重定向 + MIR 单用 slt/sltu 与 bne 的融合（blt/bltu）
+A100C_BRANCH_FUSE=off
 ```
 
 四个带"反证"的工程检查（`--witness` 注入缺陷后**必须**非零退出）：

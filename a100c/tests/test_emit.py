@@ -105,9 +105,19 @@ def check_program_shape():
     check("note-gnu-stack", '.section .note.GNU-stack' in text)
     # per-edge branch argument moves: condition read first, stubs per edge
     check("brc-edge-stubs", ".Lbrc" in text and "_true:" in text)
-    first_bne = text.index("bne ")
-    first_move_after = text.index("mv ", first_bne)
-    check("condition-read-before-edge-moves", first_bne < first_move_after)
+    # OPT-BRANCH-FUSE: the brc's condition branch is the fused
+    # compare+branch form (blt/bltu) when its compare was MIR-proven
+    # single-use, the plain bne otherwise; either way the condition read
+    # (the branch itself) must precede the edge argument moves
+    import re as _re
+    m = _re.search(r'^\s*(?:bne|beq|blt|bge|bltu|bgeu)\b[^\n]*\.Lbrc',
+                   program.text, _re.M)
+    check("conditional-branch-to-stub-present", m is not None)
+    if m is not None:
+        first_cond = text.index(m.group(0).strip())
+        first_move_after = text.index("mv ", first_cond)
+        check("condition-read-before-edge-moves",
+              first_cond < first_move_after)
 
 
 def check_traceability():

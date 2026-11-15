@@ -230,6 +230,168 @@ def _superseded_setter_is_dead(lines: List[str], i: int, dst: str) -> bool:
     return _setter_dst_is_dead(lines, i, dst)
 
 
+# -- branch-control peephole (OPT-BRANCH-FUSE) -------------------------------
+
+_CONDBR_RE = _re.compile(r'(bne|beq|blt|bge|bltu|bgeu)\s+(\w+)\s*,\s*'
+                         r'(\w+)\s*,\s*(\S+)$')
+_BNE_RE = _re.compile(r'bne\s+(\w+)\s*,\s*(\w+)\s*,\s*(\S+)$')
+_STUB_J_RE = _re.compile(r'j\s+(\S+)$')
+
+#: the CB-format conditional-branch displacement is a 13-bit signed
+#: byte offset (±4 KiB); the guard below bounds the distance by 4 bytes
+#: per emitted line (comments and labels emit nothing, so counting every
+#: line is a conservative upper bound)
+_BRANCH_RANGE = 4096
+
+
+def _branch_code(line: str) -> str:
+    """The instruction text of one emitted line (comment stripped)."""
+    return line.split('#', 1)[0].strip()
+
+
+def _peephole_branch(lines: List[str],
+                     candidates: Optional[List[dict]] = None
+                     ) -> Tuple[List[str], Dict[str, int]]:
+    """The branch-control peephole (OPT-BRANCH-FUSE, A100C_BRANCH_FUSE).
+
+    Two provable rewrites over the final emitted stream (they run BEFORE
+    :func:`_peephole`, whose tracking resets make the passes commute; all
+    rewrites are in place, so recorded line indices stay valid):
+
+    1. COMPARE+BRANCH FUSION (candidate-driven).  The emitter records a
+       candidate for every brc whose condition vreg is defined by the
+       ``slt/sltu`` IMMEDIATELY before it in the same block and read
+       NOWHERE else in the module (an exact MIR def-use count over
+       operands and br/brc edge args -- the textual whole-function read
+       census is unusable here because the allocator reuses the compare's
+       physical register for later values before re-reading it).  The
+       rewrite is applied only when the final stream still shows the
+       compare directly followed by ``bne rd, zero, L`` (nothing was
+       scheduled between them): the compare line becomes a trace comment
+       and the branch becomes ``blt/bltu a, b, L``.  Deleting the compare
+       removes a dead write (its value's only reader was the branch) and
+       the new branch reads exactly the two sources the compare read at
+       the adjacent position.
+
+    2. BARE-STUB ELIMINATION.  The brc emitter places each edge's argument
+       moves after the branch, so a taken edge whose move sequence is
+       empty routes through a stub block holding exactly one ``j T`` --
+       one wasted unconditional jump on every dynamic execution of that
+       edge (every loop-head iteration).  When the stub is bare, its
+       label has no other referent, and the retargeted conditional stays
+       inside the CB-format ±4 KiB range (the conservative per-line
+       bound), the branch targets T directly and the stub lines become
+       trace comments.  Applies to every conditional form, including the
+       fused branches of rule 1.
+
+    Returns the rewritten lines and the fired/declined counters.
+    """
+    counts = {"stubs_removed": 0, "stubs_declined": 0,
+              "cmp_fused": 0, "cmp_declined": 0}
+    out = list(lines)
+    n = len(out)
+
+    # ---- rule 1: compare+branch fusion (candidates first: their
+    # recorded indices refer to the unmodified stream) -------------------
+    for cand in candidates or ():
+        si, bi = cand["slt"], cand["bne"]
+        rd, a, b = cand["rd"], cand["a"], cand["b"]
+        cmp_mn = 'sltu' if cand["unsigned"] else 'slt'
+        ok = (0 <= si < n and si < bi < n
+              and _branch_code(out[si]) == f"{cmp_mn} {rd}, {a}, {b}")
+        k = si + 1
+        while ok and k < bi and not _branch_code(out[k]):
+            k += 1
+        m = _BNE_RE.match(_branch_code(out[bi])) if ok and k == bi else None
+        if not (m and m.group(1) == rd and m.group(2) == 'zero'):
+            counts["cmp_declined"] += 1
+            continue
+        comment = ('  # ' + out[bi].split('#', 1)[1].strip()
+                   if '#' in out[bi] else '')
+        fused = 'bltu' if cand["unsigned"] else 'blt'
+        src = out[bi]
+        prefix = src[:len(src) - len(src.lstrip())]
+        out[si] = (f"    # [peephole-cmpfuse] {cmp_mn} {rd}, {a}, {b} "
+                   f"removed (fused into the branch)")
+        out[bi] = f"{prefix}{fused} {a}, {b}, {m.group(3)}{comment}"
+        counts["cmp_fused"] += 1
+
+    # ---- rule 2: bare-stub elimination --------------------------------
+    label_at: Dict[str, int] = {}
+    # single-pass stub-label reference census: every occurrence of a
+    # ``.LbrcN_true`` token across the stream, label definitions included
+    # (the per-branch rescan was O(branches x lines) -- on the biggest
+    # corpus functions ~480 branches over ~40k lines cost tens of seconds
+    # of compile time and pushed budget-marginal cases over the bound)
+    stub_refs: Dict[str, int] = {}
+    for i, line in enumerate(out):
+        c = _branch_code(line)
+        if c.endswith(':'):
+            label_at[c[:-1].strip()] = i
+        for tok in _re.findall(r'(?<![\w.])\.Lbrc[^\s:,]+', c):
+            stub_refs[tok] = stub_refs.get(tok, 0) + 1
+    for i, line in enumerate(out):
+        m = _CONDBR_RE.match(_branch_code(line))
+        if not m:
+            continue
+        stub = m.group(4)
+        if not stub.startswith('.Lbrc') or not stub.endswith('_true'):
+            continue          # only the brc stub form
+        j = label_at.get(stub)
+        if j is None or j <= i:
+            counts["stubs_declined"] += 1
+            continue
+        # the stub body: instructions up to the next label
+        body: List[Tuple[int, str]] = []
+        k = j + 1
+        while k < n:
+            t = _branch_code(out[k])
+            if t.endswith(':'):
+                break
+            if t:
+                body.append((k, t))
+            k += 1
+        if len(body) != 1:
+            counts["stubs_declined"] += 1
+            continue
+        bm = _STUB_J_RE.match(body[0][1])
+        if not bm or bm.group(1) == stub:
+            counts["stubs_declined"] += 1
+            continue
+        target = bm.group(1)
+        ti = label_at.get(target)
+        if ti is None:
+            counts["stubs_declined"] += 1
+            continue
+        # the stub label must have exactly this branch as its referent
+        # (branch + label definition = 2 occurrences in the census)
+        if stub_refs.get(stub, 0) != 2:
+            counts["stubs_declined"] += 1
+            continue
+        # range guard: conservative byte distance (4 bytes per line)
+        if abs(ti - i) * 4 + 8 > _BRANCH_RANGE:
+            counts["stubs_declined"] += 1
+            continue
+        # fire: retarget the branch, comment out the trampoline
+        comment = ('  # ' + line.split('#', 1)[1].strip()
+                   if '#' in line else '')
+        prefix = line[:len(line) - len(line.lstrip())]
+        out[i] = (f"{prefix}{m.group(1)} {m.group(2)}, {m.group(3)}, "
+                  f"{target}{comment}")
+        out[j] = (f"    # [peephole-stub] bare trampoline {stub} -> "
+                  f"{target} removed")
+        out[body[0][0]] = f"    # [peephole-stub] removed: {body[0][1]}"
+        counts["stubs_removed"] += 1
+
+    if counts["stubs_removed"] or counts["cmp_fused"]:
+        out.insert(0, f'    # [peephole-branch] removed '
+                      f'{counts["stubs_removed"]} bare-stub jumps, fused '
+                      f'{counts["cmp_fused"]} compare+branch pairs '
+                      f'(declined: {counts["stubs_declined"]} stubs, '
+                      f'{counts["cmp_declined"]} compares)')
+    return out, counts
+
+
 def _peephole(lines: List[str]) -> List[str]:
     """Safe peephole optimizations on the emitted straight-line code.
 
@@ -474,13 +636,17 @@ def _peephole(lines: List[str]) -> List[str]:
 class _Emitter:
     def __init__(self, module: mir.MModule, selection: Dict[int, Selected],
                  allocation: Allocation, target: TargetModel,
-                 workspace: Tuple[int, int], header: List[str]):
+                 workspace: Tuple[int, int], header: List[str],
+                 branch_fuse: bool = True):
         self.module = module
         self.selection = selection
         self.alloc = allocation
         self.target = target
         self.workspace = workspace
         self.header = header
+        #: the branch-control peephole's switch (A100C_BRANCH_FUSE=off
+        #: restores the bare-stub and separate-compare emission)
+        self.branch_fuse = branch_fuse
         self.repertoire = DEFAULT_REPERTOIRE
         self.lines: List[str] = []
         self.label_of = {b.name: f".L{b.name}" for fn in module.functions
@@ -504,6 +670,49 @@ class _Emitter:
                         for r in mop.results:
                             self._const_of[r.rid] = int(
                                 mop.attrs["value"])
+        #: OPT-BRANCH-FUSE: the brcs whose condition vreg is defined by
+        #: the slt/sltu immediately before them in the same block and is
+        #: read NOWHERE else in the module (an exact def-use count over
+        #: operands and br/brc edge args -- the allocator may reuse the
+        #: compare's physical register afterwards, so a textual read
+        #: census cannot prove this).  The fusion is applied at render
+        #: time only when the emitted stream still shows the pair intact.
+        self._branch_fuse_candidates: List[dict] = []
+        self._fuse_brc: Dict[int, tuple] = {}
+        if branch_fuse:
+            use_counts: Dict[int, int] = {}
+
+            def _bump(v) -> None:
+                use_counts[v.rid] = use_counts.get(v.rid, 0) + 1
+
+            for fn in module.functions:
+                for b in fn.blocks:
+                    for mop in b.ops:
+                        for v in mop.operands:
+                            _bump(v)
+                        for key in ("args", "true_args", "false_args"):
+                            for v in mop.attrs.get(key, ()):
+                                _bump(v)
+            for fn in module.functions:
+                for b in fn.blocks:
+                    ops = b.ops
+                    for i in range(1, len(ops)):
+                        mop = ops[i]
+                        if mop.opcode != "brc" or not mop.operands:
+                            continue
+                        prev = ops[i - 1]
+                        if (prev.opcode not in ("slt", "sltu")
+                                or not prev.results
+                                or len(prev.operands) < 2):
+                            continue
+                        cond = mop.operands[0]
+                        if prev.results[0].rid != cond.rid:
+                            continue
+                        if use_counts.get(cond.rid, 0) != 1:
+                            continue
+                        self._fuse_brc[id(mop)] = (
+                            prev.operands[0], prev.operands[1],
+                            prev.opcode == "sltu")
 
     # -- frame ------------------------------------------------------------
     def _layout(self) -> Tuple[Dict[int, int], Optional[int]]:
@@ -1117,6 +1326,20 @@ class _Emitter:
             tt = op.attrs["true_target"]
             ft = op.attrs["false_target"]
             stub = f".Lbrc{op.index}_true"
+            # OPT-BRANCH-FUSE: an MIR-proven single-use compare feeding
+            # this brc records a fusion candidate (the peephole verifies
+            # the emitted pair is still intact before rewriting it)
+            fused = self._fuse_brc.get(id(op))
+            if fused is not None and self.lines:
+                a_v, b_v, unsigned = fused
+                rd = self.phys(op.operands[0])
+                cmp_mn = 'sltu' if unsigned else 'slt'
+                last = self.lines[-1].split('#', 1)[0].strip()
+                if last == f"{cmp_mn} {rd}, {self.phys(a_v)}, {self.phys(b_v)}":
+                    self._branch_fuse_candidates.append(
+                        {"slt": len(self.lines) - 1, "bne": len(self.lines),
+                         "rd": rd, "a": self.phys(a_v),
+                         "b": self.phys(b_v), "unsigned": unsigned})
             # The condition is read first; each edge's argument moves run
             # only on that edge (a shared move sequence before the branch
             # would let one edge's cycle-breaking clobber the other edge's
@@ -1471,6 +1694,10 @@ class _Emitter:
                    ".-operator_workspace_shared")
         out.append("    .globl operator_entry")
         out.append("    .type operator_entry, @function")
+        branch_counts: Dict[str, int] = {}
+        if self.branch_fuse:
+            self.lines, branch_counts = _peephole_branch(
+                self.lines, self._branch_fuse_candidates)
         optimized = _peephole(self.lines)
         out.extend(optimized)
         out.append("    .size operator_entry, .-operator_entry")
@@ -1490,6 +1717,8 @@ class _Emitter:
             "vregs_assigned": len({v for v in
                                    self.alloc.assignment.values()
                                    if v.startswith('v')}),
+            # OPT-BRANCH-FUSE: the branch peephole's fired/declined counts
+            "peephole_branch": branch_counts,
         }
         return EmittedProgram(text="\n".join(out) + "\n",
                               frame_bytes=self.frame_bytes(),
@@ -1499,14 +1728,16 @@ class _Emitter:
 def emit_assembly(module: mir.MModule, allocation: Allocation,
                   target: TargetModel, workspace: Tuple[int, int] = (0, 0),
                   selection: Optional[Dict[int, Selected]] = None,
-                  header: Optional[List[str]] = None) -> EmittedProgram:
+                  header: Optional[List[str]] = None,
+                  branch_fuse: bool = True) -> EmittedProgram:
     """Emit the complete program-level assembly for one allocated module."""
     if selection is None:
         selection = select(module)
     if header is None:
         header = [f"# a100c emitted program: {module.name}",
                   f"# source: {module.source_path}"]
-    emitter = _Emitter(module, selection, allocation, target, workspace, header)
+    emitter = _Emitter(module, selection, allocation, target, workspace,
+                       header, branch_fuse=branch_fuse)
     for fn in module.functions:
         emitter.emit_function(fn)
     return emitter.render()

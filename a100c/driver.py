@@ -151,6 +151,17 @@ class CompileOptions:
     #: lowering's own addressing machinery (never a TIR-observable
     #: value).  Env: A100C_WIDE_LANE_INDEX=off restores e32 + vwiden.
     wide_lane_index: bool = True
+    #: The branch-control peephole at the emission stage (the branch-fuse
+    #: round): a taken brc edge with an empty argument-move sequence routes
+    #: through a bare ``j``-only stub (one wasted jump per dynamic
+    #: execution); when the stub is bare, its label unreferenced elsewhere
+    #: and the retargeted conditional inside the CB-format ±4 KiB range
+    #: (conservative per-line bound), the branch targets its destination
+    #: directly.  An immediately-preceding ``slt/sltu`` whose result is
+    #: read nowhere else in the function fuses into the branch
+    #: (``blt/bltu``).  Env: A100C_BRANCH_FUSE=off restores both original
+    #: forms.
+    branch_fuse: bool = True
 
     def __post_init__(self):
         if os.environ.get("A100C_MATRIX_PACK", "").strip().lower() in \
@@ -166,7 +177,8 @@ class CompileOptions:
                 ("guarded_narrow_access", "A100C_GUARDED_NARROW_ACCESS"),
                 ("elementwise_width", "A100C_ELEMENTWISE_WIDTH"),
                 ("local_materialization", "A100C_LOCAL_MATERIALIZATION"),
-                ("wide_lane_index", "A100C_WIDE_LANE_INDEX")):
+                ("wide_lane_index", "A100C_WIDE_LANE_INDEX"),
+                ("branch_fuse", "A100C_BRANCH_FUSE")):
             if os.environ.get(env_name, "").strip().lower() in \
                     ("off", "0", "false", "no"):
                 setattr(self, field_name, False)
@@ -193,7 +205,7 @@ class CompileOptions:
                            "matrix_row_reuse", "guarded_narrow_access",
                            "elementwise_width", "local_materialization",
                            "chunk_mask_split", "loop_const_hoist",
-                           "wide_lane_index"):
+                           "wide_lane_index", "branch_fuse"):
             if not getattr(self, field_name):
                 parts.append("no-" + field_name.replace("_", "-"))
         if not self.dumps:
@@ -485,7 +497,8 @@ class Compiler:
                 mir_module, allocation, self.target,
                 workspace=(plan.workspace_private,
                            plan.workspace_shared),
-                selection=selection, header=header)
+                selection=selection, header=header,
+                branch_fuse=self.options.branch_fuse)
         except emit_mod.EmissionError as exc:
             raise PipelineError(exc.loc, f"emission:{exc.construct}",
                                 exc.message) from None

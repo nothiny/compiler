@@ -1,0 +1,678 @@
+{
+  "schema": "a100c-matmul-metrics/v1",
+  "case": "suite/dev/linear_dropout_softmax_kernel.py#[16, 128, 128]#float16",
+  "threads": 1,
+  "seed": 30,
+  "steady_repeats": 5,
+  "artifact": {
+    "key": "917ab10344dc9bbb2fc5c363ec53fb8fc490a5eafa988791207909f37bccf62d",
+    "sha256": "801eac074c8ce9329e107e4483929979b22f4312200f3a5db44ad81369e4370c",
+    "identity": "836179f53bd909a0",
+    "cache_entry": "/home/i_yinzida/compiler-a100-experiment-001/a100c/cache/917ab10344dc9bbb2fc5c363ec53fb8fc490a5eafa988791207909f37bccf62d"
+  },
+  "environment": {
+    "qemu": "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64",
+    "qemu_version": "qemu-riscv64 version 10.0.2",
+    "cpu": "max,vlen=1024,elen=64,vext_spec=v1.0",
+    "plugin": "/home/i_yinzida/compiler-a100-experiment-001/tools/profiling/full_instruction_counts.so"
+  },
+  "asm_join": {
+    "listing_instruction_rows": 2487,
+    "program_instructions": 2487,
+    "affine_offset": 70918,
+    "region": [
+      70918,
+      79818
+    ],
+    "byte_identity": true
+  },
+  "runs": {
+    "r1": {
+      "repeats": 1,
+      "exit_code": 0,
+      "wall_s": 0.398,
+      "command": "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64 -L /home/i_yinzida/.local/opt/a100/toolchain-1.1.2/sysroot -cpu max,vlen=1024,elen=64,vext_spec=v1.0 -plugin /home/i_yinzida/compiler-a100-experiment-001/tools/profiling/full_instruction_counts.so,out=docs/compiler-agent/optimizations/k3-branch-fuse-20261115/evidence/base-metrics/lindrop/counts.r1.json /home/i_yinzida/compiler-a100-experiment-001/a100c/cache/917ab10344dc9bbb2fc5c363ec53fb8fc490a5eafa988791207909f37bccf62d/operator_exec --bundle /tmp/a100-native-case-g2wpyoww/bundle.bin --threads 1 --repeats 1",
+      "stdout_last_json": {
+        "runtime": "a100rt/v1",
+        "status": "ok",
+        "threads": 1,
+        "repeats": 1,
+        "pool_initializations": 1,
+        "repeats_all_equal": true,
+        "workers": [
+          {
+            "id": 0,
+            "guest_tid": 139690,
+            "items": 0
+          }
+        ],
+        "bundle_bytes": 43776
+      },
+      "total": 6957264,
+      "per_vcpu_totals": [
+        300643,
+        6656621,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "categories": {
+        "scalar-arith": 2067806,
+        "scalar-load": 604072,
+        "branch": 274589,
+        "scalar-store": 680974,
+        "vec-config": 1019620,
+        "vec-mem": 219569,
+        "vec-arith": 2090337,
+        "system": 140,
+        "atomic": 157
+      }
+    },
+    "r2": {
+      "repeats": 6,
+      "exit_code": 0,
+      "wall_s": 1.815,
+      "command": "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64 -L /home/i_yinzida/.local/opt/a100/toolchain-1.1.2/sysroot -cpu max,vlen=1024,elen=64,vext_spec=v1.0 -plugin /home/i_yinzida/compiler-a100-experiment-001/tools/profiling/full_instruction_counts.so,out=docs/compiler-agent/optimizations/k3-branch-fuse-20261115/evidence/base-metrics/lindrop/counts.r2.json /home/i_yinzida/compiler-a100-experiment-001/a100c/cache/917ab10344dc9bbb2fc5c363ec53fb8fc490a5eafa988791207909f37bccf62d/operator_exec --bundle /tmp/a100-native-case-g2wpyoww/bundle.bin --threads 1 --repeats 6",
+      "stdout_last_json": {
+        "runtime": "a100rt/v1",
+        "status": "ok",
+        "threads": 1,
+        "repeats": 6,
+        "pool_initializations": 1,
+        "repeats_all_equal": true,
+        "workers": [
+          {
+            "id": 0,
+            "guest_tid": 139694,
+            "items": 0
+          }
+        ],
+        "bundle_bytes": 43776
+      },
+      "total": 40720262,
+      "per_vcpu_totals": [
+        798799,
+        39921463,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "categories": {
+        "scalar-arith": 12096971,
+        "scalar-load": 3449541,
+        "branch": 1499797,
+        "scalar-store": 3697789,
+        "vec-config": 6117435,
+        "vec-mem": 1316319,
+        "vec-arith": 12542017,
+        "system": 177,
+        "atomic": 216
+      }
+    }
+  },
+  "steady_state": {
+    "per_call_total": 6752599.6,
+    "init_total": 204664.40000000037,
+    "per_call_categories": {
+      "scalar-arith": 2021518.1999998502,
+      "scalar-load": 578179.7999999587,
+      "branch": 254351.80000001015,
+      "scalar-store": 629518.9999999631,
+      "vec-config": 1019563.0,
+      "vec-mem": 219350.0,
+      "vec-arith": 2090336.0,
+      "system": 33.399999999999984,
+      "atomic": 43.00000000000006
+    },
+    "indivisible_pc_deltas": 12087,
+    "note": "per-call = (repeats=1+R minus repeats=1)/R; indivisible deltas indicate run-to-run variation (e.g. barrier spin) and are kept as fractions"
+  },
+  "program_region": {
+    "origins_per_call": {
+      "frame": 14.0,
+      "spill": 33518.0,
+      "reload": 158867.0,
+      "scalar-mem": 964614.0,
+      "op:swext": 170.0,
+      "const-materialization": 1104002.0,
+      "op:smul": 881.0,
+      "op:smove": 1154.0,
+      "branch": 296777.0,
+      "op:slt": 67617.0,
+      "op:sxor": 16.0,
+      "op:sadd": 582912.0,
+      "vec-config": 1019520.0,
+      "vec-arith": 1965024.0,
+      "vec-mem": 177728.0,
+      "op:vfwcvt": 41728.0,
+      "op:srl": 64.0,
+      "op:vunit_load": 16640.0,
+      "op:vmand": 24640.0,
+      "op:vpopc": 16512.0,
+      "op:vrgather": 16384.0,
+      "op:vfncvt": 25024.0,
+      "op:sdivu": 128.0,
+      "op:ssub": 128.0,
+      "op:vunit_store": 320.0,
+      "op:vfmacc": 832.0,
+      "control": 14.0
+    },
+    "opcodes_per_call": {
+      "frame": 14.0,
+      "sspill": 750.0,
+      "sreload": 93331.0,
+      "sload": 440133.0,
+      "swext": 170.0,
+      "sconst": 1104002.0,
+      "smul": 881.0,
+      "smove": 1154.0,
+      "br": 144244.0,
+      "slt": 67617.0,
+      "brc": 152533.0,
+      "sxor": 16.0,
+      "sadd": 582912.0,
+      "vsetvli": 1019520.0,
+      "vid": 99328.0,
+      "vbinx": 239904.0,
+      "vstoreix": 85504.0,
+      "s2v": 184992.0,
+      "sstore": 524481.0,
+      "vfwcvt": 41728.0,
+      "vmovv": 67264.0,
+      "srl": 64.0,
+      "vloadix": 92224.0,
+      "vbin": 148208.0,
+      "vcmp": 58272.0,
+      "vmovmask": 42656.0,
+      "vsel": 42208.0,
+      "vunit_load": 16640.0,
+      "vmand": 24640.0,
+      "vspill": 32768.0,
+      "vreload": 65536.0,
+      "vwaddx0": 16640.0,
+      "vextract": 540880.0,
+      "vpopc": 16512.0,
+      "vrgather": 16384.0,
+      "vslidedn": 524288.0,
+      "vfncvt": 25024.0,
+      "sdivu": 128.0,
+      "ssub": 128.0,
+      "vunit_store": 320.0,
+      "vunary": 256.0,
+      "vred": 128.0,
+      "vfmacc": 832.0,
+      "ret": 14.0
+    },
+    "spill_traffic": {
+      "spill_instructions": 33518.0,
+      "reload_instructions": 158867.0,
+      "spill_bytes_model": 1185648.0,
+      "reload_bytes_model": 3105944.0,
+      "bytes_model_note": "scalar=8B; vector=VLEN/8*lmul at vlmax"
+    },
+    "vsetvli": {
+      "static": {
+        "e32,m1": 174,
+        "e64,m2": 66,
+        "e16,m1": 72,
+        "e8,m1": 2
+      },
+      "dynamic_call": 1019520.0
+    },
+    "static": {
+      "instructions": 2487,
+      "frame_bytes": 400,
+      "saved_regs": [
+        "s1",
+        "s2",
+        "s3",
+        "s4",
+        "s5",
+        "s6",
+        "s7",
+        "s8",
+        "s9",
+        "s10",
+        "s11"
+      ],
+      "spill_slots": 21,
+      "spilled_values": 21,
+      "gprs_used": 25,
+      "vector_regs_used": 22,
+      "vector_bytes_used": 2816
+    }
+  },
+  "runtime_region_per_call": {
+    "_PROCEDURE_LINKAGE_TABLE_": 21.0,
+    "main": 32767.0,
+    "operator_entry": 137632.0,
+    "a100rt_worker_main": 12.0,
+    "a100rt_pool_call": 25.0
+  },
+  "loader_unknown_per_call": 127209.19999998565,
+  "hot_pcs_per_call": [
+    {
+      "pc": 127789466534084,
+      "per_call": 9337.0,
+      "mnemonic": "bgtu",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 127789466534080,
+      "per_call": 9337.0,
+      "mnemonic": "addi",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 127789466534078,
+      "per_call": 9337.0,
+      "mnemonic": "sd",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 127789466534076,
+      "per_call": 9337.0,
+      "mnemonic": "sd",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 127789466534074,
+      "per_call": 9337.0,
+      "mnemonic": "sd",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 127789466534072,
+      "per_call": 9337.0,
+      "mnemonic": "sd",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 127789466534070,
+      "per_call": 9337.0,
+      "mnemonic": "sd",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 127789466534068,
+      "per_call": 9337.0,
+      "mnemonic": "sd",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 127789466534066,
+      "per_call": 9337.0,
+      "mnemonic": "sd",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 127789466534064,
+      "per_call": 9337.0,
+      "mnemonic": "sd",
+      "region": "loader/unknown",
+      "origin": null,
+      "opcode": null,
+      "loc": null,
+      "text": null
+    },
+    {
+      "pc": 76034,
+      "per_call": 8320.0,
+      "mnemonic": "bnez",
+      "region": "program",
+      "origin": "branch",
+      "opcode": "brc",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/linear_dropout_softmax_kernel.py:54:20 ; op=1474",
+      "text": "bne t5, zero, .Lbrc1474_true  # [op1474] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/linear_dropout_softmax_kernel.py:54:20"
+    },
+    {
+      "pc": 76030,
+      "per_call": 8320.0,
+      "mnemonic": "slt",
+      "region": "program",
+      "origin": "op:slt",
+      "opcode": "slt",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/linear_dropout_softmax_kernel.py:54:20 ; op=1473",
+      "text": "slt t5, t0, s1  # [op1473] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/linear_dropout_softmax_kernel.py:54:20"
+    },
+    {
+      "pc": 75734,
+      "per_call": 8224.0,
+      "mnemonic": "bnez",
+      "region": "program",
+      "origin": "branch",
+      "opcode": "brc",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/linear_dropout_softmax_kernel.py:25:1 ; op=1383",
+      "text": "bne t0, zero, .Lbrc1383_true  # [op1383] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/linear_dropout_softmax_kernel.py:25:1"
+    },
+    {
+      "pc": 75730,
+      "per_call": 8224.0,
+      "mnemonic": "slt",
+      "region": "program",
+      "origin": "op:slt",
+      "opcode": "slt",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/linear_dropout_softmax_kernel.py:25:1 ; op=1382",
+      "text": "slt t0, t1, t0  # [op1382] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/linear_dropout_softmax_kernel.py:25:1"
+    },
+    {
+      "pc": 75728,
+      "per_call": 8224.0,
+      "mnemonic": "lui",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/linear_dropout_softmax_kernel.py:25:1 ; op=1381",
+      "text": "li t0, 8192  # [op1381] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/linear_dropout_softmax_kernel.py:25:1"
+    },
+    {
+      "pc": 75604,
+      "per_call": 8224.0,
+      "mnemonic": "bnez",
+      "region": "program",
+      "origin": "branch",
+      "opcode": "brc",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/linear_dropout_softmax_kernel.py:54:27 ; op=1349",
+      "text": "bne t0, zero, .Lbrc1349_true  # [op1349] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/linear_dropout_softmax_kernel.py:54:27"
+    },
+    {
+      "pc": 75600,
+      "per_call": 8224.0,
+      "mnemonic": "slt",
+      "region": "program",
+      "origin": "op:slt",
+      "opcode": "slt",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/linear_dropout_softmax_kernel.py:54:27 ; op=1348",
+      "text": "slt t0, t1, t0  # [op1348] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/linear_dropout_softmax_kernel.py:54:27"
+    },
+    {
+      "pc": 75598,
+      "per_call": 8224.0,
+      "mnemonic": "lui",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/linear_dropout_softmax_kernel.py:54:27 ; op=1347",
+      "text": "li t0, 8192  # [op1347] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/linear_dropout_softmax_kernel.py:54:27"
+    },
+    {
+      "pc": 73324,
+      "per_call": 8224.0,
+      "mnemonic": "bnez",
+      "region": "program",
+      "origin": "branch",
+      "opcode": "brc",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/linear_dropout_softmax_kernel.py:25:1 ; op=689",
+      "text": "bne t0, zero, .Lbrc689_true  # [op689] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/linear_dropout_softmax_kernel.py:25:1"
+    },
+    {
+      "pc": 73320,
+      "per_call": 8224.0,
+      "mnemonic": "slt",
+      "region": "program",
+      "origin": "op:slt",
+      "opcode": "slt",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/linear_dropout_softmax_kernel.py:25:1 ; op=688",
+      "text": "slt t0, s1, t0  # [op688] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/linear_dropout_softmax_kernel.py:25:1"
+    },
+    {
+      "pc": 73318,
+      "per_call": 8224.0,
+      "mnemonic": "lui",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/linear_dropout_softmax_kernel.py:25:1 ; op=687",
+      "text": "li t0, 8192  # [op687] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/linear_dropout_softmax_kernel.py:25:1"
+    },
+    {
+      "pc": 73194,
+      "per_call": 8224.0,
+      "mnemonic": "bnez",
+      "region": "program",
+      "origin": "branch",
+      "opcode": "brc",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/linear_dropout_softmax_kernel.py:53:38 ; op=655",
+      "text": "bne t0, zero, .Lbrc655_true  # [op655] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/linear_dropout_softmax_kernel.py:53:38"
+    },
+    {
+      "pc": 73190,
+      "per_call": 8224.0,
+      "mnemonic": "slt",
+      "region": "program",
+      "origin": "op:slt",
+      "opcode": "slt",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/linear_dropout_softmax_kernel.py:53:38 ; op=654",
+      "text": "slt t0, t1, t0  # [op654] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/linear_dropout_softmax_kernel.py:53:38"
+    },
+    {
+      "pc": 73188,
+      "per_call": 8224.0,
+      "mnemonic": "lui",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/linear_dropout_softmax_kernel.py:53:38 ; op=653",
+      "text": "li t0, 8192  # [op653] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/linear_dropout_softmax_kernel.py:53:38"
+    },
+    {
+      "pc": 73020,
+      "per_call": 8224.0,
+      "mnemonic": "bnez",
+      "region": "program",
+      "origin": "branch",
+      "opcode": "brc",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/linear_dropout_softmax_kernel.py:25:1 ; op=606",
+      "text": "bne t0, zero, .Lbrc606_true  # [op606] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/linear_dropout_softmax_kernel.py:25:1"
+    },
+    {
+      "pc": 73016,
+      "per_call": 8224.0,
+      "mnemonic": "slt",
+      "region": "program",
+      "origin": "op:slt",
+      "opcode": "slt",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/linear_dropout_softmax_kernel.py:25:1 ; op=605",
+      "text": "slt t0, t1, t0  # [op605] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/linear_dropout_softmax_kernel.py:25:1"
+    },
+    {
+      "pc": 73014,
+      "per_call": 8224.0,
+      "mnemonic": "lui",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/linear_dropout_softmax_kernel.py:25:1 ; op=604",
+      "text": "li t0, 8192  # [op604] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/linear_dropout_softmax_kernel.py:25:1"
+    },
+    {
+      "pc": 72888,
+      "per_call": 8224.0,
+      "mnemonic": "bnez",
+      "region": "program",
+      "origin": "branch",
+      "opcode": "brc",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/linear_dropout_softmax_kernel.py:52:31 ; op=572",
+      "text": "bne t0, zero, .Lbrc572_true  # [op572] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/linear_dropout_softmax_kernel.py:52:31"
+    },
+    {
+      "pc": 72884,
+      "per_call": 8224.0,
+      "mnemonic": "slt",
+      "region": "program",
+      "origin": "op:slt",
+      "opcode": "slt",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/linear_dropout_softmax_kernel.py:52:31 ; op=571",
+      "text": "slt t0, t1, t0  # [op571] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/linear_dropout_softmax_kernel.py:52:31"
+    },
+    {
+      "pc": 72882,
+      "per_call": 8224.0,
+      "mnemonic": "lui",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/linear_dropout_softmax_kernel.py:52:31 ; op=570",
+      "text": "li t0, 8192  # [op570] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/linear_dropout_softmax_kernel.py:52:31"
+    },
+    {
+      "pc": 76064,
+      "per_call": 8192.0,
+      "mnemonic": "j",
+      "region": "program",
+      "origin": "branch",
+      "opcode": "br",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/linear_dropout_softmax_kernel.py:54:20 ; op=1483",
+      "text": "j .Lkrrows20.head  # [op1483] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/linear_dropout_softmax_kernel.py:54:20"
+    },
+    {
+      "pc": 76062,
+      "per_call": 8192.0,
+      "mnemonic": "add",
+      "region": "program",
+      "origin": "op:sadd",
+      "opcode": "sadd",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/linear_dropout_softmax_kernel.py:54:20 ; op=1482",
+      "text": "add t1, t1, t5  # [op1482] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/linear_dropout_softmax_kernel.py:54:20"
+    },
+    {
+      "pc": 76058,
+      "per_call": 8192.0,
+      "mnemonic": "addi",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/linear_dropout_softmax_kernel.py:54:20 ; op=1481",
+      "text": "li t5, 512  # [op1481] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/linear_dropout_softmax_kernel.py:54:20"
+    },
+    {
+      "pc": 76056,
+      "per_call": 8192.0,
+      "mnemonic": "add",
+      "region": "program",
+      "origin": "op:sadd",
+      "opcode": "sadd",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/linear_dropout_softmax_kernel.py:54:20 ; op=1480",
+      "text": "add t0, t0, t5  # [op1480] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/linear_dropout_softmax_kernel.py:54:20"
+    },
+    {
+      "pc": 76054,
+      "per_call": 8192.0,
+      "mnemonic": "addi",
+      "region": "program",
+      "origin": "const-materialization",
+      "opcode": "sconst",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/linear_dropout_softmax_kernel.py:54:20 ; op=1479",
+      "text": "li t5, 1  # [op1479] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/linear_dropout_softmax_kernel.py:54:20"
+    },
+    {
+      "pc": 76050,
+      "per_call": 8192.0,
+      "mnemonic": "vfadd.vv",
+      "region": "program",
+      "origin": "vec-arith",
+      "opcode": "vbin",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/linear_dropout_softmax_kernel.py:54:20 ; op=1478",
+      "text": "vfadd.vv v1, v1, v2  # [op1478] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/linear_dropout_softmax_kernel.py:54:20"
+    },
+    {
+      "pc": 76046,
+      "per_call": 8192.0,
+      "mnemonic": "vle32.v",
+      "region": "program",
+      "origin": "op:vunit_load",
+      "opcode": "vunit_load",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/linear_dropout_softmax_kernel.py:54:20 ; op=1477",
+      "text": "vle32.v v2, 0(t1)  # [op1477] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/linear_dropout_softmax_kernel.py:54:20"
+    },
+    {
+      "pc": 76042,
+      "per_call": 8192.0,
+      "mnemonic": "vsetvli",
+      "region": "program",
+      "origin": "vec-config",
+      "opcode": "vsetvli",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/linear_dropout_softmax_kernel.py:54:20 ; op=1476",
+      "text": "vsetvli t5, x0, e32, m1, ta,ma  # [op1476] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/linear_dropout_softmax_kernel.py:54:20"
+    },
+    {
+      "pc": 76040,
+      "per_call": 8192.0,
+      "mnemonic": "j",
+      "region": "program",
+      "origin": "branch",
+      "opcode": "brc",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/linear_dropout_softmax_kernel.py:54:20 ; op=1474",
+      "text": "j .Lkrrows20.body  # [op1474] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/linear_dropout_softmax_kernel.py:54:20"
+    },
+    {
+      "pc": 75948,
+      "per_call": 8192.0,
+      "mnemonic": "j",
+      "region": "program",
+      "origin": "branch",
+      "opcode": "br",
+      "loc": "/home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/linear_dropout_softmax_kernel.py:25:1 ; op=1447",
+      "text": "j .Lchunk18_head  # [op1447] /home/i_yinzida/compiler-a100-experiment-001/ops/suite/dev/linear_dropout_softmax_kernel.py:25:1"
+    }
+  ],
+  "problems": []
+}

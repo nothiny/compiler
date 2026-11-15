@@ -250,7 +250,8 @@ class FactoryCompiler(Compiler):
                 mir_module, allocation, self.target,
                 workspace=(plan.workspace_private,
                            plan.workspace_shared),
-                selection=selection, header=header)
+                selection=selection, header=header,
+                branch_fuse=self.options.branch_fuse)
         except emit_mod.EmissionError as exc:
             raise PipelineError(exc.loc, f"emission:{exc.construct}",
                                 exc.message) from None
