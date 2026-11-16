@@ -4,8 +4,8 @@
   "project_root": "/home/i_yinzida/compiler-a100-experiment-001",
   "source_root": "/home/i_yinzida/compiler-agent-workflow",
   "source_revision_at_installation": "045391b84dbad290c08fec5c0a8a69a42790070b",
-  "method": "relative_symlink",
-  "update_policy": "Tracks the live local workflow checkout; hashes describe installation-time contents.",
+  "method": "vendored copy (real files under .zcode/skills/, frozen at the recorded source revision; .agents/skills/<name> is an IN-REPO relative symlink ../../.zcode/skills/<name>)",
+  "update_policy": "Frozen in-repo copy for machine independence (user directive 2026-11-16: no dependency on a sibling compiler-agent-workflow checkout). To update, re-vendor from the workflow checkout and refresh this record.",
   "scope": "Installation only; no workflow execution or acceptance-scope change.",
   "skills": [
     {
@@ -74,5 +74,7 @@
       "purpose": "The focused development loop for one compiler optimization in this repository: rule contract -> implementation -> validation -> record, with this repo's concrete interfaces (compile/dump/census/metrics/witness/scan/record commands) and the distilled case library from docs/compiler-agent/optimizations/. First executed by the OPT-2026-11-15-K3-BRANCH-FUSE round.",
       "loaded_via": "the session Skill tool (verified in the branch-fuse round session)"
     }
-  ]
+  ],
+  "vendored_at": "2026-11-16T15:00:00+08:00",
+  "verification": "the vendored optimization/SKILL.md sha256 matches the files_sha256 recorded at installation (the source checkout is still at the recorded revision 045391b)"
 }
