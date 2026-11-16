@@ -72,6 +72,24 @@ full evidence.
 - The paired off/on contrast on the same tree is the primary evidence; the
   off side's emission should be byte-identical to the baseline on unchanged
   paths. Compile-cache identity (switches in the key) makes this automatic.
+- **Measure the marginal, not the mechanism** (loop-rotation round,
+  measured): the rotation removes 94.7k jumps/call on attention and still
+  nets +0.04% — an equally real +120k move perturbation from the
+  allocator's recoloring of the changed CFG. A pass's profitability field
+  must carry the measured NET and the default must follow it (opt-in),
+  or a structural argument ships a wash as a win.
+- **A transform that creates a first-of-its-kind CFG shape audits its own
+  analysis** (loop-rotation round): the rotation's self-loops exposed a
+  latent bug in the natural-loop construction (the textbook predecessor
+  walk must not run when a back edge's source equals its target, or the
+  loop's external entry is swallowed). Re-derive analysis invariants on
+  the new shape, in tests.
+- **One placement decision can block two optimizations** (loop-rotation
+  round): the allocator's before-branch reload placement both cost a load
+  per hot iteration AND sat between every compare and its branch — moving
+  the reload into the consuming edge fixed the count and unblocked the
+  compare+branch fusion in one change. Placement questions deserve the
+  same structural scrutiny as count questions.
 - A transform's accept class across the family scan (e.g. 52/990 programs)
   is how you learn what a rule *actually* matches; measure it before claiming
   generality.
@@ -91,7 +109,10 @@ full evidence.
   shape can shift coloring decisions — measure the paired set, watch the
   spill/reload counters, and record allocation-perturbation regressions
   honestly (softmax_log +0.86% and +2.05% classes exist in the records).
-- Known open leads at the last round's close: the ~649k/call reload boundary
-  on attention (an unexplained allocator behavior post-split), the
-  operator_entry skeleton (10-15%, unattributed), and the structural sconst
-  mass (li 4 / li 2048 classes — measured as having no algebraic lever).
+- Known open leads at the last round's close: the allocator's
+  stability/coalescing under CFG-shape changes (the rotation's opt-in
+  blocker: attention +101k mv on a -94.7k j win), the ~649k/call reload
+  boundary on attention (an unexplained allocator behavior post-split),
+  the operator_entry skeleton (10-15%, unattributed), and the structural
+  sconst mass (li 4 / li 2048 classes — measured as having no algebraic
+  lever).

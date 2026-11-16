@@ -1,60 +1,57 @@
-"""MIR-CFG loop analysis and the mir-licm prototype (W3 of the unified
-optimization round -- NOT WIRED into the pipeline).
+"""MIR-CFG loop analysis and the mir-optimize stage's passes.
 
-Status: attempted, measured, unwired.  The first delivery's sconst-only
-LICM (pressure-safe by construction: the allocator rematerializes
-constants under pressure) measured -2.5% on softmax-f16 but +1% on
-linear-dropout and +8% on log_softmax_linear at the pressure-safe hoist
-cap -- the register-pressure perturbation outweighs the per-iteration
-li savings, and unbounded hoisting overflows the allocator's spill/remat
-round budget (the convergence bomb).  The stage is therefore not wired;
-the loop analysis here (natural loops over the dominator tree, def-sites
-by value identity -- sibling blocks carry identically-named params) is
-the reusable machinery for the follow-up's pressure-aware design.  See
-docs/compiler-agent/optimizations/DESIGN-ISSUE-mir-optimize.md.
+The WIRED pass (the declared mir-optimize stage, between lowering and
+legalisation; OPT-IN -- ``A100C_MIRPASS_PRED=on``; the measured reason is
+on the CompileOptions field):
 
-The original design sketch (kept for the follow-up):
+* **mir-loop-predicate -- counted/while-loop rotation.**  The lowering's
+   loop form is a head-test loop: ``head(i, carried...) { c = i < upper;
+   brc c -> body, exit }`` with the body closing over ``br -> head``.
+   Every iteration therefore executes the head's test/jump pair AND the
+   body's unconditional back-edge jump.  The rotation rewrites it to the
+   guarded do-while form: the preheader evaluates the condition on the
+   initial values once (zero-trip safety preserved -- the body is never
+   entered when the initial condition is false), the body's back edge
+   becomes the conditional branch (the condition re-evaluated on the
+   back-edge values, at the body's end), and the head block disappears.
+   Per iteration, one unconditional jump and one block are removed; the
+   emitter's compare+branch fusion (OPT-BRANCH-FUSE) applies to both new
+   compare+branch pairs.  Legality is structural: a unique preheader, a
+   single body block whose terminator is the single back edge, the
+   head's ops exactly the condition computation (empty, or sconst
+   materializations feeding one slt/sltu over head params and
+   loop-invariant values), identity true-args, substitutable false-args,
+   and matching exit arity.  The rotated condition reads exactly the
+   values the original read at the same iteration boundaries (the
+   single-back-edge form makes the head-entry values and the previous
+   back-edge values the same sequence), so the evaluation sequence and
+   every produced value are unchanged.
 
-* mir-licm -- loop-invariant code motion for the SCALAR core: ``sconst``
-  rematerializations and pure integer scalar operations (the SBIN_OPS
-  set plus smove/strunc/swext) hoist from natural-loop bodies to the
-  loop's unique preheader.  Speculation is safe on this target (RISC-V
-  integer add/mul/div do not trap; division by zero returns the defined
-  non-trapping result), memory accesses and every vector op are never
-  hoisted (a vector op's semantics depend on the active vsetvli region,
-  and regions do not cross block boundaries -- the MIR invariant), and
-  a zero-trip loop only ever executes the hoisted pure ops uselessly.
-  Hoisting is dominated-safe: a definition that dominates a use inside
-  the loop also dominates the preheader (every path to the use passes
-  through it).
+The UNWIRED machinery kept for the recorded follow-ups (see
+docs/compiler-agent/optimizations/DESIGN-ISSUE-mir-optimize.md):
 
-* mir-strength-reduction, mir-loop-predicate, mir-vsetvli-hoist -- the
-  first delivery of this stage runs them as analysis-only (they fire
-  zero rewrites); their transforms land in the follow-up delivery.  The
-  counters report the truth; a pass that fires zero times is not a
-  rewrite.
+* mir-licm -- attempted and measured net negative (the register-pressure
+  perturbation of blanket sconst hoisting outweighs the per-iteration
+  li savings; unbounded hoisting overflows the allocator's spill/remat
+  round budget).  Its implementation stays below, unwired, with the
+  reusable natural-loop analysis this stage shares.
+* mir-strength-reduction (induction -> pointer recursion) and
+  mir-vsetvli-hoist (blocked by the regions-do-not-cross-blocks
+  invariant until the region model carries per-point state) -- designed,
+  not implemented.
 
-Switches (the A100C_PASS_* pattern; recorded in the artifact identity
-when disabled): A100C_MIRPASS_LICM=off, A100C_MIRPASS_SR=off,
-A100C_MIRPASS_PRED=off, A100C_MIRPASS_VSETVLI=off.
+Switch (the A100C_PASS_* pattern; recorded in the artifact identity
+when disabled): A100C_MIRPASS_PRED=off.
 """
 from __future__ import annotations
 
-from typing import Dict, List, Set, Tuple
+from typing import Dict, List, Optional, Set, Tuple
 
 from a100c.ir import mir
 
-#: what mir-licm hoists in this delivery: ONLY the sconst
-#: rematerializations.  A hoisted constant is pressure-safe by
-#: construction -- under register pressure the allocator rematerializes
-#: it right back to the per-use sconst form (its declared escape valve),
-#: so hoisting is never worse than the loop-body form and saves the
-#: per-iteration li when the budget allows.  The integer address trees
-#: (SBIN chains, width moves) are deliberately NOT hoisted yet: their
-#: results are not rematerializable, and the first delivery's unbounded
-#: hoisting of them overflowed the register file into a non-converging
-#: spill/remat deadlock -- they return behind an explicit pressure
-#: budget in the follow-up.
+#: what mir-licm hoists (UNWIRED): ONLY the sconst rematerializations --
+#: pressure-safe by construction (the allocator rematerializes constants
+#: under pressure).  See the module docstring.
 _HOISTABLE = frozenset({"sconst"})
 
 
@@ -144,9 +141,13 @@ def _natural_loops(function: mir.MFunction, preds,
         for t in _terminator_targets(term):
             if t in dom.get(b.name, set()):
                 # back edge b -> t (t dominates b): the natural loop is
-                # t plus everything that reaches b without passing t
+                # t plus everything that reaches b without passing t.
+                # A SELF-EDGE (b == t) is exactly {t}: walking the
+                # predecessors would swallow the loop's external entry
+                # (a rotated loop's preheader -- the bug the rotation's
+                # self-loops exposed)
                 body = {t, b.name}
-                stack = [b.name]
+                stack = [] if b.name == t else [b.name]
                 while stack:
                     n = stack.pop()
                     for p in preds[n]:
@@ -239,25 +240,222 @@ def _licm_function(function: mir.MFunction) -> int:
 
 
 # ---------------------------------------------------------------------------
-# the declared passes whose transforms land in the follow-up delivery
+# mir-loop-predicate: counted/while-loop rotation
 # ---------------------------------------------------------------------------
-def _strength_reduction_function(function: mir.MFunction) -> int:
-    """Analysis-only in this delivery (fires zero rewrites): the affine
-    induction-variable -> pointer-recursion transform."""
-    return 0
+def _def_block(function: mir.MFunction, rid: int) -> Optional[str]:
+    """The block whose params or ops define the value ``rid`` (None when
+    the definition is not in this function -- treated as not provably
+    outside the loop, a decline).  Function parameters are defined at the
+    entry block, which dominates every loop."""
+    for p in function.params:
+        if p.rid == rid:
+            return function.blocks[0].name if function.blocks else None
+    for b in function.blocks:
+        for p in b.params:
+            if p.rid == rid:
+                return b.name
+        for op in b.ops:
+            for r in op.results:
+                if r.rid == rid:
+                    return b.name
+    return None
 
 
-def _loop_predicate_function(function: mir.MFunction) -> int:
-    """Analysis-only in this delivery (fires zero rewrites): the counted
-    loop predicate resolution."""
-    return 0
+def _rotate_one(function: mir.MFunction, head_name: str, body_set: Set[str],
+                preds: Dict[str, List[str]], declines: Dict[str, int]) -> bool:
+    """Rotate one natural loop in place; True when the rewrite fired.
+
+    The matched form (the lowering's counted, while and chunk/staging
+    loops): a unique preheader P ending in ``br INIT -> H``; a head H
+    whose non-terminator ops are empty (the while form: the brc reads
+    ``params[0]``) or a chain of sconst materializations feeding exactly
+    one slt/sltu over head params and loop-invariant values (the counted
+    form -- the bound constant is materialized inside the head); H's
+    ``brc -> B/E`` passing the head params to B and a substitutable arg
+    list (head params or loop-invariant values) to E; a single body
+    block B whose terminator is the single back edge ``br V -> H``; the
+    exit's arity equal to the false-arg count.
+
+    Rotation is safe on the single-body-block loops as a DISJOINT family:
+    no rotation targets another loop's head, body or preheader, so one
+    sweep may rotate them all against one CFG snapshot.
+    """
+    def decline(reason: str) -> None:
+        declines[reason] = declines.get(reason, 0) + 1
+
+    blocks = {b.name: b for b in function.blocks}
+    if head_name not in body_set or len(body_set) != 2:
+        return False          # not the single-body-block form: not a candidate
+    head = blocks[head_name]
+    body_name = (body_set - {head_name}).pop()
+    body = blocks[body_name]
+
+    outside = [p for p in preds[head_name] if p not in body_set]
+    if len(outside) != 1:
+        decline("no-unique-preheader")
+        return False
+    pre = blocks[outside[0]]
+    pterm = pre.terminator()
+    if pterm is None or pterm.opcode != "br" \
+            or pterm.attrs["target"] != head_name:
+        decline("preheader-not-entry-br")
+        return False
+    init_args = list(pterm.attrs.get("args", ()))
+
+    bterm = body.terminator()
+    if bterm is None or bterm.opcode != "br" \
+            or bterm.attrs["target"] != head_name:
+        decline("body-not-single-back-edge")
+        return False
+    back_args = list(bterm.attrs.get("args", ()))
+    if len(back_args) != len(head.params) or len(init_args) != len(head.params):
+        decline("edge-arity")
+        return False
+
+    hterm = head.terminator()
+    if hterm is None or hterm.opcode != "brc" \
+            or hterm.attrs["true_target"] != body_name:
+        decline("head-not-brc-to-body")
+        return False
+    exit_name = hterm.attrs["false_target"]
+    if list(hterm.attrs.get("true_args", ())) != list(head.params):
+        decline("true-args-not-identity")
+        return False
+    exit_block = blocks.get(exit_name)
+    false_args = list(hterm.attrs.get("false_args", ()))
+    if exit_block is None or len(exit_block.params) != len(false_args):
+        decline("exit-arity")
+        return False
+
+    # every false arg must be substitutable: a head param (replaced by
+    # the corresponding edge value at each rotation site) or a value
+    # defined outside the loop (used as-is -- through the single entry
+    # it dominates the preheader's end)
+    false_pos: List[Optional[int]] = []
+    for v in false_args:
+        k = None
+        for pi, p in enumerate(head.params):
+            if p.rid == v.rid:
+                k = pi
+                break
+        if k is None:
+            defsite = _def_block(function, v.rid)
+            if defsite is None or defsite in body_set:
+                decline("false-arg-inside-loop")
+                return False
+        false_pos.append(k)
+
+    # the head's condition computation: empty (while) or [sconst...]slt
+    cond_val = hterm.operands[0] if hterm.operands else None
+    cond_ops = head.ops[:-1]
+    subst: Optional[Tuple[List[mir.MOp], mir.MOp, List[Optional[int]]]] = None
+    if not cond_ops:
+        # the while form: the brc reads the carried condition directly
+        if cond_val is None or cond_val.rid != head.params[0].rid:
+            decline("while-cond-not-param0")
+            return False
+    else:
+        cmp_op = cond_ops[-1]
+        const_ops = cond_ops[:-1]
+        if cmp_op.opcode not in ("slt", "sltu") or not cmp_op.results \
+                or len(cmp_op.operands) != 2 or cond_val is None \
+                or cmp_op.results[0].rid != cond_val.rid:
+            decline("cond-not-single-compare")
+            return False
+        used_by_cmp = {v.rid for v in cmp_op.operands}
+        for op in const_ops:
+            if op.opcode != "sconst" or not op.results \
+                    or op.results[0].rid not in used_by_cmp:
+                decline("head-carries-more")
+                return False
+        param_pos: List[Optional[int]] = []
+        for v in cmp_op.operands:
+            k = None
+            for pi, p in enumerate(head.params):
+                if p.rid == v.rid:
+                    k = pi
+                    break
+            if k is None and not any(o.results and o.results[0].rid == v.rid
+                                     for o in const_ops):
+                # a loop-invariant operand: defined outside the loop
+                defsite = _def_block(function, v.rid)
+                if defsite is None or defsite in body_set:
+                    decline("compare-operand-inside-loop")
+                    return False
+            param_pos.append(k)
+        subst = (const_ops, cmp_op, param_pos)
+
+    # ---- fire: the guarded do-while form --------------------------------
+    def copy_condition(edge_args: List[mir.VReg],
+                       into: mir.Block) -> mir.VReg:
+        const_ops, cmp_op, param_pos = subst
+        fresh: Dict[int, mir.VReg] = {}
+        for op in const_ops:
+            fresh[op.results[0].rid] = mir.VReg(op.results[0].type,
+                                                loc=op.loc, hint="lp.k")
+            into.ops.append(mir.MOp(op.opcode, [], [fresh[op.results[0].rid]],
+                                    attrs=dict(op.attrs), loc=op.loc))
+        operands = []
+        for v, k in zip(cmp_op.operands, param_pos):
+            if k is not None:
+                operands.append(edge_args[k])
+            elif v.rid in fresh:
+                operands.append(fresh[v.rid])
+            else:
+                operands.append(v)
+        result = mir.VReg(cmp_op.results[0].type, loc=cmp_op.loc, hint="lp")
+        into.ops.append(mir.MOp(cmp_op.opcode, operands, [result],
+                                loc=cmp_op.loc))
+        return result
+
+    def false_edge_args(edge_args: List[mir.VReg]) -> List[mir.VReg]:
+        return [edge_args[k] if k is not None else v
+                for v, k in zip(false_args, false_pos)]
+
+    pre.ops.pop()                     # the entry br
+    guard = init_args[0] if subst is None else copy_condition(init_args, pre)
+    pre.ops.append(mir.MOp(
+        "brc", [guard], [],
+        attrs={"true_target": body_name, "true_args": list(init_args),
+               "false_target": exit_name,
+               "false_args": false_edge_args(init_args)},
+        loc=head.loc))
+    body.ops.pop()                    # the back-edge br
+    back = back_args[0] if subst is None else copy_condition(back_args, body)
+    body.ops.append(mir.MOp(
+        "brc", [back], [],
+        attrs={"true_target": body_name, "true_args": list(back_args),
+               "false_target": exit_name,
+               "false_args": false_edge_args(back_args)},
+        loc=head.loc))
+    # the head is unreachable now: its only referents were the two
+    # rewritten branches
+    function.blocks.remove(head)
+    return True
 
 
-def _vsetvli_hoist_function(function: mir.MFunction) -> int:
-    """Analysis-only in this delivery (fires zero rewrites): the
-    region-consistent vsetvli hoist (blocked by the regions-do-not-cross
-    -blocks invariant until the region model carries per-point state)."""
-    return 0
+def _loop_predicate_function(function: mir.MFunction
+                             ) -> Tuple[int, Dict[str, int]]:
+    """Rotate every eligible loop; (rotated, decline-reason histogram).
+
+    The eligible single-body-block loops are a disjoint family (a
+    single-block body cannot contain another loop), so one sweep rotates
+    them all against one CFG snapshot; a second sweep confirms the fixpoint.
+    """
+    rotated = 0
+    declines: Dict[str, int] = {}
+    for _sweep in (0, 1):
+        preds, succs = _build_graph(function)
+        dom = _dominators(function, preds, succs)
+        loops = _natural_loops(function, preds, dom)
+        fired = 0
+        for head_name, body_set in loops:
+            if _rotate_one(function, head_name, body_set, preds, declines):
+                rotated += 1
+                fired += 1
+        if not fired:
+            break
+    return rotated, declines
 
 
 # ---------------------------------------------------------------------------
@@ -266,30 +464,23 @@ def _vsetvli_hoist_function(function: mir.MFunction) -> int:
 def run(module: mir.MModule, options) -> mir.MModule:
     """Run the enabled mir-optimize passes over ``module`` (in place).
 
-    ``options`` is the CompileOptions carrying the four A100C_MIRPASS_*
-    switches (default on).  The per-pass rewrite counts land in
+    ``options`` is the CompileOptions carrying the A100C_MIRPASS_PRED
+    switch (opt-in; the pass is default-off -- see the CompileOptions
+    field for the measured reason).  The pass's rewrite counts land in
     ``module.meta['mir_passes']``.
     """
     counts: Dict[str, Dict[str, int]] = {}
-    if getattr(options, "mir_licm", True):
+    if getattr(options, "mir_loop_predicate", False):
         n = 0
+        declines: Dict[str, int] = {}
         for function in module.functions:
-            n += _licm_function(function)
-        counts["mir-licm"] = {"hoisted": n}
-    if getattr(options, "mir_strength_reduction", True):
-        n = 0
-        for function in module.functions:
-            n += _strength_reduction_function(function)
-        counts["mir-strength-reduction"] = {"rewrites": n}
-    if getattr(options, "mir_loop_predicate", True):
-        n = 0
-        for function in module.functions:
-            n += _loop_predicate_function(function)
-        counts["mir-loop-predicate"] = {"resolved": n}
-    if getattr(options, "mir_vsetvli_hoist", True):
-        n = 0
-        for function in module.functions:
-            n += _vsetvli_hoist_function(function)
-        counts["mir-vsetvli-hoist"] = {"hoisted": n}
+            r, d = _loop_predicate_function(function)
+            n += r
+            for k, v in d.items():
+                declines[k] = declines.get(k, 0) + v
+        counts["mir-loop-predicate"] = {"rotated": n, "declined": declines}
+    else:
+        counts["mir-loop-predicate"] = {"enabled": False}
     module.meta["mir_passes"] = counts
+    module.renumber()
     return module

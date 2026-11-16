@@ -325,6 +325,19 @@ A100C_PASS_LICM=off       # 循环不变量外提
 # 发射阶段的分支控制 peephole（branch-fuse 轮，默认开）：空搬移 brc 边的
 # 纯 trampoline stub 直达重定向 + MIR 单用 slt/sltu 与 bne 的融合（blt/bltu）
 A100C_BRANCH_FUSE=off
+
+# 发射阶段的边内重载推迟（loop-rotation 轮，默认开）：块尾只被 brc 边参数
+# 使用的标量重载移入对应边的搬移序列——循环头不再每迭代重载，且比较与分支
+# 不再被重载隔开（解除融合阻塞）
+A100C_EDGE_RELOAD=off
+
+# mir-optimize 阶段的循环旋转 pass（loop-rotation 轮，默认关，opt-in）：
+# head-test 循环变为 guarded do-while（前置条件在 preheader 求值一次保零趟
+# 安全，回边成为条件分支，头块消失）。结构合法：唯一 preheader、单块循环体、
+# 头部恰为条件计算、true 边恒等传参 / false 边可替换。实测：结构性回边收益
+# （attention j 类 -94.7k/call）被分配压力重案例的着色扰动抵消（净 +0.04%）
+# ——故默认关，待分配器稳定性修复后再评估默认开
+A100C_MIRPASS_PRED=on
 ```
 
 四个带"反证"的工程检查（`--witness` 注入缺陷后**必须**非零退出）：

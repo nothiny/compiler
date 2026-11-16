@@ -54,6 +54,7 @@ from a100c.ir import mir, tir
 from a100c.lower import binding as binding_mod
 from a100c.lower import vectorize
 from a100c.lower.vectorize import LowerOptions, VectorizeError
+from a100c.passes import mir_optimize as mir_opt_mod
 from a100c.passes import pipeline as passes_mod
 from a100c.plan import grid as grid_mod
 from a100c.plan import partition as part_mod
@@ -170,6 +171,16 @@ class FactoryCompiler(Compiler):
         errors = matrix_verify.verify_module(mir_module)
         if errors:
             raise PipelineError(None, "mir-verifier", str(errors[0]))
+        # 7b. mir-optimize (the declared stage; the pass is opt-in --
+        #     A100C_MIRPASS_PRED=on -- and the stage records the disabled
+        #     state when off; the verifier runs only when the pass ran --
+        #     the disabled stage mutates nothing)
+        mir_opt_mod.run(mir_module, self.options)
+        if self.options.mir_loop_predicate:
+            errors = matrix_verify.verify_module(mir_module)
+            if errors:
+                raise PipelineError(None, "mir-verifier-post-mir-optimize",
+                                    str(errors[0]))
         if dumps:
             (entry / "stage.plan.txt").write_text(
                 json.dumps({"plan": plan.describe(),
@@ -178,6 +189,9 @@ class FactoryCompiler(Compiler):
                             "target": self.target.describe()}, indent=2,
                            sort_keys=True) + "\n")
             (entry / "stage.mir.lowered.txt").write_text(mir.dump_module(mir_module))
+            if self.options.mir_loop_predicate:
+                (entry / "stage.mir.optimized.txt").write_text(
+                    mir.dump_module(mir_module))
         # 8. legalisation
         report = legal_mod.legalize(mir_module)
         errors = matrix_verify.verify_module(mir_module)
@@ -251,7 +265,8 @@ class FactoryCompiler(Compiler):
                 workspace=(plan.workspace_private,
                            plan.workspace_shared),
                 selection=selection, header=header,
-                branch_fuse=self.options.branch_fuse)
+                branch_fuse=self.options.branch_fuse,
+                edge_reload_defer=self.options.edge_reload_defer)
         except emit_mod.EmissionError as exc:
             raise PipelineError(exc.loc, f"emission:{exc.construct}",
                                 exc.message) from None
@@ -269,6 +284,7 @@ class FactoryCompiler(Compiler):
             "tir_ops": sum(1 for fn in tir_module.functions
                            for st in fn.body.statements if isinstance(st, tir.Op)),
             "grid": grid.describe(),
+            "mir-optimize": mir_module.meta.get("mir_passes", {}),
             "legalize": report.describe(),
             "selection": mir_module.meta.get("selection", {}),
             "allocation": allocation.stats,

@@ -40,6 +40,7 @@ from a100c.frontend.source import FrontendError
 from a100c.ir import dump as tir_dump
 from a100c.ir import mir, tir
 from a100c.lower import binding as binding_mod
+from a100c.passes import mir_optimize as mir_opt_mod
 from a100c.lower import vectorize
 from a100c.lower.vectorize import LowerOptions, VectorizeError
 from a100c.plan import grid as grid_mod
@@ -162,6 +163,30 @@ class CompileOptions:
     #: (``blt/bltu``).  Env: A100C_BRANCH_FUSE=off restores both original
     #: forms.
     branch_fuse: bool = True
+    #: The emitter's edge-reload deferral: a scalar spill reload in a
+    #: block's tail whose fresh result feeds only the terminator's edge
+    #: args is emitted inside the consuming edge's move sequence instead
+    #: of before the branch -- head-test loops stop reloading it every
+    #: iteration and a compare directly feeding the branch is no longer
+    #: separated from it (the compare+branch fusion unblocks).
+    #: Env: A100C_EDGE_RELOAD=off restores the before-branch placement.
+    edge_reload_defer: bool = True
+    #: The mir-optimize stage's loop rotation (the loop-predicate round).
+    #: DEFAULT OFF (opt-in: A100C_MIRPASS_PRED=on): the structural win --
+    #: one branch per iteration instead of the head-test pair plus the
+    #: back-edge jump (attention's j class -94.7k/call) -- is offset on
+    #: allocation-pressure-heavy cases by the coloring perturbation of the
+    #: changed CFG shape (attention +101k mv/call, net +0.04%); the
+    #: low-pressure cases net positive (softmax -0.58%, synth -0.36%).
+    #: One allocator-stability fix away from default-on (the recorded
+    #: 649k-reload-boundary lead).  When enabled: the lowering's head-test
+    #: loops become guarded do-while loops -- the preheader evaluates the
+    #: condition on the initial values once (zero-trip safety preserved),
+    #: the body's back edge becomes the conditional branch, and the head
+    #: block disappears.  Structural legality: unique preheader, single
+    #: body block, the head's ops exactly the condition computation,
+    #: identity true-args and substitutable false-args.
+    mir_loop_predicate: bool = False
 
     def __post_init__(self):
         if os.environ.get("A100C_MATRIX_PACK", "").strip().lower() in \
@@ -178,7 +203,8 @@ class CompileOptions:
                 ("elementwise_width", "A100C_ELEMENTWISE_WIDTH"),
                 ("local_materialization", "A100C_LOCAL_MATERIALIZATION"),
                 ("wide_lane_index", "A100C_WIDE_LANE_INDEX"),
-                ("branch_fuse", "A100C_BRANCH_FUSE")):
+                ("branch_fuse", "A100C_BRANCH_FUSE"),
+                ("edge_reload_defer", "A100C_EDGE_RELOAD")):
             if os.environ.get(env_name, "").strip().lower() in \
                     ("off", "0", "false", "no"):
                 setattr(self, field_name, False)
@@ -189,6 +215,10 @@ class CompileOptions:
         if os.environ.get("A100C_LOOP_CONST_HOIST", "").strip().lower() in \
                 ("on", "1", "true", "yes"):
             self.loop_const_hoist = True
+        # the opt-in switch (default off): A100C_MIRPASS_PRED=on
+        if os.environ.get("A100C_MIRPASS_PRED", "").strip().lower() in \
+                ("on", "1", "true", "yes"):
+            self.mir_loop_predicate = True
     def identity_part(self) -> str:
         parts = []
         if self.witness_drop_tail_predicates:
@@ -205,7 +235,8 @@ class CompileOptions:
                            "matrix_row_reuse", "guarded_narrow_access",
                            "elementwise_width", "local_materialization",
                            "chunk_mask_split", "loop_const_hoist",
-                           "wide_lane_index", "branch_fuse"):
+                           "wide_lane_index", "branch_fuse",
+                           "edge_reload_defer", "mir_loop_predicate"):
             if not getattr(self, field_name):
                 parts.append("no-" + field_name.replace("_", "-"))
         if not self.dumps:
@@ -420,6 +451,16 @@ class Compiler:
         errors = matrix_verify.verify_module(mir_module)
         if errors:
             raise PipelineError(None, "mir-verifier", str(errors[0]))
+        # 6b. mir-optimize (the declared stage; the pass is opt-in --
+        #     A100C_MIRPASS_PRED=on -- and the stage records the disabled
+        #     state when off; the verifier runs only when the pass ran --
+        #     the disabled stage mutates nothing)
+        mir_opt_mod.run(mir_module, self.options)
+        if self.options.mir_loop_predicate:
+            errors = matrix_verify.verify_module(mir_module)
+            if errors:
+                raise PipelineError(None, "mir-verifier-post-mir-optimize",
+                                    str(errors[0]))
         if dumps:
             (entry / "stage.plan.txt").write_text(
                 json.dumps({"plan": plan.describe(),
@@ -428,6 +469,9 @@ class Compiler:
                             "target": self.target.describe()}, indent=2,
                            sort_keys=True) + "\n")
             (entry / "stage.mir.lowered.txt").write_text(mir.dump_module(mir_module))
+            if self.options.mir_loop_predicate:
+                (entry / "stage.mir.optimized.txt").write_text(
+                    mir.dump_module(mir_module))
         # 7. legalisation (contract: after it, everything is in the repertoire)
         report = legal_mod.legalize(mir_module)
         from a100c.lower import matrix as matrix_verify
@@ -498,7 +542,8 @@ class Compiler:
                 workspace=(plan.workspace_private,
                            plan.workspace_shared),
                 selection=selection, header=header,
-                branch_fuse=self.options.branch_fuse)
+                branch_fuse=self.options.branch_fuse,
+                edge_reload_defer=self.options.edge_reload_defer)
         except emit_mod.EmissionError as exc:
             raise PipelineError(exc.loc, f"emission:{exc.construct}",
                                 exc.message) from None
@@ -515,6 +560,7 @@ class Compiler:
             "tir_ops": sum(1 for fn in tir_module.functions
                            for st in fn.body.statements if isinstance(st, tir.Op)),
             "grid": grid.describe(),
+            "mir-optimize": mir_module.meta.get("mir_passes", {}),
             "legalize": report.describe(),
             "selection": mir_module.meta.get("selection", {}),
             "allocation": allocation.stats,

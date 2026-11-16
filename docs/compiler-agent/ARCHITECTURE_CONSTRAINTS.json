@@ -56,6 +56,10 @@
       "responsibility": "pass pipeline registration, ordering, per-pass switches; the basic optimizations run in the normal pipeline"
     },
     {
+      "path": "a100c/passes/mir_optimize.py",
+      "responsibility": "MIR-CFG loop analysis and the mir-optimize stage's passes: mir-loop-predicate, the counted/while-loop rotation (opt-in, A100C_MIRPASS_PRED=on) -- head-test loops become guarded do-while loops under structural legality (unique preheader, single body block, the head's ops exactly the condition computation, identity true-args and substitutable false-args); the unwired mir-licm machinery stays recorded as the measured-negative design"
+    },
+    {
       "path": "a100c/passes/analyses.py",
       "responsibility": "shared analysis owner: dominance, liveness, loop structure, memory effects, with a declared invalidation contract"
     },
@@ -227,6 +231,15 @@
       ]
     },
     {
+      "name": "mir-optimize",
+      "module": "a100c/passes/mir_optimize.py",
+      "input": "mir/v1",
+      "output": "mir/v1",
+      "tests": [
+        "a100c/tests/test_mir_passes.py"
+      ]
+    },
+    {
       "name": "legalisation",
       "module": "a100c/backend/legalize.py",
       "input": "mir/v1",
@@ -331,6 +344,9 @@
       ],
       "verification_tests": [
         "a100c/tests/test_mir_verifier.py"
+      ],
+      "passes": [
+        "mir-loop-predicate"
       ]
     }
   ],
@@ -440,6 +456,19 @@
       "profitability": "hoists invariant pure expressions only; masked or trapping accesses are never hoisted; zero-trip loop safety preserved",
       "tests": [
         "a100c/tests/test_passes_basic.py"
+      ]
+    },
+    {
+      "name": "mir-loop-predicate",
+      "module": "a100c/passes/mir_optimize.py",
+      "ir": "mir/v1",
+      "stage": "mir-optimize",
+      "optional": true,
+      "switch": "A100C_MIRPASS_PRED=on",
+      "trace_counter": "pass.mir-loop-predicate.rotated",
+      "profitability": "opt-in (default off): the structural win -- one branch per iteration instead of the head-test pair plus the back-edge jump (attention's j class -94.7k/call) -- is offset on allocation-pressure-heavy cases by the coloring perturbation of the changed CFG (attention +101k mv/call, net +0.04%); low-pressure cases net positive (softmax -0.58%, synth -0.36%); declines keep the head-test form on any unmet structural condition",
+      "tests": [
+        "a100c/tests/test_mir_passes.py"
       ]
     }
   ],
@@ -570,6 +599,10 @@
     {
       "name": "no-operator-name-dispatch",
       "test": "tools/check_no_name_dispatch.py"
+    },
+    {
+      "name": "mir-passes-legality-and-results",
+      "test": "a100c/tests/test_mir_passes.py"
     }
   ]
 }

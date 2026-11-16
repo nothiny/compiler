@@ -1,0 +1,59 @@
+{
+  "run_id": "looprot-full",
+  "case_id": "suite/dev/matmul_k32_fast_kernel_f2eeb00c.py#[128]#float16",
+  "artifact_sha256": "4c6f082570de37311b2ec479665ee083d925327a42fa170fd0f3a32895b27faf",
+  "variant": "threads-4",
+  "instruction_counts": {
+    "smt.vmadot": 0,
+    "smt.vfwmadot": 4096
+  },
+  "workers": [
+    {
+      "worker": "worker-0",
+      "unit": "a100-compute-worker-slot-0",
+      "observed_units": [
+        "a100-compute-worker-slot-0"
+      ],
+      "completed_units": 123872,
+      "start": 4411554.526251991,
+      "end": 4411554.673618392
+    },
+    {
+      "worker": "worker-1",
+      "unit": "a100-compute-worker-slot-1",
+      "observed_units": [
+        "a100-compute-worker-slot-1"
+      ],
+      "completed_units": 123872,
+      "start": 4411554.526251991,
+      "end": 4411554.673618392
+    },
+    {
+      "worker": "worker-2",
+      "unit": "a100-compute-worker-slot-2",
+      "observed_units": [
+        "a100-compute-worker-slot-2"
+      ],
+      "completed_units": 0,
+      "start": 4411554.526251991,
+      "end": 4411554.673618392
+    },
+    {
+      "worker": "worker-3",
+      "unit": "a100-compute-worker-slot-3",
+      "observed_units": [
+        "a100-compute-worker-slot-3"
+      ],
+      "completed_units": 0,
+      "start": 4411554.526251991,
+      "end": 4411554.673618392
+    }
+  ],
+  "guest_tids": [
+    1818974,
+    1818981,
+    1818982,
+    1818985
+  ],
+  "command": "/home/i_yinzida/.local/opt/a100/jdsk-qemu-10.0.2/bin/qemu-riscv64 -L /home/i_yinzida/.local/opt/a100/toolchain-1.1.2/sysroot -cpu max,vlen=1024,elen=64,vext_spec=v1.0 -plugin /home/i_yinzida/compiler-a100-experiment-001/a100_support/build/instruction_counts.so,out=/home/i_yinzida/compiler-a100-experiment-001/docs/compiler-agent/optimizations/k3-loop-rotation-20261116/evidence/full-input/shard7/resource-evidence/suite__dev__matmul_k32_fast_kernel_f2eeb00c.py#[128]#float16/counts.json /home/i_yinzida/compiler-a100-experiment-001/a100c/cache/da9dcd39c651fd917366e212aa690e03fd1e3a1db6098ba1a38d726fc7516a2c/operator_exec --bundle /tmp/a100-native-case-0rr4cwov/bundle.bin --threads 4"
+}

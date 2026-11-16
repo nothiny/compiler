@@ -637,7 +637,7 @@ class _Emitter:
     def __init__(self, module: mir.MModule, selection: Dict[int, Selected],
                  allocation: Allocation, target: TargetModel,
                  workspace: Tuple[int, int], header: List[str],
-                 branch_fuse: bool = True):
+                 branch_fuse: bool = True, edge_reload_defer: bool = True):
         self.module = module
         self.selection = selection
         self.alloc = allocation
@@ -647,6 +647,9 @@ class _Emitter:
         #: the branch-control peephole's switch (A100C_BRANCH_FUSE=off
         #: restores the bare-stub and separate-compare emission)
         self.branch_fuse = branch_fuse
+        #: the edge-reload deferral's switch (A100C_EDGE_RELOAD=off
+        #: restores the before-the-branch reload placement)
+        self.edge_reload_defer = edge_reload_defer
         self.repertoire = DEFAULT_REPERTOIRE
         self.lines: List[str] = []
         self.label_of = {b.name: f".L{b.name}" for fn in module.functions
@@ -700,7 +703,26 @@ class _Emitter:
                         mop = ops[i]
                         if mop.opcode != "brc" or not mop.operands:
                             continue
-                        prev = ops[i - 1]
+                        # walk back over the sreloads the OPT-EDGE-RELOAD
+                        # deferral will move into the edges (same
+                        # conditions; gated on the switch so a non-deferred
+                        # reload keeps the pair unfused, consistently with
+                        # the emission-time look-back)
+                        j = i - 1
+                        if self.edge_reload_defer:
+                            cond_rids = {o.rid for o in mop.operands}
+                            arg_rids = set()
+                            for key in ("true_args", "false_args"):
+                                arg_rids.update(a.rid for a in
+                                                mop.attrs.get(key, ()))
+                            while j >= 0 and ops[j].opcode == "sreload" \
+                                    and ops[j].results \
+                                    and ops[j].results[0].rid not in cond_rids \
+                                    and ops[j].results[0].rid in arg_rids:
+                                j -= 1
+                        if j < 0:
+                            continue
+                        prev = ops[j]
                         if (prev.opcode not in ("slt", "sltu")
                                 or not prev.results
                                 or len(prev.operands) < 2):
@@ -1344,10 +1366,20 @@ class _Emitter:
             # only on that edge (a shared move sequence before the branch
             # would let one edge's cycle-breaking clobber the other edge's
             # sources -- probe-found on the multi-program grid case).
+            # OPT-EDGE-RELOAD: the deferred tail reloads are emitted inside
+            # the edges whose args consume them (a value consumed by BOTH
+            # edges is reloaded on each path -- the load is idempotent).
+            deferred = getattr(self, "_edge_reloads", {})
             self.emit(f"bne {self.phys(op.operands[0])}, zero, {stub}", op)
+            for rid in [r for r in deferred
+                        if any(a.rid == r for a in false_args)]:
+                self._emit_sreload(deferred[rid])
             self.parallel_move(list(zip(self._params(ft), false_args)), op)
             self.emit(f"j {self.label_of[ft]}", op)
             self.emit(f"{stub}:", op)
+            for rid in [r for r in deferred
+                        if any(a.rid == r for a in true_args)]:
+                self._emit_sreload(deferred[rid])
             self.parallel_move(list(zip(self._params(tt), true_args)), op)
             self.emit(f"j {self.label_of[tt]}", op)
             return
@@ -1376,21 +1408,10 @@ class _Emitter:
                     self.emit(line, op)
             return
         if code == "sreload":
-            off = self.slot_offsets[op.attrs["slot"]]
-            if off <= 2047:
-                values = {"rd": self.phys(op.results[0]),
-                          "slot": str(off)}
-                self.emit(_fmt("ld {rd}, {slot}(sp)", values), op)
-            else:
-                scratch, epilogue = self._spill_addr_gpr(op)
-                if epilogue:
-                    self.emit(f"sd {scratch}, "
-                              f"{self._spill_addr_slot}(sp)", op)
-                self._sp_addr(off, scratch, op)
-                self.emit(f"ld {self.phys(op.results[0])}, "
-                          f"0({scratch})", op)
-                for line in epilogue:
-                    self.emit(line, op)
+            if op.results and op.results[0].rid in \
+                    getattr(self, "_edge_reloads", {}):
+                return          # deferred: emitted inside its consuming edge
+            self._emit_sreload(op)
             return
         if code == "sconst" and op.index not in self.selection:
             # allocator-inserted rematerialization (T029: never selected
@@ -1649,6 +1670,32 @@ class _Emitter:
                 self._vli_avl_val = None
                 self._vli_avl = None
                 self._vli_clobber = True
+            # OPT-EDGE-RELOAD: a scalar reload sitting in the block's tail
+            # whose fresh result feeds ONLY the terminator's edge args is
+            # deferred into the consuming edge's move sequence -- on a
+            # head-test loop it stops executing every iteration (the
+            # pid.reload case) and it no longer sits between a compare and
+            # its branch (unblocking the compare+branch fusion).  The
+            # reload reads only the spill slot and its result's live range
+            # only shrinks, so the relocation is safe in both directions.
+            self._edge_reloads: Dict[int, mir.MOp] = {}
+            if self.edge_reload_defer and b.ops:
+                term = b.terminator()
+                if term is not None and term.opcode == "brc" \
+                        and term.operands:
+                    cond_rids = {o.rid for o in term.operands}
+                    arg_rids = set()
+                    for key in ("true_args", "false_args"):
+                        arg_rids.update(a.rid for a in
+                                        term.attrs.get(key, ()))
+                    for i in range(len(b.ops) - 2, -1, -1):
+                        op = b.ops[i]
+                        if op.opcode != "sreload" or not op.results:
+                            break           # the contiguous reload tail
+                        rid = op.results[0].rid
+                        if rid in cond_rids or rid not in arg_rids:
+                            break
+                        self._edge_reloads[rid] = op
             # OPT-SCHED: list-schedule the block's ops (load hoisting)
             scheduled = self._schedule_block(b.ops)
             for op in scheduled:
@@ -1656,6 +1703,25 @@ class _Emitter:
             # save the end-of-block state for successors
             end_states[b.name] = (self._vli_cfg, self._vli_avl_val,
                                   self._vli_avl, self._vli_clobber)
+
+    def _emit_sreload(self, op: mir.MOp) -> None:
+        """Emit one scalar spill reload (the shared form of the inline arm
+        and the OPT-EDGE-RELOAD deferral)."""
+        off = self.slot_offsets[op.attrs["slot"]]
+        if off <= 2047:
+            values = {"rd": self.phys(op.results[0]),
+                      "slot": str(off)}
+            self.emit(_fmt("ld {rd}, {slot}(sp)", values), op)
+        else:
+            scratch, epilogue = self._spill_addr_gpr(op)
+            if epilogue:
+                self.emit(f"sd {scratch}, "
+                          f"{self._spill_addr_slot}(sp)", op)
+            self._sp_addr(off, scratch, op)
+            self.emit(f"ld {self.phys(op.results[0])}, "
+                      f"0({scratch})", op)
+            for line in epilogue:
+                self.emit(line, op)
 
     def emit_epilogue(self, op: mir.MOp) -> None:
         frame = self.frame_bytes()
@@ -1729,7 +1795,8 @@ def emit_assembly(module: mir.MModule, allocation: Allocation,
                   target: TargetModel, workspace: Tuple[int, int] = (0, 0),
                   selection: Optional[Dict[int, Selected]] = None,
                   header: Optional[List[str]] = None,
-                  branch_fuse: bool = True) -> EmittedProgram:
+                  branch_fuse: bool = True,
+                  edge_reload_defer: bool = True) -> EmittedProgram:
     """Emit the complete program-level assembly for one allocated module."""
     if selection is None:
         selection = select(module)
@@ -1737,7 +1804,8 @@ def emit_assembly(module: mir.MModule, allocation: Allocation,
         header = [f"# a100c emitted program: {module.name}",
                   f"# source: {module.source_path}"]
     emitter = _Emitter(module, selection, allocation, target, workspace,
-                       header, branch_fuse=branch_fuse)
+                       header, branch_fuse=branch_fuse,
+                       edge_reload_defer=edge_reload_defer)
     for fn in module.functions:
         emitter.emit_function(fn)
     return emitter.render()
