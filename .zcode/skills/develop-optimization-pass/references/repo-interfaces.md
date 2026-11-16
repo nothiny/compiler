@@ -94,8 +94,15 @@ refusals and the off-switch in one module.
 
 One directory per round under `docs/compiler-agent/optimizations/`:
 `RECORD.md` (goal/outcome, why, transformation & reuse contract — the seven
-fields, validation & measurements, practices, migration recipe),
-`evidence/<name>-metrics/`, `evidence/<name>-family-scan/`; update `INDEX.md`
-with one row linking transformation, IR/structure and outcome. Record format:
-the optimization-record guide in the optimization skill's references. Failed
+fields, validation & measurements, practices, migration recipe) is THE
+deliverable the human reads; update `INDEX.md` with one row linking
+transformation, IR/structure and outcome. Record format: the
+optimization-record guide in the optimization skill's references. Failed
 attempts keep their records; a later success links them, never overwrites.
+
+**Logs never enter git** (user directive 2026-11-16; `.gitignore` enforces
+`docs/compiler-agent/**/*.log`): the structured evidence files (metrics.json
+summaries, scan journals/reports) and the round's RECORD.md are the record —
+capture stdout is not. Redirect collection commands to `/tmp` or delete the
+`.log` files before committing; a round that left logs in the tree did the
+bookkeeping wrong.
