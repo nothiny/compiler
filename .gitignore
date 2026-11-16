@@ -15,3 +15,15 @@ core.[0-9]*
 # capture stdout never enters git: one REPORT per round is the record
 # (user directive 2026-11-16); write collection logs to /tmp or delete them
 docs/compiler-agent/**/*.log
+# raw counter dumps and staged objects are not evidence either -- the
+# metrics.json summary is; archives never enter git; the board pack's
+# binaries regenerate via stage_pack.py
+*.tar.gz
+docs/compiler-agent/**/counts.r*.json
+docs/compiler-agent/**/counts.r*.json.gz
+docs/compiler-agent/**/counts.json
+docs/compiler-agent/**/asm/
+board-perf-pack/bin/
+board-perf-pack/cases/
+board-perf-pack-22/bin/
+board-perf-pack-22/cases/

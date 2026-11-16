@@ -100,9 +100,13 @@ transformation, IR/structure and outcome. Record format: the
 optimization-record guide in the optimization skill's references. Failed
 attempts keep their records; a later success links them, never overwrites.
 
-**Logs never enter git** (user directive 2026-11-16; `.gitignore` enforces
-`docs/compiler-agent/**/*.log`): the structured evidence files (metrics.json
-summaries, scan journals/reports) and the round's RECORD.md are the record —
-capture stdout is not. Redirect collection commands to `/tmp` or delete the
-`.log` files before committing; a round that left logs in the tree did the
-bookkeeping wrong.
+**Logs, raw counter dumps, staged objects and archives never enter git**
+(user directives 2026-11-16; `.gitignore` enforces the classes; two history
+rewrites removed them retroactively — see
+`docs/compiler-agent/GIT_HISTORY_REWRITE-2.json` for the commit map): the
+round's RECORD.md plus the small structured summaries (metrics.json, scan
+journals/report.jsons) are the record. `collect_metrics.py` writes raw
+per-PC counter dumps (`counts.r*.json`) and a staged `asm/program.o` into
+its `--out` directory — delete them (or gzip-and-keep-outside-git) after
+reading; never `git add` them. A round that left any of these in the tree
+did the bookkeeping wrong.
